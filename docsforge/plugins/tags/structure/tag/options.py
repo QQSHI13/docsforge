@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from mkdocs.config.base import BaseConfigOption, ValidationError
+from docsforge.config.base import BaseConfigOption, ValidationError
 from typing import Set
 
 from . import Tag

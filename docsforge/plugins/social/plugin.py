@@ -41,13 +41,13 @@ from html import unescape
 from io import BytesIO
 from jinja2.sandbox import SandboxedEnvironment
 from jinja2.meta import find_undeclared_variables
-from mkdocs.config.base import Config
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs.plugins import BasePlugin, event_priority
-from mkdocs.structure.files import File, InclusionLevel
-from mkdocs.structure.pages import Page
-from mkdocs.utils import write_file
+from docsforge.config.base import Config
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge.plugins import BasePlugin, event_priority
+from docsforge.structure.files import File, InclusionLevel
+from docsforge.structure.pages import Page
+from docsforge.utils import write_file
 from statistics import stdev
 from threading import Lock
 from yaml import SafeLoader

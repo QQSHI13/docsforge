@@ -19,10 +19,10 @@ from urllib.parse import quote as urlquote
 from urllib.parse import urlsplit, urlunsplit
 
 import markdown
-import mkdocs.plugins
+import docsforge.plugins
 import pathspec.gitignore
 
-from docsforge import plugins, theme, utils
+from docsforge import plugins, utils
 from docsforge.config.base import (
     BaseConfigOption,
     Config,
@@ -780,7 +780,7 @@ class SiteDir(Dir):
             )
 
 
-class Theme(BaseConfigOption[theme.Theme]):
+class Theme(BaseConfigOption["theme.Theme"]):
     """
     Theme Config Option.
 
@@ -840,6 +840,7 @@ class Theme(BaseConfigOption[theme.Theme]):
         if 'locale' in theme_config and not isinstance(theme_config['locale'], str):
             raise ValidationError("'locale' must be a string.")
 
+        import docsforge.theme as theme
         return theme.Theme(**theme_config)
 
 

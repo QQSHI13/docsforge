@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import re
 
-from mkdocs.config.base import Config
-from mkdocs.config.config_options import (
+from docsforge.config.base import Config
+from docsforge.config.config_options import (
     Choice, DictOfItems, ListOfItems, SubConfig, Type
 )
 try:

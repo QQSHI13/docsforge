@@ -27,9 +27,9 @@ from collections.abc import Iterable
 from docsforge.plugins.tags.config import TagsConfig
 from docsforge.plugins.tags.structure.mapping import Mapping
 from docsforge.plugins.tags.structure.tag import Tag
-from mkdocs.config.base import ValidationError
-from mkdocs.structure.nav import Link
-from mkdocs.structure.pages import Page
+from docsforge.config.base import ValidationError
+from docsforge.structure.nav import Link
+from docsforge.structure.pages import Page
 
 # -----------------------------------------------------------------------------
 # Classes

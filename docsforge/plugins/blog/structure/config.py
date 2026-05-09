@@ -18,8 +18,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-from mkdocs.config.base import Config
-from mkdocs.config.config_options import Optional, Type
+from docsforge.config.base import Config
+from docsforge.config.config_options import Optional, Type
 
 from .options import PostDate, PostLinks, UniqueListOfItems
 

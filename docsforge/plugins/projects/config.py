@@ -21,8 +21,8 @@
 import os
 
 from collections.abc import Callable
-from mkdocs.config.config_options import Choice, Optional, Type
-from mkdocs.config.base import Config
+from docsforge.config.config_options import Choice, Optional, Type
+from docsforge.config.base import Config
 
 # -----------------------------------------------------------------------------
 # Options

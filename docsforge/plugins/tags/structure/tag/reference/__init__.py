@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from docsforge.plugins.tags.structure.tag import Tag
-from mkdocs.structure.nav import Link
+from docsforge.structure.nav import Link
 
 # -----------------------------------------------------------------------------
 # Classes

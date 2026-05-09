@@ -34,9 +34,9 @@ from colorama import Fore, Style
 from importlib.metadata import distributions, version
 from io import BytesIO
 from markdown.extensions.toc import slugify
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.plugins import BasePlugin, event_priority
-from mkdocs.utils.yaml import get_yaml_loader
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.plugins import BasePlugin, event_priority
+from docsforge.utils.yaml import get_yaml_loader
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .config import InfoConfig

@@ -21,6 +21,6 @@
 from __future__ import annotations
 
 from docsforge.plugins.group.config import GroupConfig
-from mkdocs.theme import Theme
+from docsforge._vendor.mkdocs.theme import Theme
 
 __all__ = ["GroupConfig", "Theme"]

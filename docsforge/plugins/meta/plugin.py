@@ -23,9 +23,9 @@ import os
 import posixpath
 
 from mergedeep import Strategy, merge
-from mkdocs.exceptions import PluginError
-from mkdocs.structure.files import InclusionLevel
-from mkdocs.plugins import BasePlugin, event_priority
+from docsforge.exceptions import PluginError
+from docsforge.structure.files import InclusionLevel
+from docsforge.plugins import BasePlugin, event_priority
 from yaml import SafeLoader, load
 
 from .config import MetaConfig

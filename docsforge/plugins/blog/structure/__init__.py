@@ -28,13 +28,13 @@ from copy import copy
 from markdown import Markdown
 from docsforge.plugins.blog.author import Author
 from docsforge.plugins.meta.plugin import MetaPlugin
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs.structure.files import File, Files
-from mkdocs.structure.nav import Link, Section
-from mkdocs.structure.pages import Page, _RelativePathTreeprocessor
-from mkdocs.structure.toc import get_toc
-from mkdocs.utils.meta import YAML_RE
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge.structure.files import File, Files
+from docsforge.structure.nav import Link, Section
+from docsforge.structure.pages import Page, _RelativePathTreeprocessor
+from docsforge.structure.toc import get_toc
+from docsforge.utils.meta import YAML_RE
 from re import Match
 from yaml import SafeLoader
 

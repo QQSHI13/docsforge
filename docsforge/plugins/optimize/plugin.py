@@ -32,11 +32,11 @@ from colorama import Fore, Style
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from hashlib import sha1
-from mkdocs import utils
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs.plugins import BasePlugin
-from mkdocs.structure.files import File
+from docsforge._vendor.mkdocs import utils
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge.plugins import BasePlugin
+from docsforge.structure.files import File
 from shutil import which
 try:
     from PIL import Image

@@ -26,14 +26,14 @@ import posixpath
 
 from jinja2 import pass_context
 from jinja2.runtime import Context
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs import utils
-from mkdocs.plugins import BasePlugin, event_priority
-from mkdocs.structure import StructureItem
-from mkdocs.structure.files import Files
-from mkdocs.structure.nav import Link, Section
-from mkdocs.utils import get_theme_dir
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge._vendor.mkdocs import utils
+from docsforge.plugins import BasePlugin, event_priority
+from docsforge.structure import StructureItem
+from docsforge.structure.files import Files
+from docsforge.structure.nav import Link, Section
+from docsforge.utils import get_theme_dir
 from urllib.parse import ParseResult as URL, urlparse
 
 from .builder import ProjectsBuilder

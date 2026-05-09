@@ -24,7 +24,7 @@ import os
 
 from collections.abc import Callable
 from docsforge.plugins.projects.structure import Project
-from mkdocs.livereload import LiveReloadServer
+from docsforge.livereload import LiveReloadServer
 
 from .handler import ProjectChanged, ProjectAddedOrRemoved
 

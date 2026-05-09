@@ -21,8 +21,8 @@
 import yaml
 
 from docsforge.plugins.tags.structure.tag.options import TagSet
-from mkdocs.config.base import Config
-from mkdocs.config.config_options import Optional, Type
+from docsforge.config.base import Config
+from docsforge.config.config_options import Optional, Type
 from yaml import Dumper
 
 # -----------------------------------------------------------------------------

@@ -23,9 +23,9 @@ from __future__ import annotations
 import posixpath
 import re
 
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.structure.files import File, Files
-from mkdocs.structure.pages import Page
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.structure.files import File, Files
+from docsforge.structure.pages import Page
 from re import Match
 
 # -----------------------------------------------------------------------------

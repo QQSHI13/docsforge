@@ -20,7 +20,7 @@
 
 import re
 
-from mkdocs.plugins import BasePlugin
+from docsforge.plugins import BasePlugin
 
 from .config import TypesetConfig
 

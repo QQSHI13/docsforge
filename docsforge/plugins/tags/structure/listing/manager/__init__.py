@@ -34,9 +34,9 @@ from docsforge.plugins.tags.structure.listing.tree import ListingTree
 from docsforge.plugins.tags.structure.mapping import Mapping
 from docsforge.plugins.tags.structure.tag import Tag
 from docsforge.plugins.tags.structure.tag.reference import TagReference
-from mkdocs.exceptions import PluginError
-from mkdocs.structure.pages import Page
-from mkdocs.structure.nav import Link
+from docsforge.exceptions import PluginError
+from docsforge.structure.pages import Page
+from docsforge.structure.nav import Link
 from re import Match
 from urllib.parse import urlparse
 

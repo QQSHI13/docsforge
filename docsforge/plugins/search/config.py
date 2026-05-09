@@ -18,15 +18,15 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-from mkdocs.config.config_options import (
+from docsforge.config.config_options import (
     Choice,
     Deprecated,
     Optional,
     ListOfItems,
     Type
 )
-from mkdocs.config.base import Config
-from mkdocs.contrib.search import LangOption
+from docsforge.config.base import Config
+from docsforge.contrib.search import LangOption
 
 # -----------------------------------------------------------------------------
 # Options

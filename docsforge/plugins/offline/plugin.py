@@ -20,7 +20,7 @@
 
 import os
 
-from mkdocs.plugins import BasePlugin, event_priority
+from docsforge.plugins import BasePlugin, event_priority
 
 from .config import OfflineConfig
 

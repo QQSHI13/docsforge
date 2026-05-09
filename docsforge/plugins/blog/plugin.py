@@ -30,15 +30,15 @@ from copy import copy
 from datetime import datetime, timezone
 from jinja2 import pass_context
 from jinja2.runtime import Context
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs.plugins import BasePlugin, event_priority
-from mkdocs.structure import StructureItem
-from mkdocs.structure.files import File, Files, InclusionLevel
-from mkdocs.structure.nav import Link, Navigation, Section
-from mkdocs.structure.pages import Page
-from mkdocs.structure.toc import AnchorLink, TableOfContents
-from mkdocs.utils import copy_file, get_relative_url
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge.plugins import BasePlugin, event_priority
+from docsforge.structure import StructureItem
+from docsforge.structure.files import File, Files, InclusionLevel
+from docsforge.structure.nav import Link, Navigation, Section
+from docsforge.structure.pages import Page
+from docsforge.structure.toc import AnchorLink, TableOfContents
+from docsforge.utils import copy_file, get_relative_url
 from paginate import Page as Pagination
 from shutil import rmtree
 from tempfile import mkdtemp

@@ -23,10 +23,10 @@ from __future__ import annotations
 import logging
 
 from docsforge.utilities.filter import FileFilter, FilterConfig
-from mkdocs.structure.pages import _RelativePathTreeprocessor
+from docsforge.structure.pages import _RelativePathTreeprocessor
 from markdown import Extension, Markdown
 from markdown.treeprocessors import Treeprocessor
-from mkdocs.exceptions import ConfigurationError
+from docsforge.exceptions import ConfigurationError
 from urllib.parse import urlparse
 from xml.etree.ElementTree import Element
 

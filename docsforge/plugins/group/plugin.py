@@ -23,10 +23,10 @@ from __future__ import annotations
 import logging
 
 from collections.abc import Callable
-from mkdocs.config.config_options import Plugins
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs.plugins import BasePlugin, event_priority
+from docsforge.config.config_options import Plugins
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge.plugins import BasePlugin, event_priority
 
 from .config import GroupConfig
 

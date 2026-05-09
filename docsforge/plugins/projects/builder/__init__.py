@@ -31,11 +31,11 @@ from concurrent.futures.process import ProcessPoolExecutor
 from logging import Logger
 from docsforge.plugins.projects.config import ProjectsConfig
 from docsforge.plugins.projects.structure import Project, ProjectJob
-from mkdocs.commands.build import build
-from mkdocs.config.base import ConfigErrors, ConfigWarnings
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import Abort
-from mkdocs.livereload import LiveReloadServer
+from docsforge.commands.build import build
+from docsforge.config.base import ConfigErrors, ConfigWarnings
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import Abort
+from docsforge.livereload import LiveReloadServer
 from urllib.parse import urlparse
 
 from .log import (

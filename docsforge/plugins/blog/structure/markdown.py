@@ -21,8 +21,8 @@
 from __future__ import annotations
 
 from markdown.treeprocessors import Treeprocessor
-from mkdocs.structure.pages import Page
-from mkdocs.utils import get_relative_url
+from docsforge.structure.pages import Page
+from docsforge.utils import get_relative_url
 from xml.etree.ElementTree import Element
 
 # -----------------------------------------------------------------------------

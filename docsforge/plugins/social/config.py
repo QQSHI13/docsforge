@@ -20,9 +20,9 @@
 
 import os
 
-from mkdocs.config.base import Config
-from mkdocs.config.config_options import Deprecated, ListOfItems, Type
-from mkdocs.config.defaults import _LogLevel
+from docsforge.config.base import Config
+from docsforge.config.config_options import Deprecated, ListOfItems, Type
+from docsforge.config.defaults import _LogLevel
 
 # -----------------------------------------------------------------------------
 # Classes

@@ -27,9 +27,9 @@ import re
 from copy import deepcopy
 from glob import iglob
 from docsforge.plugins.projects.config import ProjectsConfig
-from mkdocs.structure.nav import Link
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.config.config_options import Plugins
+from docsforge.structure.nav import Link
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.config.config_options import Plugins
 from urllib.parse import urlparse
 
 # -----------------------------------------------------------------------------

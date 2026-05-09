@@ -23,9 +23,9 @@ from __future__ import annotations
 import posixpath
 
 from jinja2 import Environment
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.structure.pages import Page
-from mkdocs.utils import get_relative_url
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.structure.pages import Page
+from docsforge.utils import get_relative_url
 
 # -----------------------------------------------------------------------------
 # Classes

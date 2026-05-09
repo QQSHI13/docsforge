@@ -6,3 +6,6 @@ theme and plugins into a single, cohesive package.
 
 __version__ = "9.7.6"
 __prog_name__ = "docsforge"
+
+# Install vendor compatibility shims
+import docsforge._vendor_shims

@@ -22,8 +22,8 @@ import os
 import re
 
 from glob import iglob
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.structure.pages import Page
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.structure.pages import Page
 from urllib.parse import urlencode, urlparse
 
 # -----------------------------------------------------------------------------

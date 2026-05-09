@@ -33,12 +33,12 @@ from concurrent.futures import Future, wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from fnmatch import fnmatch
 from hashlib import sha1
-from mkdocs.config.config_options import ExtraScriptValue
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs.plugins import BasePlugin, event_priority
-from mkdocs.structure.files import File, Files
-from mkdocs.utils import is_error_template
+from docsforge.config.config_options import ExtraScriptValue
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge.plugins import BasePlugin, event_priority
+from docsforge.structure.files import File, Files
+from docsforge.utils import is_error_template
 from re import Match
 from urllib.parse import ParseResult as URL, urlparse, unquote
 from xml.etree.ElementTree import Element, tostring

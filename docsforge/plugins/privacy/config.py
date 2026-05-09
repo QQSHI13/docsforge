@@ -20,8 +20,8 @@
 
 import os
 
-from mkdocs.config.base import Config
-from mkdocs.config.config_options import (
+from docsforge.config.base import Config
+from docsforge.config.config_options import (
   Choice, Deprecated, DictOfItems, ListOfItems, Type
 )
 

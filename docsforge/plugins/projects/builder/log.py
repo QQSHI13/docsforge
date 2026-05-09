@@ -25,7 +25,7 @@ import logging
 from click import style
 from logging import Filter
 from docsforge.plugins.projects.structure import Project
-from mkdocs.__main__ import ColorFormatter
+from docsforge.__main__ import ColorFormatter
 
 # -----------------------------------------------------------------------------
 # Classes

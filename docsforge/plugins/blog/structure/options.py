@@ -19,10 +19,10 @@
 # IN THE SOFTWARE.
 
 from datetime import date, datetime, time, timezone
-from mkdocs.config.base import BaseConfigOption, Config, ValidationError
-from mkdocs.config.config_options import ListOfItems, T
-from mkdocs.structure.files import Files
-from mkdocs.structure.nav import (
+from docsforge.config.base import BaseConfigOption, Config, ValidationError
+from docsforge.config.config_options import ListOfItems, T
+from docsforge.structure.files import Files
+from docsforge.structure.nav import (
     Navigation, _add_parent_links, _data_to_navigation
 )
 from typing import Dict

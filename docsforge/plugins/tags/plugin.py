@@ -26,11 +26,11 @@ import re
 
 from jinja2 import Environment
 from docsforge.utilities.filter import FileFilter
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.exceptions import PluginError
-from mkdocs.plugins import BasePlugin, event_priority
-from mkdocs.structure.pages import Page
-from mkdocs.utils.templates import TemplateContext
+from docsforge.config.defaults import MkDocsConfig
+from docsforge.exceptions import PluginError
+from docsforge.plugins import BasePlugin, event_priority
+from docsforge.structure.pages import Page
+from docsforge.utils.templates import TemplateContext
 
 from .config import TagsConfig
 from .renderer import Renderer

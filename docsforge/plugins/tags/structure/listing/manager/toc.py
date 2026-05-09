@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from docsforge.plugins.tags.structure.listing import Listing
 from docsforge.plugins.tags.structure.tag import Tag
-from mkdocs.structure.pages import Page
-from mkdocs.structure.toc import AnchorLink
+from docsforge.structure.pages import Page
+from docsforge.structure.toc import AnchorLink
 from typing import Callable
 
 # -----------------------------------------------------------------------------

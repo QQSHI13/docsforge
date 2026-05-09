@@ -20,10 +20,10 @@
 
 from collections.abc import Callable
 from docsforge.utilities.filter import FilterConfig
-from mkdocs.config.config_options import (
+from docsforge.config.config_options import (
     DictOfItems, Deprecated, ListOfItems, SubConfig, Type
 )
-from mkdocs.config.base import Config
+from docsforge.config.base import Config
 from pymdownx.slugs import slugify
 
 from . import item_title, tag_name

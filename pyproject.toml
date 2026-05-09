@@ -4,12 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "docsforge"
-description = "Unified documentation engine with Material theme."
+description = "Self-contained unified documentation engine with Material theme."
 readme = "README.md"
 license = "GPL-3.0-or-later"
-authors = [
-    {name = "DocsForge Contributors"},
-]
+authors = [{name = "DocsForge Contributors"}]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -35,18 +33,20 @@ dependencies = [
     "PyYAML >=5.1",
     "watchdog >=2.0",
     "ghp-import >=1.0",
+    "mergedeep >=1.3.4",
     "pyyaml_env_tag >=0.1",
     "packaging >=20.5",
     "pathspec >=0.11.1",
     "platformdirs >=2.2.0",
-    "colorama >=0.4; platform_system == 'Windows'",
+    "colorama >=0.4",
     "pymdown-extensions >=10.0",
-    "mkdocs-minify-plugin >=0.7",
-    "mkdocs-redirects >=1.2",
+    "backrefs >=5.0",
+    "paginate >=0.5",
+    "requests >=2.27",
+    "babel >=2.9.0",
 ]
 
 [project.optional-dependencies]
-i18n = ["babel >=2.9.0"]
 imaging = ["pillow>=10.2", "cairosvg>=2.6"]
 
 [project.urls]
@@ -57,7 +57,8 @@ Issues = "https://github.com/docsforge/docsforge/issues"
 [project.scripts]
 docsforge = "docsforge.__main__:cli"
 
-[project.entry-points."docsforge.plugins"]
+# All entrypoints point to docsforge internals
+[project.entry-points."mkdocs.plugins"]
 "material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
 "material/group" = "docsforge.plugins.group.plugin:GroupPlugin"
 "material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
@@ -71,11 +72,21 @@ docsforge = "docsforge.__main__:cli"
 "material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
 "material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
 
-[project.entry-points."docsforge.themes"]
-material = "docsforge.themes.material.templates"
+[project.entry-points."properdocs.plugins"]
+"material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
+"material/group" = "docsforge.plugins.group.plugin:GroupPlugin"
+"material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
+"material/meta" = "docsforge.plugins.meta.plugin:MetaPlugin"
+"material/offline" = "docsforge.plugins.offline.plugin:OfflinePlugin"
+"material/optimize" = "docsforge.plugins.optimize.plugin:OptimizePlugin"
+"material/privacy" = "docsforge.plugins.privacy.plugin:PrivacyPlugin"
+"material/projects" = "docsforge.plugins.projects.plugin:ProjectsPlugin"
+"material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
+"material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
+"material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
+"material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
 
-# Keep backward-compatible entrypoints for MkDocs/ProperDocs plugins
-[project.entry-points."mkdocs.plugins"]
+[project.entry-points."docsforge.plugins"]
 "material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
 "material/group" = "docsforge.plugins.group.plugin:GroupPlugin"
 "material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
@@ -92,21 +103,10 @@ material = "docsforge.themes.material.templates"
 [project.entry-points."mkdocs.themes"]
 material = "docsforge.themes.material.templates"
 
-[project.entry-points."properdocs.plugins"]
-"material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
-"material/group" = "docsforge.plugins.group.plugin:GroupPlugin"
-"material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
-"material/meta" = "docsforge.plugins.meta.plugin:MetaPlugin"
-"material/offline" = "docsforge.plugins.offline.plugin:OfflinePlugin"
-"material/optimize" = "docsforge.plugins.optimize.plugin:OptimizePlugin"
-"material/privacy" = "docsforge.plugins.privacy.plugin:PrivacyPlugin"
-"material/projects" = "docsforge.plugins.projects.plugin:ProjectsPlugin"
-"material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
-"material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
-"material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
-"material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
-
 [project.entry-points."properdocs.themes"]
+material = "docsforge.themes.material.templates"
+
+[project.entry-points."docsforge.themes"]
 material = "docsforge.themes.material.templates"
 
 [tool.hatch.version]

@@ -26,9 +26,9 @@ from backrefs import bre
 
 from html import escape
 from html.parser import HTMLParser
-from mkdocs import utils
-from mkdocs.config.config_options import SubConfig
-from mkdocs.plugins import BasePlugin
+from docsforge._vendor.mkdocs import utils
+from docsforge.config.config_options import SubConfig
+from docsforge.plugins import BasePlugin
 
 from .config import SearchConfig, SearchFieldConfig
 
