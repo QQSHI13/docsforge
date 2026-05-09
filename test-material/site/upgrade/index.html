@@ -1,0 +1,5461 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Write your documentation in Markdown and create a professional static site in minutes – searchable, customizable, in 60+ languages, for all devices">
+      
+      
+        <meta name="author" content="Martin Donath">
+      
+      
+        <link rel="canonical" href="https://squidfunk.github.io/mkdocs-material/upgrade/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/favicon.png">
+      <meta name="generator" content="mkdocs-ProperDocs 9.7.6, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>How to upgrade - Material for MkDocs (DocsForge Test)</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#how-to-upgrade" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Material for MkDocs (DocsForge Test)" class="md-header__button md-logo" aria-label="Material for MkDocs (DocsForge Test)" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 89 89">
+  <path d="M3.136,17.387l0,42.932l42.932,21.467l-42.932,-64.399Z" />
+  <path d="M21.91,8l42.933,64.398l-18.775,9.388l-42.932,-64.399l18.774,-9.387Z" style="fill-opacity: 0.5" />
+  <path d="M67.535,17.387l-27.262,18.156l21.878,32.818l5.384,2.691l0,-53.665Z" />
+  <path d="M67.535,17.387l0,53.666l18.774,-9.388l0,-53.665l-18.774,9.387Z" style="fill-opacity: 0.25" />
+</svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Material for MkDocs (DocsForge Test)
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              How to upgrade
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5 5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5M7 15a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/squidfunk/mkdocs-material" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    squidfunk/mkdocs-material
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../setup/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Setup
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../plugins/blog/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Plugins
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../extensions/python-markdown.md" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Extensions
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../blog/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Blog
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../insiders/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Insiders
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../changelog/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Changelog
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Material for MkDocs (DocsForge Test)" class="md-nav__button md-logo" aria-label="Material for MkDocs (DocsForge Test)" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 89 89">
+  <path d="M3.136,17.387l0,42.932l42.932,21.467l-42.932,-64.399Z" />
+  <path d="M21.91,8l42.933,64.398l-18.775,9.388l-42.932,-64.399l18.774,-9.387Z" style="fill-opacity: 0.5" />
+  <path d="M67.535,17.387l-27.262,18.156l21.878,32.818l5.384,2.691l0,-53.665Z" />
+  <path d="M67.535,17.387l0,53.666l18.774,-9.388l0,-53.665l-18.774,9.387Z" style="fill-opacity: 0.25" />
+</svg>
+
+    </a>
+    Material for MkDocs (DocsForge Test)
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/squidfunk/mkdocs-material" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    squidfunk/mkdocs-material
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../creating-your-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating your site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../publishing-your-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Publishing your site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../customization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../browser-support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Browser support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../alternatives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Alternatives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../setup/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/changing-the-colors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changing the colors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/changing-the-fonts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changing the fonts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/changing-the-language/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changing the language
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/changing-the-logo-and-icons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changing the logo and icons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/ensuring-data-privacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ensuring data privacy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-navigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up navigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-site-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up site search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-site-analytics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up site analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-social-cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up social cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-a-blog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up a blog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-tags/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up tags
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-versioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up versioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-the-header/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up the header
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/setting-up-the-footer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setting up the footer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/adding-a-git-repository/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a git repository
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/adding-a-comment-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding a comment system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/building-an-optimized-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building an optimized site
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/building-for-offline-usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building for offline usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/admonitions/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2 1 21h22M12 6l7.53 13H4.47M11 10v4h2v-4m-2 6v2h2v-2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Admonitions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/annotations/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 13h-4v4h-2v-4H7v-2h4V7h2v4h4m-5-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/buttons/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.1 15.3c-.1.1-.3.2-.4.3l-2.4.4 1.7 3.6c.2.4 0 .8-.4 1l-2.8 1.3c-.1.1-.2.1-.3.1-.3 0-.6-.2-.7-.4L11.2 18l-1.9 1.5c-.1.1-.3.2-.5.2-.4 0-.8-.3-.8-.8V7.5c0-.5.3-.8.8-.8.2 0 .4.1.5.2l8.7 7.4c.3.2.4.7.1 1M6 12H4V4h16v8h-1.6l2.2 1.9c.8-.3 1.3-1 1.3-1.9V4c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h2z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Buttons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/code-blocks/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 3h2v2H5v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5h2v2H5c-1.07-.27-2-.9-2-2v-4a2 2 0 0 0-2-2H0v-2h1a2 2 0 0 0 2-2V5a2 2 0 0 1 2-2m14 0a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1v2h-1a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2v-2h2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5h-2V3zm-7 12a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1m-4 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1m8 0a1 1 0 0 1 1 1 1 1 0 0 1-1 1 1 1 0 0 1-1-1 1 1 0 0 1 1-1"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Code blocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/content-tabs/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 16H3V5h10v4h8z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Content tabs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/data-tables/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.7 13.35-1 1-2.05-2.05 1-1c.21-.22.56-.22.77 0l1.28 1.28c.22.21.22.56 0 .77M12 18.94l6.07-6.06 2.05 2.05L14.06 21H12zM4 2h14a2 2 0 0 1 2 2v4.17L16.17 12H12v4.17L10.17 18H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m0 4v4h6V6zm8 0v4h6V6zm-8 6v4h6v-4z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Data tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/diagrams/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.5 17c-.14 0-.26 0-.39.04L17.5 13.8c.45-.45.75-1.09.75-1.8a2.5 2.5 0 0 0-2.5-2.5c-.14 0-.25 0-.4.04L13.74 6.3c.47-.46.76-1.09.76-1.8a2.5 2.5 0 0 0-5 0c0 .7.29 1.34.76 1.79L8.65 9.54c-.15-.04-.26-.04-.4-.04a2.5 2.5 0 0 0-2.5 2.5c0 .71.29 1.34.75 1.79l-1.61 3.25C4.76 17 4.64 17 4.5 17a2.5 2.5 0 0 0 0 5A2.5 2.5 0 0 0 7 19.5c0-.7-.29-1.34-.76-1.79l1.62-3.25c.14.04.26.04.39.04s.25 0 .38-.04l1.63 3.25c-.47.45-.76 1.09-.76 1.79a2.5 2.5 0 0 0 5 0A2.5 2.5 0 0 0 12 17c-.13 0-.26 0-.39.04L10 13.8c.45-.45.75-1.09.75-1.8 0-.7-.29-1.33-.75-1.79l1.61-3.25c.13.04.26.04.39.04s.26 0 .39-.04L14 10.21a2.5 2.5 0 0 0 1.75 4.29c.13 0 .25 0 .38-.04l1.63 3.25c-.47.45-.76 1.09-.76 1.79a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0-2.5-2.5m-15 3.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m8.5-1c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1M7.25 12c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1M11 4.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1m3.75 7.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1m4.75 8.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/footnotes/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m13 9 2.5-2.5 1.42 1.42L12 12.84 7.08 7.92 8.5 6.5 11 9V3h2zM3 15h18v2H3zm0 4h10v2H3z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Footnotes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/formatting/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 8h3v12h1v1h-4v-1h1v-3h-4l-1.5 3H14v1h-4v-1h1zm1 1-3.5 7H18zM5 3h5c1.11 0 2 .89 2 2v11H9v-5H6v5H3V5c0-1.11.89-2 2-2m1 2v4h3V5z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Formatting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/grids/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 3v8h8V3zM3 21h8v-8H3zM3 3v8h8V3zm10 13h3v-3h2v3h3v2h-3v3h-2v-3h-3z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Grids
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/icons-emojis/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 0-8-8 8 8 0 0 0-8 8 8 8 0 0 0 8 8 8 8 0 0 0 8-8m2 0a10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2a10 10 0 0 1 10 10M10 9.5c0 .8-.7 1.5-1.5 1.5S7 10.3 7 9.5 7.7 8 8.5 8s1.5.7 1.5 1.5m7 0c0 .8-.7 1.5-1.5 1.5S14 10.3 14 9.5 14.7 8 15.5 8s1.5.7 1.5 1.5m-5 7.73c-1.75 0-3.29-.73-4.19-1.81L9.23 14c.45.72 1.52 1.23 2.77 1.23s2.32-.51 2.77-1.23l1.42 1.42c-.9 1.08-2.44 1.81-4.19 1.81"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Icons, Emojis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/images/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 14.29 6.5 19h10.96l-2.71-3.54-1.97 2.34zM5 21V7h13.96v14zm7-18.6 2.61 2.63H9.37zM5 5.03c-.5 0-1 .19-1.39.58C3.2 6 3 6.46 3 7v14c0 .5.2 1 .61 1.39C4 22.8 4.5 23 5 23h13.96c.54 0 1-.2 1.41-.61.4-.39.63-.89.63-1.39V7c0-.54-.23-1-.63-1.39-.41-.39-.87-.58-1.41-.58H16L12 1 7.96 5.03z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Images
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/lists/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7 5h14v2H7zm0 8v-2h14v2zM4 4.5A1.5 1.5 0 0 1 5.5 6 1.5 1.5 0 0 1 4 7.5 1.5 1.5 0 0 1 2.5 6 1.5 1.5 0 0 1 4 4.5m0 6A1.5 1.5 0 0 1 5.5 12 1.5 1.5 0 0 1 4 13.5 1.5 1.5 0 0 1 2.5 12 1.5 1.5 0 0 1 4 10.5M7 19v-2h14v2zm-3-2.5A1.5 1.5 0 0 1 5.5 18 1.5 1.5 0 0 1 4 19.5 1.5 1.5 0 0 1 2.5 18 1.5 1.5 0 0 1 4 16.5"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/math/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 6c-1.64 0-3 1.36-3 3v12h2V9c0-.57.43-1 1-1h1c.57 0 1 .43 1 1v1c0 .57-.43 1-1 1h-1v2h1c.57 0 1 .43 1 1v1c0 .57-.43 1-1 1h-1v2h1c1.65 0 3-1.35 3-3v-1c0-.82-.41-1.54-1-2 .59-.46 1-1.18 1-2V9c0-1.64-1.35-3-3-3M7 9c-1.64 0-3 1.36-3 3v3c0 1.65 1.36 3 3 3h.7c.5 0 .95-.19 1.3-.5v.5h2V9H9v.5c-.35-.31-.8-.5-1.3-.5M7 11h1c.57 0 1 .43 1 1v3c0 .57-.43 1-1 1H7c-.57 0-1-.43-1-1v-3c0-.57.43-1 1-1"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Math
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/tooltips/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4l-4 4-4-4H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m7 4v3H8v2h3v3h2v-3h3V9h-3V6z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Tooltips
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugins
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Plugins
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/blog/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 5v14H4V5zm0-2H4c-1.11 0-2 .89-2 2v14c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2m-2 12H6v2h12zm-8-8H6v6h4zm2 2h6V7h-6zm6 2h-6v2h6z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in blog plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/group/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 5v14h2v2H3V3h4v2zm15 2H7v2h13zm0 4H7v2h13zm0 4H7v2h13z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in group plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/info/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 9h-2V7h2m0 10h-2v-6h2m-1-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in info plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/meta/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 3h6v4H3zm12 7h6v4h-6zm0 7h6v4h-6zm-2-4H7v5h6v2H5V9h2v2h6z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in meta plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/offline/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.4 7.5c.8.8.8 2.1 0 2.8l-2.8 2.8-7.8-7.8 2.8-2.8c.8-.8 2.1-.8 2.8 0l1.8 1.8 3-3 1.4 1.4-3 3zm-5.8 5.8-1.4-1.4-2.8 2.8-2.1-2.1 2.8-2.8-1.4-1.4-2.8 2.8-1.5-1.4-2.8 2.8c-.8.8-.8 2.1 0 2.8l1.8 1.8-4 4 1.4 1.4 4-4 1.8 1.8c.8.8 2.1.8 2.8 0l2.8-2.8-1.4-1.4z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in offline plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/optimize/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m18.05 21-2.73-4.74c0-1.73-1.07-2.84-2.37-2.84-.9 0-1.68.5-2.08 1.24.33-.19.72-.29 1.13-.29 1.3 0 2.36 1.06 2.36 2.36 0 1.31-1.05 2.38-2.36 2.38h3.3V21H6.79c-.24 0-.49-.09-.67-.28a.95.95 0 0 1 0-1.34l.5-.5c-.34-.15-.62-.38-.9-.62-.22.5-.72.85-1.3.85a1.425 1.425 0 0 1 0-2.85l.47.08v-1.97a4.73 4.73 0 0 1 4.74-4.74h.02c2.12.01 3.77.84 3.77-.47 0-.93.2-1.3.54-1.82-.73-.34-1.56-.55-2.43-.55-.53 0-.95-.42-.95-.95 0-.43.28-.79.67-.91l-.67-.04c-.52 0-.95-.42-.95-.94 0-.53.43-.95.95-.95h.95c2.1 0 3.94 1.15 4.93 2.85l.28-.01c.71 0 1.37.23 1.91.61l.45.38c2.17 1.95 1.9 3.27 1.9 3.28 0 1.28-1.06 2.33-2.35 2.33l-.49-.05v.08c0 1.11-.48 2.1-1.23 2.8L20.24 21zm.11-13.26c-.53 0-.95.42-.95.94 0 .53.42.95.95.95.52 0 .95-.42.95-.95 0-.52-.43-.94-.95-.94"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in optimize plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/privacy/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5zm0 4a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3m5.13 12A9.7 9.7 0 0 1 12 20.92 9.7 9.7 0 0 1 6.87 17c-.34-.5-.63-1-.87-1.53 0-1.65 2.71-3 6-3s6 1.32 6 3c-.24.53-.53 1.03-.87 1.53"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in privacy plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/projects/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 20H4a2 2 0 0 1-2-2V6c0-1.11.89-2 2-2h6l2 2h7a2 2 0 0 1 2 2H4v10l2.14-8h17.07l-2.28 8.5c-.23.87-1.01 1.5-1.93 1.5"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in projects plugin
+  
+
+    
+  </span>
+  
+  
+    
+  
+  
+    <span class="md-status md-status--deprecated"></span>
+  
+
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/search/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in search plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/social/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2m2 14v-3c-3.61 0-6.19 1.43-8 4 .72-3.67 2.94-7.27 8-8V6l5 5z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in social plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/tags/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.41 11.58-9-9A2 2 0 0 0 11 2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 .59 1.41l9 9A2 2 0 0 0 13 22a2 2 0 0 0 1.41-.59l7-7A2 2 0 0 0 22 13a2 2 0 0 0-.59-1.42M6.5 8A1.5 1.5 0 1 1 8 6.5 1.5 1.5 0 0 1 6.5 8m5.09 7.41-4-4L9 10l4 4m2.59.41-5.5-5.5L11.5 7.5 17 13Z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in tags plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/typeset/" class="md-nav__link">
+        
+  
+  
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in typeset plugin
+  
+
+    
+  </span>
+  
+  
+    
+  
+  
+    <span class="md-status md-status--deprecated"></span>
+  
+
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extensions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Extensions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../extensions/python-markdown.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../extensions/python-markdown-extensions.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../blog/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blog
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Blog
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/2026/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/2025/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/2024/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/2023/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/2022/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/2021/index.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/archive.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../insiders/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Insiders
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Insiders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../insiders/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started with Insiders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../insiders/changelog.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    None
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../changelog/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Changelog
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#upgrading-from-8x-to-9x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading from 8.x to 9.x
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Upgrading from 8.x to 9.x">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-mkdocsyml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to mkdocs.yml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changes to mkdocs.yml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#contentcodecopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        content.code.copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contentaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        content.action.*
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#navigationfooter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        navigation.footer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#themelanguage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        theme.language
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#feedbackratings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feedback.ratings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-html-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to *.html files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrading-from-7x-to-8x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading from 7.x to 8.x
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Upgrading from 7.x to 8.x">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-new" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-mkdocsyml_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to mkdocs.yml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changes to mkdocs.yml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pymdownxtabbed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pymdownx.tabbed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pymdownxsuperfences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pymdownx.superfences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#google_analytics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        google_analytics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-html-files_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to *.html files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrading-from-6x-to-7x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading from 6.x to 7.x
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Upgrading from 6.x to 7.x">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-new_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-mkdocsyml_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to mkdocs.yml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changes to mkdocs.yml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#extraversionmethod" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extra.version.method
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-html-files_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to *.html files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrading-from-5x-to-6x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading from 5.x to 6.x
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Upgrading from 5.x to 6.x">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-new_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-mkdocsyml_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to mkdocs.yml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changes to mkdocs.yml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#themefeatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        theme.features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-html-files_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to *.html files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrading-from-4x-to-5x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading from 4.x to 5.x
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Upgrading from 4.x to 5.x">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-new_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-mkdocsyml_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to mkdocs.yml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changes to mkdocs.yml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#themefeature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        theme.feature
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#themelogoicon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        theme.logo.icon
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extrarepo_icon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extra.repo_icon
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extrasearch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extra.search.*
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extrasocial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        extra.social.*
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-html-files_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to *.html files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrading-from-3x-to-4x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading from 3.x to 4.x
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Upgrading from 3.x to 4.x">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#whats-new_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-mkdocsyml_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to mkdocs.yml
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changes-to-html-files_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changes to *.html files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/squidfunk/mkdocs-material/edit/master/docs/upgrade.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/squidfunk/mkdocs-material/raw/master/docs/upgrade.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
+    </a>
+  
+
+
+<h1 id="how-to-upgrade">How to upgrade<a class="headerlink" href="#how-to-upgrade" title="Permanent link">&para;</a></h1>
+<p>Upgrade to the latest version with:</p>
+<pre class="highlight"><code>pip install --upgrade --force-reinstall mkdocs-material</code></pre>
+<p>Show the currently installed version with:</p>
+<pre class="highlight"><code>pip show mkdocs-material</code></pre>
+<h2 id="upgrading-from-8x-to-9x">Upgrading from 8.x to 9.x<a class="headerlink" href="#upgrading-from-8x-to-9x" title="Permanent link">&para;</a></h2>
+<p>This major release includes a brand new search implementation that is faster
+and allows for rich previews, advanced tokenization and better highlighting.
+It was available as part of Insiders for over a year, and now that the funding
+goal was hit, makes its way into the community edition.</p>
+<h3 id="changes-to-mkdocsyml">Changes to <code>mkdocs.yml</code><a class="headerlink" href="#changes-to-mkdocsyml" title="Permanent link">&para;</a></h3>
+<h4 id="contentcodecopy"><code>content.code.copy</code><a class="headerlink" href="#contentcodecopy" title="Permanent link">&para;</a></h4>
+<p>The copy-to-clipboard buttons are now opt-in and can be enabled or disabled
+per block. If you wish to enable them for all code blocks, add the following
+lines to <code>mkdocs.yml</code>:</p>
+<pre class="highlight"><code class="language-yaml">theme:
+  features:
+    - content.code.copy</code></pre>
+<h4 id="contentaction"><code>content.action.*</code><a class="headerlink" href="#contentaction" title="Permanent link">&para;</a></h4>
+<p>A "view source" button can be shown next to the "edit this page" button, both
+of which must now be explicitly enabled. Add the following lines to
+<code>mkdocs.yml</code>:</p>
+<pre class="highlight"><code class="language-yaml">theme:
+  features:
+    - content.action.edit
+    - content.action.view</code></pre>
+<h4 id="navigationfooter"><code>navigation.footer</code><a class="headerlink" href="#navigationfooter" title="Permanent link">&para;</a></h4>
+<p>The <em>previous</em> and <em>next</em> buttons in the footer are now opt-in. If you wish to
+keep them for your documentation, add the following lines to <code>mkdocs.yml</code>:</p>
+<pre class="highlight"><code class="language-yaml">theme:
+  features:
+    - navigation.footer</code></pre>
+<h4 id="themelanguage"><code>theme.language</code><a class="headerlink" href="#themelanguage" title="Permanent link">&para;</a></h4>
+<p>The Korean and Norwegian language codes were renamed, as they were non-standard:</p>
+<ul>
+<li><code>kr</code> to <code>ko</code></li>
+<li><code>no</code> to <code>nb</code></li>
+</ul>
+<h4 id="feedbackratings"><code>feedback.ratings</code><a class="headerlink" href="#feedbackratings" title="Permanent link">&para;</a></h4>
+<p>The old, nameless placeholders were removed (after being deprecated for several
+months). Make sure to switch to the new named placeholders <code>{title}</code> and <code>{url}</code>:</p>
+<pre class="highlight"><code>https://github.com/.../issues/new/?title=[Feedback]+{title}+-+{url}</code></pre>
+<h3 id="changes-to-html-files">Changes to <code>*.html</code> files<a class="headerlink" href="#changes-to-html-files" title="Permanent link">&para;</a></h3>
+<p>The templates have undergone a series of changes. If you have customized
+Material for MkDocs with theme extension, be sure to incorporate the latest
+changes into your templates. A good starting point is to <a href="https://github.com/squidfunk/mkdocs-material/pull/4628/files#diff-3ca112736b9164701b599f34780107abf14bb79fe110c478cac410be90899828">inspect the diff</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Built-in plugins not working after upgrade?</p>
+<p>If one of the built-in plugins (search or tags) doesn't work anymore without
+any apparent error or cause, it is very likely related to custom overrides.
+<a href="https://github.com/mkdocs/mkdocs/releases/tag/1.4.1">MkDocs 1.4.1</a> and above allow themes to namespace built-in plugins, which
+Material for MkDocs 9 now does in order to allow authors to use third-party
+plugins with the same name as built-in plugins. Search your overrides for
+<a href="https://github.com/squidfunk/mkdocs-material/search?q=%22in+config.plugins%22"><code>"in config.plugins"</code></a> and add the <code>material/</code> namespace.
+Affected partials:</p>
+<ul>
+<li><a href="https://github.com/squidfunk/mkdocs-material/blob/master/src/templates/partials/content.html"><code>content.html</code></a></li>
+<li><a href="https://github.com/squidfunk/mkdocs-material/blob/master/src/templates/partials/header.html"><code>header.html</code></a></li>
+</ul>
+</div>
+<h2 id="upgrading-from-7x-to-8x">Upgrading from 7.x to 8.x<a class="headerlink" href="#upgrading-from-7x-to-8x" title="Permanent link">&para;</a></h2>
+<h3 id="whats-new">What's new?<a class="headerlink" href="#whats-new" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Added support for code annotations</li>
+<li>Added support for anchor tracking</li>
+<li>Added support for version warning</li>
+<li>Added <code>copyright</code> partial for easier override</li>
+<li>Removed deprecated content tabs legacy implementation</li>
+<li>Removed deprecated <code>seealso</code> admonition type</li>
+<li>Removed deprecated <code>site_keywords</code> setting (unsupported by MkDocs)</li>
+<li>Removed deprecated prebuilt search index support</li>
+<li>Removed deprecated web app manifest – use customization</li>
+<li>Removed <code>extracopyright</code> variable – use new <code>copyright</code> partial</li>
+<li>Removed Disqus integration – use customization</li>
+<li>Switched to <code>:is()</code> selectors for simple selector lists</li>
+<li>Switched autoprefixer from <code>last 4 years</code> to <code>last 2 years</code></li>
+<li>Improved CSS overall to match modern standards</li>
+<li>Improved CSS variable semantics for fonts</li>
+<li>Improved extensibility by restructuring partials</li>
+<li>Improved handling of <code>details</code> when printing</li>
+<li>Improved keyboard navigation for footnotes</li>
+<li>Fixed <a class="magiclink magiclink-github magiclink-issue" href="https://github.com/squidfunk/mkdocs-material/issues/3214" title="GitHub Issue: squidfunk/mkdocs-material #3214">#3214</a>: Search highlighting breaks site when empty</li>
+</ul>
+<h3 id="changes-to-mkdocsyml_1">Changes to <code>mkdocs.yml</code><a class="headerlink" href="#changes-to-mkdocsyml_1" title="Permanent link">&para;</a></h3>
+<h4 id="pymdownxtabbed"><code>pymdownx.tabbed</code><a class="headerlink" href="#pymdownxtabbed" title="Permanent link">&para;</a></h4>
+<p>Support for the legacy style of the <a href="../setup/extensions/python-markdown-extensions/#tabbed">Tabbed</a> extension was dropped in favor
+of the new, alternate implementation which has <a href="https://x.com/squidfunk/status/1424740370596958214">better behavior on mobile
+viewports</a>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="pymdownxtabbed-8x" name="__tabbed_1" type="radio" /><input id="pymdownxtabbed-7x" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="pymdownxtabbed-8x">8.x</label><label for="pymdownxtabbed-7x">7.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">markdown_extensions:
+  - pymdownx.tabbed:
+      alternate_style: true</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">markdown_extensions:
+  - pymdownx.tabbed</code></pre>
+</div>
+</div>
+</div>
+<h4 id="pymdownxsuperfences"><code>pymdownx.superfences</code><a class="headerlink" href="#pymdownxsuperfences" title="Permanent link">&para;</a></h4>
+<p>The <code>*-experimental</code> suffix must be removed from the <a href="../setup/extensions/python-markdown-extensions/#superfences">custom fence</a>
+class property, which is used to target code blocks to be rendered as <a href="../reference/diagrams/">diagrams</a>
+using <a href="https://mermaid-js.github.io/mermaid/">Mermaid.js</a>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="pymdownxsuperfences-8x" name="__tabbed_2" type="radio" /><input id="pymdownxsuperfences-7x" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="pymdownxsuperfences-8x">8.x</label><label for="pymdownxsuperfences-7x">7.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid-experimental
+          format: !!python/name:pymdownx.superfences.fence_code_format</code></pre>
+</div>
+</div>
+</div>
+<h4 id="google_analytics"><code>google_analytics</code><a class="headerlink" href="#google_analytics" title="Permanent link">&para;</a></h4>
+<p>This option was <a href="https://www.mkdocs.org/about/release-notes/#backward-incompatible-changes-in-12">deprecated in MkDocs 1.2.0</a>, as the implementation of a
+JavaScript-based analytics integration is the responsibility of a theme.
+The following lines must be changed:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="google_analytics-8x" name="__tabbed_3" type="radio" /><input id="google_analytics-7x" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="google_analytics-8x">8.x</label><label for="google_analytics-7x">7.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">extra:
+  analytics:
+    provider: google
+    property: UA-XXXXXXXX-X</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">google_analytics:
+  - UA-XXXXXXXX-X
+  - auto</code></pre>
+</div>
+</div>
+</div>
+<h3 id="changes-to-html-files_1">Changes to <code>*.html</code> files<a class="headerlink" href="#changes-to-html-files_1" title="Permanent link">&para;</a></h3>
+<p>The templates have undergone a set of changes to make them future-proof. If
+you've used theme extension to override a block or template, make sure that it
+matches the new structure:</p>
+<ul>
+<li>If you've overridden a <strong>block</strong>, check <code>base.html</code> for potential changes</li>
+<li>If you've overridden a <strong>template</strong>, check the respective <code>*.html</code> file for
+  potential changes</li>
+</ul>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:4"><input checked="checked" id="changes-to-html-files_1-basehtml" name="__tabbed_4" type="radio" /><input id="changes-to-html-files_1-partialscopyrighthtml" name="__tabbed_4" type="radio" /><input id="changes-to-html-files_1-partialsfooterhtml" name="__tabbed_4" type="radio" /><input id="changes-to-html-files_1-partialssocialhtml" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="changes-to-html-files_1-basehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>base.html</code></label><label for="changes-to-html-files_1-partialscopyrighthtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/copyright.html</code></label><label for="changes-to-html-files_1-partialsfooterhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/footer.html</code></label><label for="changes-to-html-files_1-partialssocialhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/social.html</code></label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -13,11 +13,6 @@
+       {% elif config.site_description %}
+         &lt;meta name="description" content="{{ config.site_description }}"&gt;
+       {% endif %}
+-      {% if page and page.meta and page.meta.keywords %}
+-        &lt;meta name="keywords" content="{{ page.meta.keywords }}"&gt;
+-      {% elif config.site_keywords %}
+-        &lt;meta name="keywords" content="{{ config.site_keywords }}"&gt;
+-      {% endif %}
+       {% if page and page.meta and page.meta.author %}
+         &lt;meta name="author" content="{{ page.meta.author }}"&gt;
+       {% elif config.site_author %}
+@@ -61,15 +56,13 @@
+             font.text | replace(' ', '+') + ':300,400,400i,700%7C' +
+             font.code | replace(' ', '+')
+           }}&amp;display=fallback"&gt;
+-        &lt;style&gt;:root{--md-text-font-family:"{{ font.text }}";--md-code-font-family:"{{ font.code }}"}&lt;/style&gt;
++        &lt;style&gt;:root{--md-text-font:"{{ font.text }}";--md-code-font:"{{ font.code }}"}&lt;/style&gt;
+       {% endif %}
+     {% endblock %}
+-    {% if config.extra.manifest %}
+-      &lt;link rel="manifest" href="{{ config.extra.manifest | url }}" crossorigin="use-credentials"&gt;
+-    {% endif %}
+     {% for path in config["extra_css"] %}
+       &lt;link rel="stylesheet" href="{{ path | url }}"&gt;
+     {% endfor %}
++    {% include "partials/javascripts/base.html" %}
+     {% block analytics %}
+       {% include "partials/integrations/analytics.html" %}
+     {% endblock %}
+@@ -89,7 +82,6 @@
+     &lt;body dir="{{ direction }}"&gt;
+   {% endif %}
+     {% set features = config.theme.features or [] %}
+-    {% include "partials/javascripts/base.html" %}
+     {% if not config.theme.palette is mapping %}
+       {% include "partials/javascripts/palette.html" %}
+     {% endif %}
+@@ -106,13 +98,25 @@
+     &lt;/div&gt;
+     &lt;div data-md-component="announce"&gt;
+       {% if self.announce() %}
+-        &lt;aside class="md-banner md-announce"&gt;
+-          &lt;div class="md-banner__inner md-announce__inner md-grid md-typeset"&gt;
++        &lt;aside class="md-banner"&gt;
++          &lt;div class="md-banner__inner md-grid md-typeset"&gt;
+             {% block announce %}{% endblock %}
+           &lt;/div&gt;
+         &lt;/aside&gt;
+       {% endif %}
+     &lt;/div&gt;
++    {% if config.extra.version %}
++      &lt;div data-md-component="outdated" hidden&gt;
++        &lt;aside class="md-banner md-banner--warning"&gt;
++          {% if self.outdated() %}
++            &lt;div class="md-banner__inner md-grid md-typeset"&gt;
++              {% block outdated %}{% endblock %}
++            &lt;/div&gt;
++            {% include "partials/javascripts/outdated.html" %}
++          {% endif %}
++        &lt;/aside&gt;
++      &lt;/div&gt;
++    {% endif %}
+     {% block header %}
+       {% include "partials/header.html" %}
+     {% endblock %}
+@@ -156,25 +160,7 @@
+           &lt;div class="md-content" data-md-component="content"&gt;
+             &lt;article class="md-content__inner md-typeset"&gt;
+               {% block content %}
+-                {% if page.edit_url %}
+-                  &lt;a href="{{ page.edit_url }}" title="{{ lang.t('edit.link.title') }}" class="md-content__button md-icon"&gt;
+-                    {% include ".icons/material/pencil.svg" %}
+-                  &lt;/a&gt;
+-                {% endif %}
+-                {% if not "\x3ch1" in page.content %}
+-                  &lt;h1&gt;{{ page.title | d(config.site_name, true)}}&lt;/h1&gt;
+-                {% endif %}
+-                {{ page.content }}
+-                {% if page and page.meta %}
+-                  {% if page.meta.git_revision_date_localized or
+-                        page.meta.revision_date
+-                  %}
+-                    {% include "partials/source-file.html" %}
+-                  {% endif %}
+-                {% endif %}
+-              {% endblock %}
+-              {% block disqus %}
+-                {% include "partials/integrations/disqus.html" %}
++                {% include "partials/content.html" %}
+               {% endblock %}
+             &lt;/article&gt;
+           &lt;/div&gt;</code></pre>
+<pre class="highlight"><code class="language-diff">@@ -38,13 +38,6 @@
+         &lt;meta name="description" content="{{ config.site_description }}" /&gt;
+       {% endif %}
+
+-      &lt;!-- Page keywords --&gt;
+-      {% if page and page.meta and page.meta.keywords %}
+-        &lt;meta name="keywords" content="{{ page.meta.keywords }}" /&gt;
+-      {% elif config.site_keywords %}
+-        &lt;meta name="keywords" content="{{ config.site_keywords }}" /&gt;
+-      {% endif %}
+-
+       &lt;!-- Page author --&gt;
+       {% if page and page.meta and page.meta.author %}
+         &lt;meta name="author" content="{{ page.meta.author }}" /&gt;
+@@ -120,27 +113,21 @@
+         /&gt;
+         &lt;style&gt;
+           :root {
+-            --md-text-font-family: "{{ font.text }}";
+-            --md-code-font-family: "{{ font.code }}";
++            --md-text-font: "{{ font.text }}";
++            --md-code-font: "{{ font.code }}";
+           }
+         &lt;/style&gt;
+       {% endif %}
+     {% endblock %}
+
+-    &lt;!-- Progressive Web App Manifest --&gt;
+-    {% if config.extra.manifest %}
+-      &lt;link
+-        rel="manifest"
+-        href="{{ config.extra.manifest | url }}"
+-        crossorigin="use-credentials"
+-      /&gt;
+-    {% endif %}
+-
+     &lt;!-- Custom style sheets --&gt;
+     {% for path in config["extra_css"] %}
+       &lt;link rel="stylesheet" href="{{ path | url }}" /&gt;
+     {% endfor %}
+
++    &lt;!-- Helper functions for inline scripts --&gt;
++    {% include "partials/javascripts/base.html" %}
++
+     &lt;!-- Analytics --&gt;
+     {% block analytics %}
+       {% include "partials/integrations/analytics.html" %}
+@@ -172,7 +159,6 @@
+
+     &lt;!-- Retrieve features from configuration --&gt;
+     {% set features = config.theme.features or [] %}
+-    {% include "partials/javascripts/base.html" %}
+
+     &lt;!-- User preference: color palette --&gt;
+     {% if not config.theme.palette is mapping %}
+@@ -214,14 +200,28 @@
+     &lt;!-- Announcement bar --&gt;
+     &lt;div data-md-component="announce"&gt;
+       {% if self.announce() %}
+-        &lt;aside class="md-banner md-announce"&gt;
+-          &lt;div class="md-banner__inner md-announce__inner md-grid md-typeset"&gt;
++        &lt;aside class="md-banner"&gt;
++          &lt;div class="md-banner__inner md-grid md-typeset"&gt;
+             {% block announce %}{% endblock %}
+           &lt;/div&gt;
+         &lt;/aside&gt;
+       {% endif %}
+     &lt;/div&gt;
+
++    &lt;!-- Version warning --&gt;
++    {% if config.extra.version %}
++      &lt;div data-md-component="outdated" hidden&gt;
++        &lt;aside class="md-banner md-banner--warning"&gt;
++          {% if self.outdated() %}
++            &lt;div class="md-banner__inner md-grid md-typeset"&gt;
++              {% block outdated %}{% endblock %}
++            &lt;/div&gt;
++            {% include "partials/javascripts/outdated.html" %}
++          {% endif %}
++        &lt;/aside&gt;
++      &lt;/div&gt;
++    {% endif %}
++
+     &lt;!-- Header --&gt;
+     {% block header %}
+       {% include "partials/header.html" %}
+@@ -295,49 +295,11 @@
+               {% block content %}
+-
+-                &lt;!-- Edit button --&gt;
+-                {% if page.edit_url %}
+-                  &lt;a
+-                    href="{{ page.edit_url }}"
+-                    title="{{ lang.t('edit.link.title') }}"
+-                    class="md-content__button md-icon"
+-                  &gt;
+-                    {% include ".icons/material/pencil.svg" %}
+-                  &lt;/a&gt;
+-                {% endif %}
+-
+-                &lt;!--
+-                  Hack: check whether the content contains a h1 headline. If it
+-                  doesn't, the page title (or respectively site name) is used
+-                  as the main headline.
+-                --&gt;
+-                {% if not "\x3ch1" in page.content %}
+-                  &lt;h1&gt;{{ page.title | d(config.site_name, true)}}&lt;/h1&gt;
+-                {% endif %}
+-
+-                &lt;!-- Markdown content --&gt;
+-                {{ page.content }}
+-
+-                &lt;!-- Last update of source file --&gt;
+-                {% if page and page.meta %}
+-                  {% if page.meta.git_revision_date_localized or
+-                        page.meta.revision_date
+-                  %}
+-                    {% include "partials/source-file.html" %}
+-                  {% endif %}
+-                {% endif %}
+-              {% endblock %}
+-
+-              &lt;!-- Disqus integration --&gt;
+-              {% block disqus %}
+-                {% include "partials/integrations/disqus.html" %}
++                {% include "partials/content.html" %}
+               {% endblock %}
+             &lt;/article&gt;
+           &lt;/div&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -0,0 +1,16 @@
++{#-
++  This file was automatically generated - do not edit
++-#}
++&lt;div class="md-copyright"&gt;
++  {% if config.copyright %}
++    &lt;div class="md-copyright__highlight"&gt;
++      {{ config.copyright }}
++    &lt;/div&gt;
++  {% endif %}
++  {% if not config.extra.generator == false %}
++    Made with
++    &lt;a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener"&gt;
++      Material for MkDocs
++    &lt;/a&gt;
++  {% endif %}
++&lt;/div&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -41,21 +40,10 @@
+   {% endif %}
+   &lt;div class="md-footer-meta md-typeset"&gt;
+     &lt;div class="md-footer-meta__inner md-grid"&gt;
+-      &lt;div class="md-footer-copyright"&gt;
+-        {% if config.copyright %}
+-          &lt;div class="md-footer-copyright__highlight"&gt;
+-            {{ config.copyright }}
+-          &lt;/div&gt;
+-        {% endif %}
+-        {% if not config.extra.generator == false %}
+-          Made with
+-          &lt;a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener"&gt;
+-            Material for MkDocs
+-          &lt;/a&gt;
+-        {% endif %}
+-        {{ extracopyright }}
+-      &lt;/div&gt;
+-      {% include "partials/social.html" %}
++      {% include "partials/copyright.html" %}
++      {% if config.extra.social %}
++        {% include "partials/social.html" %}
++      {% endif %}
+     &lt;/div&gt;
+   &lt;/div&gt;
+ &lt;/footer&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,17 +4,15 @@
+-{% if config.extra.social %}
+-  &lt;div class="md-footer-social"&gt;
+-    {% for social in config.extra.social %}
+-      {% set title = social.name %}
+-      {% if not title and "//" in social.link %}
+-        {% set _,url = social.link.split("//") %}
+-        {% set title = url.split("/")[0] %}
+-      {% endif %}
+-      &lt;a href="{{ social.link }}" target="_blank" rel="noopener" title="{{ title | e }}" class="md-footer-social__link"&gt;
+-        {% include ".icons/" ~ social.icon ~ ".svg" %}
+-      &lt;/a&gt;
+-    {% endfor %}
+-  &lt;/div&gt;
+-{% endif %}
++&lt;div class="md-social"&gt;
++  {% for social in config.extra.social %}
++    {% set title = social.name %}
++    {% if not title and "//" in social.link %}
++      {% set _, url = social.link.split("//") %}
++      {% set title  = url.split("/")[0] %}
++    {% endif %}
++    &lt;a href="{{ social.link }}" target="_blank" rel="noopener" title="{{ title | e }}" class="md-social__link"&gt;
++      {% include ".icons/" ~ social.icon ~ ".svg" %}
++    &lt;/a&gt;
++  {% endfor %}
++&lt;/div&gt;</code></pre>
+</div>
+</div>
+</div>
+<h2 id="upgrading-from-6x-to-7x">Upgrading from 6.x to 7.x<a class="headerlink" href="#upgrading-from-6x-to-7x" title="Permanent link">&para;</a></h2>
+<h3 id="whats-new_1">What's new?<a class="headerlink" href="#whats-new_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Added support for deploying multiple versions</li>
+<li>Added support for integrating a language selector</li>
+<li>Added support for rendering admonitions as inline blocks</li>
+<li>Rewrite of the underlying reactive architecture</li>
+<li>Removed Webpack in favor of reactive build strategy (–480 dependencies)</li>
+<li>Fixed keyboard navigation for code blocks after content tabs switch</li>
+</ul>
+<h3 id="changes-to-mkdocsyml_2">Changes to <code>mkdocs.yml</code><a class="headerlink" href="#changes-to-mkdocsyml_2" title="Permanent link">&para;</a></h3>
+<h4 id="extraversionmethod"><code>extra.version.method</code><a class="headerlink" href="#extraversionmethod" title="Permanent link">&para;</a></h4>
+<p>The versioning method configuration was renamed to <code>extra.version.provider</code> to
+allow for different versioning strategies in the future:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:2"><input checked="checked" id="extraversionmethod-7x" name="__tabbed_5" type="radio" /><input id="extraversionmethod-6x" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="extraversionmethod-7x">7.x</label><label for="extraversionmethod-6x">6.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">extra:
+  version:
+    provider: mike</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">extra:
+  version:
+    method: mike</code></pre>
+</div>
+</div>
+</div>
+<h3 id="changes-to-html-files_2">Changes to <code>*.html</code> files<a class="headerlink" href="#changes-to-html-files_2" title="Permanent link">&para;</a></h3>
+<p>The templates have undergone a set of changes to make them future-proof. If
+you've used theme extension to override a block or template, make sure that it
+matches the new structure:</p>
+<ul>
+<li>If you've overridden a <strong>block</strong>, check <code>base.html</code> for potential changes</li>
+<li>If you've overridden a <strong>template</strong>, check the respective <code>*.html</code> file for
+  potential changes</li>
+</ul>
+<div class="tabbed-set tabbed-alternate" data-tabs="6:5"><input checked="checked" id="changes-to-html-files_2-basehtml" name="__tabbed_6" type="radio" /><input id="changes-to-html-files_2-partialsfooterhtml" name="__tabbed_6" type="radio" /><input id="changes-to-html-files_2-partialsheaderhtml" name="__tabbed_6" type="radio" /><input id="changes-to-html-files_2-partialssourcehtml" name="__tabbed_6" type="radio" /><input id="changes-to-html-files_2-partialstochtml" name="__tabbed_6" type="radio" /><div class="tabbed-labels"><label for="changes-to-html-files_2-basehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>base.html</code></label><label for="changes-to-html-files_2-partialsfooterhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/footer.html</code></label><label for="changes-to-html-files_2-partialsheaderhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/header.html</code></label><label for="changes-to-html-files_2-partialssourcehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/source.html</code></label><label for="changes-to-html-files_2-partialstochtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/toc.html</code></label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -61,7 +61,7 @@
+             font.text | replace(' ', '+') + ':300,400,400i,700%7C' +
+             font.code | replace(' ', '+')
+           }}&amp;display=fallback"&gt;
+-        &lt;style&gt;body,input{font-family:"{{ font.text }}",-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"{{ font.code }}",SFMono-Regular,Consolas,Menlo,monospace}&lt;/style&gt;
++        &lt;style&gt;:root{--md-text-font-family:"{{ font.text }}";--md-code-font-family:"{{ font.code }}"}&lt;/style&gt;
+       {% endif %}
+     {% endblock %}
+     {% if config.extra.manifest %}
+@@ -131,7 +131,7 @@
+               {% if page and page.meta and page.meta.hide %}
+                 {% set hidden = "hidden" if "navigation" in page.meta.hide %}
+               {% endif %}
+-              &lt;div class="md-sidebar md-sidebar--primary" data-md-component="navigation" {{ hidden }}&gt;
++              &lt;div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" {{ hidden }}&gt;
+                 &lt;div class="md-sidebar__scrollwrap"&gt;
+                   &lt;div class="md-sidebar__inner"&gt;
+                     {% include "partials/nav.html" %}
+@@ -143,7 +143,7 @@
+               {% if page and page.meta and page.meta.hide %}
+                 {% set hidden = "hidden" if "toc" in page.meta.hide %}
+               {% endif %}
+-              &lt;div class="md-sidebar md-sidebar--secondary" data-md-component="toc" {{ hidden }}&gt;
++              &lt;div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" {{ hidden }}&gt;
+                 &lt;div class="md-sidebar__scrollwrap"&gt;
+                   &lt;div class="md-sidebar__inner"&gt;
+                     {% include "partials/toc.html" %}
+@@ -152,7 +152,7 @@
+               &lt;/div&gt;
+             {% endif %}
+           {% endblock %}
+-          &lt;div class="md-content"&gt;
++          &lt;div class="md-content" data-md-component="content"&gt;
+             &lt;article class="md-content__inner md-typeset"&gt;
+               {% block content %}
+                 {% if page.edit_url %}
+@@ -183,10 +183,18 @@
+         {% include "partials/footer.html" %}
+       {% endblock %}
+     &lt;/div&gt;
+-    {% block scripts %}
+-      &lt;script src="{{ 'assets/javascripts/vendor.18f0862e.min.js' | url }}"&gt;&lt;/script&gt;
+-      &lt;script src="{{ 'assets/javascripts/bundle.994580cf.min.js' | url }}"&gt;&lt;/script&gt;
+-      {%- set translations = {} -%}
++    &lt;div class="md-dialog" data-md-component="dialog"&gt;
++      &lt;div class="md-dialog__inner md-typeset"&gt;&lt;/div&gt;
++    &lt;/div&gt;
++    {% block config %}
++      {%- set app = {
++        "base": base_url,
++        "features": features,
++        "translations": {},
++        "search": "assets/javascripts/workers/search.217ffd95.min.js" | url,
++        "version": config.extra.version or None
++      } -%}
++      {%- set translations = app.translations -%}
+       {%- for key in [
+         "clipboard.copy",
+         "clipboard.copied",
+@@ -204,19 +212,12 @@
+       ] -%}
+         {%- set _ = translations.update({ key: lang.t(key) }) -%}
+       {%- endfor -%}
+-      &lt;script id="__lang" type="application/json"&gt;
+-        {{- translations | tojson -}}
+-      &lt;/script&gt;
+-      {% block config %}{% endblock %}
+-      &lt;script&gt;
+-        app = initialize({
+-          base: "{{ base_url }}",
+-          features: {{ features or [] | tojson }},
+-          search: Object.assign({
+-            worker: "{{ 'assets/javascripts/worker/search.9c0e82ba.min.js' | url }}"
+-          }, typeof search !== "undefined" &amp;&amp; search)
+-        })
++      &lt;script id="__config" type="application/json"&gt;
++        {{- app | tojson -}}
+       &lt;/script&gt;
++    {% endblock %}
++    {% block scripts %}
++      &lt;script src="{{ 'assets/javascripts/bundle.926459b3.min.js' | url }}"&gt;&lt;/script&gt;
+       {% for path in config["extra_javascript"] %}
+         &lt;script src="{{ path | url }}"&gt;&lt;/script&gt;
+       {% endfor %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">-    &lt;div class="md-footer-nav"&gt;
+-      &lt;nav class="md-footer-nav__inner md-grid" aria-label="{{ lang.t('footer.title') }}"&gt;
+-        {% if page.previous_page %}
+-          &lt;a href="{{ page.previous_page.url | url }}" class="md-footer-nav__link md-footer-nav__link--prev" rel="prev"&gt;
+-            &lt;div class="md-footer-nav__button md-icon"&gt;
+-              {% include ".icons/material/arrow-left.svg" %}
+-            &lt;/div&gt;
+-            &lt;div class="md-footer-nav__title"&gt;
+-              &lt;div class="md-ellipsis"&gt;
+-                &lt;span class="md-footer-nav__direction"&gt;
+-                  {{ lang.t("footer.previous") }}
+-                &lt;/span&gt;
+-                {{ page.previous_page.title }}
+-              &lt;/div&gt;
+-            &lt;/div&gt;
+-          &lt;/a&gt;
+-        {% endif %}
+-        {% if page.next_page %}
+-          &lt;a href="{{ page.next_page.url | url }}" class="md-footer-nav__link md-footer-nav__link--next" rel="next"&gt;
+-            &lt;div class="md-footer-nav__title"&gt;
+-              &lt;div class="md-ellipsis"&gt;
+-                &lt;span class="md-footer-nav__direction"&gt;
+-                  {{ lang.t("footer.next") }}
+-                &lt;/span&gt;
+-                {{ page.next_page.title }}
+-              &lt;/div&gt;
++    &lt;nav class="md-footer__inner md-grid" aria-label="{{ lang.t('footer.title') }}"&gt;
++      {% if page.previous_page %}
++        &lt;a href="{{ page.previous_page.url | url }}" class="md-footer__link md-footer__link--prev" rel="prev"&gt;
++          &lt;div class="md-footer__button md-icon"&gt;
++            {% include ".icons/material/arrow-left.svg" %}
++          &lt;/div&gt;
++          &lt;div class="md-footer__title"&gt;
++            &lt;div class="md-ellipsis"&gt;
++              &lt;span class="md-footer__direction"&gt;
++                {{ lang.t("footer.previous") }}
++              &lt;/span&gt;
++              {{ page.previous_page.title }}
+             &lt;/div&gt;
+-            &lt;div class="md-footer-nav__button md-icon"&gt;
+-              {% include ".icons/material/arrow-right.svg" %}
++          &lt;/div&gt;
++        &lt;/a&gt;
++      {% endif %}
++      {% if page.next_page %}
++        &lt;a href="{{ page.next_page.url | url }}" class="md-footer__link md-footer__link--next" rel="next"&gt;
++          &lt;div class="md-footer__title"&gt;
++            &lt;div class="md-ellipsis"&gt;
++              &lt;span class="md-footer__direction"&gt;
++                {{ lang.t("footer.next") }}
++              &lt;/span&gt;
++              {{ page.next_page.title }}
+             &lt;/div&gt;
+-          &lt;/a&gt;
+-        {% endif %}
+-      &lt;/nav&gt;
+-    &lt;/div&gt;
++          &lt;/div&gt;
++          &lt;div class="md-footer__button md-icon"&gt;
++            {% include ".icons/material/arrow-right.svg" %}
++          &lt;/div&gt;
++        &lt;/a&gt;
++      {% endif %}
++    &lt;/nav&gt;
+   {% endif %}
+   &lt;div class="md-footer-meta md-typeset"&gt;
+     &lt;div class="md-footer-meta__inner md-grid"&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -6,21 +6,21 @@
+   {% set site_url = site_url ~ "/index.html" %}
+ {% endif %}
+ &lt;header class="md-header" data-md-component="header"&gt;
+-  &lt;nav class="md-header-nav md-grid" aria-label="{{ lang.t('header.title') }}"&gt;
+-    &lt;a href="{{ site_url }}" title="{{ config.site_name | e }}" class="md-header-nav__button md-logo" aria-label="{{ config.site_name }}"&gt;
++  &lt;nav class="md-header__inner md-grid" aria-label="{{ lang.t('header.title') }}"&gt;
++    &lt;a href="{{ site_url }}" title="{{ config.site_name | e }}" class="md-header__button md-logo" aria-label="{{ config.site_name }}"&gt;
+       {% include "partials/logo.html" %}
+     &lt;/a&gt;
+-    &lt;label class="md-header-nav__button md-icon" for="__drawer"&gt;
++    &lt;label class="md-header__button md-icon" for="__drawer"&gt;
+       {% include ".icons/material/menu" ~ ".svg" %}
+     &lt;/label&gt;
+-    &lt;div class="md-header-nav__title" data-md-component="header-title"&gt;
+-      &lt;div class="md-header-nav__ellipsis"&gt;
+-        &lt;div class="md-header-nav__topic"&gt;
++    &lt;div class="md-header__title" data-md-component="header-title"&gt;
++      &lt;div class="md-header__ellipsis"&gt;
++        &lt;div class="md-header__topic"&gt;
+           &lt;span class="md-ellipsis"&gt;
+             {{ config.site_name }}
+           &lt;/span&gt;
+         &lt;/div&gt;
+-        &lt;div class="md-header-nav__topic"&gt;
++        &lt;div class="md-header__topic" data-md-component="header-topic"&gt;
+           &lt;span class="md-ellipsis"&gt;
+             {% if page and page.meta and page.meta.title %}
+               {{ page.meta.title }}
+@@ -31,14 +31,35 @@
+         &lt;/div&gt;
+       &lt;/div&gt;
+     &lt;/div&gt;
++    &lt;div class="md-header__options"&gt;
++      {% if config.extra.alternate %}
++        &lt;div class="md-select"&gt;
++          {% set icon = config.theme.icon.alternate or "material/translate" %}
++          &lt;span class="md-header__button md-icon"&gt;
++            {% include ".icons/" ~ icon ~ ".svg" %}
++          &lt;/span&gt;
++          &lt;div class="md-select__inner"&gt;
++            &lt;ul class="md-select__list"&gt;
++              {% for alt in config.extra.alternate %}
++                &lt;li class="md-select__item"&gt;
++                  &lt;a href="{{ alt.link | url }}" class="md-select__link"&gt;
++                    {{ alt.name }}
++                  &lt;/a&gt;
++                &lt;/li&gt;
++                {% endfor %}
++            &lt;/ul&gt;
++          &lt;/div&gt;
++        &lt;/div&gt;
++      {% endif %}
++    &lt;/div&gt;
+     {% if "search" in config["plugins"] %}
+-      &lt;label class="md-header-nav__button md-icon" for="__search"&gt;
++      &lt;label class="md-header__button md-icon" for="__search"&gt;
+         {% include ".icons/material/magnify.svg" %}
+       &lt;/label&gt;
+       {% include "partials/search.html" %}
+     {% endif %}
+     {% if config.repo_url %}
+-      &lt;div class="md-header-nav__source"&gt;
++      &lt;div class="md-header__source"&gt;
+         {% include "partials/source.html" %}
+       &lt;/div&gt;
+     {% endif %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,5 +4,5 @@
+ {% import "partials/language.html" as lang with context %}
+-&lt;a href="{{ config.repo_url }}" title="{{ lang.t('source.link.title') }}" class="md-source"&gt;
++&lt;a href="{{ config.repo_url }}" title="{{ lang.t('source.link.title') }}"  class="md-source" data-md-component="source"&gt;
+   &lt;div class="md-source__icon md-icon"&gt;
+     {% set icon = config.theme.icon.repo or "fontawesome/brands/git-alt" %}
+     {% include ".icons/" ~ icon ~ ".svg" %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -12,7 +12,7 @@
+       &lt;span class="md-nav__icon md-icon"&gt;&lt;/span&gt;
+       {{ lang.t("toc.title") }}
+     &lt;/label&gt;
+-    &lt;ul class="md-nav__list" data-md-scrollfix&gt;
++    &lt;ul class="md-nav__list" data-md-component="toc" data-md-scrollfix&gt;
+       {% for toc_item in toc %}
+         {% include "partials/toc-item.html" %}
+       {% endfor %}</code></pre>
+</div>
+</div>
+</div>
+<h2 id="upgrading-from-5x-to-6x">Upgrading from 5.x to 6.x<a class="headerlink" href="#upgrading-from-5x-to-6x" title="Permanent link">&para;</a></h2>
+<h3 id="whats-new_2">What's new?<a class="headerlink" href="#whats-new_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Improved search result look and feel</li>
+<li>Improved search result stability while typing</li>
+<li>Improved search result grouping (pages + headings)</li>
+<li>Improved search result relevance and scoring</li>
+<li>Added display of missing query terms to search results</li>
+<li>Reduced size of vendor bundle by 25% (84kb → 67kb)</li>
+<li>Reduced size of the Docker image to improve CI build performance</li>
+<li>Removed hero partial in favor of custom implementation</li>
+<li>Removed deprecated front matter features</li>
+</ul>
+<h3 id="changes-to-mkdocsyml_3">Changes to <code>mkdocs.yml</code><a class="headerlink" href="#changes-to-mkdocsyml_3" title="Permanent link">&para;</a></h3>
+<p>Following is a list of changes that need to be made to <code>mkdocs.yml</code>. Note that
+you only have to adjust the value if you defined it, so if your configuration
+does not contain the key, you can skip it.</p>
+<h4 id="themefeatures"><code>theme.features</code><a class="headerlink" href="#themefeatures" title="Permanent link">&para;</a></h4>
+<p>All feature flags that can be set from <code>mkdocs.yml</code>, like <a href="../setup/setting-up-navigation/#navigation-tabs">tabs</a> and
+<a href="../setup/setting-up-navigation/#instant-loading">instant loading</a>, are now prefixed with the name of the component or
+function they apply to, e.g. <code>navigation.*</code>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="7:2"><input checked="checked" id="themefeatures-6x" name="__tabbed_7" type="radio" /><input id="themefeatures-5x" name="__tabbed_7" type="radio" /><div class="tabbed-labels"><label for="themefeatures-6x">6.x</label><label for="themefeatures-5x">5.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">theme:
+  features:
+    - navigation.tabs
+    - navigation.instant</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">theme:
+  features:
+    - tabs
+    - instant</code></pre>
+</div>
+</div>
+</div>
+<h3 id="changes-to-html-files_3">Changes to <code>*.html</code> files<a class="headerlink" href="#changes-to-html-files_3" title="Permanent link">&para;</a></h3>
+<p>The templates have undergone a set of changes to make them future-proof. If
+you've used theme extension to override a block or template, make sure that it
+matches the new structure:</p>
+<ul>
+<li>If you've overridden a <strong>block</strong>, check <code>base.html</code> for potential changes</li>
+<li>If you've overridden a <strong>template</strong>, check the respective <code>*.html</code> file for
+  potential changes</li>
+</ul>
+<div class="tabbed-set tabbed-alternate" data-tabs="8:3"><input checked="checked" id="changes-to-html-files_3-basehtml" name="__tabbed_8" type="radio" /><input id="changes-to-html-files_3-partialsherohtml" name="__tabbed_8" type="radio" /><input id="changes-to-html-files_3-partialssource-link" name="__tabbed_8" type="radio" /><div class="tabbed-labels"><label for="changes-to-html-files_3-basehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>base.html</code></label><label for="changes-to-html-files_3-partialsherohtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/hero.html</code></label><label for="changes-to-html-files_3-partialssource-link"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/source-link</code></label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -22,13 +22,6 @@
+
+ {% import "partials/language.html" as lang with context %}
+
+-&lt;!-- Theme options --&gt;
+-{% set palette = config.theme.palette %}
+-{% if not palette is mapping %}
+-  {% set palette = palette | first %}
+-{% endif %}
+-{% set font = config.theme.font %}
+-
+ &lt;!doctype html&gt;
+ &lt;html lang="{{ lang.t('language') }}" class="no-js"&gt;
+   &lt;head&gt;
+@@ -45,21 +38,8 @@
+         &lt;meta name="description" content="{{ config.site_description }}" /&gt;
+       {% endif %}
+
+-      &lt;!-- Redirect --&gt;
+-      {% if page and page.meta and page.meta.redirect %}
+-        &lt;script&gt;
+-          var anchor = window.location.hash.substr(1)
+-          location.href = '{{ page.meta.redirect }}' +
+-            (anchor ? '#' + anchor : '')
+-        &lt;/script&gt;
+-
+-        &lt;!-- Fallback in case JavaScript is not available --&gt;
+-        &lt;meta http-equiv="refresh" content="0; url={{ page.meta.redirect }}" /&gt;
+-        &lt;meta name="robots" content="noindex" /&gt;
+-        &lt;link rel="canonical" href="{{ page.meta.redirect }}" /&gt;
+-
+       &lt;!-- Canonical --&gt;
+-      {% elif page.canonical_url %}
++      {% if page.canonical_url %}
+         &lt;link rel="canonical" href="{{ page.canonical_url }}" /&gt;
+       {% endif %}
+
+@@ -96,20 +76,21 @@
+       &lt;link rel="stylesheet" href="{{ 'assets/stylesheets/main.css' | url }}" /&gt;
+
+       &lt;!-- Extra color palette --&gt;
+-      {% if palette.scheme or palette.primary or palette.accent %}
++      {% if config.theme.palette %}
++        {% set palette = config.theme.palette %}
+         &lt;link
+           rel="stylesheet"
+           href="{{ 'assets/stylesheets/palette.css' | url }}"
+         /&gt;
+-      {% endif %}
+
+-      &lt;!-- Theme-color meta tag for Android --&gt;
+-      {% if palette.primary %}
+-        {% import "partials/palette.html" as map %}
+-        {% set primary = map.primary(
+-          palette.primary | replace(" ", "-") | lower
+-        ) %}
+-        &lt;meta name="theme-color" content="{{ primary }}" /&gt;
++        &lt;!-- Theme-color meta tag for Android --&gt;
++        {% if palette.primary %}
++          {% import "partials/palette.html" as map %}
++          {% set primary = map.primary(
++            palette.primary | replace(" ", "-") | lower
++          ) %}
++          &lt;meta name="theme-color" content="{{ primary }}" /&gt;
++        {% endif %}
+       {% endif %}
+     {% endblock %}
+
+@@ -120,7 +101,8 @@
+     {% block fonts %}
+
+       &lt;!-- Load fonts from Google --&gt;
+-      {% if font != false %}
++      {% if config.theme.font != false %}
++        {% set font = config.theme.font %}
+         &lt;link href="https://fonts.gstatic.com" rel="preconnect" crossorigin /&gt;
+         &lt;link
+          rel="stylesheet"
+@@ -169,8 +151,12 @@
+
+   &lt;!-- Text direction and color palette, if defined --&gt;
+   {% set direction = config.theme.direction or lang.t('direction') %}
+-  {% if palette.scheme or palette.primary or palette.accent %}
+-    {% set scheme  = palette.scheme | lower %}
++  {% if config.theme.palette %}
++    {% set palette = config.theme.palette %}
++    {% if not palette is mapping %}
++      {% set palette = palette | first %}
++    {% endif %}
++    {% set scheme  = palette.scheme  | replace(" ", "-") | lower %}
+     {% set primary = palette.primary | replace(" ", "-") | lower %}
+     {% set accent  = palette.accent  | replace(" ", "-") | lower %}
+     &lt;body
+@@ -179,18 +165,19 @@
+       data-md-color-primary="{{ primary }}"
+       data-md-color-accent="{{ accent }}"
+     &gt;
++
++      &lt;!-- Experimental: set color scheme based on preference --&gt;
++      {% if "preference" == scheme %}
++        &lt;script&gt;
++          if (matchMedia("(prefers-color-scheme: dark)").matches)
++            document.body.setAttribute("data-md-color-scheme", "slate")
++        &lt;/script&gt;
++      {% endif %}
++
+   {% else %}
+     &lt;body dir="{{ direction }}"&gt;
+   {% endif %}
+
+-    &lt;!-- Experimental: set color scheme based on preference --&gt;
+-    {% if "preference" == palette.scheme %}
+-      &lt;script&gt;
+-        if (matchMedia("(prefers-color-scheme: dark)").matches)
+-          document.body.setAttribute("data-md-color-scheme", "slate")
+-      &lt;/script&gt;
+-    {% endif %}
+-
+     &lt;!--
+       State toggles - we need to set autocomplete="off" in order to reset the
+       drawer on back button invocation in some browsers
+@@ -243,15 +230,11 @@
+     &lt;div class="md-container" data-md-component="container"&gt;
+
+       &lt;!-- Hero teaser --&gt;
+-      {% block hero %}
+-        {% if page and page.meta and page.meta.hero %}
+-          {% include "partials/hero.html" with context %}
+-        {% endif %}
+-      {% endblock %}
++      {% block hero %}{% endblock %}
+
+       &lt;!-- Tabs navigation --&gt;
+       {% block tabs %}
+-        {% if "tabs" in config.theme.features %}
++        {% if "navigation.tabs" in config.theme.features %}
+           {% include "partials/tabs.html" %}
+         {% endif %}
+       {% endblock %}
+@@ -310,13 +293,6 @@
+                   &lt;/a&gt;
+                 {% endif %}
+
+-                &lt;!-- Link to source file --&gt;
+-                {% block source %}
+-                  {% if page and page.meta and page.meta.source %}
+-                    {% include "partials/source-link.html" %}
+-                  {% endif %}
+-                {% endblock %}
+-
+                 &lt;!--
+                   Hack: check whether the content contains a h1 headline. If it
+                   doesn't, the page title (or respectively site name) is used
+@@ -370,7 +346,10 @@
+         "search.result.placeholder",
+         "search.result.none",
+         "search.result.one",
+-        "search.result.other"
++        "search.result.other",
++        "search.result.more.one",
++        "search.result.more.other",
++        "search.result.term.missing"
+       ] -%}
+         {%- set _ = translations.update({ key: lang.t(key) }) -%}
+       {%- endfor -%}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -1,12 +0,0 @@
+-{#-
+-  This file was automatically generated - do not edit
+--#}
+-{% set class = "md-hero" %}
+-{% if "tabs" not in config.theme.features %}
+-  {% set class = "md-hero md-hero--expand" %}
+-{% endif %}
+-&lt;div class="{{ class }}" data-md-component="hero"&gt;
+-  &lt;div class="md-hero__inner md-grid"&gt;
+-    {{ page.meta.hero }}
+-  &lt;/div&gt;
+-&lt;/div&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -1,14 +0,0 @@
+-{#-
+-  This file was automatically generated - do not edit
+--#}
+-{% import "partials/language.html" as lang with context %}
+-{% set repo = config.repo_url %}
+-{% if repo | last == "/" %}
+-  {% set repo = repo[:-1] %}
+-{% endif %}
+-{% set path = page.meta.path | default("") %}
+-&lt;a href="{{ [repo, path, page.meta.source] | join('/') }}" title="{{ page.meta.source }}" class="md-content__button md-icon"&gt;
+-  {{ lang.t("meta.source") }}
+-  {% set icon = config.theme.icon.repo or "fontawesome/brands/git-alt" %}
+-  {% include ".icons/" ~ icon ~ ".svg" %}
+-&lt;/a&gt;</code></pre>
+</div>
+</div>
+</div>
+<h2 id="upgrading-from-4x-to-5x">Upgrading from 4.x to 5.x<a class="headerlink" href="#upgrading-from-4x-to-5x" title="Permanent link">&para;</a></h2>
+<h3 id="whats-new_3">What's new?<a class="headerlink" href="#whats-new_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Reactive architecture – try <code class="language-js highlight">app.dialog$.next("Hi!")</code> in the console</li>
+<li><a href="../setup/setting-up-navigation/#instant-loading">Instant loading</a> – make Material behave like a Single Page Application</li>
+<li>Improved CSS customization with <a href="../setup/changing-the-colors/#custom-colors">CSS variables</a> – set your brand's colors</li>
+<li>Improved CSS resilience, e.g. proper sidebar locking for customized headers</li>
+<li>Improved <a href="../reference/icons-emojis/#search">icon integration</a> and configuration – now including over 5k icons</li>
+<li>Added possibility to use any icon for logo, repository and social links</li>
+<li>Search UI does not freeze anymore (moved to web worker)</li>
+<li>Search index built only once when using instant loading</li>
+<li>Improved extensible keyboard handling</li>
+<li>Support for <a href="../plugins/search/">prebuilt search indexes</a></li>
+<li>Support for displaying stars and forks for GitLab repositories</li>
+<li>Support for scroll snapping of sidebars and search results</li>
+<li>Reduced HTML and CSS footprint due to deprecation of Internet Explorer support</li>
+<li>Slight facelifting of some UI elements (admonitions, tables, ...)</li>
+</ul>
+<h3 id="changes-to-mkdocsyml_4">Changes to <code>mkdocs.yml</code><a class="headerlink" href="#changes-to-mkdocsyml_4" title="Permanent link">&para;</a></h3>
+<p>Following is a list of changes that need to be made to <code>mkdocs.yml</code>. Note that
+you only have to adjust the value if you defined it, so if your configuration
+does not contain the key, you can skip it.</p>
+<h4 id="themefeature"><code>theme.feature</code><a class="headerlink" href="#themefeature" title="Permanent link">&para;</a></h4>
+<p>Optional features like <a href="../setup/setting-up-navigation/#navigation-tabs">tabs</a> and <a href="../setup/setting-up-navigation/#instant-loading">instant loading</a> are now implemented as
+flags and can be enabled by listing them in <code>mkdocs.yml</code> under <code>theme.features</code>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="9:2"><input checked="checked" id="themefeature-5x" name="__tabbed_9" type="radio" /><input id="themefeature-4x" name="__tabbed_9" type="radio" /><div class="tabbed-labels"><label for="themefeature-5x">5.x</label><label for="themefeature-4x">4.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">theme:
+  features:
+    - tabs
+    - instant</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">theme:
+  feature:
+    tabs: true</code></pre>
+</div>
+</div>
+</div>
+<h4 id="themelogoicon"><code>theme.logo.icon</code><a class="headerlink" href="#themelogoicon" title="Permanent link">&para;</a></h4>
+<p>The logo icon configuration was centralized under <code>theme.icon.logo</code> and can now
+be set to any of the <a href="../reference/icons-emojis/#search">icons bundled with the theme</a>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="10:2"><input checked="checked" id="themelogoicon-5x" name="__tabbed_10" type="radio" /><input id="themelogoicon-4x" name="__tabbed_10" type="radio" /><div class="tabbed-labels"><label for="themelogoicon-5x">5.x</label><label for="themelogoicon-4x">4.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">theme:
+  icon:
+    logo: material/cloud</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">theme:
+  logo:
+    icon: cloud</code></pre>
+</div>
+</div>
+</div>
+<h4 id="extrarepo_icon"><code>extra.repo_icon</code><a class="headerlink" href="#extrarepo_icon" title="Permanent link">&para;</a></h4>
+<p>The repo icon configuration was centralized under <code>theme.icon.repo</code> and can now
+be set to any of the <a href="../reference/icons-emojis/#search">icons bundled with the theme</a>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="11:2"><input checked="checked" id="extrarepo_icon-5x" name="__tabbed_11" type="radio" /><input id="extrarepo_icon-4x" name="__tabbed_11" type="radio" /><div class="tabbed-labels"><label for="extrarepo_icon-5x">5.x</label><label for="extrarepo_icon-4x">4.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">theme:
+  icon:
+    repo: fontawesome/brands/gitlab</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">extra:
+  repo_icon: gitlab</code></pre>
+</div>
+</div>
+</div>
+<h4 id="extrasearch"><code>extra.search.*</code><a class="headerlink" href="#extrasearch" title="Permanent link">&para;</a></h4>
+<p>Search is now configured as part of the <a href="../plugins/search/">plugin options</a>. Note that the
+search languages must now be listed as an array of strings and the <code>tokenizer</code>
+was renamed to <code>separator</code>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="12:2"><input checked="checked" id="extrasearch-5x" name="__tabbed_12" type="radio" /><input id="extrasearch-4x" name="__tabbed_12" type="radio" /><div class="tabbed-labels"><label for="extrasearch-5x">5.x</label><label for="extrasearch-4x">4.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">plugins:
+  - search:
+      separator: '[\s\-\.]+'
+      lang:
+        - en
+        - de
+        - ru</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">extra:
+  search:
+    language: en, de, ru
+    tokenizer: '[\s\-\.]+'</code></pre>
+</div>
+</div>
+</div>
+<h4 id="extrasocial"><code>extra.social.*</code><a class="headerlink" href="#extrasocial" title="Permanent link">&para;</a></h4>
+<p>Social links stayed in the same place, but the <code>type</code> key was renamed to <code>icon</code>
+in order to match the new way of specifying which icon to be used:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="13:2"><input checked="checked" id="extrasocial-5x" name="__tabbed_13" type="radio" /><input id="extrasocial-4x" name="__tabbed_13" type="radio" /><div class="tabbed-labels"><label for="extrasocial-5x">5.x</label><label for="extrasocial-4x">4.x</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">extra:
+  social:
+    - icon: fontawesome/brands/github-alt
+      link: https://github.com/squidfunk</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-yaml">extra:
+  social:
+    - type: github
+      link: https://github.com/squidfunk</code></pre>
+</div>
+</div>
+</div>
+<h3 id="changes-to-html-files_4">Changes to <code>*.html</code> files<a class="headerlink" href="#changes-to-html-files_4" title="Permanent link">&para;</a></h3>
+<p>The templates have undergone a set of changes to make them future-proof. If
+you've used theme extension to override a block or template, make sure that it
+matches the new structure:</p>
+<ul>
+<li>If you've overridden a <strong>block</strong>, check <code>base.html</code> for potential changes</li>
+<li>If you've overridden a <strong>template</strong>, check the respective <code>*.html</code> file for
+  potential changes</li>
+</ul>
+<div class="tabbed-set tabbed-alternate" data-tabs="14:17"><input checked="checked" id="changes-to-html-files_4-basehtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialsfooterhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialsheaderhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialsherohtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialslanguagehtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialslogohtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialsnav-itemhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialsnavhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialssearchhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialssocialhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialssource-datehtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialssource-linkhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialssourcehtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialstabs-itemhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialstabshtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialstoc-itemhtml" name="__tabbed_14" type="radio" /><input id="changes-to-html-files_4-partialstochtml" name="__tabbed_14" type="radio" /><div class="tabbed-labels"><label for="changes-to-html-files_4-basehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>base.html</code></label><label for="changes-to-html-files_4-partialsfooterhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/footer.html</code></label><label for="changes-to-html-files_4-partialsheaderhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/header.html</code></label><label for="changes-to-html-files_4-partialsherohtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/hero.html</code></label><label for="changes-to-html-files_4-partialslanguagehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/language.html</code></label><label for="changes-to-html-files_4-partialslogohtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/logo.html</code></label><label for="changes-to-html-files_4-partialsnav-itemhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/nav-item.html</code></label><label for="changes-to-html-files_4-partialsnavhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/nav.html</code></label><label for="changes-to-html-files_4-partialssearchhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/search.html</code></label><label for="changes-to-html-files_4-partialssocialhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/social.html</code></label><label for="changes-to-html-files_4-partialssource-datehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/source-date.html</code></label><label for="changes-to-html-files_4-partialssource-linkhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/source-link.html</code></label><label for="changes-to-html-files_4-partialssourcehtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/source.html</code></label><label for="changes-to-html-files_4-partialstabs-itemhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/tabs-item.html</code></label><label for="changes-to-html-files_4-partialstabshtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/tabs.html</code></label><label for="changes-to-html-files_4-partialstoc-itemhtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/toc-item.html</code></label><label for="changes-to-html-files_4-partialstochtml"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.75.75 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06M3.28 7.78 1.81 9.25l1.47 1.47a.75.75 0 0 1-.018 1.042.75.75 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.042.018.75.75 0 0 1 .018 1.042m8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914z"/></svg></span> <code>partials/toc.html</code></label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,7 +4,6 @@
+ {% import "partials/language.html" as lang with context %}
+-{% set feature = config.theme.feature %}
+ {% set palette = config.theme.palette %}
+ {% set font = config.theme.font %}
+ &lt;!doctype html&gt;
+@@ -30,19 +29,6 @@
+       {% elif config.site_author %}
+         &lt;meta name="author" content="{{ config.site_author }}"&gt;
+       {% endif %}
+-      {% for key in [
+-        "clipboard.copy",
+-        "clipboard.copied",
+-        "search.language",
+-        "search.pipeline.stopwords",
+-        "search.pipeline.trimmer",
+-        "search.result.none",
+-        "search.result.one",
+-        "search.result.other",
+-        "search.tokenizer"
+-      ] %}
+-        &lt;meta name="lang:{{ key }}" content="{{ lang.t(key) }}"&gt;
+-      {% endfor %}
+       &lt;link rel="shortcut icon" href="{{ config.theme.favicon | url }}"&gt;
+       &lt;meta name="generator" content="mkdocs-{{ mkdocs_version }}, mkdocs-material-5.0.0"&gt;
+     {% endblock %}
+@@ -56,9 +42,9 @@
+       {% endif %}
+     {% endblock %}
+     {% block styles %}
+-      &lt;link rel="stylesheet" href="{{ 'assets/stylesheets/application.********.css' | url }}"&gt;
++      &lt;link rel="stylesheet" href="{{ 'assets/stylesheets/main.********.min.css' | url }}"&gt;
+       {% if palette.primary or palette.accent %}
+-        &lt;link rel="stylesheet" href="{{ 'assets/stylesheets/application-palette.********.css' | url }}"&gt;
++        &lt;link rel="stylesheet" href="{{ 'assets/stylesheets/palette.********.min.css' | url }}"&gt;
+       {% endif %}
+       {% if palette.primary %}
+         {% import "partials/palette.html" as map %}
+@@ -69,20 +55,17 @@
+       {% endif %}
+     {% endblock %}
+     {% block libs %}
+-      &lt;script src="{{ 'assets/javascripts/modernizr.********.js' | url }}"&gt;&lt;/script&gt;
+     {% endblock %}
+     {% block fonts %}
+       {% if font != false %}
+         &lt;link href="https://fonts.gstatic.com" rel="preconnect" crossorigin&gt;
+         &lt;link rel="stylesheet" href="https://fonts.googleapis.com/css?family={{
+             font.text | replace(' ', '+') + ':300,400,400i,700%7C' +
+             font.code | replace(' ', '+')
+           }}&amp;display=fallback"&gt;
+         &lt;style&gt;body,input{font-family:"{{ font.text }}","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"{{ font.code }}","Courier New",Courier,monospace}&lt;/style&gt;
+       {% endif %}
+     {% endblock %}
+-    &lt;link rel="stylesheet" href="{{ 'assets/fonts/material-icons.css' | url }}"&gt;
+     {% if config.extra.manifest %}
+       &lt;link rel="manifest" href="{{ config.extra.manifest | url }}" crossorigin="use-credentials"&gt;
+     {% endif %}
+@@ -95,47 +77,50 @@
+     {% endblock %}
+     {% block extrahead %}{% endblock %}
+   &lt;/head&gt;
++  {% set direction = config.theme.direction | default(lang.t('direction')) %}
+   {% if palette.primary or palette.accent %}
+     {% set primary = palette.primary | replace(" ", "-") | lower %}
+     {% set accent  = palette.accent  | replace(" ", "-") | lower %}
+-    &lt;body dir="{{ lang.t('direction') }}" data-md-color-primary="{{ primary }}" data-md-color-accent="{{ accent }}"&gt;
++    &lt;body dir="{{ direction }}" data-md-color-primary="{{ primary }}" data-md-color-accent="{{ accent }}"&gt;
+   {% else %}
+-    &lt;body dir="{{ lang.t('direction') }}"&gt;
++    &lt;body dir="{{ direction }}"&gt;
+   {% endif %}
+-    &lt;svg class="md-svg"&gt;
+-      &lt;defs&gt;
+-        {% set platform = config.extra.repo_icon or config.repo_url %}
+-        {% if "github" in platform %}
+-          {% include "assets/images/icons/github.f0b8504a.svg" %}
+-        {% elif "gitlab" in platform %}
+-          {% include "assets/images/icons/gitlab.6dd19c00.svg" %}
+-        {% elif "bitbucket" in platform %}
+-          {% include "assets/images/icons/bitbucket.1b09e088.svg" %}
+-        {% endif %}
+-      &lt;/defs&gt;
+-    &lt;/svg&gt;
+     &lt;input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off"&gt;
+     &lt;input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off"&gt;
+-    &lt;label class="md-overlay" data-md-component="overlay" for="__drawer"&gt;&lt;/label&gt;
++    &lt;label class="md-overlay" for="__drawer"&gt;&lt;/label&gt;
++    &lt;div data-md-component="skip"&gt;
++      {% if page.toc | first is defined %}
++        {% set skip = page.toc | first %}
++        &lt;a href="{{ skip.url | url }}" class="md-skip"&gt;
++          {{ lang.t('skip.link.title') }}
++        &lt;/a&gt;
++      {% endif %}
++    &lt;/div&gt;
++    &lt;div data-md-component="announce"&gt;
++      {% if self.announce() %}
++        &lt;aside class="md-announce"&gt;
++          &lt;div class="md-announce__inner md-grid md-typeset"&gt;
++            {% block announce %}{% endblock %}
++          &lt;/div&gt;
++        &lt;/aside&gt;
++      {% endif %}
++    &lt;/div&gt;
+     {% block header %}
+       {% include "partials/header.html" %}
+     {% endblock %}
+-    &lt;div class="md-container"&gt;
++    &lt;div class="md-container" data-md-component="container"&gt;
+       {% block hero %}
+         {% if page and page.meta and page.meta.hero %}
+           {% include "partials/hero.html" with context %}
+         {% endif %}
+       {% endblock %}
+-      {% if feature.tabs %}
+-        {% include "partials/tabs.html" %}
+-      {% endif %}
++      {% block tabs %}
++        {% if "tabs" in config.theme.features %}
++          {% include "partials/tabs.html" %}
++        {% endif %}
++      {% endblock %}
+-      &lt;main class="md-main" role="main"&gt;
+-        &lt;div class="md-main__inner md-grid" data-md-component="container"&gt;
++      &lt;main class="md-main" data-md-component="main"&gt;
++        &lt;div class="md-main__inner md-grid"&gt;
+           {% block site_nav %}
+             {% if nav %}
+               &lt;div class="md-sidebar md-sidebar--primary" data-md-component="navigation"&gt;
+@@ -160,41 +141,25 @@
+             &lt;article class="md-content__inner md-typeset"&gt;
+               {% block content %}
+                 {% if page.edit_url %}
+-                  &lt;a href="{{ page.edit_url }}" title="{{ lang.t('edit.link.title') }}" class="md-icon md-content__icon"&gt;&amp;#xE3C9;&lt;/a&gt;
++                  &lt;a href="{{ page.edit_url }}" title="{{ lang.t('edit.link.title') }}" class="md-content__button md-icon"&gt;
++                    {% include ".icons/material/pencil.svg" %}
++                  &lt;/a&gt;
+                 {% endif %}
++                {% block source %}
++                  {% if page and page.meta and page.meta.source %}
++                    {% include "partials/source-link.html" %}
++                  {% endif %}
++                {% endblock %}
+                 {% if not "\x3ch1" in page.content %}
+                   &lt;h1&gt;{{ page.title | default(config.site_name, true)}}&lt;/h1&gt;
+                 {% endif %}
+                 {{ page.content }}
+-                {% block source %}
+-                  {% if page and page.meta and page.meta.source %}
+-                    &lt;h2 id="__source"&gt;{{ lang.t("meta.source") }}&lt;/h2&gt;
+-                    {% set repo = config.repo_url %}
+-                    {% if repo | last == "/" %}
+-                      {% set repo = repo[:-1] %}
+-                    {% endif %}
+-                    {% set path = page.meta.path | default([""]) %}
+-                    {% set file = page.meta.source %}
+-                    &lt;a href="{{ [repo, path, file] | join('/') }}" title="{{ file }}" class="md-source-file"&gt;
+-                      {{ file }}
+-                    &lt;/a&gt;
+-                  {% endif %}
+-                {% endblock %}
++                {% if page and page.meta %}
++                  {% if page.meta.git_revision_date_localized or
++                        page.meta.revision_date
++                  %}
++                    {% include "partials/source-date.html" %}
+-                {% if page and page.meta and (
+-                      page.meta.git_revision_date_localized or
+-                      page.meta.revision_date
+-                ) %}
+-                  {% set label = lang.t("source.revision.date") %}
+-                  &lt;hr&gt;
+-                  &lt;div class="md-source-date"&gt;
+-                    &lt;small&gt;
+-                      {% if page.meta.git_revision_date_localized %}
+-                        {{ label }}: {{ page.meta.git_revision_date_localized }}
+-                      {% elif page.meta.revision_date %}
+-                        {{ label }}: {{ page.meta.revision_date }}
+-                      {% endif %}
+-                    &lt;/small&gt;
+-                  &lt;/div&gt;
+                 {% endif %}
+               {% endblock %}
+               {% block disqus %}
+@@ -208,29 +174,35 @@
+         {% include "partials/footer.html" %}
+       {% endblock %}
+     &lt;/div&gt;
+     {% block scripts %}
+-      &lt;script src="{{ 'assets/javascripts/application.********.js' | url }}"&gt;&lt;/script&gt;
+-      {% if lang.t("search.language") != "en" %}
+-        {% set languages = lang.t("search.language").split(",") %}
+-        {% if languages | length and languages[0] != "" %}
+-          {% set path = "assets/javascripts/lunr/" %}
+-          &lt;script src="{{ (path ~ 'lunr.stemmer.support.js') | url }}"&gt;&lt;/script&gt;
+-          {% for language in languages | map("trim") %}
+-            {% if language != "en" %}
+-              {% if language == "ja" %}
+-                &lt;script src="{{ (path ~ 'tinyseg.js') | url }}"&gt;&lt;/script&gt;
+-              {% endif %}
+-              {% if language in ("ar", "da", "de", "es", "fi", "fr", "hu", "it", "ja", "nl", "no", "pt", "ro", "ru", "sv", "th", "tr", "vi") %}
+-                &lt;script src="{{ (path ~ 'lunr.' ~ language ~ '.js') | url }}"&gt;&lt;/script&gt;
+-              {% endif %}
+-            {% endif %}
+-          {% endfor %}
+-          {% if languages | length &gt; 1 %}
+-            &lt;script src="{{ (path ~ 'lunr.multi.js') | url }}"&gt;&lt;/script&gt;
+-          {% endif %}
+-        {% endif %}
+-      {% endif %}
+-      &lt;script&gt;app.initialize({version:"{{ mkdocs_version }}",url:{base:"{{ base_url }}"}})&lt;/script&gt;
++      &lt;script src="{{ 'assets/javascripts/vendor.********.min.js' | url }}"&gt;&lt;/script&gt;
++      &lt;script src="{{ 'assets/javascripts/bundle.********.min.js' | url }}"&gt;&lt;/script&gt;
++      {%- set translations = {} -%}
++      {%- for key in [
++        "clipboard.copy",
++        "clipboard.copied",
++        "search.config.lang",
++        "search.config.pipeline",
++        "search.config.separator",
++        "search.result.placeholder",
++        "search.result.none",
++        "search.result.one",
++        "search.result.other"
++      ] -%}
++        {%- set _ = translations.update({ key: lang.t(key) }) -%}
++      {%- endfor -%}
++      &lt;script id="__lang" type="application/json"&gt;
++        {{- translations | tojson -}}
++      &lt;/script&gt;
++      {% block config %}{% endblock %}
++      &lt;script&gt;
++        app = initialize({
++          base: "{{ base_url }}",
++          features: {{ config.theme.features | tojson }},
++          search: Object.assign({
++            worker: "{{ 'assets/javascripts/worker/search.********.min.js' | url }}"
++          }, typeof search !== "undefined" &amp;&amp; search)
++        })
++      &lt;/script&gt;
+       {% for path in config["extra_javascript"] %}
+         &lt;script src="{{ path | url }}"&gt;&lt;/script&gt;
+       {% endfor %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -5,34 +5,34 @@
+     &lt;div class="md-footer-nav"&gt;
+-      &lt;nav class="md-footer-nav__inner md-grid"&gt;
++      &lt;nav class="md-footer-nav__inner md-grid" aria-label="{{ lang.t('footer.title') }}"&gt;
+         {% if page.previous_page %}
+-          &lt;a href="{{ page.previous_page.url | url }}" title="{{ page.previous_page.title | striptags }}" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev"&gt;
+-            &lt;div class="md-flex__cell md-flex__cell--shrink"&gt;
+-              &lt;i class="md-icon md-icon--arrow-back md-footer-nav__button"&gt;&lt;/i&gt;
++          &lt;a href="{{ page.previous_page.url | url }}" title="{{ page.previous_page.title | striptags }}" class="md-footer-nav__link md-footer-nav__link--prev" rel="prev"&gt;
++            &lt;div class="md-footer-nav__button md-icon"&gt;
++              {% include ".icons/material/arrow-left.svg" %}
+             &lt;/div&gt;
+-            &lt;div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"&gt;
+-              &lt;span class="md-flex__ellipsis"&gt;
++            &lt;div class="md-footer-nav__title"&gt;
++              &lt;div class="md-ellipsis"&gt;
+                 &lt;span class="md-footer-nav__direction"&gt;
+                   {{ lang.t("footer.previous") }}
+                 &lt;/span&gt;
+                 {{ page.previous_page.title }}
+-              &lt;/span&gt;
++              &lt;/div&gt;
+             &lt;/div&gt;
+           &lt;/a&gt;
+         {% endif %}
+         {% if page.next_page %}
+-          &lt;a href="{{ page.next_page.url | url }}" title="{{ page.next_page.title | striptags }}" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next"&gt;
+-            &lt;div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"&gt;
+-              &lt;span class="md-flex__ellipsis"&gt;
++          &lt;a href="{{ page.next_page.url | url }}" title="{{ page.next_page.title | striptags }}" class="md-footer-nav__link md-footer-nav__link--next" rel="next"&gt;
++            &lt;div class="md-footer-nav__title"&gt;
++              &lt;div class="md-ellipsis"&gt;
+                 &lt;span class="md-footer-nav__direction"&gt;
+                   {{ lang.t("footer.next") }}
+                 &lt;/span&gt;
+                 {{ page.next_page.title }}
+-              &lt;/span&gt;
++              &lt;/div&gt;
+             &lt;/div&gt;
+-            &lt;div class="md-flex__cell md-flex__cell--shrink"&gt;
+-              &lt;i class="md-icon md-icon--arrow-forward md-footer-nav__button"&gt;&lt;/i&gt;
++            &lt;div class="md-footer-nav__button md-icon"&gt;
++              {% include ".icons/material/arrow-right.svg" %}
+             &lt;/div&gt;
+           &lt;/a&gt;
+         {% endif %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,51 +4,43 @@
+ &lt;header class="md-header" data-md-component="header"&gt;
+-  &lt;nav class="md-header-nav md-grid"&gt;
+-    &lt;div class="md-flex"&gt;
+-      &lt;div class="md-flex__cell md-flex__cell--shrink"&gt;
+-        &lt;a href="{{ config.site_url | default(nav.homepage.url, true) | url }}" title="{{ config.site_name }}" aria-label="{{ config.site_name }}" class="md-header-nav__button md-logo"&gt;
+-          {% if config.theme.logo.icon %}
+-            &lt;i class="md-icon"&gt;{{ config.theme.logo.icon }}&lt;/i&gt;
+-          {% else %}
+-            &lt;img alt="logo" src="{{ config.theme.logo | url }}" width="24" height="24"&gt;
+-          {% endif %}
+-        &lt;/a&gt;
+-      &lt;/div&gt;
+-      &lt;div class="md-flex__cell md-flex__cell--shrink"&gt;
+-        &lt;label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"&gt;&lt;/label&gt;
+-      &lt;/div&gt;
+-      &lt;div class="md-flex__cell md-flex__cell--stretch"&gt;
+-        &lt;div class="md-flex__ellipsis md-header-nav__title" data-md-component="title"&gt;
+-          {% if config.site_name == page.title %}
+-            {{ config.site_name }}
+-          {% else %}
+-            &lt;span class="md-header-nav__topic"&gt;
+-              {{ config.site_name }}
+-            &lt;/span&gt;
+-            &lt;span class="md-header-nav__topic"&gt;
+-              {% if page and page.meta and page.meta.title %}
+-                {{ page.meta.title }}
+-              {% else %}
+-                {{ page.title }}
+-              {% endif %}
+-            &lt;/span&gt;
+-          {% endif %}
++  &lt;nav class="md-header-nav md-grid" aria-label="{{ lang.t('header.title') }}"&gt;
++    &lt;a href="{{ config.site_url | default(nav.homepage.url, true) | url }}" title="{{ config.site_name }}" class="md-header-nav__button md-logo" aria-label="{{ config.site_name }}"&gt;
++      {% include "partials/logo.html" %}
++    &lt;/a&gt;
++    &lt;label class="md-header-nav__button md-icon" for="__drawer"&gt;
++      {% include ".icons/material/menu" ~ ".svg" %}
++    &lt;/label&gt;
++    &lt;div class="md-header-nav__title" data-md-component="header-title"&gt;
++      {% if config.site_name == page.title %}
++        &lt;div class="md-header-nav__ellipsis md-ellipsis"&gt;
++          {{ config.site_name }}
+         &lt;/div&gt;
+-      &lt;/div&gt;
+-      &lt;div class="md-flex__cell md-flex__cell--shrink"&gt;
+-        {% if "search" in config["plugins"] %}
+-          &lt;label class="md-icon md-icon--search md-header-nav__button" for="__search"&gt;&lt;/label&gt;
+-          {% include "partials/search.html" %}
+-        {% endif %}
+-      &lt;/div&gt;
+-      {% if config.repo_url %}
+-        &lt;div class="md-flex__cell md-flex__cell--shrink"&gt;
+-          &lt;div class="md-header-nav__source"&gt;
+-            {% include "partials/source.html" %}
+-          &lt;/div&gt;
++      {% else %}
++        &lt;div class="md-header-nav__ellipsis"&gt;
++          &lt;span class="md-header-nav__topic md-ellipsis"&gt;
++            {{ config.site_name }}
++          &lt;/span&gt;
++          &lt;span class="md-header-nav__topic md-ellipsis"&gt;
++            {% if page and page.meta and page.meta.title %}
++              {{ page.meta.title }}
++            {% else %}
++              {{ page.title }}
++            {% endif %}
++          &lt;/span&gt;
+         &lt;/div&gt;
+       {% endif %}
+     &lt;/div&gt;
++    {% if "search" in config["plugins"] %}
++      &lt;label class="md-header-nav__button md-icon" for="__search"&gt;
++        {% include ".icons/material/magnify.svg" %}
++      &lt;/label&gt;
++      {% include "partials/search.html" %}
++    {% endif %}
++    {% if config.repo_url %}
++      &lt;div class="md-header-nav__source"&gt;
++        {% include "partials/source.html" %}
++      &lt;/div&gt;
++    {% endif %}
+   &lt;/nav&gt;
+ &lt;/header&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,9 +4,8 @@
+-{% set feature = config.theme.feature %}
+ {% set class = "md-hero" %}
+-{% if not feature.tabs %}
++{% if "tabs" not in config.theme.features %}
+   {% set class = "md-hero md-hero--expand" %}
+ {% endif %}
+ &lt;div class="{{ class }}" data-md-component="hero"&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,12 +4,4 @@
+ {% import "partials/language/" + config.theme.language + ".html" as lang %}
+ {% import "partials/language/en.html" as fallback %}
+-{% macro t(key) %}{{ {
+-  "direction": config.theme.direction,
+-  "search.language": (
+-    config.extra.search | default({})
+-  ).language,
+-  "search.tokenizer": (
+-    config.extra.search | default({})
+-  ).tokenizer | default("", true),
+-}[key] or lang.t(key) or fallback.t(key) }}{% endmacro %}
++{% macro t(key) %}{{ lang.t(key) | default(fallback.t(key)) }}{% endmacro %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -0,0 +1,9 @@
++{#-
++  This file was automatically generated - do not edit
++-#}
++{% if config.theme.logo %}
++  &lt;img src="{{ config.theme.logo | url }}" alt="logo"&gt;
++{% else %}
++  {% set icon = config.theme.icon.logo or "material/library" %}
++  {% include ".icons/" ~ icon ~ ".svg" %}
++{% endif %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -14,9 +14,15 @@
+     {% endif %}
+     &lt;label class="md-nav__link" for="{{ path }}"&gt;
+       {{ nav_item.title }}
++      &lt;span class="md-nav__icon md-icon"&gt;
++        {% include ".icons/material/chevron-right.svg" %}
++      &lt;/span&gt;
+     &lt;/label&gt;
+-    &lt;nav class="md-nav" data-md-component="collapsible" data-md-level="{{ level }}"&gt;
++    &lt;nav class="md-nav" aria-label="{{ nav_item.title }}" data-md-level="{{ level }}"&gt;
+       &lt;label class="md-nav__title" for="{{ path }}"&gt;
++        &lt;span class="md-nav__icon md-icon"&gt;
++          {% include ".icons/material/arrow-left.svg" %}
++        &lt;/span&gt;
+         {{ nav_item.title }}
+       &lt;/label&gt;
+       &lt;ul class="md-nav__list" data-md-scrollfix&gt;
+@@ -39,6 +45,9 @@
+     {% if toc | first is defined %}
+       &lt;label class="md-nav__link md-nav__link--active" for="__toc"&gt;
+         {{ nav_item.title }}
++        &lt;span class="md-nav__icon md-icon"&gt;
++          {% include ".icons/material/table-of-contents.svg" %}
++        &lt;/span&gt;
+       &lt;/label&gt;
+     {% endif %}
+     &lt;a href="{{ nav_item.url | url }}" title="{{ nav_item.title | striptags }}" class="md-nav__link md-nav__link--active"&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,14 +4,10 @@
+-&lt;nav class="md-nav md-nav--primary" data-md-level="0"&gt;
+-  &lt;label class="md-nav__title md-nav__title--site" for="__drawer"&gt;
+-    &lt;a href="{{ config.site_url | default(nav.homepage.url, true) | url }}" title="{{ config.site_name }}" class="md-nav__button md-logo"&gt;
+-      {% if config.theme.logo.icon %}
+-        &lt;i class="md-icon"&gt;{{ config.theme.logo.icon }}&lt;/i&gt;
+-      {% else %}
+-        &lt;img alt="logo" src="{{ config.theme.logo | url }}" width="48" height="48"&gt;
+-      {% endif %}
++&lt;nav class="md-nav md-nav--primary" aria-label="{{ lang.t('nav.title') }}" data-md-level="0"&gt;
++  &lt;label class="md-nav__title" for="__drawer"&gt;
++    &lt;a href="{{ config.site_url | default(nav.homepage.url, true) | url }}" title="{{ config.site_name }}" class="md-nav__button md-logo" aria-label="{{ config.site_name }}"&gt;
++      {% include "partials/logo.html" %}
+     &lt;/a&gt;
+     {{ config.site_name }}
+   &lt;/label&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -6,15 +6,18 @@
+   &lt;label class="md-search__overlay" for="__search"&gt;&lt;/label&gt;
+   &lt;div class="md-search__inner" role="search"&gt;
+     &lt;form class="md-search__form" name="search"&gt;
+-      &lt;input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="{{ lang.t('search.placeholder') }}" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active"&gt;
++      &lt;input type="text" class="md-search__input" name="query" aria-label="{{ lang.t('search.placeholder') }}" placeholder="{{ lang.t('search.placeholder') }}" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" data-md-state="active"&gt;
+       &lt;label class="md-search__icon md-icon" for="__search"&gt;
++        {% include ".icons/material/magnify.svg" %}
++        {% include ".icons/material/arrow-left.svg" %}
+       &lt;/label&gt;
+-      &lt;button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1"&gt;
+-        &amp;#xE5CD;
++      &lt;button type="reset" class="md-search__icon md-icon" aria-label="{{ lang.t('search.reset') }}" data-md-component="search-reset" tabindex="-1"&gt;
++        {% include ".icons/material/close.svg" %}
+       &lt;/button&gt;
+     &lt;/form&gt;
+     &lt;div class="md-search__output"&gt;
+       &lt;div class="md-search__scrollwrap" data-md-scrollfix&gt;
+-        &lt;div class="md-search-result" data-md-component="result"&gt;
++        &lt;div class="md-search-result" data-md-component="search-result"&gt;
+           &lt;div class="md-search-result__meta"&gt;
+             {{ lang.t("search.result.placeholder") }}
+           &lt;/div&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,9 +4,12 @@
+ {% if config.extra.social %}
+   &lt;div class="md-footer-social"&gt;
+-    &lt;link rel="stylesheet" href="{{ 'assets/fonts/font-awesome.css' | url }}"&gt;
+     {% for social in config.extra.social %}
+-      &lt;a href="{{ social.link }}" target="_blank" rel="noopener" title="{{ social.type }}" class="md-footer-social__link fa fa-{{ social.type }}"&gt;&lt;/a&gt;
++      {% set _,rest = social.link.split("//") %}
++      {% set domain = rest.split("/")[0] %}
++      &lt;a href="{{ social.link }}" target="_blank" rel="noopener" title="{{ domain }}" class="md-footer-social__link"&gt;
++        {% include ".icons/" ~ social.icon ~ ".svg" %}
++      &lt;/a&gt;
+     {% endfor %}
+   &lt;/div&gt;
+ {% endif %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -0,0 +1,15 @@
++{#-
++  This file was automatically generated - do not edit
++-#}
++{% import "partials/language.html" as lang with context %}
++{% set label = lang.t("source.revision.date") %}
++&lt;hr&gt;
++&lt;div class="md-source-date"&gt;
++  &lt;small&gt;
++    {% if page.meta.git_revision_date_localized %}
++      {{ label }}: {{ page.meta.git_revision_date_localized }}
++    {% elif page.meta.revision_date %}
++      {{ label }}: {{ page.meta.revision_date }}
++    {% endif %}
++  &lt;/small&gt;
++&lt;/div&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -0,0 +1,13 @@
++{#-
++  This file was automatically generated - do not edit
++-#}
++{% import "partials/language.html" as lang with context %}
++{% set repo = config.repo_url %}
++{% if repo | last == "/" %}
++  {% set repo = repo[:-1] %}
++{% endif %}
++{% set path = page.meta.path | default([""]) %}
++&lt;a href="{{ [repo, path, page.meta.source] | join('/') }}" title="{{ file }}" class="md-content__button md-icon"&gt;
++  {{ lang.t("meta.source") }}
++  {% include ".icons/" ~ config.theme.icon.repo ~ ".svg" %}
++&lt;/a&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,24 +4,11 @@
+ {% import "partials/language.html" as lang with context %}
+-{% set platform = config.extra.repo_icon or config.repo_url %}
+-{% if "github" in platform %}
+-  {% set repo_type = "github" %}
+-{% elif "gitlab" in platform %}
+-  {% set repo_type = "gitlab" %}
+-{% elif "bitbucket" in platform %}
+-  {% set repo_type = "bitbucket" %}
+-{% else %}
+-  {% set repo_type = "" %}
+-{% endif %}
+-&lt;a href="{{ config.repo_url }}" title="{{ lang.t('source.link.title') }}" class="md-source" data-md-source="{{ repo_type }}"&gt;
+-  {% if repo_type %}
+-    &lt;div class="md-source__icon"&gt;
+-      &lt;svg viewBox="0 0 24 24" width="24" height="24"&gt;
+-        &lt;use xlink:href="#__{{ repo_type }}" width="24" height="24"&gt;&lt;/use&gt;
+-      &lt;/svg&gt;
+-    &lt;/div&gt;
+-  {% endif %}
++&lt;a href="{{ config.repo_url }}" title="{{ lang.t('source.link.title') }}" class="md-source"&gt;
++  &lt;div class="md-source__icon md-icon"&gt;
++    {% set icon = config.theme.icon.repo or "fontawesome/brands/git-alt" %}
++    {% include ".icons/" ~ icon ~ ".svg" %}
++  &lt;/div&gt;
+   &lt;div class="md-source__repository"&gt;
+     {{ config.repo_name }}
+   &lt;/div&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,7 +4,7 @@
+-{% if nav_item.is_homepage %}
++{% if nav_item.is_homepage or nav_item.url == "index.html" %}
+   &lt;li class="md-tabs__item"&gt;
+     {% if not page.ancestors | length and nav | selectattr("url", page.url) %}
+       &lt;a href="{{ nav_item.url | url }}" class="md-tabs__link md-tabs__link--active"&gt;</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -5,7 +5,7 @@
+ {% if page.ancestors | length &gt; 0 %}
+   {% set class = "md-tabs md-tabs--active" %}
+ {% endif %}
+-&lt;nav class="{{ class }}" data-md-component="tabs"&gt;
++&lt;nav class="{{ class }}" aria-label="{{ lang.t('tabs.title') }}" data-md-component="tabs"&gt;
+   &lt;div class="md-tabs__inner md-grid"&gt;
+     &lt;ul class="md-tabs__list"&gt;
+       {% for nav_item in nav %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -6,7 +6,7 @@
+     {{ toc_item.title }}
+   &lt;/a&gt;
+   {% if toc_item.children %}
+-    &lt;nav class="md-nav"&gt;
++    &lt;nav class="md-nav" aria-label="{{ toc_item.title }}"&gt;
+       &lt;ul class="md-nav__list"&gt;
+         {% for toc_item in toc_item.children %}
+           {% include "partials/toc-item.html" %}</code></pre>
+</div>
+<div class="tabbed-block">
+<pre class="highlight"><code class="language-diff">@@ -4,35 +4,22 @@
+ {% import "partials/language.html" as lang with context %}
+-&lt;nav class="md-nav md-nav--secondary"&gt;
++&lt;nav class="md-nav md-nav--secondary" aria-label="{{ lang.t('toc.title') }}"&gt;
+   {% endif %}
+   {% if toc | first is defined %}
+     &lt;label class="md-nav__title" for="__toc"&gt;
++      &lt;span class="md-nav__icon md-icon"&gt;
++        {% include ".icons/material/arrow-left.svg" %}
++      &lt;/span&gt;
+       {{ lang.t("toc.title") }}
+     &lt;/label&gt;
+     &lt;ul class="md-nav__list" data-md-scrollfix&gt;
+       {% for toc_item in toc %}
+         {% include "partials/toc-item.html" %}
+       {% endfor %}
+-      {% if page.meta.source and page.meta.source | length &gt; 0 %}
+-        &lt;li class="md-nav__item"&gt;
+-          &lt;a href="#__source" class="md-nav__link md-nav__link--active"&gt;
+-            {{ lang.t("meta.source") }}
+-          &lt;/a&gt;
+-        &lt;/li&gt;
+-      {% endif %}
+-      {% set disqus = config.extra.disqus %}
+-      {% if page and page.meta and page.meta.disqus is string %}
+-        {% set disqus = page.meta.disqus %}
+-      {% endif %}
+-      {% if not page.is_homepage and disqus %}
+-        &lt;li class="md-nav__item"&gt;
+-          &lt;a href="#__comments" class="md-nav__link md-nav__link--active"&gt;
+-            {{ lang.t("meta.comments") }}
+-          &lt;/a&gt;
+-        &lt;/li&gt;
+-      {% endif %}
+     &lt;/ul&gt;
+   {% endif %}
+ &lt;/nav&gt;</code></pre>
+</div>
+</div>
+</div>
+<h2 id="upgrading-from-3x-to-4x">Upgrading from 3.x to 4.x<a class="headerlink" href="#upgrading-from-3x-to-4x" title="Permanent link">&para;</a></h2>
+<h3 id="whats-new_4">What's new?<a class="headerlink" href="#whats-new_4" title="Permanent link">&para;</a></h3>
+<p>Material for MkDocs 4 fixes incorrect layout on Chinese systems. The fix
+includes a mandatory change of the base font-size from <code>10px</code> to <code>20px</code> which
+means all <code>rem</code> values needed to be updated. Within the theme, <code>px</code> to <code>rem</code>
+calculation is now encapsulated in a new function called <code>px2rem</code> which is part
+of the SASS code base.</p>
+<p>If you use Material for MkDocs with custom CSS that is based on <code>rem</code> values,
+note that those values must now be divided by 2. Now, <code>1.0rem</code> doesn't map to
+<code>10px</code>, but <code>20px</code>. To learn more about the problem and implications, please
+refer to <a class="magiclink magiclink-github magiclink-issue" href="https://github.com/squidfunk/mkdocs-material/issues/911" title="GitHub Issue: squidfunk/mkdocs-material #911">#911</a> in which the problem was discovered and fixed.</p>
+<h3 id="changes-to-mkdocsyml_5">Changes to <code>mkdocs.yml</code><a class="headerlink" href="#changes-to-mkdocsyml_5" title="Permanent link">&para;</a></h3>
+<p>None.</p>
+<h3 id="changes-to-html-files_5">Changes to <code>*.html</code> files<a class="headerlink" href="#changes-to-html-files_5" title="Permanent link">&para;</a></h3>
+<p>None.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2016 - 2025 Martin Donath
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
