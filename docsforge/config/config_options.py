@@ -19,6 +19,7 @@ from urllib.parse import quote as urlquote
 from urllib.parse import urlsplit, urlunsplit
 
 import markdown
+import mkdocs.plugins
 import pathspec.gitignore
 
 from docsforge import plugins, theme, utils
@@ -1118,7 +1119,7 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
         if plugin is None:
             plugin_cls = self.installed_plugins[name].load()
 
-            if not issubclass(plugin_cls, plugins.BasePlugin):
+            if not issubclass(plugin_cls, plugins.BasePlugin) and not issubclass(plugin_cls, mkdocs.plugins.BasePlugin):
                 raise ValidationError(
                     f'{plugin_cls.__module__}.{plugin_cls.__name__} must be a subclass of'
                     f' {plugins.BasePlugin.__module__}.{plugins.BasePlugin.__name__}'

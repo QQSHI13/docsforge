@@ -18,18 +18,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-# Re-export ProperDocs plugin system for compatibility
-from properdocs.plugins import (
-    BasePlugin,
-    CombinedEvent,
-    Config,
-    EVENTS,
-    LegacyConfig,
-    PlainConfigSchema,
-    PluginCollection,
-    PrefixedLogger,
-    SomeConfig,
-    event_priority,
-    get_plugin_logger,
-    get_plugins,
-)
+from __future__ import annotations
+
+from docsforge.plugins.group.config import GroupConfig
+from mkdocs.theme import Theme
+
+__all__ = ["GroupConfig", "Theme"]
