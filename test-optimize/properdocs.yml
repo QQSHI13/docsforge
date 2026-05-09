@@ -1,0 +1,13 @@
+site_name: Optimize Test
+site_url: https://example.com/
+
+theme:
+  name: material
+
+plugins:
+  - optimize:
+      optimize_png: false
+      optimize_jpg: false
+
+nav:
+  - Home: index.md

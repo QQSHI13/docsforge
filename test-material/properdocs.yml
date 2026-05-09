@@ -27,6 +27,10 @@ theme:
     - navigation.tabs
     - navigation.top
     - navigation.tracking
+    - content.tabs.link
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
     - search.highlight
     - search.share
     - search.suggest
@@ -106,6 +110,14 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
+
+# Plugins
+plugins:
+  - search:
+      separator: '[\s\u200b\-_,:!=\[\]()"`\/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - privacy
+  - social
+  - tags
 
 # Page tree
 nav:

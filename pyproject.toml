@@ -70,6 +70,7 @@ docsforge = "docsforge.__main__:cli"
 "material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
 "material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
 "material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
+"material/minify" = "docsforge.plugins.minify.plugin:MinifyPlugin"
 "material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
 
 [project.entry-points."properdocs.plugins"]
@@ -84,6 +85,7 @@ docsforge = "docsforge.__main__:cli"
 "material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
 "material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
 "material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
+"material/minify" = "docsforge.plugins.minify.plugin:MinifyPlugin"
 "material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
 
 [project.entry-points."docsforge.plugins"]
@@ -98,6 +100,7 @@ docsforge = "docsforge.__main__:cli"
 "material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
 "material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
 "material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
+"material/minify" = "docsforge.plugins.minify.plugin:MinifyPlugin"
 "material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
 
 [project.entry-points."mkdocs.themes"]
