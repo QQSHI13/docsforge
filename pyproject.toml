@@ -1,0 +1,119 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "docsforge"
+description = "Unified documentation engine with Material theme."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [
+    {name = "DocsForge Contributors"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Documentation",
+    "Topic :: Text Processing",
+]
+dynamic = ["version"]
+requires-python = ">=3.10"
+dependencies = [
+    "click >=7.0",
+    "Jinja2 >=2.11.1",
+    "markupsafe >=2.0.1",
+    "Markdown >=3.3.6",
+    "PyYAML >=5.1",
+    "watchdog >=2.0",
+    "ghp-import >=1.0",
+    "pyyaml_env_tag >=0.1",
+    "packaging >=20.5",
+    "pathspec >=0.11.1",
+    "platformdirs >=2.2.0",
+    "colorama >=0.4; platform_system == 'Windows'",
+    "pymdown-extensions >=10.0",
+    "mkdocs-minify-plugin >=0.7",
+    "mkdocs-redirects >=1.2",
+]
+
+[project.optional-dependencies]
+i18n = ["babel >=2.9.0"]
+imaging = ["pillow>=10.2", "cairosvg>=2.6"]
+
+[project.urls]
+Documentation = "https://docsforge.readthedocs.io/"
+Source = "https://github.com/docsforge/docsforge"
+Issues = "https://github.com/docsforge/docsforge/issues"
+
+[project.scripts]
+docsforge = "docsforge.__main__:cli"
+
+[project.entry-points."docsforge.plugins"]
+"material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
+"material/group" = "docsforge.plugins.group.plugin:GroupPlugin"
+"material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
+"material/meta" = "docsforge.plugins.meta.plugin:MetaPlugin"
+"material/offline" = "docsforge.plugins.offline.plugin:OfflinePlugin"
+"material/optimize" = "docsforge.plugins.optimize.plugin:OptimizePlugin"
+"material/privacy" = "docsforge.plugins.privacy.plugin:PrivacyPlugin"
+"material/projects" = "docsforge.plugins.projects.plugin:ProjectsPlugin"
+"material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
+"material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
+"material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
+"material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
+
+[project.entry-points."docsforge.themes"]
+material = "docsforge.themes.material.templates"
+
+# Keep backward-compatible entrypoints for MkDocs/ProperDocs plugins
+[project.entry-points."mkdocs.plugins"]
+"material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
+"material/group" = "docsforge.plugins.group.plugin:GroupPlugin"
+"material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
+"material/meta" = "docsforge.plugins.meta.plugin:MetaPlugin"
+"material/offline" = "docsforge.plugins.offline.plugin:OfflinePlugin"
+"material/optimize" = "docsforge.plugins.optimize.plugin:OptimizePlugin"
+"material/privacy" = "docsforge.plugins.privacy.plugin:PrivacyPlugin"
+"material/projects" = "docsforge.plugins.projects.plugin:ProjectsPlugin"
+"material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
+"material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
+"material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
+"material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
+
+[project.entry-points."mkdocs.themes"]
+material = "docsforge.themes.material.templates"
+
+[project.entry-points."properdocs.plugins"]
+"material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
+"material/group" = "docsforge.plugins.group.plugin:GroupPlugin"
+"material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
+"material/meta" = "docsforge.plugins.meta.plugin:MetaPlugin"
+"material/offline" = "docsforge.plugins.offline.plugin:OfflinePlugin"
+"material/optimize" = "docsforge.plugins.optimize.plugin:OptimizePlugin"
+"material/privacy" = "docsforge.plugins.privacy.plugin:PrivacyPlugin"
+"material/projects" = "docsforge.plugins.projects.plugin:ProjectsPlugin"
+"material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
+"material/social" = "docsforge.plugins.social.plugin:SocialPlugin"
+"material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
+"material/typeset" = "docsforge.plugins.typeset.plugin:TypesetPlugin"
+
+[project.entry-points."properdocs.themes"]
+material = "docsforge.themes.material.templates"
+
+[tool.hatch.version]
+path = "docsforge/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["/docsforge", "/README.md", "/LICENSE"]
+
+[tool.hatch.build.targets.wheel]
+include = ["/docsforge"]
