@@ -50,6 +50,7 @@
     {% endblock %}
     {% block styles %}
       <link rel="stylesheet" href="{{ 'assets/stylesheets/main.484c7ddc.min.css' | url }}">
+      <link rel="stylesheet" href="{{ 'assets/katex/katex.min.css' | url }}">
       {% if config.theme.palette %}
         {% set palette = config.theme.palette %}
         <link rel="stylesheet" href="{{ 'assets/stylesheets/palette.ab4e12ef.min.css' | url }}">
@@ -76,6 +77,7 @@
     {% for path in config.extra_css %}
       <link rel="stylesheet" href="{{ path | url }}">
     {% endfor %}
+    <style>.MathJax_Preview{display:none!important}</style>
     {% include "partials/javascripts/base.html" %}
     {% block analytics %}
       {% include "partials/integrations/analytics.html" %}
@@ -251,6 +253,8 @@
     {% endblock %}
     {% block scripts %}
       <script src="{{ 'assets/javascripts/bundle.79ae519e.min.js' | url }}"></script>
+      <script src="{{ 'assets/katex/katex.min.js' | url }}"></script>
+      <script src="{{ 'assets/katex/mathtex-script-type.min.js' | url }}"></script>
       {% for script in config.extra_javascript %}
         {{ script | script_tag }}
       {% endfor %}
