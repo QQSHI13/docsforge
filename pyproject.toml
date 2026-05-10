@@ -88,9 +88,6 @@ docsforge = "docsforge.__main__:cli"
 [project.entry-points."mkdocs.themes"]
 material = "docsforge.themes.material.templates"
 
-[project.entry-points."properdocs.themes"]
-material = "docsforge.themes.material.templates"
-
 [project.entry-points."docsforge.themes"]
 material = "docsforge.themes.material.templates"
 
