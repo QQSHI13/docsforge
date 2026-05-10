@@ -1,8 +1,17 @@
-name: Deploy DocsForge Demo to GitHub Pages
+name: Deploy DocsForge Demo
 
 on:
   push:
     branches: [main]
+    paths:
+      - "demo/**"
+      - "docsforge/**"
+      - "pyproject.toml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "demo/**"
+      - "docsforge/**"
   workflow_dispatch:
 
 permissions:
@@ -24,16 +33,25 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install Dependencies
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y pngquant
-          pip install Pillow cairosvg
 
-      - name: Install DocsForge
-        run: pip install -e .
+      - name: Install Python dependencies
+        run: |
+          pip install Pillow cairosvg
+          pip install -e .
 
       - name: Build Demo Site
         run: |
@@ -42,12 +60,14 @@ jobs:
           touch site/.nojekyll
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: demo/site
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
