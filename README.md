@@ -2,7 +2,13 @@
 
 > **One package. One command. Beautiful docs.**
 
+[![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
+[![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
+
 DocsForge unifies the [ProperDocs](https://github.com/properdocs/properdocs) documentation engine and the [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) theme into a single, installable package. You write content. DocsForge handles the engine, the theme, and the plugins.
+
+📖 **[Documentation](https://qqshi13.github.io/docsforge-docs/)** | 📦 **[PyPI](https://pypi.org/project/docsforge/)** | 🐙 **[GitHub](https://github.com/QQSHI13/docsforge)**
 
 ---
 
