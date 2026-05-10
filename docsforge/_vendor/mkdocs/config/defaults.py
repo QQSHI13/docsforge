@@ -141,6 +141,7 @@ class MkDocsConfig(base.Config):
             'meta',
             'pymdownx.arithmatex',
             'pymdownx.superfences',
+            'pymdownx.highlight',
             'pymdownx.details',
             'pymdownx.tasklist',
             'pymdownx.tilde',

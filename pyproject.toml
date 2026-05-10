@@ -44,6 +44,7 @@ dependencies = [
     "paginate >=0.5",
     "requests >=2.27",
     "babel >=2.9.0",
+    "pygments >=2.16",
 ]
 
 [project.optional-dependencies]
