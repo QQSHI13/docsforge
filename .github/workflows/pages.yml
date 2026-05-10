@@ -39,6 +39,7 @@ jobs:
         run: |
           cd demo
           docsforge build
+          touch site/.nojekyll
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
