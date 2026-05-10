@@ -130,7 +130,22 @@ class MkDocsConfig(base.Config):
     Jinja2 and the global context."""
 
     markdown_extensions = c.MarkdownExtensions(
-        builtins=['toc', 'tables', 'fenced_code'], configkey='mdx_configs'
+        builtins=['toc', 'tables', 'fenced_code'],
+        default=[
+            'admonition',
+            'footnotes',
+            'def_list',
+            'abbr',
+            'attr_list',
+            'md_in_html',
+            'meta',
+            'pymdownx.arithmatex',
+            'pymdownx.superfences',
+            'pymdownx.details',
+            'pymdownx.tasklist',
+            'pymdownx.tilde',
+        ],
+        configkey='mdx_configs'
     )
     """PyMarkdown extension names."""
 
