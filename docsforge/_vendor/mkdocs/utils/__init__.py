@@ -263,7 +263,7 @@ def get_theme_dir(name: str) -> str:
 def get_themes() -> dict[str, EntryPoint]:
     """Return a dict of all installed themes as {name: EntryPoint}."""
     themes: dict[str, EntryPoint] = {}
-    eps: dict[EntryPoint, None] = dict.fromkeys(entry_points(group='mkdocs.themes'))
+    eps: dict[EntryPoint, None] = dict.fromkeys(entry_points(group='docsforge.themes'))
     builtins = {ep.name for ep in eps if ep.dist is not None and ep.dist.name == 'mkdocs'}
 
     for theme in eps:

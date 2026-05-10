@@ -178,10 +178,8 @@ def get_deps(
     extensions = set(_strings(_dig(cfg, "markdown_extensions"))) - BUILTIN_EXTENSIONS
 
     wanted_plugins = (
-        (_PluginKind("properdocs_theme", "properdocs.themes"), themes),
-        (_PluginKind("mkdocs_theme", "mkdocs.themes"), themes),
-        (_PluginKind("properdocs_plugin", "properdocs.plugins"), plugins),
-        (_PluginKind("mkdocs_plugin", "mkdocs.plugins"), plugins),
+        (_PluginKind("docsforge_theme", "docsforge.themes"), themes),
+        (_PluginKind("docsforge_plugin", "docsforge.plugins"), plugins),
         (_PluginKind("markdown_extension", "markdown.extensions"), extensions),
     )
     for kind, wanted in (wanted_plugins[0], wanted_plugins[2], wanted_plugins[4]):
@@ -199,7 +197,7 @@ def get_deps(
                 if (  # Also check theme-namespaced plugin names against the current theme.
                     "/" in entry_name
                     and theme is not None
-                    and kind.projects_key in ("properdocs_plugin", "mkdocs_plugin")
+                    and kind.projects_key in ("docsforge_plugin",)
                     and entry_name.startswith(f"{theme}/")
                     and entry_name[len(theme) + 1 :] in wanted
                     and entry_name not in wanted

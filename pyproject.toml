@@ -86,9 +86,6 @@ docsforge = "docsforge.__main__:cli"
 "material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
 "material/minify" = "docsforge.plugins.minify.plugin:MinifyPlugin"
 
-[project.entry-points."mkdocs.themes"]
-material = "docsforge.themes.material.templates"
-
 [project.entry-points."docsforge.themes"]
 material = "docsforge.themes.material.templates"
 

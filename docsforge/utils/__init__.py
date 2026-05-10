@@ -248,8 +248,8 @@ def get_themes() -> dict[str, EntryPoint]:
     eps: dict[EntryPoint, None] = {}
     builtins: set[str] = set()
 
-    for ep in entry_points(group='mkdocs.themes'):
-        if ep.dist is not None and ep.dist.name != 'mkdocs':
+    for ep in entry_points(group='docsforge.themes'):
+        if ep.dist is not None:
             eps[ep] = None
     # These will get preference because they are later in the sequence:
     for ep in entry_points(group='properdocs.themes'):
