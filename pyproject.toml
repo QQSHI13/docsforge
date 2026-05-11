@@ -97,5 +97,5 @@ include = ["/docsforge", "/README.md", "/LICENSE", "/scripts"]
 
 [tool.hatch.build.targets.wheel]
 include = ["/docsforge"]
-# Force-include Material Icons even though .icons/ is in .gitignore
-artifacts = ["/docsforge/themes/material/templates/.icons/**/*"]
+# Ignore .gitignore so that downloaded icons are included in the wheel
+ignore-vcs = true
