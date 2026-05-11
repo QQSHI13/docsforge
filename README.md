@@ -163,12 +163,12 @@ GPL-3.0-or-later — same as ProperDocs.
 
 ---
 
-## ⭐ Star History
+## Star History
 
-<a href="https://star-history.com/#QQSHI13/docsforge&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=QQSHI13/docsforge&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=QQSHI13/docsforge&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=QQSHI13/docsforge&type=Date" />
-  </picture>
+<a href="https://www.star-history.com/?repos=QQSHI13%2Fdocsforge&type=date&legend=top-left">
+ <picture>
+ <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=QQSHI13/docsforge&type=date&theme=dark&legend=top-left" />
+ <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=QQSHI13/docsforge&type=date&legend=top-left" />
+ <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=QQSHI13/docsforge&type=date&legend=top-left" />
+ </picture>
 </a>
