@@ -8,3 +8,5 @@ build/
 .pytest_cache/
 *.pyc
 .DS_Store
+# Downloaded during build
+docsforge/themes/material/templates/.icons/

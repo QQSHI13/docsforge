@@ -6,6 +6,7 @@ from typing import IO
 
 from docsforge.config import base
 from docsforge.config import config_options as c
+from docsforge.extensions.emoji import twemoji, to_svg
 from docsforge.structure.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.utils.yaml import get_yaml_loader, yaml_load
 
@@ -149,7 +150,10 @@ class ProperDocsConfig(base.Config):
             'pymdownx.caret',
             'pymdownx.critic',
             'pymdownx.details',
-            'pymdownx.emoji',
+            {'pymdownx.emoji': {
+                'emoji_index': twemoji,
+                'emoji_generator': to_svg,
+            }},
             'pymdownx.escapeall',
             'pymdownx.extra',
             'pymdownx.fancylists',
