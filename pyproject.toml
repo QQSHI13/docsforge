@@ -93,7 +93,7 @@ material = "docsforge.themes.material.templates"
 path = "docsforge/__init__.py"
 
 [tool.hatch.build.targets.sdist]
-include = ["/docsforge", "/README.md", "/LICENSE"]
+include = ["/docsforge", "/README.md", "/LICENSE", "/scripts"]
 
 [tool.hatch.build.targets.wheel]
 include = ["/docsforge"]
