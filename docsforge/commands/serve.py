@@ -38,7 +38,7 @@ def serve(
     whenever a file is edited.
     """
     # Create a temporary build directory, and set some options to serve it
-    site_dir = tempfile.mkdtemp(prefix='properdocs_')
+    site_dir = tempfile.mkdtemp(prefix='docsforge_')
 
     get_config_file: Callable[[], str | BinaryIO | None]
     if config_file is None or isinstance(config_file, str):

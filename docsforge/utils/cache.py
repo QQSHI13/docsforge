@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 def download_url(url: str) -> bytes:
     req = urllib.request.Request(
-        url, headers={"User-Agent": f"properdocs/{docsforge.__version__}"}
+        url, headers={"User-Agent": f"docsforge/{docsforge.__version__}"}
     )
     with urllib.request.urlopen(req) as resp:
         return resp.read()
@@ -43,7 +43,7 @@ def download_and_cache_url(
         cache_duration: How long to consider the URL content cached.
         comment: The appropriate comment prefix for this file format.
     """
-    directory = os.path.join(platformdirs.user_cache_dir("properdocs"), "properdocs_url_cache")
+    directory = os.path.join(platformdirs.user_cache_dir("docsforge"), "docsforge_url_cache")
     name_hash = hashlib.sha256(url.encode()).hexdigest()[:32]
     path = os.path.join(directory, name_hash + os.path.splitext(url)[1])
 

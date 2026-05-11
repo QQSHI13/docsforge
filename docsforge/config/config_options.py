@@ -768,7 +768,7 @@ class SiteDir(Dir):
             raise ValidationError(
                 f"The 'docs_dir' should not be within the 'site_dir' as this "
                 f"can mean the source files are overwritten by the output or "
-                f"it will be deleted if --clean is passed to properdocs build. "
+                f"it will be deleted if --clean is passed to docsforge build. "
                 f"(site_dir: '{site_dir}', docs_dir: '{docs_dir}')"
             )
         elif (site_dir + os.sep).startswith(docs_dir.rstrip(os.sep) + os.sep):
@@ -814,7 +814,7 @@ class Theme(BaseConfigOption["theme.Theme"]):
             if theme_config['name'] in ('mkdocs', 'readthedocs'):
                 message += (
                     f"\nAn additional dependency is needed:"
-                    f"\n    pip install properdocs-theme-{theme_config['name']}"
+                    f"\n    pip install docsforge-theme-{theme_config['name']}"
                 )
             elif themes:
                 message += f" The available installed themes are: {', '.join(themes)}"

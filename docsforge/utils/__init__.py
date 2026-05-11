@@ -252,17 +252,17 @@ def get_themes() -> dict[str, EntryPoint]:
         if ep.dist is not None:
             eps[ep] = None
     # These will get preference because they are later in the sequence:
-    for ep in entry_points(group='properdocs.themes'):
+    for ep in entry_points(group='docsforge.themes'):
         if ep.dist is not None:
             eps[ep] = None
-            if ep.dist.name == 'properdocs':
+            if ep.dist.name == 'docsforge':
                 builtins.add(ep.name)
 
     themes: dict[str, EntryPoint] = {}
     for theme in eps:
         assert theme.dist is not None
 
-        if theme.name in builtins and theme.dist.name != 'properdocs':
+        if theme.name in builtins and theme.dist.name != 'docsforge':
             raise exceptions.ConfigurationError(
                 f"The theme '{theme.name}' is a builtin theme but the package '{theme.dist.name}' "
                 "attempts to provide a theme with the same name."

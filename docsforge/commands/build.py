@@ -55,8 +55,9 @@ def get_context(
         base_url=base_url,
         extra_css=extra_css,
         extra_javascript=extra_javascript,
-        properdocs_version=docsforge.__version__,
-        mkdocs_version=f"ProperDocs {docsforge.__version__}",
+        docsforge_version=docsforge.__version__,
+        properdocs_version=docsforge.__version__,  # Legacy alias
+        mkdocs_version=f"DocsForge {docsforge.__version__}",
         build_date_utc=utils.get_build_datetime(),
         config=config,
         page=page,
@@ -223,7 +224,7 @@ def _build_page(
 
         if excluded:
             page.content = (
-                '<div class="properdocs-draft-marker" title="This page will not be included into the built site.">'
+                '<div class="docsforge-draft-marker" title="This page will not be included into the built site.">'
                 'DRAFT'
                 '</div>' + (page.content or '')
             )
@@ -320,7 +321,7 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
         if excluded:
             log.info(
                 "The following pages are being built only for the preview "
-                "but will be excluded from `properdocs build` per `draft_docs` config:\n  - %s",
+                "but will be excluded from `docsforge build` per `draft_docs` config:\n  - %s",
                 "\n  - ".join(excluded),
             )
 

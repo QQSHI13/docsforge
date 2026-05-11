@@ -339,7 +339,7 @@ class _ExtractAnchorsTreeprocessor(markdown.treeprocessors.Treeprocessor):
                     add(anchor)
 
     def _register(self, md: markdown.Markdown) -> None:
-        md.treeprocessors.register(self, "properdocs_extract_anchors", priority=5)  # Same as 'toc'.
+        md.treeprocessors.register(self, "docsforge_extract_anchors", priority=5)  # Same as 'toc'.
 
 
 class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
@@ -541,7 +541,7 @@ class _RawHTMLPreprocessor(markdown.preprocessors.Preprocessor):
     def _register(self, md: markdown.Markdown) -> None:
         md.preprocessors.register(
             self,
-            "properdocs_raw_html",
+            "docsforge_raw_html",
             priority=21,  # Right before 'html_block'.
         )
 
@@ -573,7 +573,7 @@ class _ExtractTitleTreeprocessor(markdown.treeprocessors.Treeprocessor):
         self.md = md
         md.treeprocessors.register(
             self,
-            "properdocs_extract_title",
+            "docsforge_extract_title",
             priority=1,  # Close to the end.
         )
 

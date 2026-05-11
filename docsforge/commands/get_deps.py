@@ -42,7 +42,7 @@ YamlLoaderWithSuppressions.add_multi_constructor(
 )
 
 
-DEFAULT_PROJECTS_FILE = "https://raw.githubusercontent.com/properdocs/catalog/main/projects.yaml"
+DEFAULT_PROJECTS_FILE = "https://raw.githubusercontent.com/docsforge/catalog/main/projects.yaml"
 
 BUILTIN_PLUGINS = {"search"}
 _BUILTIN_EXTENSIONS = [
@@ -160,9 +160,9 @@ def get_deps(
         log.warning(f"The file {config_file!r} doesn't seem to be a docsforge.yml config file")
     else:
         if _dig(cfg, "theme.locale") not in (_NotFound, "en"):
-            packages_to_install.add("properdocs[i18n]")
+            packages_to_install.add("docsforge[i18n]")
         else:
-            packages_to_install.add("properdocs")
+            packages_to_install.add("docsforge")
 
     try:
         theme = cfg["theme"]["name"]
