@@ -198,6 +198,11 @@ class ProperDocsConfig(base.Config):
     ProperDocs itself. A good example here would be including the current
     project version."""
 
+    tikz = c.Optional(c.Type(bool))
+    """Enable TikZ diagram compilation. When True, .tex files in docs_dir are
+    compiled to SVG during the build. Requires a LaTeX toolchain (texlive).
+    When False or unset, TikZ compilation is skipped."""
+
     plugins = c.Plugins(theme_key='theme', default=['search'])
     """A list of plugins. Each item may contain a string name or a key value pair.
     A key value pair should be the string name (as the key) and a dict of config

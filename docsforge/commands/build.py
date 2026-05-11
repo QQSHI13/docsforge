@@ -20,6 +20,7 @@ from docsforge.structure.pages import Page
 from docsforge.utils import (
     DuplicateFilter,  # noqa: F401 - legacy re-export
     templates,
+    tikz,
 )
 
 if TYPE_CHECKING:
@@ -331,6 +332,9 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
 
         log.debug("Copying static assets.")
         files.copy_static_files(dirty=dirty, inclusion=inclusion)
+
+        # Compile TikZ diagrams (optional, requires LaTeX toolchain)
+        tikz.compile_tikz_files(config)
 
         for template in config.theme.static_templates:
             _build_theme_template(template, env, files, config, nav)
