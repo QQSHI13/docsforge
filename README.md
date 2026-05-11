@@ -160,3 +160,15 @@ GPL-3.0-or-later — same as ProperDocs.
 ---
 
 *DocsForge is a repackaging project, not a fork. It keeps the MkDocs/ProperDocs ecosystem moving forward while the upstreams navigate their maintenance transitions.*
+
+---
+
+## ⭐ Star History
+
+<a href="https://star-history.com/#QQSHI13/docsforge&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=QQSHI13/docsforge&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=QQSHI13/docsforge&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=QQSHI13/docsforge&type=Date" />
+  </picture>
+</a>
