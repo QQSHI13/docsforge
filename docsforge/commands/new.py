@@ -3,7 +3,11 @@ from __future__ import annotations
 import logging
 import os
 
-config_text = 'site_name: My Docs\n'
+config_text = '''site_name: My Docs
+
+theme:
+  name: material
+'''
 index_text = """# Welcome to DocsForge
 
 For full documentation visit [docsforge.org](https://docsforge.org).

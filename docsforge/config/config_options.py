@@ -847,14 +847,14 @@ class Theme(BaseConfigOption["theme.Theme"]):
 class ProperDocsTheme(Theme):
     def run_validation(self, value: object) -> theme.Theme:
         if value is None:
-            value = 'mkdocs'
+            value = 'material'
             if self.config_file_path:
                 config_file_name = repr(os.path.basename(self.config_file_path))
             else:
                 config_file_name = "the configuration file"
             log.warning(
                 f"Please select a theme explicitly in {config_file_name}."
-                " Defaulted to 'theme: mkdocs', but this may change in the future."
+                " Defaulted to 'theme: material', but this may change in the future."
             )
         return super().run_validation(value)
 
