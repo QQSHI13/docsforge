@@ -308,6 +308,9 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
         # Run `nav` plugin events.
         nav = config.plugins.on_nav(nav, config=config, files=files)
 
+        # Compile TikZ diagrams BEFORE reading pages so MkDocs can discover the SVGs.
+        tikz.compile_tikz_files(config, output_to_docs=True)
+
         log.debug("Reading markdown pages.")
         excluded = []
         for file in files.documentation_pages(inclusion=inclusion):
@@ -333,9 +336,6 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
 
         log.debug("Copying static assets.")
         files.copy_static_files(dirty=dirty, inclusion=inclusion)
-
-        # Compile TikZ diagrams (optional, requires LaTeX toolchain)
-        tikz.compile_tikz_files(config)
 
         for template in config.theme.static_templates:
             _build_theme_template(template, env, files, config, nav)

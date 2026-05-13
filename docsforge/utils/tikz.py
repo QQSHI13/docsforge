@@ -135,14 +135,21 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
     return False
 
 
-def compile_tikz_files(config) -> list[Path]:
-    """Find and compile all .tex files in docs_dir to SVGs in site_dir.
+def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
+    """Find and compile all .tex files in docs_dir to SVGs.
+
+    If output_to_docs is True, writes SVGs to docs_dir/assets/tikz/ so that
+    MkDocs can discover them during markdown processing, and also copies to
+    site_dir/assets/tikz/. Otherwise writes only to site_dir/assets/tikz/.
 
     Returns list of generated SVG paths.
     """
     docs_dir = Path(config.docs_dir)
     site_dir = Path(config.site_dir)
-    output_dir = site_dir / "assets" / "tikz"
+    if output_to_docs:
+        output_dir = docs_dir / "assets" / "tikz"
+    else:
+        output_dir = site_dir / "assets" / "tikz"
 
     # Check if tikz config is enabled
     tikz_config = getattr(config, "tikz", None)
@@ -186,12 +193,17 @@ def compile_tikz_files(config) -> list[Path]:
 
     generated = []
     for tex_file in tex_files:
-        # Compute relative path and output path
-        rel_path = tex_file.relative_to(docs_dir)
-        svg_name = rel_path.with_suffix(".svg").name
-        output_path = output_dir / rel_path.parent / svg_name
+        # Compute output path (flatten: all SVGs go directly into output_dir)
+        svg_name = tex_file.with_suffix(".svg").name
+        output_path = output_dir / svg_name
 
         if _compile_tex_to_svg(tex_file, output_path):
             generated.append(output_path)
+            # If outputting to docs, also copy to site for serving
+            if output_to_docs:
+                site_output = site_dir / "assets" / "tikz" / svg_name
+                site_output.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(output_path, site_output)
+                log.debug(f"Copied TikZ SVG to site: {site_output}")
 
     return generated
