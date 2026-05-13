@@ -259,6 +259,29 @@
       {% for script in config.extra_javascript %}
         {{ script | script_tag }}
       {% endfor %}
+      <script>
+        // Re-render KaTeX after instant navigation page switches
+        if (typeof document$ !== "undefined") {
+          document$.subscribe(function() {
+            if (typeof katex !== "undefined") {
+              document.querySelectorAll(".arithmatex").forEach(function(el) {
+                var tex = el.textContent || el.innerText;
+                if (tex && tex.trim()) {
+                  try {
+                    katex.render(tex.trim(), el, {throwOnError: false, displayMode: el.classList.contains("arithmatex--block")});
+                  } catch(e) {}
+                }
+              });
+            }
+          });
+        }
+        // Register service worker for offline support
+        if ("serviceWorker" in navigator) {
+          var swUrl = "{{ 'assets/javascripts/sw.js' | url }}";
+          var swScope = swUrl.replace(/assets\/javascripts\/sw\.js$/, "");
+          navigator.serviceWorker.register(swUrl, {scope: swScope}).catch(function(){});
+        }
+      </script>
     {% endblock %}
   </body>
 </html>
