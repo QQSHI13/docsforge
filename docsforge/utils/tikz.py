@@ -50,7 +50,8 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
                 text=True,
             )
             if result.returncode != 0:
-                log.warning(f"latex failed for {tex_path.name}: {result.stderr[:200]}")
+                err = result.stderr[:500] if result.stderr else result.stdout[:500]
+                log.warning(f"latex failed for {tex_path.name}: {err}")
                 return False
 
             dvi_file = tmpdir / temp_tex.with_suffix(".dvi").name
