@@ -291,9 +291,11 @@ def get_deps_command(config_file, projects_file):
     warning_counter = utils.CountHandler()
     warning_counter.setLevel(logging.WARNING)
     logging.getLogger('docsforge').addHandler(warning_counter)
-    with get_projects_file(projects_file) as p:
-        with _open_config_file(config_file) as f:
-            deps = get_deps(config_file=f, projects_file=p)
+    p = get_projects_file(projects_file)
+    with _open_config_file(config_file) as f:
+        deps = get_deps(config_file=f, projects_file=p)
+    if hasattr(p, 'close'):
+        p.close()
     for dep in deps:
         print(dep)
     if warning_counter.get_counts():
