@@ -7,10 +7,25 @@ config_text = '''site_name: My Docs
 
 theme:
   name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 '''
 index_text = """# Welcome to DocsForge
 
-For full documentation visit [docsforge.org](https://docsforge.org).
+For full documentation visit [github.com/QQSHI13/docsforge](https://github.com/QQSHI13/docsforge).
 
 ## Commands
 
