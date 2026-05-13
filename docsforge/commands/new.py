@@ -25,7 +25,7 @@ theme:
 '''
 index_text = """# Welcome to DocsForge
 
-For full documentation visit [github.com/QQSHI13/docsforge](https://github.com/QQSHI13/docsforge).
+For full documentation visit [qqshi13.github.io/docsforge-docs](https://qqshi13.github.io/docsforge-docs).
 
 ## Commands
 

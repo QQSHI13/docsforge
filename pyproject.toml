@@ -51,9 +51,9 @@ dependencies = [
 imaging = ["pillow>=10.2", "cairosvg>=2.6"]
 
 [project.urls]
-Documentation = "https://docsforge.readthedocs.io/"
-Source = "https://github.com/docsforge/docsforge"
-Issues = "https://github.com/docsforge/docsforge/issues"
+Documentation = "https://qqshi13.github.io/docsforge-docs"
+Source = "https://github.com/QQSHI13/docsforge"
+Issues = "https://github.com/QQSHI13/docsforge/issues"
 
 [project.scripts]
 docsforge = "docsforge.__main__:cli"
