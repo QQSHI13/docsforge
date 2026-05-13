@@ -42,7 +42,7 @@ YamlLoaderWithSuppressions.add_multi_constructor(
 )
 
 
-DEFAULT_PROJECTS_FILE = "https://raw.githubusercontent.com/docsforge/catalog/main/projects.yaml"
+DEFAULT_PROJECTS_FILE = None
 
 BUILTIN_PLUGINS = {"search"}
 _BUILTIN_EXTENSIONS = [
@@ -122,9 +122,11 @@ class _PluginKind:
         return self.projects_key.rpartition("_")[-1]
 
 
-def get_projects_file(path: str | None = None) -> BinaryIO:
+def get_projects_file(path: str | None = None) -> BinaryIO | None:
     if path is None:
         path = DEFAULT_PROJECTS_FILE
+    if path is None:
+        return None
     if urllib.parse.urlsplit(path).scheme in ("http", "https"):
         content = cache.download_and_cache_url(path, datetime.timedelta(days=1))
     else:
@@ -183,8 +185,12 @@ def get_deps(
 
     if projects_file is None:
         projects_file = get_projects_file()
-    with projects_file:
-        projects = yaml.load(projects_file, Loader=SafeLoader)["projects"]
+    if projects_file is not None:
+        with projects_file:
+            projects_data = yaml.load(projects_file, Loader=SafeLoader)
+            projects = projects_data.get("projects", []) if projects_data else []
+    else:
+        projects = []
 
     for project in projects:
         for kind, wanted in wanted_plugins:
