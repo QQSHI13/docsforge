@@ -292,6 +292,9 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
             if dirty and site_directory_contains_stale_files(config.site_dir):
                 log.info("The directory contains stale files. Use --clean to remove them.")
 
+        # Compile TikZ diagrams BEFORE scanning files so MkDocs discovers the SVGs.
+        tikz.compile_tikz_files(config, output_to_docs=True)
+
         # First gather all data from all files/pages to ensure all data is consistent across all pages.
 
         files = get_files(config)
@@ -307,9 +310,6 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
 
         # Run `nav` plugin events.
         nav = config.plugins.on_nav(nav, config=config, files=files)
-
-        # Compile TikZ diagrams BEFORE reading pages so MkDocs can discover the SVGs.
-        tikz.compile_tikz_files(config, output_to_docs=True)
 
         log.debug("Reading markdown pages.")
         excluded = []
