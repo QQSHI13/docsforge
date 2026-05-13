@@ -97,5 +97,8 @@ include = ["/docsforge", "/README.md", "/LICENSE", "/scripts"]
 
 [tool.hatch.build.targets.wheel]
 include = ["/docsforge"]
-# Ignore .gitignore so that downloaded icons are included in the wheel
+# Include downloaded icons even though .icons/ is in .gitignore
 ignore-vcs = true
+
+[tool.hatch.build.hooks.custom]
+path = "scripts/hatch_build_hook.py"
