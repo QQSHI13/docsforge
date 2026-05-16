@@ -220,19 +220,6 @@
       {% include "partials/javascripts/consent.html" %}
     {% endif %}
     {% block config %}
-      <script>
-        function __md_get(name, storage=localStorage, path=location.pathname) {
-          try {
-            const value = storage.getItem(path + ".__" + name);
-            return value ? JSON.parse(value) : null;
-          } catch(e) { return null; }
-        }
-        function __md_set(name, value, storage=localStorage, path=location.pathname) {
-          try {
-            storage.setItem(path + ".__" + name, JSON.stringify(value));
-          } catch(e) {}
-        }
-      </script>
       {% set _ = namespace() %}
       {% set _.annotate = config.extra.annotate %}
       {% set _.tags = config.extra.tags %}
@@ -266,33 +253,106 @@
       </script>
     {% endblock %}
     {% block scripts %}
+      <script>
+        // Fix: pymdownx.tabbed generates labels without .tabbed-labels wrapper,
+        // but Material JS bundle expects it. Wrap them before bundle loads.
+        (function() {
+          function fixTabbedSets() {
+            document.querySelectorAll('.tabbed-set:not([data-fixed])').forEach(function(set) {
+              var labels = set.querySelectorAll(':scope > label');
+              if (labels.length && !set.querySelector('.tabbed-labels')) {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'tabbed-labels';
+                labels.forEach(function(l) { wrapper.appendChild(l); });
+                set.insertBefore(wrapper, set.firstChild);
+                set.setAttribute('data-fixed', 'true');
+              }
+            });
+          }
+          // Fix existing elements immediately (before bundle init)
+          fixTabbedSets();
+          // Also run after instant navigation page switches (document$)
+          if (typeof document$ !== 'undefined' && document$.subscribe) {
+            document$.subscribe(function() { fixTabbedSets(); });
+          }
+          // Watch for dynamically added elements
+          var observer = new MutationObserver(function() { fixTabbedSets(); });
+          observer.observe(document.documentElement, {childList: true, subtree: true});
+        })();
+      </script>
       <script src="{{ 'assets/javascripts/bundle.79ae519e.min.js' | url }}"></script>
       <script src="{{ 'assets/katex/katex.min.js' | url }}"></script>
-      <script src="{{ 'assets/katex/mathtex-script-type.min.js' | url }}"></script>
       {% for script in config.extra_javascript %}
         {{ script | script_tag }}
       {% endfor %}
       <script>
-        // Re-render KaTeX after instant navigation page switches
-        if (typeof document$ !== "undefined") {
-          document$.subscribe(function() {
-            if (typeof katex !== "undefined") {
-              document.querySelectorAll(".arithmatex").forEach(function(el) {
-                var tex = el.textContent || el.innerText;
-                if (tex && tex.trim()) {
-                  try {
-                    katex.render(tex.trim(), el, {throwOnError: false, displayMode: el.classList.contains("arithmatex--block")});
-                  } catch(e) {}
-                }
-              });
+        // KaTeX rendering — supports both generic \(...\) and legacy <script type="math/tex"> formats
+        function renderKaTeX() {
+          if (typeof katex === 'undefined') return;
+          document.querySelectorAll('.arithmatex').forEach(function(el) {
+            var tex = null;
+            var isDisplay = el.classList.contains('arithmatex--block') || el.tagName === 'DIV';
+
+            // 1. Generic format: \( ... \) or \[ ... \]
+            var text = el.textContent.trim();
+            if (text.startsWith('\\(') && text.endsWith('\\)')) {
+              tex = text.slice(2, -2);
+              isDisplay = false;
+            } else if (text.startsWith('\\[') && text.endsWith('\\]')) {
+              tex = text.slice(2, -2);
+              isDisplay = true;
+            }
+
+            // 2. Legacy format: inner <script type="math/tex">
+            if (!tex) {
+              var script = el.querySelector('script[type^="math/tex"]');
+              if (script) {
+                tex = script.textContent;
+                if (script.type.indexOf('display') !== -1) isDisplay = true;
+              }
+            }
+
+            // 3. Data attribute (fallback)
+            if (!tex) {
+              tex = el.getAttribute('data-tex');
+            }
+
+            if (!tex || !tex.trim()) return;
+
+            // Clean up legacy cruft before rendering
+            el.querySelectorAll('.MathJax_Preview').forEach(function(p) { p.remove(); });
+            el.querySelectorAll('script[type^="math/tex"]').forEach(function(s) { s.remove(); });
+
+            // Clear and render
+            el.innerHTML = '';
+            try {
+              katex.render(tex.trim(), el, {throwOnError: false, displayMode: isDisplay});
+            } catch(e) {
+              el.textContent = tex.trim();
             }
           });
         }
+
+        // Render on initial load
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', renderKaTeX);
+        } else {
+          renderKaTeX();
+        }
+
+        // Re-render after instant navigation
+        if (typeof document$ !== 'undefined' && document$.subscribe) {
+          document$.subscribe(renderKaTeX);
+        }
+
         // Register service worker for offline support
-        if ("serviceWorker" in navigator) {
+        if ('serviceWorker' in navigator) {
           var swUrl = "{{ 'assets/javascripts/sw.js' | url }}";
-          var swScope = swUrl.replace(/assets\/javascripts\/sw\.js$/, "");
-          navigator.serviceWorker.register(swUrl, {scope: swScope}).catch(function(){});
+          // SW scope must be at or under the script's directory
+          var swScope = swUrl.replace(/sw\.js$/, '');
+          navigator.serviceWorker.register(swUrl, {scope: swScope}).catch(function(e){
+            console.warn('SW registration failed:', e.message);
+          });
         }
       </script>
     {% endblock %}

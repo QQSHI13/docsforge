@@ -144,7 +144,7 @@ class ProperDocsConfig(base.Config):
             'nl2br',
             'sane_lists',
             'wikilinks',
-            'pymdownx.arithmatex',
+            {'pymdownx.arithmatex': {'generic': True}},
             'pymdownx.b64',
             'pymdownx.betterem',
             'pymdownx.caret',
