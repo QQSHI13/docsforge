@@ -22,22 +22,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install build requests
-
-      - name: Download latest Material Icons
-        run: python scripts/download_icons.py
-
-      - name: Commit updated icons (if changed)
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f docsforge/themes/material/templates/.icons/
-          if git diff --cached --quiet; then
-            echo "No icon changes"
-          else
-            git commit -m "chore: Update Material Icons to latest"
-            git push
-          fi
+        run: pip install build
 
       - name: Build package
         run: python -m build
