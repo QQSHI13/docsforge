@@ -1,23 +1,11 @@
 /**
- * DocsForge Service Worker - Basic offline caching
- * Caches: HTML pages, CSS, JS, icons, KaTeX fonts
+ * DocsForge Service Worker - Runtime caching, no precache
+ * Caches assets as they're fetched, network-first for HTML
  */
 
-const CACHE_NAME = "docsforge-v1";
-
-// Assets to cache on install
-const PRECACHE_ASSETS = [
-  "assets/stylesheets/main.min.css",
-  "assets/stylesheets/palette.min.css",
-  "assets/javascripts/bundle.min.js",
-  "assets/katex/katex.min.css",
-  "assets/katex/katex.min.js",
-];
+const CACHE_NAME = "docsforge-v2";
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_ASSETS))
-  );
   self.skipWaiting();
 });
 

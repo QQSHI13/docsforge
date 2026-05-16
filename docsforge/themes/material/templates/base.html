@@ -279,6 +279,78 @@
           var observer = new MutationObserver(function() { fixTabbedSets(); });
           observer.observe(document.documentElement, {childList: true, subtree: true});
         })();
+
+        // Fix: Ensure palette toggle is visible and clickable even if bundle.js crashes
+        (function() {
+          function fixPaletteVisibility() {
+            var scheme = document.body.getAttribute('data-md-color-scheme') || 'default';
+            var palette = document.querySelector('[data-md-component="palette"]');
+            if (!palette) return;
+            palette.querySelectorAll('label').forEach(function(label) {
+              var target = document.getElementById(label.getAttribute('for'));
+              if (target) {
+                var targetScheme = target.getAttribute('data-md-color-scheme');
+                label.hidden = (targetScheme === scheme);
+              }
+            });
+          }
+          
+          function setupPaletteClickHandlers() {
+            var palette = document.querySelector('[data-md-component="palette"]');
+            if (!palette) return;
+            // Only add if not already handled by bundle.js
+            if (palette.dataset.fixedPalette) return;
+            palette.dataset.fixedPalette = 'true';
+            
+            palette.querySelectorAll('label').forEach(function(label) {
+              label.addEventListener('click', function(e) {
+                e.preventDefault();
+                var targetId = label.getAttribute('for');
+                var target = document.getElementById(targetId);
+                if (!target) return;
+                
+                var newScheme = target.getAttribute('data-md-color-scheme');
+                var newPrimary = target.getAttribute('data-md-color-primary');
+                var newAccent = target.getAttribute('data-md-color-accent');
+                
+                // Update body
+                document.body.setAttribute('data-md-color-scheme', newScheme);
+                document.body.setAttribute('data-md-color-primary', newPrimary);
+                document.body.setAttribute('data-md-color-accent', newAccent);
+                
+                // Check the radio
+                target.checked = true;
+                
+                // Save to localStorage
+                var scope = new URL('.', location).pathname;
+                var key = scope + '.__palette';
+                var palette = null;
+                try { palette = JSON.parse(localStorage.getItem(key)); } catch(e) {}
+                if (!palette) palette = {};
+                palette.color = {
+                  media: '(prefers-color-scheme: ' + (newScheme === 'slate' ? 'dark' : 'light') + ')',
+                  scheme: newScheme,
+                  primary: newPrimary,
+                  accent: newAccent
+                };
+                localStorage.setItem(key, JSON.stringify(palette));
+                
+                // Update label visibility
+                fixPaletteVisibility();
+              });
+            });
+          }
+          
+          fixPaletteVisibility();
+          setupPaletteClickHandlers();
+          
+          if (typeof document$ !== 'undefined' && document$.subscribe) {
+            document$.subscribe(function() {
+              fixPaletteVisibility();
+              setupPaletteClickHandlers();
+            });
+          }
+        })();
       </script>
       <script src="{{ 'assets/javascripts/bundle.79ae519e.min.js' | url }}"></script>
       <script src="{{ 'assets/katex/katex.min.js' | url }}"></script>
