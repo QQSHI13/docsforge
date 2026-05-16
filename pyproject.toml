@@ -93,12 +93,9 @@ material = "docsforge.themes.material.templates"
 path = "docsforge/__init__.py"
 
 [tool.hatch.build.targets.sdist]
-include = ["/docsforge", "/README.md", "/LICENSE", "/scripts"]
+include = ["/docsforge", "/README.md", "/LICENSE"]
 
 [tool.hatch.build.targets.wheel]
 include = ["/docsforge"]
 # Include downloaded icons even though .icons/ is in .gitignore
 ignore-vcs = true
-
-[tool.hatch.build.hooks.custom]
-path = "scripts/hatch_build_hook.py"

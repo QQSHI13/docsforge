@@ -128,7 +128,7 @@ class Theme(MutableMapping[str, Any]):
         self.dirs.append(theme_dir)
 
         try:
-            file_path = os.path.join(theme_dir, 'mkdocs_theme.yml')
+            file_path = os.path.join(theme_dir, 'docsforge_theme.yml')
             with open(file_path, 'rb') as f:
                 theme_config = yaml.load(f, SafeLoader)
         except OSError as e:

@@ -147,7 +147,7 @@ def get_deps(
     Args:
         config_file: Non-default docsforge.yml file - content as a buffer, or path.
         projects_file: File/buffer that declares all known DocsForge-related projects.
-            The file is in YAML format and contains `projects: [{mkdocs_theme:, mkdocs_plugin:, markdown_extension:}]
+            The file is in YAML format and contains `projects: [{docsforge_theme:, docsforge_plugin:, markdown_extension:}]
     """
     if isinstance(config_file, (str, os.PathLike)):
         config_file = os.path.abspath(config_file)

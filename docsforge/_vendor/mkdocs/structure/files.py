@@ -148,7 +148,7 @@ class Files:
 
         def filter(name):
             # '.*' filters dot files/dirs at root level whereas '*/.*' filters nested levels
-            patterns = ['.*', '*/.*', '*.py', '*.pyc', '*.html', '*readme*', 'mkdocs_theme.yml']
+            patterns = ['.*', '*/.*', '*.py', '*.pyc', '*.html', '*readme*', 'docsforge_theme.yml']
             # Exclude translation files
             patterns.append("locales/*")
             patterns.extend(f'*{x}' for x in utils.markdown_extensions)
