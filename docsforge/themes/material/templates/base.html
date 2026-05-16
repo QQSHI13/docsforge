@@ -321,9 +321,9 @@
                 // Check the radio
                 target.checked = true;
                 
-                // Save to localStorage
-                var scope = new URL('.', location).pathname;
-                var key = scope + '.__palette';
+                // Save to localStorage (use Material's __md_scope if available)
+                var scope = (typeof __md_scope !== 'undefined') ? __md_scope : new URL('.', location);
+                var key = scope.pathname + '.__palette';
                 var palette = null;
                 try { palette = JSON.parse(localStorage.getItem(key)); } catch(e) {}
                 if (!palette) palette = {};
