@@ -4,7 +4,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
 
 Write your documentation in Markdown. Build a professional static site in seconds. Deploy anywhere.
 
@@ -196,7 +196,7 @@ Recent highlights:
 
 ## License
 
-GPL-3.0-or-later
+LGPL v3-or-later
 
 ---
 
