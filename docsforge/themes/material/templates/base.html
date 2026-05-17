@@ -426,9 +426,8 @@
         // Register service worker for offline support
         if ('serviceWorker' in navigator) {
           var swUrl = "{{ 'assets/javascripts/sw.js' | url }}";
-          // SW scope must be at or under the script's directory
-          var swScope = swUrl.replace(/sw\.js$/, '');
-          navigator.serviceWorker.register(swUrl, {scope: swScope}).catch(function(e){
+          // SW scope at root to intercept all requests
+          navigator.serviceWorker.register(swUrl, {scope: '/'}).catch(function(e){
             console.warn('SW registration failed:', e.message);
           });
         }

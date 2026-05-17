@@ -21,7 +21,7 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== self.location.origin) return;
 
   // Cache-first for assets, network-first for HTML
-  if (request.destination === "document") {
+  if (request.destination === "document" || request.mode === "navigate") {
     e.respondWith(networkFirst(request));
   } else if (["style", "script", "font", "image"].includes(request.destination)) {
     e.respondWith(cacheFirst(request));
