@@ -337,6 +337,9 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
         log.debug("Copying static assets.")
         files.copy_static_files(dirty=dirty, inclusion=inclusion)
 
+        # Inject build hash into service worker for cache versioning
+        _inject_sw_build_hash(config.site_dir, files)
+
         for template in config.theme.static_templates:
             _build_theme_template(template, env, files, config, nav)
 
@@ -375,6 +378,37 @@ def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool
 
     finally:
         logger.removeHandler(warning_counter)
+
+
+def _inject_sw_build_hash(site_dir: str, files: Files) -> None:
+    """Inject a build hash into the service worker for cache versioning.
+
+    Each build generates a unique hash, ensuring the browser installs a new SW
+    and cleans old caches. This guarantees users get fresh content after deploy.
+    """
+    sw_path = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
+    if not os.path.isfile(sw_path):
+        return
+
+    # Generate hash from current time (unique per build)
+    import hashlib
+    build_hash = hashlib.sha256(str(time.time()).encode()).hexdigest()[:12]
+
+    try:
+        with open(sw_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        if '__DOCSFORGE_BUILD_HASH__' not in content:
+            return
+
+        content = content.replace('__DOCSFORGE_BUILD_HASH__', build_hash)
+
+        with open(sw_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        log.debug(f"Injected build hash {build_hash} into service worker")
+    except Exception as e:
+        log.warning(f"Failed to inject build hash into SW: {e}")
 
 
 def site_directory_contains_stale_files(site_directory: str) -> bool:

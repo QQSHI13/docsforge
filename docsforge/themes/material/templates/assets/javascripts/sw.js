@@ -1,16 +1,25 @@
 /**
- * DocsForge Service Worker - Runtime caching, no precache
+ * DocsForge Service Worker - Runtime caching with versioned updates
  * Caches assets as they're fetched, network-first for HTML
  */
 
-const CACHE_NAME = "docsforge-v2";
+const BUILD_HASH = "__DOCSFORGE_BUILD_HASH__";
+const CACHE_NAME = `docsforge-${BUILD_HASH}`;
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener("fetch", (e) => {
@@ -23,7 +32,7 @@ self.addEventListener("fetch", (e) => {
   // Cache-first for assets, network-first for HTML
   if (request.destination === "document" || request.mode === "navigate") {
     e.respondWith(networkFirst(request));
-  } else if (["style", "script", "font", "image"].includes(request.destination)) {
+  } else {
     e.respondWith(cacheFirst(request));
   }
 });
