@@ -84,6 +84,12 @@
       {% include "partials/integrations/analytics.html" %}
     {% endblock %}
     {% block extrahead %}{% endblock %}
+    <style>
+      /* DocsForge: Fix blank spot in source repository when no facts */
+      .md-header__source { width: auto; }
+      .md-source { display: inline-flex; align-items: center; gap: 0.5rem; width: auto; }
+      .md-source__repository { max-width: none; }
+    </style>
   </head>
   {% set direction = config.theme.direction or lang.t("direction") %}
   {% if config.theme.palette %}
