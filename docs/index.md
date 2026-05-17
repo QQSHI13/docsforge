@@ -15,7 +15,7 @@ docsforge serve
 
     ---
 
-    Everything is bundled. `pip install docsforge` gets you the engine, Material theme, all plugins, all extensions, fonts, icons, and math rendering.
+    Everything is bundled. `pip install docsforge` gets you the engine, Material theme, all plugins, all extensions, fonts, icons, math rendering, and a service worker.
 
 -   :material-rocket-launch:{ .lg .middle } &nbsp; **Zero Config**
 
@@ -47,6 +47,24 @@ docsforge serve
 
     Light/dark toggle in the header. Auto-detects system preference.
 
+-   :material-chart-bar:{ .lg .middle } &nbsp; **TikZ Diagrams**
+
+    ---
+
+    Write TikZ directly in Markdown. Auto-compiled to SVG at build time.
+
+-   :material-rss-box:{ .lg .middle } &nbsp; **Blogging**
+
+    ---
+
+    Built-in blog with authors, tags, archives, pagination, and RSS feeds.
+
+-   :material-wifi-off:{ .lg .middle } &nbsp; **Offline Support**
+
+    ---
+
+    Service worker caches all assets. Works without an internet connection.
+
 </div>
 
 ## Quick start
@@ -73,13 +91,14 @@ That's it. Your documentation site is now running at [localhost:8000](http://loc
 | Definition lists | ✅ Zero config |
 | Abbreviations | ✅ Zero config |
 | Content tabs | ✅ Zero config |
-| Diagrams (Mermaid) | ✅ Zero config |
+| Diagrams (Mermaid, TikZ) | ✅ Zero config |
 | Emojis | ✅ Zero config |
 | Blog | ✅ Zero config |
 | Tags | ✅ Zero config |
 | Search | ✅ Zero config |
 | Privacy (self-host assets) | ✅ Zero config |
 | Minify (HTML/CSS/JS) | ✅ Zero config |
+| Offline/PWA | ✅ Zero config |
 
 ## Next steps
 
@@ -102,5 +121,11 @@ That's it. Your documentation site is now running at [localhost:8000](http://loc
     ---
 
     Markdown syntax, components, and formatting options
+
+-   :material-rss-box:{ .lg .middle } &nbsp; **[Blogging](blogging.md)**
+
+    ---
+
+    Set up a blog with authors, tags, and RSS feeds
 
 </div>

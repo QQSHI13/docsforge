@@ -57,8 +57,44 @@ That's it. All plugins, extensions, and theme settings use sensible defaults. Ad
 | Code highlighting | Pygments (colored syntax) |
 | Dark mode | Light/dark toggle in header |
 | Fonts | Self-hosted (privacy plugin downloads Google Fonts) |
+| Diagrams | TikZ support (auto-compiled to SVG) |
+| Offline | Service worker caches all assets |
+
+## What's built in
+
+### 📝 Documentation
+- Write Markdown with 31 extensions
+- Admonitions, tabs, task lists, footnotes
+- Mermaid and TikZ diagrams
+- KaTeX math rendering
+- Pygments code highlighting
+
+### 🔍 Discovery
+- Full-text search (Lunr.js)
+- Tags and tag pages
+- Navigation with sections and tabs
+- Table of contents
+
+### 🎨 Theming
+- Material theme with light/dark mode
+- Customizable colors and fonts
+- 14,000+ icons (Material, FontAwesome, Octicons)
+
+### 📝 Blogging
+- Author profiles
+- Categories and tags
+- Archive pages
+- Pagination
+- RSS feeds
+
+### 🌐 Publishing
+- Static HTML output
+- GitHub Pages ready
+- PWA with offline support
+- Minified HTML/CSS/JS
 
 ## Next steps
 
 - [Creating your site](creating-your-site.md)
+- [Setting up a blog](blogging.md)
 - [Reference](reference/index.md)

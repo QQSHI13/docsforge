@@ -10,7 +10,7 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     ---
 
-    `pip install docsforge` gets you the engine, Material theme, all plugins, all Markdown extensions, KaTeX math, Pygments highlighting, fonts, and icons. Nothing else to install.
+    `pip install docsforge` gets you the engine, Material theme, all plugins, all Markdown extensions, KaTeX math, Pygments highlighting, fonts, icons, and a service worker. Nothing else to install.
 
 -   :material-rocket-launch:{ .lg .middle } &nbsp; **Zero Configuration**
 
@@ -42,6 +42,24 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     Code blocks render with Pygments colors at build time. Supports all major languages.
 
+-   :material-chart-bar:{ .lg .middle } &nbsp; **TikZ Diagrams**
+
+    ---
+
+    Write TikZ diagrams directly in Markdown. Automatically compiled to SVG at build time. No LaTeX install needed.
+
+-   :material-rss-box:{ .lg .middle } &nbsp; **Blogging**
+
+    ---
+
+    Built-in blog plugin with authors, categories, tags, archives, pagination, and RSS feeds.
+
+-   :material-wifi-off:{ .lg .middle } &nbsp; **Offline Support**
+
+    ---
+
+    Service worker caches all assets. Your documentation works without an internet connection.
+
 </div>
 
 ## Markdown Extensions
@@ -60,13 +78,22 @@ All enabled by default. No `plugins:` config needed.
 
 | Plugin | What it does |
 |--------|-----------|
-| `blog` | Blogging with authors, categories, archives |
+| `blog` | Blogging with authors, categories, archives, pagination, RSS |
 | `info` | Admonition callouts (note, tip, warning, danger) |
 | `meta` | OpenGraph metadata |
 | `minify` | Compress HTML/CSS/JS output |
 | `privacy` | Self-host external assets (Google Fonts, CDN scripts) |
 | `search` | Full-text search with Lunr.js |
 | `tags` | Tag system with tag pages |
+
+## PWA / Offline
+
+Every built site includes a service worker that:
+
+- **Caches HTML pages** — network-first, updates cache in background
+- **Caches assets** — CSS, JS, fonts, images served from cache for speed
+- **Versioned updates** — Each build generates a unique SW hash, forcing browser refresh
+- **Auto cleanup** — Old caches purged when new version activates
 
 ## Publishing
 
