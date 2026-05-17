@@ -9,8 +9,8 @@ The official documentation site for **DocsForge** — a self-contained documenta
 ```bash
 git clone https://github.com/QQSHI13/docsforge-docs.git
 cd docsforge-docs
-pip install mkdocs-material
-mkdocs serve
+pip install docsforge
+docsforge serve
 ```
 
 Visit [localhost:8000](http://localhost:8000) to preview.
@@ -23,6 +23,7 @@ Visit [localhost:8000](http://localhost:8000) to preview.
 | [Creating Your Site](docs/creating-your-site.md) | Project structure and configuration |
 | [Publishing](docs/publishing-your-site.md) | Deploy to GitHub Pages, Netlify, Vercel |
 | [Features](docs/features.md) | Overview of DocsForge capabilities |
+| [Blogging](docs/blogging.md) | Set up a blog with authors, tags, RSS |
 | [Setup Guides](docs/setup/) | Customize colors, fonts, navigation, search |
 | [Reference](docs/reference/) | Complete Markdown syntax guide |
 | [Changelog](docs/changelog/) | Version history |
@@ -30,7 +31,7 @@ Visit [localhost:8000](http://localhost:8000) to preview.
 ## 🏗️ Building
 
 ```bash
-mkdocs build
+docsforge build
 ```
 
 The static site is generated in the `site/` directory.
@@ -43,7 +44,7 @@ Live URL: **https://qqshi13.github.io/docsforge-docs/**
 
 ## 📄 License
 
-[MIT License](docs/license.md)
+[LGPL v3](docs/license.md)
 
 ## 🤝 Contributing
 
