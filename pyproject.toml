@@ -97,5 +97,5 @@ include = ["/docsforge", "/README.md", "/LICENSE"]
 
 [tool.hatch.build.targets.wheel]
 include = ["/docsforge"]
-# Include downloaded icons even though .icons/ is in .gitignore
-ignore-vcs = true
+# Include .icons/ even if historically gitignored
+artifacts = ["/docsforge/themes/material/templates/.icons/**"]
