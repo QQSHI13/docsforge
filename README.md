@@ -4,24 +4,31 @@
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
-[![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
-DocsForge unifies the [ProperDocs](https://github.com/properdocs/properdocs) documentation engine and the [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/) theme into a single, installable package. You write content. DocsForge handles the engine, the theme, and the plugins.
+Write your documentation in Markdown. Build a professional static site in seconds. Deploy anywhere.
 
 📖 **[Documentation](https://qqshi13.github.io/docsforge-docs/)** | 📦 **[PyPI](https://pypi.org/project/docsforge/)** | 🐙 **[GitHub](https://github.com/QQSHI13/docsforge)**
 
 ---
 
-## Vision
+## What is DocsForge?
 
-MkDocs is effectively unmaintained. Material for MkDocs is in maintenance mode. [ProperDocs](https://github.com/properdocs/properdocs) is the actively maintained fork of MkDocs that keeps the ecosystem alive.
+DocsForge is a **self-contained documentation engine**. Everything you need is bundled into one package:
 
-DocsForge makes the successor ecosystem effortless:
+- ⚡ **Engine** — ProperDocs (MkDocs fork), vendored
+- 🎨 **Theme** — Material for MkDocs, vendored  
+- 🔌 **Plugins** — 7 plugins built-in (search, tags, blog, info, meta, minify, privacy)
+- 📝 **Markdown** — 31 extensions pre-configured (all pymdownx + python-markdown)
+- ➗ **Math** — KaTeX vendored (`$$...$$` works out of the box)
+- 🖍️ **Highlighting** — Pygments for code blocks at build time
+- 📐 **Diagrams** — TikZ support (auto-compiled to SVG)
+- 🔍 **Search** — Lunr.js client-side full-text search
+- 🌙 **Dark mode** — Light/dark toggle with auto system detection
+- 📱 **Offline** — Service worker caches all assets for PWA support
+- 🔤 **Fonts** — Self-hosted (privacy plugin downloads Google Fonts locally)
 
-- **One `pip install`** gets you the engine + theme + recommended plugins.
-- **One config file** (`docsforge.yml`) with no boilerplate `plugins:` list.
-- **Backward compatible** — existing `mkdocs.yml` files work unchanged.
-- **Plugin system stays alive** — we just auto-register Material plugins so you never write a `plugins:` section.
+`pip install docsforge` and you're done. No CDN, no extra config, no external dependencies.
 
 ---
 
@@ -31,47 +38,70 @@ DocsForge makes the successor ecosystem effortless:
 pip install docsforge
 ```
 
-That's it. ProperDocs, Material for MkDocs, and common plugins are installed together.
+Requires **Python 3.10+**.
 
 ---
 
 ## Quick Start
 
-### 1. Create a new site
-
 ```bash
+# Create a new project
 docsforge new my-docs
 cd my-docs
-```
 
-This scaffolds:
-
-```
-my-docs/
-├── docsforge.yml          # Config with Material theme pre-selected
-└── docs/
-    └── index.md           # Starter page
-```
-
-### 2. Preview locally
-
-```bash
+# Start the dev server
 docsforge serve
-```
+# → http://localhost:8000
 
-Material plugins (search, tags, etc.) are **auto-registered** — no `plugins:` list needed.
-
-### 3. Build for production
-
-```bash
+# Build for production
 docsforge build
+# → site/
 ```
 
-### 4. Deploy to GitHub Pages
+---
 
-```bash
-docsforge gh-deploy
-```
+## What's Built In
+
+### 📝 Documentation
+| Feature | Status |
+|---------|--------|
+| Admonitions (`!!! note`) | ✅ Zero config |
+| Math (`$$...$$`) | ✅ Zero config |
+| Code highlighting | ✅ Zero config |
+| Tables, task lists, footnotes | ✅ Zero config |
+| Definition lists, abbreviations | ✅ Zero config |
+| Content tabs, diagrams (Mermaid, TikZ) | ✅ Zero config |
+
+### 🔍 Discovery
+| Feature | Status |
+|---------|--------|
+| Full-text search (Lunr.js) | ✅ Zero config |
+| Tags and tag pages | ✅ Zero config |
+| Navigation with sections/tabs | ✅ Zero config |
+| Table of contents | ✅ Zero config |
+
+### 🎨 Theming
+| Feature | Status |
+|---------|--------|
+| Material theme (light/dark) | ✅ Zero config |
+| Customizable colors/fonts | ✅ Zero config |
+| 14,000+ icons | ✅ Zero config |
+
+### 📝 Blogging
+| Feature | Status |
+|---------|--------|
+| Author profiles | ✅ Zero config |
+| Categories, tags, archives | ✅ Zero config |
+| Pagination | ✅ Zero config |
+| RSS feeds | ✅ Zero config |
+
+### 🌐 Publishing
+| Feature | Status |
+|---------|--------|
+| Static HTML output | ✅ Zero config |
+| GitHub Pages workflow | ✅ Zero config |
+| PWA with offline support | ✅ Zero config |
+| Minified HTML/CSS/JS | ✅ Zero config |
 
 ---
 
@@ -88,29 +118,42 @@ DocsForge looks for config in this priority:
 ```yaml
 site_name: My Documentation
 site_url: https://example.com/
-repo_url: https://github.com/username/repo
-
-# Theme defaults to "material" — you can omit this entirely.
-theme:
-  name: material
-
-# No plugins: section needed — search, tags, blog, privacy, social
-# are auto-registered based on what you have installed.
 ```
 
-### Advanced — override auto-plugins
+That's it. All plugins, extensions, and theme settings use sensible defaults.
 
-If you define `plugins:` yourself, DocsForge **merges** rather than overwrites:
+### Full example
 
 ```yaml
 site_name: My Docs
+site_url: https://example.com/
+site_author: Your Name
 
-plugins:
-  search:
-    lang: en
-  tags:
-    tags_file: tags.md
-  # blog, privacy, social are still auto-registered if available
+repo_url: https://github.com/username/repo
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Blog:
+    - blog/index.md
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 ```
 
 ---
@@ -124,44 +167,40 @@ plugins:
 | `docsforge build` | Static site build |
 | `docsforge gh-deploy` | Deploy to GitHub Pages |
 
-All commands accept `-f / --config-file` to override config discovery.
+---
+
+## PWA / Offline Support
+
+Every built site includes a **service worker** that:
+
+- Caches HTML pages (network-first, updates in background)
+- Caches assets (CSS, JS, fonts, images — cache-first for speed)
+- **Versioned updates** — Each build generates a unique SW hash, forcing browser refresh
+- **Auto cleanup** — Old caches purged when new version activates
+
+No configuration needed. Works offline after the first visit.
 
 ---
 
-## Architecture
+## Changelog
 
-```
-docsforge/                    # Unified package
-├── __init__.py
-├── cli.py                    # `docsforge` command (wraps properdocs)
-├── config.py                 # Unified config loader
-├── plugins/
-│   └── auto_register.py      # Pre-loads Material plugins
-├── engine/                   # ProperDocs core (git subtree)
-│   └── (properdocs source)
-└── themes/                   # Material for MkDocs (git subtree)
-    └── (mkdocs-material source)
-```
+See [full changelog](https://qqshi13.github.io/docsforge-docs/changelog/) in the documentation.
 
-**Key decisions:**
+Recent highlights:
 
-1. **Keep the plugin system alive.** Material's plugins (blog, tags, privacy, social, search) are powerful. We auto-register them instead of rewriting them.
-2. **ProperDocs dual entrypoints.** ProperDocs already supports both `mkdocs.*` and `properdocs.*` entrypoints, so Material works without code changes.
-3. **Unified CLI, not a fork.** We wrap ProperDocs commands; we don't fork the engine.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design record.
+- **v10.3.3** — Versioned service worker with auto cache cleanup
+- **v10.3.0** — TikZ diagrams, blog plugin, theme playground
+- **v10.1.0** — Zero-config Markdown, KaTeX math, dark mode toggle
 
 ---
 
 ## License
 
-GPL-3.0-or-later — same as ProperDocs.
+GPL-3.0-or-later
 
 ---
 
-*DocsForge is a repackaging project, not a fork. It keeps the MkDocs/ProperDocs ecosystem moving forward while the upstreams navigate their maintenance transitions.*
-
----
+*DocsForge is built by QQ (Cyrus) and Nova ☄️*
 
 ## Star History
 
