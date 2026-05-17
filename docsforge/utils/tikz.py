@@ -6,6 +6,7 @@ Requires a LaTeX toolchain (texlive). If not available, warns and skips.
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import os
 import shutil
@@ -21,6 +22,13 @@ def _has_tool(name: str) -> bool:
     return shutil.which(name) is not None
 
 
+def _needs_rebuild(tex_path: Path, output_path: Path) -> bool:
+    """Check if tex file needs recompilation (output missing or older)."""
+    if not output_path.exists():
+        return True
+    return tex_path.stat().st_mtime > output_path.stat().st_mtime
+
+
 def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
     """Compile a single .tex file to SVG.
 
@@ -29,6 +37,11 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
     tex_path = tex_path.resolve()
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Skip if output is up to date
+    if not _needs_rebuild(tex_path, output_path):
+        log.debug(f"Skipping {tex_path.name} (SVG up to date)")
+        return True
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
@@ -192,18 +205,44 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
         return []
 
     generated = []
-    for tex_file in tex_files:
-        # Compute output path (flatten: all SVGs go directly into output_dir)
+    skipped = 0
+
+    def _compile_one(tex_file: Path) -> Path | None:
+        """Compile a single TikZ file; returns output path or None."""
         svg_name = tex_file.with_suffix(".svg").name
         output_path = output_dir / svg_name
 
+        if not _needs_rebuild(tex_file, output_path):
+            nonlocal skipped
+            skipped += 1
+            log.debug(f"Skipping {tex_file.name} (SVG up to date)")
+            return output_path
+
         if _compile_tex_to_svg(tex_file, output_path):
-            generated.append(output_path)
-            # If outputting to docs, also copy to site for serving
-            if output_to_docs:
-                site_output = site_dir / "assets" / "tikz" / svg_name
-                site_output.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(output_path, site_output)
-                log.debug(f"Copied TikZ SVG to site: {site_output}")
+            return output_path
+        return None
+
+    # Compile in parallel using thread pool (each LaTeX process is CPU-bound but I/O-waiting)
+    max_workers = min(4, len(tex_files)) if len(tex_files) > 1 else 1
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_compile_one, f): f for f in tex_files}
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                generated.append(result)
+
+    if skipped:
+        log.info(f"TikZ: {len(generated)} compiled, {skipped} skipped (up to date)")
+    else:
+        log.info(f"TikZ: {len(generated)} diagrams compiled")
+
+    # Copy to site dir if outputting to docs
+    if output_to_docs:
+        for svg_path in generated:
+            svg_name = svg_path.name
+            site_output = site_dir / "assets" / "tikz" / svg_name
+            site_output.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(svg_path, site_output)
+            log.debug(f"Copied TikZ SVG to site: {site_output}")
 
     return generated
