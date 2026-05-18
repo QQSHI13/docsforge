@@ -3,17 +3,17 @@ from __future__ import annotations
 from click import ClickException, echo
 
 
-class ProperDocsException(ClickException):
+class DocsForgeException(ClickException):
     """
     The base class which all DocsForge exceptions inherit from. This should
     not be raised directly. One of the subclasses should be raised instead.
     """
 
 
-MkDocsException = ProperDocsException  # Legacy alias
+MkDocsException = DocsForgeException  # Legacy alias
 
 
-class Abort(ProperDocsException, SystemExit):
+class Abort(DocsForgeException, SystemExit):
     """Abort the build."""
 
     code = 1
@@ -22,7 +22,7 @@ class Abort(ProperDocsException, SystemExit):
         echo('\n' + self.format_message())
 
 
-class ConfigurationError(ProperDocsException):
+class ConfigurationError(DocsForgeException):
     """
     This error is raised by configuration validation when a validation error
     is encountered. This error should be raised by any configuration options
@@ -30,7 +30,7 @@ class ConfigurationError(ProperDocsException):
     """
 
 
-class BuildError(ProperDocsException):
+class BuildError(DocsForgeException):
     """
     This error may be raised by DocsForge during the build process. Plugins should
     not raise this error.

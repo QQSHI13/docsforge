@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from jinja2.ext import Extension, InternationalizationExtension
 
-from docsforge._vendor.mkdocs.config.base import ValidationError
+from docsforge.config.base import ValidationError
 
 if TYPE_CHECKING:
     import jinja2
@@ -17,12 +18,12 @@ try:
 
     has_babel = True
 except ImportError:  # pragma: no cover
-    from docsforge._vendor.mkdocs.utils.babel_stub import Locale, UnknownLocaleError  # type: ignore
+    from docsforge.utils.babel_stub import Locale, UnknownLocaleError  # type: ignore
 
     has_babel = False
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('docsforge.localization')
 base_path = os.path.dirname(os.path.abspath(__file__))
 
 

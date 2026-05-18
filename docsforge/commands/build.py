@@ -24,7 +24,7 @@ from docsforge.utils import (
 )
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
 
 
 log = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 def get_context(
     nav: Navigation,
     files: Sequence[File] | Files,
-    config: ProperDocsConfig,
+    config: DocsForgeConfig,
     page: Page | None = None,
     base_url: str = '',
 ) -> templates.TemplateContext:
@@ -65,7 +65,7 @@ def get_context(
 
 
 def _build_template(
-    name: str, template: jinja2.Template, files: Files, config: ProperDocsConfig, nav: Navigation
+    name: str, template: jinja2.Template, files: Files, config: DocsForgeConfig, nav: Navigation
 ) -> str:
     """Return rendered output for given template as a string."""
     # Run `pre_template` plugin events.
@@ -96,7 +96,7 @@ def _build_theme_template(
     template_name: str,
     env: jinja2.Environment,
     files: Files,
-    config: ProperDocsConfig,
+    config: DocsForgeConfig,
     nav: Navigation,
 ) -> None:
     """Build a template using the theme environment."""
@@ -130,7 +130,7 @@ def _build_theme_template(
 
 
 def _build_extra_template(
-    template_name: str, files: Files, config: ProperDocsConfig, nav: Navigation
+    template_name: str, files: Files, config: DocsForgeConfig, nav: Navigation
 ):
     """Build user templates which are not part of the theme."""
     log.debug(f"Building extra template: {template_name}")
@@ -154,7 +154,7 @@ def _build_extra_template(
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
 
-def _populate_page(page: Page, config: ProperDocsConfig, files: Files, dirty: bool = False) -> None:
+def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = False) -> None:
     """Read page content from docs_dir and render Markdown."""
     config._current_page = page
     try:
@@ -194,7 +194,7 @@ def _populate_page(page: Page, config: ProperDocsConfig, files: Files, dirty: bo
 
 def _build_page(
     page: Page,
-    config: ProperDocsConfig,
+    config: DocsForgeConfig,
     doc_files: Sequence[File],
     nav: Navigation,
     env: jinja2.Environment,
@@ -256,7 +256,7 @@ def _build_page(
         config._current_page = None
 
 
-def build(config: ProperDocsConfig, *, serve_url: str | None = None, dirty: bool = False) -> None:
+def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = False) -> None:
     """Perform a full site build."""
     logger = logging.getLogger("docsforge")
 

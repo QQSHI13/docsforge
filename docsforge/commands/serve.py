@@ -15,7 +15,7 @@ from docsforge.config import load_config
 from docsforge.livereload import LiveReloadServer, _serve_url
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def serve(
     mount_path = urlsplit(config.site_url or '/').path
     config.site_url = serve_url = _serve_url(host, port, mount_path)
 
-    def builder(config: ProperDocsConfig | None = None):
+    def builder(config: DocsForgeConfig | None = None):
         log.info("Building documentation...")
         if config is None:
             config = get_config()

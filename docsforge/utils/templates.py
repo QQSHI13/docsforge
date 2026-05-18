@@ -17,7 +17,7 @@ from docsforge.utils import normalize_url
 
 if TYPE_CHECKING:
     from docsforge.config.config_options import ExtraScriptValue
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
     from docsforge.structure.files import File
     from docsforge.structure.nav import Navigation
     from docsforge.structure.pages import Page
@@ -33,7 +33,7 @@ class TemplateContext(TypedDict):
     properdocs_version: str  # Legacy alias
     mkdocs_version: str
     build_date_utc: datetime.datetime
-    config: ProperDocsConfig
+    config: DocsForgeConfig
     page: Page | None
 
 

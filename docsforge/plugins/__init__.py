@@ -30,7 +30,7 @@
 # IN THE SOFTWARE.
 
 # Re-export DocsForge plugin system
-from docsforge._vendor.properdocs.plugins import (
+from docsforge.plugins.base import (
     BasePlugin,
     CombinedEvent,
     Config,

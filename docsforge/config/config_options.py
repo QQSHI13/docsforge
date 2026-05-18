@@ -844,7 +844,7 @@ class Theme(BaseConfigOption["theme.Theme"]):
         return theme.Theme(**theme_config)
 
 
-class ProperDocsTheme(Theme):
+class DocsForgeTheme(Theme):
     def run_validation(self, value: object) -> theme.Theme:
         if value is None:
             value = 'material'

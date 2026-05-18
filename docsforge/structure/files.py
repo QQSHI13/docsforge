@@ -21,7 +21,7 @@ from docsforge import utils
 if TYPE_CHECKING:
     import jinja2.environment
 
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
     from docsforge.structure.pages import Page
 
 
@@ -143,7 +143,7 @@ class Files:
         """Return iterable of all CSS file objects."""
         return [file for file in self if file.is_css()]
 
-    def add_files_from_theme(self, env: jinja2.Environment, config: ProperDocsConfig) -> None:
+    def add_files_from_theme(self, env: jinja2.Environment, config: DocsForgeConfig) -> None:
         """Retrieve static files from Jinja environment and add to collection."""
 
         def filter(name):
@@ -270,7 +270,7 @@ class File:
     @classmethod
     def generated(
         cls,
-        config: ProperDocsConfig,
+        config: DocsForgeConfig,
         src_uri: str,
         *,
         content: str | bytes,
@@ -286,7 +286,7 @@ class File:
     @classmethod
     def generated(
         cls,
-        config: ProperDocsConfig,
+        config: DocsForgeConfig,
         src_uri: str,
         *,
         abs_src_path: str,
@@ -301,7 +301,7 @@ class File:
     @classmethod
     def generated(
         cls,
-        config: ProperDocsConfig,
+        config: DocsForgeConfig,
         src_uri: str,
         *,
         content: str | bytes | None = None,
@@ -523,7 +523,7 @@ class File:
 _default_exclude = pathspec.gitignore.GitIgnoreSpec.from_lines(['.*', '/templates/'])
 
 
-def set_exclusions(files: Iterable[File], config: ProperDocsConfig) -> None:
+def set_exclusions(files: Iterable[File], config: DocsForgeConfig) -> None:
     """Re-calculate which files are excluded, based on the patterns in the config."""
     exclude: pathspec.gitignore.GitIgnoreSpec | None = config.get('exclude_docs')
     exclude = _default_exclude + exclude if exclude else _default_exclude
@@ -542,7 +542,7 @@ def set_exclusions(files: Iterable[File], config: ProperDocsConfig) -> None:
                 file.inclusion = InclusionLevel.INCLUDED
 
 
-def get_files(config: ProperDocsConfig) -> Files:
+def get_files(config: DocsForgeConfig) -> Files:
     """Walk the `docs_dir` and return a Files collection."""
     files: list[File] = []
     conflicting_files: list[tuple[File, File]] = []

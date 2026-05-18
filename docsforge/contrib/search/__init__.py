@@ -11,7 +11,7 @@ from docsforge.contrib.search.search_index import SearchIndex
 from docsforge.plugins import BasePlugin
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
     from docsforge.structure.pages import Page
     from docsforge.utils.templates import TemplateContext
 
@@ -63,7 +63,7 @@ class _PluginConfig(base.Config):
 class SearchPlugin(BasePlugin[_PluginConfig]):
     """Add a search feature to DocsForge."""
 
-    def on_config(self, config: ProperDocsConfig, **kwargs) -> ProperDocsConfig:
+    def on_config(self, config: DocsForgeConfig, **kwargs) -> DocsForgeConfig:
         """Add plugin templates and scripts to config."""
         if config.theme.get('include_search_page'):
             config.theme.static_templates.add('search.html')
@@ -85,7 +85,7 @@ class SearchPlugin(BasePlugin[_PluginConfig]):
             )
         return config
 
-    def on_pre_build(self, config: ProperDocsConfig, **kwargs) -> None:
+    def on_pre_build(self, config: DocsForgeConfig, **kwargs) -> None:
         """Create search index instance for later use."""
         self.search_index = SearchIndex(**self.config)
 
@@ -93,7 +93,7 @@ class SearchPlugin(BasePlugin[_PluginConfig]):
         """Add page to search index."""
         self.search_index.add_entry_from_context(page)
 
-    def on_post_build(self, config: ProperDocsConfig, **kwargs) -> None:
+    def on_post_build(self, config: DocsForgeConfig, **kwargs) -> None:
         """Build search index."""
         output_base_path = os.path.join(config.site_dir, 'search')
         search_index = self.search_index.generate_search_index()

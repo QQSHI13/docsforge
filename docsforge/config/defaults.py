@@ -37,7 +37,7 @@ class _AbsoluteLinksValidation(_LogLevel):
 # NOTE: The order here is important. During validation some config options
 # depend on others. So, if config option A depends on B, then A should be
 # listed higher in the schema.
-class ProperDocsConfig(base.Config):
+class DocsForgeConfig(base.Config):
     """The configuration of DocsForge itself (the root object of docsforge.yml)."""
 
     config_file_path: str = c.Type(str)  # type: ignore[assignment]
@@ -72,7 +72,7 @@ class ProperDocsConfig(base.Config):
     site_author = c.Optional(c.Type(str))
     """The name of the author to add to the HTML meta tags."""
 
-    theme = c.ProperDocsTheme()
+    theme = c.DocsForgeTheme()
     """The DocsForge theme for the documentation."""
 
     docs_dir = c.DocsDir(default='docs', exists=True)
@@ -262,9 +262,9 @@ class ProperDocsConfig(base.Config):
         self.load_dict(yaml_load(config_file, loader))
 
 
-MkDocsConfig = ProperDocsConfig  # Legacy alias
+MkDocsConfig = DocsForgeConfig  # Legacy alias
 
 
 def get_schema() -> base.PlainConfigSchema:
     """Soft-deprecated, do not use."""
-    return ProperDocsConfig._schema
+    return DocsForgeConfig._schema

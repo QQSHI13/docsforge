@@ -14,7 +14,7 @@ from docsforge import exceptions, utils
 from docsforge.utils import weak_property
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
 
 
 log = logging.getLogger('docsforge.config')
@@ -326,7 +326,7 @@ def _open_config_file(config_file: str | IO | None) -> Iterator[IO]:
 
 def load_config(
     config_file: str | IO | None = None, *, config_file_path: str | None = None, **kwargs
-) -> ProperDocsConfig:
+) -> DocsForgeConfig:
     """
     Load the configuration for a given file object or name.
 
@@ -346,12 +346,12 @@ def load_config(
 
     with _open_config_file(config_file) as fd:
         # Initialize the config with the default schema.
-        from docsforge.config.defaults import ProperDocsConfig
+        from docsforge.config.defaults import DocsForgeConfig
 
         if config_file_path is None:
             if sys.stdin and fd is not sys.stdin.buffer:
                 config_file_path = getattr(fd, 'name', None)
-        cfg = ProperDocsConfig(config_file_path=config_file_path)
+        cfg = DocsForgeConfig(config_file_path=config_file_path)
         # load the config file
         cfg.load_file(fd)
 

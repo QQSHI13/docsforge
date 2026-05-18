@@ -23,7 +23,7 @@ from docsforge.utils.rendering import get_heading_text
 if TYPE_CHECKING:
     from xml.etree import ElementTree as etree
 
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
     from docsforge.structure.files import File, Files
     from docsforge.structure.toc import TableOfContents
 
@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 
 class Page(StructureItem):
-    def __init__(self, title: str | None, file: File, config: ProperDocsConfig) -> None:
+    def __init__(self, title: str | None, file: File, config: DocsForgeConfig) -> None:
         file.page = self
         self.file = file
         if title is not None:
@@ -204,7 +204,7 @@ class Page(StructureItem):
 
         self.edit_url = urljoin(repo_url or '', file_edit_uri)
 
-    def read_source(self, config: ProperDocsConfig) -> None:
+    def read_source(self, config: DocsForgeConfig) -> None:
         source = config.plugins.on_page_read_source(page=self, config=config)
         if source is None:
             try:
@@ -260,7 +260,7 @@ class Page(StructureItem):
             title = title.capitalize()
         return title
 
-    def render(self, config: ProperDocsConfig, files: Files) -> None:
+    def render(self, config: DocsForgeConfig, files: Files) -> None:
         """Convert the Markdown source file to HTML as per the config."""
         if self.markdown is None:
             raise RuntimeError("`markdown` field hasn't been set (via `read_source`)")
@@ -326,7 +326,7 @@ class Page(StructureItem):
 
 
 class _ExtractAnchorsTreeprocessor(markdown.treeprocessors.Treeprocessor):
-    def __init__(self, file: File, files: Files, config: ProperDocsConfig) -> None:
+    def __init__(self, file: File, files: Files, config: DocsForgeConfig) -> None:
         self.present_anchor_ids: set[str] = set()
 
     def run(self, root: etree.Element) -> None:
@@ -343,7 +343,7 @@ class _ExtractAnchorsTreeprocessor(markdown.treeprocessors.Treeprocessor):
 
 
 class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
-    def __init__(self, file: File, files: Files, config: ProperDocsConfig) -> None:
+    def __init__(self, file: File, files: Files, config: DocsForgeConfig) -> None:
         self.file = file
         self.files = files
         self.config = config

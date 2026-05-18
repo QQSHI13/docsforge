@@ -13,7 +13,7 @@ import docsforge
 from docsforge.exceptions import Abort
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
 
 log = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def _check_version(branch: str) -> None:
 
 
 def gh_deploy(
-    config: ProperDocsConfig,
+    config: DocsForgeConfig,
     message: str | None = None,
     force=False,
     no_history=False,

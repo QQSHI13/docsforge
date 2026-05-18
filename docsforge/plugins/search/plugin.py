@@ -37,7 +37,7 @@ from backrefs import bre
 
 from html import escape
 from html.parser import HTMLParser
-from docsforge._vendor.mkdocs import utils
+from docsforge import utils
 from docsforge.config.config_options import SubConfig
 from docsforge.plugins import BasePlugin
 

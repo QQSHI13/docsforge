@@ -13,13 +13,13 @@ import yaml_env_tag  # type: ignore[import-untyped]
 from docsforge import exceptions
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
 
 log = logging.getLogger(__name__)
 
 
 def _construct_dir_placeholder(
-    config: ProperDocsConfig, loader: yaml.BaseLoader, node: yaml.ScalarNode
+    config: DocsForgeConfig, loader: yaml.BaseLoader, node: yaml.ScalarNode
 ) -> _DirPlaceholder:
     loader.construct_scalar(node)
 
@@ -39,7 +39,7 @@ def _construct_dir_placeholder(
 
 
 class _DirPlaceholder(os.PathLike):
-    def __init__(self, config: ProperDocsConfig, suffix: str = ''):
+    def __init__(self, config: DocsForgeConfig, suffix: str = ''):
         self.config = config
         self.suffix = suffix
 
@@ -88,7 +88,7 @@ class RelativeDirPlaceholder(_DirPlaceholder):
     This is the implementation of the `!relative` tag, but can also be passed programmatically.
     """
 
-    def __init__(self, config: ProperDocsConfig, suffix: str = ''):
+    def __init__(self, config: DocsForgeConfig, suffix: str = ''):
         if suffix:
             raise exceptions.ConfigurationError(
                 f"'!relative' tag does not expect any value; received {suffix!r}"
@@ -105,7 +105,7 @@ class RelativeDirPlaceholder(_DirPlaceholder):
         return os.path.dirname(os.path.join(self.config.docs_dir, current_page.file.src_path))
 
 
-def get_yaml_loader(loader=yaml.Loader, config: ProperDocsConfig | None = None):
+def get_yaml_loader(loader=yaml.Loader, config: DocsForgeConfig | None = None):
     """Wrap PyYaml's loader so we can extend it to suit our needs."""
 
     class Loader(loader):

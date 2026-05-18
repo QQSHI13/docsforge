@@ -1,4 +1,4 @@
-"""Implements the plugin API for ProperDocs."""
+"""Implements the plugin API for DocsForge."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ else:
 if TYPE_CHECKING:
     import jinja2.environment
 
-from properdocs import utils
-from docsforge._vendor.properdocs.config.base import (
+from docsforge import utils
+from docsforge.config.base import (
     Config,
     ConfigErrors,
     ConfigWarnings,
@@ -25,12 +25,12 @@ from docsforge._vendor.properdocs.config.base import (
 )
 
 if TYPE_CHECKING:
-    from docsforge._vendor.properdocs.config.defaults import ProperDocsConfig
-    from docsforge._vendor.properdocs.livereload import LiveReloadServer
-    from docsforge._vendor.properdocs.structure.files import Files
-    from docsforge._vendor.properdocs.structure.nav import Navigation
-    from docsforge._vendor.properdocs.structure.pages import Page
-    from docsforge._vendor.properdocs.utils.templates import TemplateContext
+    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.livereload import LiveReloadServer
+    from docsforge.structure.files import Files
+    from docsforge.structure.nav import Navigation
+    from docsforge.structure.pages import Page
+    from docsforge.utils.templates import TemplateContext
 
 if TYPE_CHECKING:
     from typing_extensions import Concatenate, ParamSpec
@@ -41,12 +41,12 @@ P = ParamSpec('P')
 T = TypeVar('T')
 
 
-log = logging.getLogger('properdocs.plugins')
+log = logging.getLogger('docsforge.plugins')
 
 
 def get_plugins() -> dict[str, EntryPoint]:
     """Return a dict of all installed Plugins as {name: EntryPoint}."""
-    pluginmaps: dict[str, dict[str, EntryPoint]] = {'properdocs': {}, 'mkdocs': {}}
+    pluginmaps: dict[str, dict[str, EntryPoint]] = {'docsforge': {}, 'mkdocs': {}}
 
     for prefix in pluginmaps:
         for plugin in entry_points(group=f'{prefix}.plugins'):
@@ -57,7 +57,7 @@ def get_plugins() -> dict[str, EntryPoint]:
                 continue
             pluginmaps[prefix][plugin.name] = plugin
 
-    return pluginmaps['mkdocs'] | pluginmaps['properdocs']
+    return pluginmaps['mkdocs'] | pluginmaps['docsforge']
 
 
 SomeConfig = TypeVar('SomeConfig', bound=Config)
@@ -87,7 +87,7 @@ class BasePlugin(Generic[SomeConfig]):
         from docsforge.config.base import Config as DocsforgeConfig
         if not issubclass(cls.config_class, Config) and not issubclass(cls.config_class, DocsforgeConfig):
             raise TypeError(
-                f"config_class {cls.config_class} must be a subclass of `properdocs.config.base.Config`"
+                f"config_class {cls.config_class} must be a subclass of `docsforge.config.base.Config`"
             )
         if cls.config_class is not LegacyConfig:
             cls.config_scheme = cls.config_class._schema  # For compatibility.
@@ -109,40 +109,40 @@ class BasePlugin(Generic[SomeConfig]):
 
     def on_startup(self, *, command: Literal['build', 'gh-deploy', 'serve'], dirty: bool) -> None:
         """
-        The `startup` event runs once at the very beginning of an `properdocs` invocation.
+        The `startup` event runs once at the very beginning of an `docsforge` invocation.
 
         New in MkDocs 1.4.
 
         The presence of an `on_startup` method (even if empty) migrates the plugin to the new
-        system where the plugin object is kept across builds within one `properdocs serve`.
+        system where the plugin object is kept across builds within one `docsforge serve`.
 
         Note that for initializing variables, the `__init__` method is still preferred.
         For initializing per-build variables (and whenever in doubt), use the `on_config` event.
 
         Args:
-            command: the command that ProperDocs was invoked with, e.g. "serve" for `properdocs serve`.
+            command: the command that DocsForge was invoked with, e.g. "serve" for `docsforge serve`.
             dirty: whether `--dirty` flag was passed.
         """
 
     def on_shutdown(self) -> None:
         """
-        The `shutdown` event runs once at the very end of an `properdocs` invocation, before exiting.
+        The `shutdown` event runs once at the very end of an `docsforge` invocation, before exiting.
 
-        This event is relevant only for support of `properdocs serve`, otherwise within a
+        This event is relevant only for support of `docsforge serve`, otherwise within a
         single build it's undistinguishable from `on_post_build`.
 
         New in MkDocs 1.4.
 
         The presence of an `on_shutdown` method (even if empty) migrates the plugin to the new
-        system where the plugin object is kept across builds within one `properdocs serve`.
+        system where the plugin object is kept across builds within one `docsforge serve`.
 
         Note the `on_post_build` method is still preferred for cleanups, when possible, as it has
         a much higher chance of actually triggering. `on_shutdown` is "best effort" because it
-        relies on detecting a graceful shutdown of ProperDocs.
+        relies on detecting a graceful shutdown of DocsForge.
         """
 
     def on_serve(
-        self, server: LiveReloadServer, /, *, config: ProperDocsConfig, builder: Callable
+        self, server: LiveReloadServer, /, *, config: DocsForgeConfig, builder: Callable
     ) -> LiveReloadServer | None:
         """
         The `serve` event is only called when the `serve` command is used during
@@ -163,7 +163,7 @@ class BasePlugin(Generic[SomeConfig]):
 
     # Global events
 
-    def on_config(self, config: ProperDocsConfig) -> ProperDocsConfig | None:
+    def on_config(self, config: DocsForgeConfig) -> DocsForgeConfig | None:
         """
         The `config` event is the first event called on build and is run immediately
         after the user configuration is loaded and validated. Any alterations to the
@@ -177,7 +177,7 @@ class BasePlugin(Generic[SomeConfig]):
         """
         return config
 
-    def on_pre_build(self, *, config: ProperDocsConfig) -> None:
+    def on_pre_build(self, *, config: DocsForgeConfig) -> None:
         """
         The `pre_build` event does not alter any variables. Use this event to call
         pre-build scripts.
@@ -186,7 +186,7 @@ class BasePlugin(Generic[SomeConfig]):
             config: global configuration object
         """
 
-    def on_files(self, files: Files, /, *, config: ProperDocsConfig) -> Files | None:
+    def on_files(self, files: Files, /, *, config: DocsForgeConfig) -> Files | None:
         """
         The `files` event is called after the files collection is populated from the
         `docs_dir`. Use this event to add, remove, or alter files in the
@@ -204,7 +204,7 @@ class BasePlugin(Generic[SomeConfig]):
         return files
 
     def on_nav(
-        self, nav: Navigation, /, *, config: ProperDocsConfig, files: Files
+        self, nav: Navigation, /, *, config: DocsForgeConfig, files: Files
     ) -> Navigation | None:
         """
         The `nav` event is called after the site navigation is created and can
@@ -221,7 +221,7 @@ class BasePlugin(Generic[SomeConfig]):
         return nav
 
     def on_env(
-        self, env: jinja2.Environment, /, *, config: ProperDocsConfig, files: Files
+        self, env: jinja2.Environment, /, *, config: DocsForgeConfig, files: Files
     ) -> jinja2.Environment | None:
         """
         The `env` event is called after the Jinja template environment is created
@@ -238,7 +238,7 @@ class BasePlugin(Generic[SomeConfig]):
         """
         return env
 
-    def on_post_build(self, *, config: ProperDocsConfig) -> None:
+    def on_post_build(self, *, config: DocsForgeConfig) -> None:
         """
         The `post_build` event does not alter any variables. Use this event to call
         post-build scripts.
@@ -250,8 +250,8 @@ class BasePlugin(Generic[SomeConfig]):
     def on_build_error(self, *, error: Exception) -> None:
         """
         The `build_error` event is called after an exception of any kind
-        is caught by ProperDocs during the build process.
-        Use this event to clean things up before ProperDocs terminates. Note that any other
+        is caught by DocsForge during the build process.
+        Use this event to clean things up before DocsForge terminates. Note that any other
         events which were scheduled to run after the error will have been skipped. See
         [Handling Errors](plugins.md#handling-errors) for more details.
 
@@ -262,7 +262,7 @@ class BasePlugin(Generic[SomeConfig]):
     # Template events
 
     def on_pre_template(
-        self, template: jinja2.Template, /, *, template_name: str, config: ProperDocsConfig
+        self, template: jinja2.Template, /, *, template_name: str, config: DocsForgeConfig
     ) -> jinja2.Template | None:
         """
         The `pre_template` event is called immediately after the subject template is
@@ -279,7 +279,7 @@ class BasePlugin(Generic[SomeConfig]):
         return template
 
     def on_template_context(
-        self, context: TemplateContext, /, *, template_name: str, config: ProperDocsConfig
+        self, context: TemplateContext, /, *, template_name: str, config: DocsForgeConfig
     ) -> TemplateContext | None:
         """
         The `template_context` event is called immediately after the context is created
@@ -297,7 +297,7 @@ class BasePlugin(Generic[SomeConfig]):
         return context
 
     def on_post_template(
-        self, output_content: str, /, *, template_name: str, config: ProperDocsConfig
+        self, output_content: str, /, *, template_name: str, config: DocsForgeConfig
     ) -> str | None:
         """
         The `post_template` event is called after the template is rendered, but before
@@ -317,33 +317,33 @@ class BasePlugin(Generic[SomeConfig]):
 
     # Page events
 
-    def on_pre_page(self, page: Page, /, *, config: ProperDocsConfig, files: Files) -> Page | None:
+    def on_pre_page(self, page: Page, /, *, config: DocsForgeConfig, files: Files) -> Page | None:
         """
         The `pre_page` event is called before any actions are taken on the subject
         page and can be used to alter the `Page` instance.
 
         Args:
-            page: `properdocs.structure.pages.Page` instance
+            page: `docsforge.structure.pages.Page` instance
             config: global configuration object
             files: global files collection
 
         Returns:
-            `properdocs.structure.pages.Page` instance
+            `docsforge.structure.pages.Page` instance
         """
         return page
 
-    def on_page_read_source(self, /, *, page: Page, config: ProperDocsConfig) -> str | None:
+    def on_page_read_source(self, /, *, page: Page, config: DocsForgeConfig) -> str | None:
         """
         > DEPRECATED: Instead of this event, prefer one of these alternatives:
         >
-        > * Since ProperDocs 1.6, instead set `content_bytes`/`content_string` of a `File` inside [`on_files`][].
+        > * Since DocsForge 1.6, instead set `content_bytes`/`content_string` of a `File` inside [`on_files`][].
         > * Usually (although it's not an exact alternative), `on_page_markdown` can serve the same purpose.
 
         The `on_page_read_source` event can replace the default mechanism to read
         the contents of a page's source from the filesystem.
 
         Args:
-            page: `properdocs.structure.pages.Page` instance
+            page: `docsforge.structure.pages.Page` instance
             config: global configuration object
 
         Returns:
@@ -353,7 +353,7 @@ class BasePlugin(Generic[SomeConfig]):
         return None
 
     def on_page_markdown(
-        self, markdown: str, /, *, page: Page, config: ProperDocsConfig, files: Files
+        self, markdown: str, /, *, page: Page, config: DocsForgeConfig, files: Files
     ) -> str | None:
         """
         The `page_markdown` event is called after the page's markdown is loaded
@@ -362,7 +362,7 @@ class BasePlugin(Generic[SomeConfig]):
 
         Args:
             markdown: Markdown source text of page as string
-            page: `properdocs.structure.pages.Page` instance
+            page: `docsforge.structure.pages.Page` instance
             config: global configuration object
             files: global files collection
 
@@ -372,7 +372,7 @@ class BasePlugin(Generic[SomeConfig]):
         return markdown
 
     def on_page_content(
-        self, html: str, /, *, page: Page, config: ProperDocsConfig, files: Files
+        self, html: str, /, *, page: Page, config: DocsForgeConfig, files: Files
     ) -> str | None:
         """
         The `page_content` event is called after the Markdown text is rendered to
@@ -381,7 +381,7 @@ class BasePlugin(Generic[SomeConfig]):
 
         Args:
             html: HTML rendered from Markdown source as string
-            page: `properdocs.structure.pages.Page` instance
+            page: `docsforge.structure.pages.Page` instance
             config: global configuration object
             files: global files collection
 
@@ -391,7 +391,7 @@ class BasePlugin(Generic[SomeConfig]):
         return html
 
     def on_page_context(
-        self, context: TemplateContext, /, *, page: Page, config: ProperDocsConfig, nav: Navigation
+        self, context: TemplateContext, /, *, page: Page, config: DocsForgeConfig, nav: Navigation
     ) -> TemplateContext | None:
         """
         The `page_context` event is called after the context for a page is created
@@ -399,7 +399,7 @@ class BasePlugin(Generic[SomeConfig]):
 
         Args:
             context: dict of template context variables
-            page: `properdocs.structure.pages.Page` instance
+            page: `docsforge.structure.pages.Page` instance
             config: global configuration object
             nav: global navigation object
 
@@ -408,7 +408,7 @@ class BasePlugin(Generic[SomeConfig]):
         """
         return context
 
-    def on_post_page(self, output: str, /, *, page: Page, config: ProperDocsConfig) -> str | None:
+    def on_post_page(self, output: str, /, *, page: Page, config: DocsForgeConfig) -> str | None:
         """
         The `post_page` event is called after the template is rendered, but
         before it is written to disc and can be used to alter the output of the
@@ -417,7 +417,7 @@ class BasePlugin(Generic[SomeConfig]):
 
         Args:
             output: output of rendered template as string
-            page: `properdocs.structure.pages.Page` instance
+            page: `docsforge.structure.pages.Page` instance
             config: global configuration object
 
         Returns:
@@ -454,7 +454,7 @@ def event_priority(priority: float) -> Callable[[T], T]:
 
     ```python
     try:
-        from docsforge._vendor.properdocs.plugins import event_priority
+        from docsforge.plugins import event_priority
     except ImportError:
         event_priority = lambda priority: lambda f: f  # No-op fallback
     ```
@@ -587,72 +587,72 @@ class PluginCollection(dict, MutableMapping[str, BasePlugin]):
         return self.run_event('shutdown')
 
     def on_serve(
-        self, server: LiveReloadServer, *, config: ProperDocsConfig, builder: Callable
+        self, server: LiveReloadServer, *, config: DocsForgeConfig, builder: Callable
     ) -> LiveReloadServer:
         return self.run_event('serve', server, config=config, builder=builder)
 
-    def on_config(self, config: ProperDocsConfig) -> ProperDocsConfig:
+    def on_config(self, config: DocsForgeConfig) -> DocsForgeConfig:
         return self.run_event('config', config)
 
-    def on_pre_build(self, *, config: ProperDocsConfig) -> None:
+    def on_pre_build(self, *, config: DocsForgeConfig) -> None:
         return self.run_event('pre_build', config=config)
 
-    def on_files(self, files: Files, *, config: ProperDocsConfig) -> Files:
+    def on_files(self, files: Files, *, config: DocsForgeConfig) -> Files:
         return self.run_event('files', files, config=config)
 
-    def on_nav(self, nav: Navigation, *, config: ProperDocsConfig, files: Files) -> Navigation:
+    def on_nav(self, nav: Navigation, *, config: DocsForgeConfig, files: Files) -> Navigation:
         return self.run_event('nav', nav, config=config, files=files)
 
-    def on_env(self, env: jinja2.Environment, *, config: ProperDocsConfig, files: Files):
+    def on_env(self, env: jinja2.Environment, *, config: DocsForgeConfig, files: Files):
         return self.run_event('env', env, config=config, files=files)
 
-    def on_post_build(self, *, config: ProperDocsConfig) -> None:
+    def on_post_build(self, *, config: DocsForgeConfig) -> None:
         return self.run_event('post_build', config=config)
 
     def on_build_error(self, *, error: Exception) -> None:
         return self.run_event('build_error', error=error)
 
     def on_pre_template(
-        self, template: jinja2.Template, *, template_name: str, config: ProperDocsConfig
+        self, template: jinja2.Template, *, template_name: str, config: DocsForgeConfig
     ) -> jinja2.Template:
         return self.run_event('pre_template', template, template_name=template_name, config=config)
 
     def on_template_context(
-        self, context: TemplateContext, *, template_name: str, config: ProperDocsConfig
+        self, context: TemplateContext, *, template_name: str, config: DocsForgeConfig
     ) -> TemplateContext:
         return self.run_event(
             'template_context', context, template_name=template_name, config=config
         )
 
     def on_post_template(
-        self, output_content: str, *, template_name: str, config: ProperDocsConfig
+        self, output_content: str, *, template_name: str, config: DocsForgeConfig
     ) -> str:
         return self.run_event(
             'post_template', output_content, template_name=template_name, config=config
         )
 
-    def on_pre_page(self, page: Page, *, config: ProperDocsConfig, files: Files) -> Page:
+    def on_pre_page(self, page: Page, *, config: DocsForgeConfig, files: Files) -> Page:
         return self.run_event('pre_page', page, config=config, files=files)
 
-    def on_page_read_source(self, *, page: Page, config: ProperDocsConfig) -> str | None:
+    def on_page_read_source(self, *, page: Page, config: DocsForgeConfig) -> str | None:
         return self.run_event('page_read_source', page=page, config=config)
 
     def on_page_markdown(
-        self, markdown: str, *, page: Page, config: ProperDocsConfig, files: Files
+        self, markdown: str, *, page: Page, config: DocsForgeConfig, files: Files
     ) -> str:
         return self.run_event('page_markdown', markdown, page=page, config=config, files=files)
 
     def on_page_content(
-        self, html: str, *, page: Page, config: ProperDocsConfig, files: Files
+        self, html: str, *, page: Page, config: DocsForgeConfig, files: Files
     ) -> str:
         return self.run_event('page_content', html, page=page, config=config, files=files)
 
     def on_page_context(
-        self, context: TemplateContext, *, page: Page, config: ProperDocsConfig, nav: Navigation
+        self, context: TemplateContext, *, page: Page, config: DocsForgeConfig, nav: Navigation
     ) -> TemplateContext:
         return self.run_event('page_context', context, page=page, config=config, nav=nav)
 
-    def on_post_page(self, output: str, *, page: Page, config: ProperDocsConfig) -> str:
+    def on_post_page(self, output: str, *, page: Page, config: DocsForgeConfig) -> str:
         return self.run_event('post_page', output, page=page, config=config)
 
 
@@ -692,16 +692,16 @@ def get_plugin_logger(name: str) -> PrefixedLogger:
         name: The name to use with `logging.getLogger`.
 
     Returns:
-        A logger configured to work well in ProperDocs,
+        A logger configured to work well in DocsForge,
             prefixing each message with the plugin package name.
 
     Example:
         ```python
-        from docsforge._vendor.properdocs.plugins import get_plugin_logger
+        from docsforge.plugins import get_plugin_logger
 
         log = get_plugin_logger(__name__)
         log.info("My plugin message")
         ```
     """
-    logger = logging.getLogger(f"properdocs.plugins.{name}")
+    logger = logging.getLogger(f"docsforge.plugins.{name}")
     return PrefixedLogger(name.split(".", 1)[0], logger)

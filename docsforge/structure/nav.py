@@ -12,7 +12,7 @@ from docsforge.structure.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.utils import nest_paths
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import ProperDocsConfig
+    from docsforge.config.defaults import DocsForgeConfig
     from docsforge.structure.files import Files
 
 
@@ -128,7 +128,7 @@ class Link(StructureItem):
     """Indicates that the navigation object is a "link" object. Always `True` for link objects."""
 
 
-def get_navigation(files: Files, config: ProperDocsConfig) -> Navigation:
+def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
     """Build site navigation from config and files."""
     documentation_pages = files.documentation_pages()
     nav_config = config['nav']
@@ -194,7 +194,7 @@ def get_navigation(files: Files, config: ProperDocsConfig) -> Navigation:
     return Navigation(items, pages)
 
 
-def _data_to_navigation(data, files: Files, config: ProperDocsConfig):
+def _data_to_navigation(data, files: Files, config: DocsForgeConfig):
     if isinstance(data, dict):
         return [
             _data_to_navigation((key, value), files, config)
