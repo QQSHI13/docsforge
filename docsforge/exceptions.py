@@ -5,7 +5,7 @@ from click import ClickException, echo
 
 class ProperDocsException(ClickException):
     """
-    The base class which all ProperDocs exceptions inherit from. This should
+    The base class which all DocsForge exceptions inherit from. This should
     not be raised directly. One of the subclasses should be raised instead.
     """
 
@@ -32,13 +32,13 @@ class ConfigurationError(ProperDocsException):
 
 class BuildError(ProperDocsException):
     """
-    This error may be raised by ProperDocs during the build process. Plugins should
+    This error may be raised by DocsForge during the build process. Plugins should
     not raise this error.
     """
 
 
 class PluginError(BuildError):
     """
-    A subclass of [`properdocs.exceptions.BuildError`][] which can be raised by plugin
+    A subclass of [`docsforge.exceptions.BuildError`][] which can be raised by plugin
     events.
     """

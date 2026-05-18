@@ -385,7 +385,7 @@ class Deprecated(BaseConfigOption):
         self.moved_to = moved_to
         if not message:
             if removed:
-                message = "The configuration option '{}' was removed from ProperDocs."
+                message = "The configuration option '{}' was removed from DocsForge."
             else:
                 message = (
                     "The configuration option '{}' has been deprecated and "
@@ -549,7 +549,7 @@ class Optional(Generic[T], BaseConfigOption[T | None]):
 class RepoURL(URL):
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "RepoURL is no longer used in ProperDocs and will be removed.", DeprecationWarning
+            "RepoURL is no longer used in DocsForge and will be removed.", DeprecationWarning
         )
         super().__init__(*args, **kwargs)
 

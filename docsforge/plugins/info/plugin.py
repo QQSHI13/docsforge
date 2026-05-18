@@ -91,12 +91,12 @@ class InfoPlugin(BasePlugin[InfoConfig]):
             return
 
         # Resolve latest version
-        url = "https://github.com/squidfunk/mkdocs-material/releases/latest"
+        url = "https://github.com/QQSHI13/docsforge/releases/latest"
         res = requests.get(url, allow_redirects = False)
 
         # Check if we're running the latest version
         _, current = res.headers.get("location").rsplit("/", 1)
-        present = version("mkdocs-material")
+        present = version("docsforge")
         if not present.startswith(current):
             log.error("Please upgrade to the latest version.")
             self._help_on_versions_and_exit(present, current)
@@ -380,13 +380,13 @@ class InfoPlugin(BasePlugin[InfoConfig]):
     def _help_on_versions_and_exit(self, have, need):
         print(Fore.RED)
         print("  When reporting issues, please first upgrade to the latest")
-        print("  version of Material for MkDocs, as the problem might already")
+        print("  version of DocsForge, as the problem might already")
         print("  be fixed in the latest version. This helps reduce duplicate")
         print("  efforts and saves us maintainers time.")
         print(Style.NORMAL)
         print(f"  Please update from {have} to {need}.")
         print(Style.RESET_ALL)
-        print(f"  pip install --upgrade --force-reinstall mkdocs-material")
+        print(f"  pip install --upgrade --force-reinstall docsforge")
         print(Style.NORMAL)
 
         # Exit, unless explicitly told not to

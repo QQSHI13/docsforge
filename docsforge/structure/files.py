@@ -32,7 +32,7 @@ class InclusionLevel(enum.Enum):
     EXCLUDED = -3
     """The file is excluded and will not be processed."""
     DRAFT = -2
-    """The file is excluded from the final site, but will still be populated during `properdocs serve`."""
+    """The file is excluded from the final site, but will still be populated during `docsforge serve`."""
     NOT_IN_NAV = -1
     """The file is part of the site, but doesn't produce nav warnings."""
     UNDEFINED = 0
@@ -60,7 +60,7 @@ class InclusionLevel(enum.Enum):
 
 
 class Files:
-    """A collection of [File][properdocs.structure.files.File] objects."""
+    """A collection of [File][docsforge.structure.files.File] objects."""
 
     def __init__(self, files: Iterable[File]) -> None:
         self._src_uris = {f.src_uri: f for f in files}
@@ -86,7 +86,7 @@ class Files:
     def src_uris(self) -> Mapping[str, File]:
         """
         A mapping containing every file, with the keys being their
-        [`src_uri`][properdocs.structure.files.File.src_uri].
+        [`src_uri`][docsforge.structure.files.File.src_uri].
         """
         return self._src_uris
 
@@ -180,14 +180,14 @@ class Files:
 
 class File:
     """
-    A ProperDocs File object.
+    A DocsForge File object.
 
     It represents how the contents of one file should be populated in the destination site.
 
     A file always has its `abs_dest_path` (obtained by joining `dest_dir` and `dest_path`),
     where the `dest_dir` is understood to be the *site* directory.
 
-    `content_bytes`/`content_string` (new in ProperDocs 1.6) can always be used to obtain the file's
+    `content_bytes`/`content_string` (new in DocsForge 1.6) can always be used to obtain the file's
     content. But it may be backed by one of the two sources:
 
     *   A physical source file at `abs_src_path` (by default obtained by joining `src_dir` and
@@ -197,7 +197,7 @@ class File:
 
         `src_dir` *should* be populated for real files and should be `None` for generated files.
 
-    *   Since ProperDocs 1.6 a file may alternatively be stored in memory - `content_string`/`content_bytes`.
+    *   Since DocsForge 1.6 a file may alternatively be stored in memory - `content_string`/`content_bytes`.
 
         Then `src_dir` and `abs_src_path` will remain `None`. `content_bytes`/`content_string` need
         to be written to, or populated through the `content` argument in the constructor.
@@ -608,7 +608,7 @@ def _sort_files(filenames: Iterable[str]) -> list[str]:
 
 def _filter_paths(basename: str, path: str, is_dir: bool, exclude: Iterable[str]) -> bool:
     warnings.warn(
-        "_filter_paths is not used since ProperDocs 1.5 and will be removed soon.",
+        "_filter_paths is not used since DocsForge 1.5 and will be removed soon.",
         DeprecationWarning,
     )
     for item in exclude:

@@ -31,7 +31,7 @@ def serve(
     **kwargs,
 ) -> None:
     """
-    Start the ProperDocs development server.
+    Start the DocsForge development server.
 
     By default it will serve the documentation on http://localhost:8000/ and
     it will rebuild the documentation and refresh the page automatically

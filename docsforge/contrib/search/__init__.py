@@ -61,7 +61,7 @@ class _PluginConfig(base.Config):
 
 
 class SearchPlugin(BasePlugin[_PluginConfig]):
-    """Add a search feature to ProperDocs."""
+    """Add a search feature to DocsForge."""
 
     def on_config(self, config: ProperDocsConfig, **kwargs) -> ProperDocsConfig:
         """Add plugin templates and scripts to config."""

@@ -134,7 +134,7 @@ def yaml_load(
         result = yaml.load(source, Loader=loader)  # noqa: S506
     except yaml.YAMLError as e:
         raise exceptions.ConfigurationError(
-            f"ProperDocs encountered an error parsing the configuration file: {e}"
+            f"DocsForge encountered an error parsing the configuration file: {e}"
         )
     if result is None:
         return {}

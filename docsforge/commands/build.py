@@ -56,7 +56,7 @@ def get_context(
         extra_css=extra_css,
         extra_javascript=extra_javascript,
         docsforge_version=docsforge.__version__,
-        properdocs_version=docsforge.__version__,  # Legacy alias
+        properdocs_version=docsforge.__version__,  # Legacy alias - deprecated, use docsforge_version
         mkdocs_version=f"DocsForge {docsforge.__version__}",
         build_date_utc=utils.get_build_datetime(),
         config=config,

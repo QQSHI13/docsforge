@@ -213,7 +213,7 @@ def _badge_for_example(text: str, page: Page, files: Files):
 # Create badge for example view
 def _badge_for_example_view(text: str, page: Page, files: Files):
     icon = "material-folder-eye"
-    href = f"https://mkdocs-material.github.io/examples/{text}/"
+    href = f"https://qqshi13.github.io/docsforge-docs/examples/{text}/"
     return _badge(
         icon = f"[:{icon}:]({href} 'View example')",
         type = "right"
@@ -222,7 +222,7 @@ def _badge_for_example_view(text: str, page: Page, files: Files):
 # Create badge for example download
 def _badge_for_example_download(text: str, page: Page, files: Files):
     icon = "material-folder-download"
-    href = f"https://mkdocs-material.github.io/examples/{text}.zip"
+    href = f"https://qqshi13.github.io/docsforge-docs/examples/{text}.zip"
     return _badge(
         icon = f"[:{icon}:]({href} 'Download example files')",
         text = f"[`.zip`]({href})",
@@ -232,7 +232,7 @@ def _badge_for_example_download(text: str, page: Page, files: Files):
 # Create badge for demo repository
 def _badge_for_demo(text: str, page: Page, files: Files):
     icon = "material-github"
-    href = f"https://github.com/mkdocs-material/{text}"
+    href = f"https://github.com/QQSHI13/{text}"
     return _badge(
         icon = f"[:{icon}:]({href} 'Demo repository')",
         text = text,

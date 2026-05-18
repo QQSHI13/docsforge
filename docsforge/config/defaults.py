@@ -73,7 +73,7 @@ class ProperDocsConfig(base.Config):
     """The name of the author to add to the HTML meta tags."""
 
     theme = c.ProperDocsTheme()
-    """The ProperDocs theme for the documentation."""
+    """The DocsForge theme for the documentation."""
 
     docs_dir = c.DocsDir(default='docs', exists=True)
     """The directory containing the documentation markdown."""
@@ -87,13 +87,13 @@ class ProperDocsConfig(base.Config):
     google_analytics = c.Deprecated(
         message=(
             'The configuration option {} has been deprecated and '
-            'will be removed in a future release of ProperDocs. See the '
+            'will be removed in a future release of DocsForge. See the '
             'options available on your theme for an alternative.'
         ),
         option_type=c.Type(list, length=2),
     )
     """set of values for Google analytics containing the account IO and domain
-    this should look like, ['UA-27795084-5', 'properdocs.org']"""
+    this should look like, ['UA-27795084-5', 'docsforge.dev']"""
 
     dev_addr = c.IpAddress(default='127.0.0.1:8000')
     """The address on which to serve the live reloading docs server."""
@@ -182,7 +182,7 @@ class ProperDocsConfig(base.Config):
     """PyMarkdown extension configs. Populated from `markdown_extensions`."""
 
     strict = c.Type(bool, default=False)
-    """Enabling strict mode causes ProperDocs to stop the build when a problem is
+    """Enabling strict mode causes DocsForge to stop the build when a problem is
     encountered rather than display an error."""
 
     remote_branch = c.Type(str, default='gh-pages')
@@ -195,7 +195,7 @@ class ProperDocsConfig(base.Config):
     """extra is a mapping/dictionary of data that is passed to the template.
     This allows template authors to require extra configuration that not
     relevant to all themes and doesn't need to be explicitly supported by
-    ProperDocs itself. A good example here would be including the current
+    DocsForge itself. A good example here would be including the current
     project version."""
 
     tikz = c.Optional(c.Type(bool))
@@ -213,7 +213,7 @@ class ProperDocsConfig(base.Config):
     an instance of a plugin each."""
 
     watch = c.ListOfPaths(default=[])
-    """A list of extra paths to watch while running `properdocs serve`."""
+    """A list of extra paths to watch while running `docsforge serve`."""
 
     class Validation(base.Config):
         class NavValidation(base.Config):

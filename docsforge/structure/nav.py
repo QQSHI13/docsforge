@@ -31,10 +31,10 @@ class Navigation:
                 break
 
     homepage: Page | None
-    """The [page][properdocs.structure.pages.Page] object for the homepage of the site."""
+    """The [page][docsforge.structure.pages.Page] object for the homepage of the site."""
 
     pages: list[Page]
-    """A flat list of all [page][properdocs.structure.pages.Page] objects contained in the navigation."""
+    """A flat list of all [page][docsforge.structure.pages.Page] objects contained in the navigation."""
 
     def __str__(self) -> str:
         return '\n'.join(item._indent_print() for item in self)

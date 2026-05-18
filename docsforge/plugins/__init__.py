@@ -29,7 +29,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-# Re-export ProperDocs plugin system
+# Re-export DocsForge plugin system
 from docsforge._vendor.properdocs.plugins import (
     BasePlugin,
     CombinedEvent,

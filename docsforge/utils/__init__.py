@@ -230,7 +230,7 @@ def create_media_urls(
 
 def path_to_url(path):
     warnings.warn(
-        "path_to_url is never used in ProperDocs and will be removed soon.", DeprecationWarning
+        "path_to_url is never used in DocsForge and will be removed soon.", DeprecationWarning
     )
     return path.replace('\\', '/')
 
@@ -395,7 +395,7 @@ def __getattr__(name: str):
     if name == 'warning_filter':
         warnings.warn(
             "warning_filter doesn't do anything since MkDocs 1.2 and will be removed soon. "
-            "All messages on the `properdocs` logger get counted automatically.",
+            "All messages on the `docsforge` logger get counted automatically.",
             DeprecationWarning,
         )
         return logging.Filter()

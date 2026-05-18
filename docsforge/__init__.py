@@ -1,6 +1,6 @@
 """DocsForge - Unified documentation engine with Material theme.
 
-DocsForge combines the ProperDocs build engine with the Material for MkDocs
+DocsForge combines the DocsForge build engine with the Material for MkDocs
 theme and plugins into a single, cohesive package.
 """
 

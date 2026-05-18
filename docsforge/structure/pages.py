@@ -81,21 +81,21 @@ class Page(StructureItem):
 
     toc: TableOfContents
     """An iterable object representing the Table of contents for a page. Each item in
-    the `toc` is an [`AnchorLink`][properdocs.structure.toc.AnchorLink]."""
+    the `toc` is an [`AnchorLink`][docsforge.structure.toc.AnchorLink]."""
 
     meta: MutableMapping[str, Any]
     """A mapping of the metadata included at the top of the markdown page."""
 
     @property
     def url(self) -> str:
-        """The URL of the page relative to the ProperDocs `site_dir`."""
+        """The URL of the page relative to the DocsForge `site_dir`."""
         url = self.file.url
         if url in ('.', './'):
             return ''
         return url
 
     file: File
-    """The documentation [`File`][properdocs.structure.files.File] that the page is being rendered from."""
+    """The documentation [`File`][docsforge.structure.files.File] that the page is being rendered from."""
 
     abs_url: str | None
     """The absolute URL of the page from the server root as determined by the value
@@ -136,12 +136,12 @@ class Page(StructureItem):
         return self.is_top_level and self.is_index and self.file.url in ('.', './', 'index.html')
 
     previous_page: Page | None
-    """The [page][properdocs.structure.pages.Page] object for the previous page or `None`.
+    """The [page][docsforge.structure.pages.Page] object for the previous page or `None`.
     The value will be `None` if the current page is the first item in the site navigation
     or if the current page is not included in the navigation at all."""
 
     next_page: Page | None
-    """The [page][properdocs.structure.pages.Page] object for the next page or `None`.
+    """The [page][docsforge.structure.pages.Page] object for the next page or `None`.
     The value will be `None` if the current page is the last item in the site navigation
     or if the current page is not included in the navigation at all."""
 
@@ -220,7 +220,7 @@ class Page(StructureItem):
 
     def _set_title(self) -> None:
         warnings.warn(
-            "_set_title is no longer used in ProperDocs and will be removed soon.",
+            "_set_title is no longer used in DocsForge and will be removed soon.",
             DeprecationWarning,
         )
 

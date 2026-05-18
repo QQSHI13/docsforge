@@ -61,7 +61,7 @@ if is_mkdocs() and not os.getenv("NO_MKDOCS_2_WARNING"):
         f"{Fore.RED} │{Style.RESET_ALL}\n"
         f"{Fore.RED} │{Style.RESET_ALL}  Our full analysis:\n"
         f"{Fore.RED} │{Style.RESET_ALL}\n"
-        f"{Fore.RED} │{Style.RESET_ALL}  \033[4mhttps://squidfunk.github.io/mkdocs-material/blog/2026/02/18/mkdocs-2.0/{Style.RESET_ALL}\n"
+        f"{Fore.RED} │{Style.RESET_ALL}  \033[4mhttps://qqshi13.github.io/docsforge-docs/{Style.RESET_ALL}\n"
         f"{Style.RESET_ALL}",
         file=stderr
     )
