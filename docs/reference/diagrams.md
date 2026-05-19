@@ -17,18 +17,7 @@ markdown_extensions:
 
 ## Flowchart
 
-``` markdown
-``` mermaid
-graph LR
-    A[Start] --> B{Is it?}
-    B -->|Yes| C[OK]
-    C --> D[Rethink]
-    D --> B
-    B ---->|No| E[End]
-```
-```
-
-``` mermaid
+```mermaid
 graph LR
     A[Start] --> B{Is it?}
     B -->|Yes| C[OK]
@@ -39,22 +28,7 @@ graph LR
 
 ## Sequence diagram
 
-``` markdown
-``` mermaid
-sequenceDiagram
-    participant User
-    participant DocsForge
-    participant GitHub
-    
-    User->>DocsForge: Write documentation
-    User->>DocsForge: Run build
-    DocsForge-->>User: Static site
-    User->>GitHub: git push
-    GitHub-->>User: Deployed site
-```
-```
-
-``` mermaid
+```mermaid
 sequenceDiagram
     participant User
     participant DocsForge
@@ -69,24 +43,7 @@ sequenceDiagram
 
 ## Class diagram
 
-``` markdown
-``` mermaid
-classDiagram
-    class Site {
-        +String name
-        +String url
-        +build()
-        +serve()
-    }
-    class Theme {
-        +String name
-        +configure()
-    }
-    Site --> Theme : uses
-```
-```
-
-``` mermaid
+```mermaid
 classDiagram
     class Site {
         +String name
@@ -103,18 +60,7 @@ classDiagram
 
 ## State diagram
 
-``` markdown
-``` mermaid
-stateDiagram-v2
-    [*] --> Draft
-    Draft --> Review: Submit
-    Review --> Published: Approve
-    Review --> Draft: Reject
-    Published --> [*]
-```
-```
-
-``` mermaid
+```mermaid
 stateDiagram-v2
     [*] --> Draft
     Draft --> Review: Submit
@@ -125,21 +71,7 @@ stateDiagram-v2
 
 ## Gantt chart
 
-``` markdown
-``` mermaid
-gantt
-    title DocsForge Roadmap
-    dateFormat  YYYY-MM-DD
-    section Q1
-    Core features    :done, a1, 2025-01-01, 2025-02-28
-    Testing          :active, a2, 2025-03-01, 2025-03-31
-    section Q2
-    Release          :a3, 2025-04-01, 2025-04-30
-    Documentation    :a4, 2025-05-01, 2025-06-30
-```
-```
-
-``` mermaid
+```mermaid
 gantt
     title DocsForge Roadmap
     dateFormat  YYYY-MM-DD
@@ -153,17 +85,7 @@ gantt
 
 ## Pie chart
 
-``` markdown
-``` mermaid
-pie title Distribution
-    "Documentation" : 40
-    "Code" : 35
-    "Tests" : 20
-    "Config" : 5
-```
-```
-
-``` mermaid
+```mermaid
 pie title Distribution
     "Documentation" : 40
     "Code" : 35
@@ -173,21 +95,7 @@ pie title Distribution
 
 ## Git graph
 
-``` markdown
-``` mermaid
-gitGraph
-    commit
-    branch develop
-    checkout develop
-    commit
-    commit
-    checkout main
-    merge develop
-    commit
-```
-```
-
-``` mermaid
+```mermaid
 gitGraph
     commit
     branch develop
@@ -201,25 +109,7 @@ gitGraph
 
 ## Mindmap
 
-``` markdown
-``` mermaid
-mindmap
-  root((DocsForge))
-    Getting Started
-      Installation
-      Quick Start
-    Setup
-      Colors
-      Fonts
-      Navigation
-    Reference
-      Admonitions
-      Code Blocks
-      Diagrams
-```
-```
-
-``` mermaid
+```mermaid
 mindmap
   root((DocsForge))
     Getting Started
