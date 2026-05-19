@@ -265,9 +265,25 @@ class Page(StructureItem):
         if self.markdown is None:
             raise RuntimeError("`markdown` field hasn't been set (via `read_source`)")
 
+        mdx_configs = dict(config['mdx_configs'] or {})
+
+        # Add default mermaid fence config for pymdownx.superfences if not present.
+        # This ensures mermaid code blocks render as <pre class="mermaid"> which
+        # the Material theme's JavaScript detects and transforms into diagrams.
+        if 'pymdownx.superfences' in config['markdown_extensions']:
+            import pymdownx.superfences as superfences_mod
+            sf_cfg = mdx_configs.setdefault('pymdownx.superfences', {})
+            custom_fences = sf_cfg.setdefault('custom_fences', [])
+            if not any(f.get('name') == 'mermaid' for f in custom_fences):
+                custom_fences.append({
+                    'name': 'mermaid',
+                    'class': 'mermaid',
+                    'format': superfences_mod.fence_code_format,
+                })
+
         md = markdown.Markdown(
             extensions=config['markdown_extensions'],
-            extension_configs=config['mdx_configs'] or {},
+            extension_configs=mdx_configs,
         )
 
         raw_html_ext = _RawHTMLPreprocessor()
