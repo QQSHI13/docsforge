@@ -30,7 +30,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install DocsForge
-        run: pip install docsforge
+        run: pip install git+https://github.com/QQSHI13/docsforge.git@v10.4.1
 
       - name: Build site
         run: docsforge build
