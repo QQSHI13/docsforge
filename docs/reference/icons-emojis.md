@@ -37,7 +37,7 @@ Icons appear automatically in admonition titles.
 [Get started :material-arrow-right:](getting-started.md)
 ```
 
-[Get started :material-arrow-right:](getting-started.md)
+[Get started :material-arrow-right:](../getting-started.md)
 
 ### Sized icons
 

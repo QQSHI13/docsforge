@@ -72,6 +72,7 @@ nav:
     - Setting up site analytics: setup/setting-up-site-analytics.md
     - Building an optimized site: setup/building-an-optimized-site.md
     - Adding a git repository: setup/adding-a-git-repository.md
+    - Setting up social cards: setup/setting-up-social-cards.md
     - Setting up a blog: blogging.md
   - Reference:
     - reference/index.md
