@@ -50,7 +50,7 @@ def get_plugins() -> dict[str, EntryPoint]:
 
     for plugin in entry_points(group='docsforge.plugins'):
         # Allow third-party plugins to override core plugins
-        if plugin.name in plugins and plugin.value.startswith("docsforge.contrib."):
+        if plugin.name in plugins and plugin.value.startswith("docsforge.plugins."):
             continue
         plugins[plugin.name] = plugin
 

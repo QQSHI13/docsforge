@@ -81,13 +81,6 @@ class State:
         self.logger.setLevel(logging.INFO)
         self.logger.propagate = False
 
-        # Support legacy logger names for backward compatibility
-        for legacy_name in ['properdocs', 'mkdocs']:
-            legacy_logger = logging.getLogger(legacy_name)
-            legacy_logger.parent = self.logger
-            legacy_logger.setLevel(logging.NOTSET)
-            legacy_logger.propagate = True
-
         self.stream = logging.StreamHandler()
         self.stream.setFormatter(ColorFormatter())
         self.stream.name = 'DocsForgeStreamHandler'
