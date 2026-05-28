@@ -37,7 +37,7 @@ from docsforge.config.config_options import (
     Type
 )
 from docsforge.config.base import Config
-from docsforge.contrib.search import LangOption
+from docsforge.plugins.search.lang import LangOption
 
 # -----------------------------------------------------------------------------
 # Options

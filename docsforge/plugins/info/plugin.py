@@ -45,7 +45,7 @@ from colorama import Fore, Style
 from importlib.metadata import distributions, version
 from io import BytesIO
 from markdown.extensions.toc import slugify
-from docsforge.config.defaults import MkDocsConfig
+from docsforge.config.defaults import DocsForgeConfig
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.utils.yaml import get_yaml_loader
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -541,7 +541,7 @@ def _resolve_pattern(abspath: str, return_path: bool = False):
 # Get project configuration with resolved absolute paths for validation
 def _get_project_config(project_config_file: str):
     with open(project_config_file, encoding="utf-8-sig") as file:
-        config = MkDocsConfig(config_file_path = project_config_file)
+        config = DocsForgeConfig(config_file_path = project_config_file)
         config.load_file(file)
 
         # MkDocs transforms site_dir to absolute path during validation

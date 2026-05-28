@@ -39,7 +39,7 @@ from copy import copy
 from markdown import Markdown
 from docsforge.plugins.blog.author import Author
 from docsforge.plugins.meta.plugin import MetaPlugin
-from docsforge.config.defaults import MkDocsConfig
+from docsforge.config.defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.structure.files import File, Files
 from docsforge.structure.nav import Link, Section
@@ -61,7 +61,7 @@ class Post(Page):
 
     # Initialize post - posts are never listed in the navigation, which is why
     # they will never include a title that was manually set, so we can omit it
-    def __init__(self, file: File, config: MkDocsConfig):
+    def __init__(self, file: File, config: DocsForgeConfig):
         super().__init__(None, file, config)
 
         # Resolve path relative to docs directory
@@ -152,7 +152,7 @@ class Post(Page):
 
     # The contents and metadata were already read in the constructor (and not
     # in `read_source` as for pages), so this function must be set to a no-op
-    def read_source(self, config: MkDocsConfig):
+    def read_source(self, config: DocsForgeConfig):
         pass
 
 # -----------------------------------------------------------------------------
@@ -164,7 +164,7 @@ class Excerpt(Page):
     # when intitializing the excerpt in order to improve rendering performance
     # for excerpts, as they are reused across several different views, because
     # posts might be referenced from multiple different locations
-    def __init__(self, post: Post, config: MkDocsConfig, files: Files):
+    def __init__(self, post: Post, config: DocsForgeConfig, files: Files):
         self.file = copy(post.file)
         self.post = post
 
@@ -247,7 +247,7 @@ class View(Page):
     parent: View | Section
 
     # Initialize view
-    def __init__(self, name: str | None, file: File, config: MkDocsConfig):
+    def __init__(self, name: str | None, file: File, config: DocsForgeConfig):
         super().__init__(None, file, config)
 
         # Initialize name of the view - note that views never pass a title to
@@ -264,7 +264,7 @@ class View(Page):
         self.pages: list[View] = []
 
     # Set necessary metadata
-    def read_source(self, config: MkDocsConfig):
+    def read_source(self, config: DocsForgeConfig):
         super().read_source(config)
 
         # Ensure template is set or use default
@@ -304,7 +304,7 @@ class Reference(Link):
 # -----------------------------------------------------------------------------
 
 # Patch configuration
-def _patch(config: MkDocsConfig):
+def _patch(config: DocsForgeConfig):
     config = copy(config)
 
     # Copy parts of configuration that needs to be patched

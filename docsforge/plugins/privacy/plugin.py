@@ -45,7 +45,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from fnmatch import fnmatch
 from hashlib import sha1
 from docsforge.config.config_options import ExtraScriptValue
-from docsforge.config.defaults import MkDocsConfig
+from docsforge.config.defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.structure.files import File, Files
@@ -352,7 +352,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     # replaced. Many of the assets should already be downloaded earlier, i.e.,
     # everything that was directly referenced in the document, but there may
     # still exist external assets that were added by third-party plugins.
-    def _parse_html(self, output: str, initiator: File, config: MkDocsConfig):
+    def _parse_html(self, output: str, initiator: File, config: DocsForgeConfig):
 
         # Resolve callback
         def resolve(file: File):
@@ -439,7 +439,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         return data.replace(" />", ">").replace(f"=\"{temp}\"", "")
 
     # Enqueue external asset for download, if not already done
-    def _queue(self, url: URL, config: MkDocsConfig, concurrent = False):
+    def _queue(self, url: URL, config: DocsForgeConfig, concurrent = False):
         path = self._path_from_url(url)
         full = posixpath.join(self.config.assets_fetch_dir, path)
 
@@ -484,7 +484,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         return file
 
     # Fetch external asset referenced through the given file
-    def _fetch(self, file: File, config: MkDocsConfig):
+    def _fetch(self, file: File, config: DocsForgeConfig):
 
         # Check if external asset needs to be downloaded
         if not os.path.isfile(file.abs_src_path) or not self.config.cache:
@@ -654,7 +654,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         return url.geturl()[2:]
 
     # Create a file for the given path
-    def _path_to_file(self, path: str, config: MkDocsConfig):
+    def _path_to_file(self, path: str, config: DocsForgeConfig):
         return File(
             posixpath.join(self.config.assets_fetch_dir, unquote(path)),
             os.path.abspath(self.config.cache_dir),

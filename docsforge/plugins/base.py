@@ -46,18 +46,15 @@ log = logging.getLogger('docsforge.plugins')
 
 def get_plugins() -> dict[str, EntryPoint]:
     """Return a dict of all installed Plugins as {name: EntryPoint}."""
-    pluginmaps: dict[str, dict[str, EntryPoint]] = {'docsforge': {}, 'mkdocs': {}}
+    plugins: dict[str, EntryPoint] = {}
 
-    for prefix in pluginmaps:
-        for plugin in entry_points(group=f'{prefix}.plugins'):
-            if getattr(plugin, 'value', '').startswith('mkdocs.'):
-                continue
-            # Allow third-party plugins to override core plugins
-            if plugin.name in pluginmaps[prefix] and plugin.value.startswith(f"{prefix}.contrib."):
-                continue
-            pluginmaps[prefix][plugin.name] = plugin
+    for plugin in entry_points(group='docsforge.plugins'):
+        # Allow third-party plugins to override core plugins
+        if plugin.name in plugins and plugin.value.startswith("docsforge.contrib."):
+            continue
+        plugins[plugin.name] = plugin
 
-    return pluginmaps['mkdocs'] | pluginmaps['docsforge']
+    return plugins
 
 
 SomeConfig = TypeVar('SomeConfig', bound=Config)

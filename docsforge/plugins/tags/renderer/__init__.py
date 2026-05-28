@@ -34,7 +34,7 @@ from __future__ import annotations
 import posixpath
 
 from jinja2 import Environment
-from docsforge.config.defaults import MkDocsConfig
+from docsforge.config.defaults import DocsForgeConfig
 from docsforge.structure.pages import Page
 from docsforge.utils import get_relative_url
 
@@ -58,7 +58,7 @@ class Renderer:
     not implicitly rendered by MkDocs, but explicitly by the plugin.
     """
 
-    def __init__(self, env: Environment, config: MkDocsConfig):
+    def __init__(self, env: Environment, config: DocsForgeConfig):
         """
         Initialize renderer.
 
@@ -76,7 +76,7 @@ class Renderer:
     The Jinja environment.
     """
 
-    config: MkDocsConfig
+    config: DocsForgeConfig
     """
     The MkDocs configuration.
     """

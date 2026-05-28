@@ -60,24 +60,6 @@ Issues = "https://github.com/QQSHI13/docsforge/issues"
 docsforge = "docsforge.__main__:cli"
 
 # All entrypoints point to docsforge internals
-[project.entry-points."mkdocs.plugins"]
-"material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
-"material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
-"material/meta" = "docsforge.plugins.meta.plugin:MetaPlugin"
-"material/privacy" = "docsforge.plugins.privacy.plugin:PrivacyPlugin"
-"material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
-"material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
-"material/minify" = "docsforge.plugins.minify.plugin:MinifyPlugin"
-
-[project.entry-points."properdocs.plugins"]
-"material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
-"material/info" = "docsforge.plugins.info.plugin:InfoPlugin"
-"material/meta" = "docsforge.plugins.meta.plugin:MetaPlugin"
-"material/privacy" = "docsforge.plugins.privacy.plugin:PrivacyPlugin"
-"material/search" = "docsforge.plugins.search.plugin:SearchPlugin"
-"material/tags" = "docsforge.plugins.tags.plugin:TagsPlugin"
-"material/minify" = "docsforge.plugins.minify.plugin:MinifyPlugin"
-
 [project.entry-points."docsforge.plugins"]
 "material/blog" = "docsforge.plugins.blog.plugin:BlogPlugin"
 "material/info" = "docsforge.plugins.info.plugin:InfoPlugin"

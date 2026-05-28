@@ -30,7 +30,7 @@
 # IN THE SOFTWARE.
 
 from collections.abc import Callable
-from docsforge.utilities.filter import FilterConfig
+from docsforge.utils.filter import FilterConfig
 from docsforge.config.config_options import (
     DictOfItems, Deprecated, ListOfItems, SubConfig, Type
 )

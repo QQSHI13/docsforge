@@ -10,7 +10,7 @@ import csscompressor
 import htmlmin
 import jsmin
 import docsforge.config.config_options
-from docsforge.config.defaults import MkDocsConfig
+from docsforge.config.defaults import DocsForgeConfig
 from docsforge.plugins import BasePlugin
 from docsforge.structure.pages import Page
 from packaging import version
@@ -75,7 +75,7 @@ class MinifyPlugin(BasePlugin):
         min_part: str = ".min" if self.config[f"minify_{file_type}"] else ""
         return file_name.replace(f".{file_type}", f"{hash_part}{min_part}.{file_type}")
 
-    def _minify(self, file_type: str, config: MkDocsConfig) -> None:
+    def _minify(self, file_type: str, config: DocsForgeConfig) -> None:
         """Process extras and save them to disk."""
         minify_func: Callable = MINIFIERS[file_type]
         file_paths: Union[str, List[str]] = self.config[f"{file_type}_files"] or []
@@ -154,7 +154,7 @@ class MinifyPlugin(BasePlugin):
 
         return htmlmin.minify(output, **output_opts)
 
-    def _minify_extra_config(self, file_type: str, config: MkDocsConfig) -> None:
+    def _minify_extra_config(self, file_type: str, config: DocsForgeConfig) -> None:
         """Change extra_ entries, so they point to the minified/hashed file names."""
         files_to_minify: Union[str, List[str]] = self.config[f"{file_type}_files"] or []
         minify_func: Callable = MINIFIERS[file_type]
@@ -212,12 +212,12 @@ class MinifyPlugin(BasePlugin):
             else:  # MkDocs 1.5: ExtraScriptValue.path
                 extra_item.path = new_file_path
 
-    def on_post_page(self, output: str, *, page: Page, config: MkDocsConfig) -> Optional[str]:
+    def on_post_page(self, output: str, *, page: Page, config: DocsForgeConfig) -> Optional[str]:
         """Minify HTML page before saving to disk."""
         return self._minify_html_page(output)
 
     def on_post_template(
-        self, output_content: str, *, template_name: str, config: MkDocsConfig
+        self, output_content: str, *, template_name: str, config: DocsForgeConfig
     ) -> Optional[str]:
         """Minify HTML template files, e.g. 404.html, before saving to disk."""
         if template_name.endswith(".html"):
@@ -225,14 +225,14 @@ class MinifyPlugin(BasePlugin):
 
         return output_content
 
-    def on_pre_build(self, *, config: MkDocsConfig) -> None:
+    def on_pre_build(self, *, config: DocsForgeConfig) -> None:
         """Process file names of extras in the config."""
         if self.config["minify_js"] or self.config["cache_safe"]:
             self._minify_extra_config("js", config)
         if self.config["minify_css"] or self.config["cache_safe"]:
             self._minify_extra_config("css", config)
 
-    def on_post_build(self, *, config: MkDocsConfig) -> None:
+    def on_post_build(self, *, config: DocsForgeConfig) -> None:
         """Process extras before saving to disk."""
         if self.config["minify_js"] or self.config["cache_safe"]:
             self._minify("js", config)

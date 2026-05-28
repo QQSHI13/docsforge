@@ -41,7 +41,7 @@ from copy import copy
 from datetime import datetime, timezone
 from jinja2 import pass_context
 from jinja2.runtime import Context
-from docsforge.config.defaults import MkDocsConfig
+from docsforge.config.defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.structure import StructureItem
@@ -421,7 +421,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Resolve entrypoint - the entrypoint of the blog must have been created
     # if it did not exist before, and hosts all posts sorted by descending date
-    def _resolve(self, files: Files, config: MkDocsConfig):
+    def _resolve(self, files: Files, config: DocsForgeConfig):
         path = os.path.join(self.config.blog_dir, "index.md")
         path = os.path.normpath(path)
 
@@ -442,7 +442,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Resolve post - the caller must make sure that the given file points to an
     # actual post (and not a page), or behavior might be unpredictable
-    def _resolve_post(self, file: File, config: MkDocsConfig):
+    def _resolve_post(self, file: File, config: DocsForgeConfig):
         post = Post(file, config)
 
         # Compute path and create a temporary file for path resolution
@@ -460,7 +460,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Resolve posts from directory - traverse all documentation pages and filter
     # and yield those that are located in the posts directory
-    def _resolve_posts(self, files: Files, config: MkDocsConfig):
+    def _resolve_posts(self, files: Files, config: DocsForgeConfig):
         path = self.config.post_dir.format(blog = self.config.blog_dir)
         path = os.path.normpath(path)
 
@@ -488,7 +488,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Resolve authors - check if there's an authors file at the configured
     # location, and if one was found, load and validate it
-    def _resolve_authors(self, config: MkDocsConfig):
+    def _resolve_authors(self, config: DocsForgeConfig):
         path = self.config.authors_file.format(blog = self.config.blog_dir)
         path = os.path.normpath(path)
 
@@ -556,7 +556,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Generate views for archive - analyze posts and generate the necessary
     # views, taking the date format provided by the author into account
-    def _generate_archive(self, config: MkDocsConfig, files: Files):
+    def _generate_archive(self, config: DocsForgeConfig, files: Files):
         for post in self.blog.posts:
             date = post.config.date.created
 
@@ -586,7 +586,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Generate views for categories - analyze posts and generate the necessary
     # views, taking the allowed categories as set by the author into account
-    def _generate_categories(self, config: MkDocsConfig, files: Files):
+    def _generate_categories(self, config: DocsForgeConfig, files: Files):
         for post in self.blog.posts:
             for name in post.config.categories:
                 path = self._format_path_for_category(name)
@@ -624,7 +624,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Generate views for profiles - analyze posts and generate the necessary
     # views to provide a profile page for each author listing all posts
-    def _generate_profiles(self, config: MkDocsConfig, files: Files):
+    def _generate_profiles(self, config: DocsForgeConfig, files: Files):
         for post in self.blog.posts:
             for id in post.config.authors:
                 author = self.authors[id]
@@ -655,7 +655,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Generate pages for pagination - analyze view and generate the necessary
     # pages, creating a chain of views for simple rendering and replacement
-    def _generate_pages(self, view: View, config: MkDocsConfig, files: Files):
+    def _generate_pages(self, view: View, config: DocsForgeConfig, files: Files):
         yield view
 
         # Compute pagination boundaries and create pages - pages are internally
@@ -687,7 +687,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Generate links from the given post to other posts, pages, and sections -
     # this can only be done once all posts and pages have been parsed
-    def _generate_links(self, post: Post, config: MkDocsConfig, files: Files):
+    def _generate_links(self, post: Post, config: DocsForgeConfig, files: Files):
         if not post.config.links:
             return
 
@@ -903,7 +903,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # -------------------------------------------------------------------------
 
     # Format path for post
-    def _format_path_for_post(self, post: Post, config: MkDocsConfig):
+    def _format_path_for_post(self, post: Post, config: DocsForgeConfig):
         categories = post.config.categories[:self.config.post_url_max_categories]
         categories = [self._slugify_category(name) for name in categories]
 
@@ -921,7 +921,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         return posixpath.join(self.config.blog_dir, f"{path}.md")
 
     # Format path for archive
-    def _format_path_for_archive(self, post: Post, config: MkDocsConfig):
+    def _format_path_for_archive(self, post: Post, config: DocsForgeConfig):
         date = post.config.date.created
         path = self.config.archive_url_format.format(
             date = self._format_date_for_archive_url(date, config)
@@ -977,7 +977,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # we format the date without a time component in order to keep sane default
     # behavior, since authors will not expect time to be relevant for most posts
     # as by our assumptions - see https://t.ly/Yi7ZC
-    def _format_date(self, date: datetime, format: str, config: MkDocsConfig):
+    def _format_date(self, date: datetime, format: str, config: DocsForgeConfig):
         locale: str = config.theme["language"].replace("-", "_")
         if format in ["full", "long", "medium", "short"]:
             return format_date(date, format = format, locale = locale)
@@ -985,22 +985,22 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             return format_datetime(date, format = format, locale = locale)
 
     # Format date for post
-    def _format_date_for_post(self, date: datetime, config: MkDocsConfig):
+    def _format_date_for_post(self, date: datetime, config: DocsForgeConfig):
         format = self.config.post_date_format
         return self._format_date(date, format, config)
 
     # Format date for post URL
-    def _format_date_for_post_url(self, date: datetime, config: MkDocsConfig):
+    def _format_date_for_post_url(self, date: datetime, config: DocsForgeConfig):
         format = self.config.post_url_date_format
         return self._format_date(date, format, config)
 
     # Format date for archive
-    def _format_date_for_archive(self, date: datetime, config: MkDocsConfig):
+    def _format_date_for_archive(self, date: datetime, config: DocsForgeConfig):
         format = self.config.archive_date_format
         return self._format_date(date, format, config)
 
     # Format date for archive URL
-    def _format_date_for_archive_url(self, date: datetime, config: MkDocsConfig):
+    def _format_date_for_archive_url(self, date: datetime, config: DocsForgeConfig):
         format = self.config.archive_url_date_format
         return self._format_date(date, format, config)
 
@@ -1020,7 +1020,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Create a file for the given path, which must point to a valid source file,
     # either inside the temporary directory or the docs directory
-    def _path_to_file(self, path: str, config: MkDocsConfig, *, temp = True):
+    def _path_to_file(self, path: str, config: DocsForgeConfig, *, temp = True):
         assert path.endswith(".md")
         file = File(
             path,
@@ -1048,7 +1048,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # -------------------------------------------------------------------------
 
     # Translate the placeholder referenced by the given key
-    def _translate(self, key: str, config: MkDocsConfig) -> str:
+    def _translate(self, key: str, config: DocsForgeConfig) -> str:
         env = config.theme.get_env()
         template = env.get_template(
             "partials/language.html", globals = { "config": config }

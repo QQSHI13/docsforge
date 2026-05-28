@@ -36,8 +36,8 @@ import os
 import re
 
 from jinja2 import Environment
-from docsforge.utilities.filter import FileFilter
-from docsforge.config.defaults import MkDocsConfig
+from docsforge.utils.filter import FileFilter
+from docsforge.config.defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.structure.pages import Page
@@ -110,7 +110,7 @@ class TagsPlugin(BasePlugin[TagsConfig]):
         """
         self.is_serve = command == "serve"
 
-    def on_config(self, config: MkDocsConfig) -> None:
+    def on_config(self, config: DocsForgeConfig) -> None:
         """
         Create mapping and listing managers.
         """
@@ -153,7 +153,7 @@ class TagsPlugin(BasePlugin[TagsConfig]):
 
     @event_priority(-50)
     def on_page_markdown(
-        self, markdown: str, *, page: Page, config: MkDocsConfig, **kwargs
+        self, markdown: str, *, page: Page, config: DocsForgeConfig, **kwargs
     ) -> str:
         """
         Collect tags and listings from page.
@@ -201,7 +201,7 @@ class TagsPlugin(BasePlugin[TagsConfig]):
 
     @event_priority(100)
     def on_env(
-        self, env: Environment, *, config: MkDocsConfig, **kwargs
+        self, env: Environment, *, config: DocsForgeConfig, **kwargs
     ) -> None:
         """
         Populate listings.

@@ -262,7 +262,6 @@ class DocsForgeConfig(base.Config):
         self.load_dict(yaml_load(config_file, loader))
 
 
-MkDocsConfig = DocsForgeConfig  # Legacy alias
 
 
 def get_schema() -> base.PlainConfigSchema:
