@@ -112,7 +112,7 @@ class Config(UserDict):
     Base class for DocsForge configuration, plugin configuration (and sub-configuration) objects.
 
     It should be subclassed and have `ConfigOption`s defined as attributes.
-    For examples, see docsforge/contrib/search/__init__.py and docsforge/config/defaults.py.
+    For examples, see docsforge/plugins/search/lang.py and docsforge/config/defaults.py.
 
     Behavior as it was prior to MkDocs 1.4 is now handled by LegacyConfig.
     """

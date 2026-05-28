@@ -132,4 +132,4 @@ class FileFilter(Filter):
 # -----------------------------------------------------------------------------
 
 # Set up logging
-log = logging.getLogger("mkdocs.material.utilities")
+log = logging.getLogger("docsforge.utils.filter")
