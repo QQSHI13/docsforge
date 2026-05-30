@@ -274,6 +274,20 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         # Run `config` plugin events.
         config = config.plugins.on_config(config)
 
+        # Ensure mermaid fence config is present in markdown extensions.
+        # This is done once per build instead of per-page for efficiency.
+        if 'pymdownx.superfences' in config['markdown_extensions']:
+            import pymdownx.superfences as superfences_mod
+            mdx_configs = config.setdefault('mdx_configs', {})
+            sf_cfg = mdx_configs.setdefault('pymdownx.superfences', {})
+            custom_fences = sf_cfg.setdefault('custom_fences', [])
+            if not any(f.get('name') == 'mermaid' for f in custom_fences):
+                custom_fences.append({
+                    'name': 'mermaid',
+                    'class': 'mermaid',
+                    'format': superfences_mod.fence_code_format,
+                })
+
         # Run `pre_build` plugin events.
         config.plugins.on_pre_build(config=config)
 
