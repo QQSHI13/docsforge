@@ -55,6 +55,7 @@ nav:
   - Home: index.md
   - Getting started:
     - Installation: getting-started.md
+    - Migrating from MkDocs: getting-started/migrating-from-mkdocs.md
     - Creating your site: creating-your-site.md
     - Publishing your site: publishing-your-site.md
     - Features: features.md

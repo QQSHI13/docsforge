@@ -2,6 +2,11 @@
 
 Write your documentation in Markdown. Build a professional static site in seconds. Deploy anywhere.
 
+!!! tip "Coming from MkDocs?"
+
+    DocsForge is the actively maintained successor to MkDocs + Material for MkDocs.
+    Migrate in one command: [`docsforge migrate`](getting-started/migrating-from-mkdocs.md).
+
 ```bash
 pip install docsforge
 docsforge serve
