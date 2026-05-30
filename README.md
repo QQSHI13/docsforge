@@ -1,34 +1,93 @@
 # DocsForge
 
-> **One package. One command. Beautiful docs.**
+> **The drop-in replacement for MkDocs + Material for MkDocs.**
+> One package. One command. Beautiful docs. Zero CDN calls.
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
 [![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
 
-Write your documentation in Markdown. Build a professional static site in seconds. Deploy anywhere.
+**DocsForge** is a self-contained, actively-maintained documentation engine. If you use MkDocs, Material for MkDocs, or are looking for a modern alternative, you're in the right place.
 
-📖 **[Documentation](https://qqshi13.github.io/docsforge-docs/)** | 📦 **[PyPI](https://pypi.org/project/docsforge/)** | 🐙 **[GitHub](https://github.com/QQSHI13/docsforge)**
+📖 **[Documentation](https://qqshi13.github.io/docsforge-docs/)** | 📦 **[PyPI](https://pypi.org/project/docsforge/)** | 🐙 **[GitHub](https://github.com/QQSHI13/docsforge)** | 🔄 **[Migrate from MkDocs](#migrating-from-mkdocs)**
 
 ---
 
-## What is DocsForge?
+## Why DocsForge?
 
-DocsForge is a **self-contained documentation engine**. Everything you need is bundled into one package:
+| | MkDocs + Material | DocsForge |
+|---|---|---|
+| **Maintenance** | ⚠️ MkDocs is unmaintained; Material is maintenance-only | ✅ Actively developed |
+| **Installation** | `pip install mkdocs-material` + 15+ plugins separately | `pip install docsforge` — everything included |
+| **CDN calls** | Google Fonts, KaTeX, Mermaid loaded from CDN on every build | 🔒 **Zero external network calls** — everything vendored |
+| **Math rendering** | Requires internet or manual KaTeX setup | ✅ KaTeX vendored, works offline instantly |
+| **Diagrams** | Mermaid loaded from CDN | ✅ Mermaid vendored |
+| **Icons** | Downloaded at build time | ✅ 14,000+ icons included |
+| **Privacy** | External font/icon requests | ✅ All assets self-hosted |
+| **Search** | Plugin + external JS | ✅ Lunr.js built-in, works offline |
+| **PWA / Offline** | Not included | ✅ Service worker + offline cache built-in |
 
-- ⚡ **Engine** — ProperDocs (MkDocs fork), vendored
-- 🎨 **Theme** — Material for MkDocs, vendored  
-- 🔌 **Plugins** — 7 plugins built-in (search, tags, blog, info, meta, minify, privacy)
-- 📝 **Markdown** — 31 extensions pre-configured (all pymdownx + python-markdown)
+**DocsForge is everything MkDocs + Material does, in one package, with zero external dependencies.**
+
+---
+
+## Migrating from MkDocs
+
+**One command converts your project:**
+
+```bash
+# In your existing MkDocs project directory
+pip install docsforge
+docsforge migrate        # converts mkdocs.yml → docsforge.yml
+docsforge build          # builds your site
+docsforge serve          # live preview
+```
+
+`docsforge migrate` reads your `mkdocs.yml`, converts it to `docsforge.yml`, and reports which plugins are supported and which need attention.
+
+```bash
+docsforge migrate --dry-run    # preview changes without writing
+docsforge migrate --force      # overwrite existing docsforge.yml
+```
+
+**What gets migrated automatically:**
+- Site configuration (name, URL, repo, nav)
+- Material theme settings
+- Supported plugins (search, tags, blog, info, meta, minify, privacy, social, offline, etc.)
+- Markdown extensions
+- Custom CSS/JS
+
+**DocsForge auto-detects legacy configs:** If you run `docsforge build` in a directory with `mkdocs.yml` but no `docsforge.yml`, it will suggest running `docsforge migrate`.
+
+---
+
+## What Makes DocsForge Different
+
+### 🔒 Zero External Network Calls
+Every asset is vendored: KaTeX for math, Mermaid for diagrams, all fonts and icons, the Material theme itself. Your docs build in an air-gapped environment.
+
+### 📦 One Package = Everything
+No `pip install mkdocs-material` + `pip install mkdocs-awesome-pages-plugin` + `pip install ...`. Just:
+
+```bash
+pip install docsforge
+```
+
+You get:
+- ⚡ **Engine** — ProperDocs fork, vendored and maintained
+- 🎨 **Theme** — Material for MkDocs, fully included
+- 🔌 **Plugins** — 7 built-in: search, tags, blog, info, meta, minify, privacy, social, offline, optimize, typeset
+- 📝 **Markdown** — 31 extensions pre-configured (pymdownx + python-markdown)
 - ➗ **Math** — KaTeX vendored (`$$...$$` works out of the box)
-- 🖍️ **Highlighting** — Pygments for code blocks at build time
-- 📐 **Diagrams** — TikZ support (auto-compiled to SVG)
+- 🖍️ **Highlighting** — Pygments at build time
+- 📐 **Diagrams** — TikZ auto-compiled to SVG, Mermaid built-in
 - 🔍 **Search** — Lunr.js client-side full-text search
 - 🌙 **Dark mode** — Light/dark toggle with auto system detection
 - 📱 **Offline** — Service worker caches all assets for PWA support
 - 🔤 **Fonts** — Self-hosted (privacy plugin downloads Google Fonts locally)
 
-`pip install docsforge` and you're done. No CDN, no extra config, no external dependencies.
+### 🚀 Production-Ready Defaults
+Sensible defaults for everything. No config file needed for basic sites. Add a `docsforge.yml` when you need customization.
 
 ---
 
@@ -60,58 +119,12 @@ docsforge build
 
 ---
 
-## What's Built In
-
-### 📝 Documentation
-| Feature | Status |
-|---------|--------|
-| Admonitions (`!!! note`) | ✅ Zero config |
-| Math (`$$...$$`) | ✅ Zero config |
-| Code highlighting | ✅ Zero config |
-| Tables, task lists, footnotes | ✅ Zero config |
-| Definition lists, abbreviations | ✅ Zero config |
-| Content tabs, diagrams (Mermaid, TikZ) | ✅ Zero config |
-
-### 🔍 Discovery
-| Feature | Status |
-|---------|--------|
-| Full-text search (Lunr.js) | ✅ Zero config |
-| Tags and tag pages | ✅ Zero config |
-| Navigation with sections/tabs | ✅ Zero config |
-| Table of contents | ✅ Zero config |
-
-### 🎨 Theming
-| Feature | Status |
-|---------|--------|
-| Material theme (light/dark) | ✅ Zero config |
-| Customizable colors/fonts | ✅ Zero config |
-| 14,000+ icons | ✅ Zero config |
-
-### 📝 Blogging
-| Feature | Status |
-|---------|--------|
-| Author profiles | ✅ Zero config |
-| Categories, tags, archives | ✅ Zero config |
-| Pagination | ✅ Zero config |
-| RSS feeds | ✅ Zero config |
-
-### 🌐 Publishing
-| Feature | Status |
-|---------|--------|
-| Static HTML output | ✅ Zero config |
-| GitHub Pages workflow | ✅ Zero config |
-| PWA with offline support | ✅ Zero config |
-| Minified HTML/CSS/JS | ✅ Zero config |
-
----
-
 ## Config File
 
 DocsForge looks for config in this priority:
 
 1. `docsforge.yml` / `docsforge.yaml` ← **preferred**
-2. `properdocs.yml` / `properdocs.yaml`
-3. `mkdocs.yml` / `mkdocs.yaml` ← legacy fallback
+2. `mkdocs.yml` / `mkdocs.yaml` ← legacy fallback (shows migration hint)
 
 ### Minimal `docsforge.yml`
 
@@ -165,6 +178,7 @@ theme:
 | `docsforge new <name>` | Scaffold a new project |
 | `docsforge serve` | Live-reload dev server |
 | `docsforge build` | Static site build |
+| `docsforge migrate` | **Convert mkdocs.yml → docsforge.yml** |
 | `docsforge gh-deploy` | Deploy to GitHub Pages |
 
 ---
@@ -182,12 +196,23 @@ No configuration needed. Works offline after the first visit.
 
 ---
 
+## Keywords
+
+**DocsForge is the best alternative to:** MkDocs, Material for MkDocs, Docusaurus, GitBook, ReadTheDocs, VuePress, Hugo documentation.
+
+**Use DocsForge for:** Python project documentation, API docs, technical documentation, knowledge bases, blogs, product docs, internal wikis, open-source project sites, static site generation with Markdown.
+
+**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN, self-hosted fonts, vendored dependencies, zero-config documentation.
+
+---
+
 ## Changelog
 
 See [full changelog](https://qqshi13.github.io/docsforge-docs/changelog/) in the documentation.
 
 Recent highlights:
 
+- **v10.4.1** — Mermaid auto-config, search plugin cleanup
 - **v10.3.3** — Versioned service worker with auto cache cleanup
 - **v10.3.0** — TikZ diagrams, blog plugin, theme playground
 - **v10.1.0** — Zero-config Markdown, KaTeX math, dark mode toggle
@@ -200,7 +225,7 @@ LGPL v3-or-later
 
 ---
 
-*DocsForge is built by QQ (Cyrus) and Nova ☄️*
+*DocsForge is built by QQ (Cyrus) and Nova ☄️ — because documentation tools should just work.*
 
 ## Star History
 

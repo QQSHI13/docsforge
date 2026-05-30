@@ -5,6 +5,7 @@ import logging
 import os
 import time
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlsplit
 
@@ -270,6 +271,22 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
     try:
         start = time.monotonic()
+
+        # Check if we're building from a legacy mkdocs config
+        if config.config_file_path:
+            config_path = Path(config.config_file_path)
+            if config_path.name in ('mkdocs.yml', 'mkdocs.yaml'):
+                log.info(
+                    "\n"
+                    "╔══════════════════════════════════════════════════════════════╗\n"
+                    "║  Detected legacy MkDocs configuration file                   ║\n"
+                    "║                                                              ║\n"
+                    "║  DocsForge is the maintained successor to MkDocs + Material. ║\n"
+                    "║                                                              ║\n"
+                    "║  Run: docsforge migrate                                      ║\n"
+                    "║  Docs: https://qqshi13.github.io/docsforge-docs/             ║\n"
+                    "╚══════════════════════════════════════════════════════════════╝\n"
+                )
 
         # Run `config` plugin events.
         config = config.plugins.on_config(config)

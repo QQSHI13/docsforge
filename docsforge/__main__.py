@@ -203,6 +203,21 @@ def cli():
     """DocsForge - Project documentation with Markdown."""
 
 
+@cli.command(name="migrate")
+@click.option('--dry-run', is_flag=True, help='Preview changes without writing')
+@click.option('--force', is_flag=True, help='Overwrite existing docsforge.yml')
+@common_options
+def migrate_command(dry_run, force, **kwargs):
+    """Migrate from MkDocs/Material to DocsForge.
+    
+    Reads mkdocs.yml and converts it to docsforge.yml format.
+    Reports which plugins are supported and which need attention.
+    """
+    from docsforge.commands import migrate
+    _enable_warnings()
+    sys.exit(migrate.migrate(dry_run=dry_run, force=force))
+
+
 @cli.command(name="serve")
 @click.option('-a', '--dev-addr', help=dev_addr_help, metavar='<IP:PORT>')
 @click.option('-o', '--open', 'open_in_browser', help=serve_open_help, is_flag=True)
