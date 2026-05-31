@@ -257,7 +257,7 @@ def _build_page(
         config._current_page = None
 
 
-def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = False) -> None:
+def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = False, progress: bool | None = None) -> None:
     """Perform a full site build."""
     logger = logging.getLogger("docsforge")
 

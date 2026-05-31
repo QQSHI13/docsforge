@@ -203,21 +203,6 @@ def cli():
     """DocsForge - Project documentation with Markdown."""
 
 
-@cli.command(name="migrate")
-@click.option('--dry-run', is_flag=True, help='Preview changes without writing')
-@click.option('--force', is_flag=True, help='Overwrite existing docsforge.yml')
-@common_options
-def migrate_command(dry_run, force, **kwargs):
-    """Migrate from MkDocs/Material to DocsForge.
-    
-    Reads mkdocs.yml and converts it to docsforge.yml format.
-    Reports which plugins are supported and which need attention.
-    """
-    from docsforge.commands import migrate
-    _enable_warnings()
-    sys.exit(migrate.migrate(dry_run=dry_run, force=force))
-
-
 @cli.command(name="serve")
 @click.option('-a', '--dev-addr', help=dev_addr_help, metavar='<IP:PORT>')
 @click.option('-o', '--open', 'open_in_browser', help=serve_open_help, is_flag=True)
@@ -243,19 +228,62 @@ def serve_command(**kwargs):
 
 @cli.command(name="build")
 @click.option('-c', '--clean/--dirty', is_flag=True, default=True, help=clean_help)
+@click.option('--progress/--no-progress', is_flag=True, default=None, help='Show progress bar during build')
 @common_config_options
 @click.option('-d', '--site-dir', type=click.Path(), help=site_dir_help)
 @common_options
-def build_command(clean, **kwargs):
+def build_command(clean, progress, **kwargs):
     """Build the DocsForge documentation."""
     from docsforge.commands import build
     _enable_warnings()
     cfg = config.load_config(**kwargs)
     cfg.plugins.on_startup(command='build', dirty=not clean)
     try:
-        build.build(cfg, dirty=not clean)
+        build.build(cfg, dirty=not clean, progress=progress)
     finally:
         cfg.plugins.on_shutdown()
+
+
+@cli.command(name="migrate")
+@click.option('--dry-run', is_flag=True, help='Preview changes without writing')
+@click.option('--force', is_flag=True, help='Overwrite existing docsforge.yml')
+@common_options
+def migrate_command(dry_run, force, **kwargs):
+    """Migrate from MkDocs/Material to DocsForge.
+    
+    Reads mkdocs.yml and converts it to docsforge.yml format.
+    Reports which plugins are supported and which need attention.
+    """
+    from docsforge.commands import migrate
+    _enable_warnings()
+    sys.exit(migrate.migrate(dry_run=dry_run, force=force))
+
+
+@cli.command(name="check")
+@common_config_options
+@common_options
+def check_command(**kwargs):
+    """Validate configuration without building.
+    
+    Checks docsforge.yml syntax, plugin availability, and docs/
+    directory structure. Fast feedback for CI/CD pipelines.
+    """
+    from docsforge.commands import check
+    _enable_warnings()
+    sys.exit(check.check(**kwargs))
+
+
+@cli.command(name="info")
+@common_options
+def info_command(**kwargs):
+    """Show system information for debugging.
+    
+    Displays DocsForge version, Python version, installed plugins,
+    config paths, and theme availability.
+    """
+    from docsforge.commands import info
+    _enable_warnings()
+    info.info()
 
 
 @cli.command(name="gh-deploy")
@@ -317,6 +345,34 @@ def new_command(project_directory):
     """Create a new DocsForge project."""
     from docsforge.commands import new
     new.new(project_directory)
+
+
+@cli.command(name="init")
+@click.argument("project_directory", required=False, default=".")
+@click.option('--name', prompt='Site name', help='Documentation site name')
+@click.option('--url', prompt='Site URL (optional)', default='', help='Production site URL')
+@click.option('--theme-color', type=click.Choice(['teal', 'indigo', 'blue', 'green', 'red', 'orange', 'purple', 'pink']), 
+              default='teal', prompt='Primary theme color')
+@click.option('--blog/--no-blog', default=False, help='Enable blog plugin')
+@click.option('--search/--no-search', default=True, help='Enable search plugin')
+@click.option('--tags/--no-tags', default=False, help='Enable tags plugin')
+@common_options
+def init_command(project_directory, name, url, theme_color, blog, search, tags):
+    """Interactive setup wizard for new DocsForge projects.
+    
+    Creates a tailored docsforge.yml based on your choices.
+    More flexible than 'docsforge new' which uses defaults.
+    """
+    from docsforge.commands import init
+    init.init(
+        project_directory=project_directory,
+        site_name=name,
+        site_url=url or None,
+        theme_color=theme_color,
+        enable_blog=blog,
+        enable_search=search,
+        enable_tags=tags,
+    )
 
 
 if __name__ == '__main__':
