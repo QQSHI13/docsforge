@@ -1,0 +1,22 @@
+.vscode/
+__pycache__/
+*.egg-info/
+.DS_Store
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node.js
+node_modules/
+out/
+package-lock.json
+*.vsix
+
+# Python virtual environments
+venv/
+.env/
+.venv/
