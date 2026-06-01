@@ -341,6 +341,7 @@ class AutoRouter:
                         DevServer.serve(**kwargs)
                     return result
                 else:
+                    kwargs.pop('config_file', None)  # Remove if present to avoid duplicate
                     DevServer.serve(config_file=str(env['config_path']), **kwargs)
                     return 0
             except EOFError:
@@ -348,5 +349,6 @@ class AutoRouter:
                 return 1
         
         # docsforge.yml exists → serve
+        kwargs.pop('config_file', None)  # Remove if present to avoid duplicate
         DevServer.serve(config_file=str(env['config_path']), **kwargs)
         return 0
