@@ -78,7 +78,11 @@ def serve(
             config = get_config()
             config.site_url = serve_url
 
-        build(config, serve_url=None if is_clean else serve_url, dirty=is_dirty)
+        try:
+            build(config, serve_url=None if is_clean else serve_url, dirty=is_dirty)
+        except Exception as e:
+            log.error(f"Build error: {e}")
+            log.error("Documentation will continue to be served. Fix the error and the page will auto-reload.")
 
     server = LiveReloadServer(
         builder=builder, host=host, port=port, root=site_dir, mount_path=mount_path
@@ -96,7 +100,11 @@ def serve(
 
     try:
         # Perform the initial build
-        builder(config)
+        try:
+            builder(config)
+        except Exception as e:
+            log.error(f"Initial build error: {e}")
+            log.error("Server will continue running. Fix errors and reload.")
 
         if livereload:
             # Watch the documentation files, the config file and the theme files.

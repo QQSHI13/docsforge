@@ -1,4 +1,9 @@
-"""DocsForge CLI - unified command line interface."""
+"""DocsForge CLI - thin front-end around cli_core.py.
+
+Usage:
+    docsforge              # Smart: serve, init, or migrate based on context
+    docsforge build        # Production build
+"""
 
 from __future__ import annotations
 
@@ -13,7 +18,8 @@ from typing import ClassVar
 
 import click
 
-from docsforge import __version__, config, utils
+from docsforge import __version__
+from docsforge.cli_core import AutoRouter, BuildEngine, DevServer, InfoReporter, ProjectManager, Validator
 
 if sys.platform.startswith("win"):
     try:
@@ -24,25 +30,6 @@ if sys.platform.startswith("win"):
         colorama.init()
 
 log = logging.getLogger(__name__)
-
-
-def _showwarning(message, category, filename, lineno, file=None, line=None):
-    try:
-        stack = [frame for frame in traceback.extract_stack() if frame.line][-4:-2]
-        if not any(frame.filename == filename for frame in stack):
-            stack = [*stack[-1:], traceback.FrameSummary(filename, lineno, '')]
-        tb = ''.join(traceback.format_list(stack))
-    except Exception:
-        tb = f'  File "{filename}", line {lineno}'
-    log.info(f'{category.__name__}: {message}\n{tb}')
-
-
-def _enable_warnings():
-    if not sys.warnoptions:
-        from docsforge.commands import build
-        build.log.addFilter(utils.DuplicateFilter())
-        warnings.simplefilter('module', DeprecationWarning)
-        warnings.showwarning = _showwarning
 
 
 class ColorFormatter(logging.Formatter):
@@ -90,290 +77,203 @@ class State:
         self.logger.removeHandler(self.stream)
 
 
-pass_state = click.make_pass_decorator(State, ensure=True)
-
-clean_help = "Remove old files from the site_dir before building (the default)."
-config_help = (
-    "Provide a specific DocsForge config. This can be a file name, or '-' to read from stdin."
-)
-dev_addr_help = "IP address and port to serve documentation locally (default: localhost:8000)"
-serve_open_help = "Open the website in a Web browser after the initial build finishes."
-strict_help = "Enable strict mode. This will cause DocsForge to abort the build on any warnings."
-theme_help = "The theme to use when building your documentation."
-theme_choices = sorted(utils.get_theme_names())
-site_dir_help = "The directory to output the result of the documentation build."
-use_directory_urls_help = "Use directory URLs when building pages (the default)."
-reload_help = "Enable the live reloading in the development server (this is the default)"
-no_reload_help = "Disable the live reloading in the development server."
-serve_dirty_help = "Only re-build files that have changed."
-serve_clean_help = "Build the site without any effects of `docsforge serve` - pure `docsforge build`, then serve."
-commit_message_help = (
-    "A commit message to use when committing to the "
-    "GitHub Pages remote branch. Commit {sha} and DocsForge {version} are available as expansions"
-)
-remote_branch_help = (
-    "The remote branch to commit to for GitHub Pages. This overrides the value specified in config"
-)
-remote_name_help = (
-    "The remote name to commit to for GitHub Pages. This overrides the value specified in config"
-)
-force_help = "Force the push to the repository."
-no_history_help = "Replace the whole Git history with one new commit."
-ignore_version_help = (
-    "Ignore check that build is not being deployed with an older version of DocsForge."
-)
-watch_theme_help = (
-    "Include the theme in list of files to watch for live reloading. "
-    "Ignored when live reload is not used."
-)
-shell_help = "Use the shell when invoking Git."
-watch_help = "A directory or file to watch for live reloading. Can be supplied multiple times."
-projects_file_help = (
-    "URL or local path of the registry file that declares all known DocsForge-related projects."
-)
+def _enable_warnings():
+    if not sys.warnoptions:
+        from docsforge import utils
+        warning_counter = utils.CountHandler()
+        warning_counter.setLevel(logging.WARNING)
+        logging.getLogger("docsforge").addHandler(warning_counter)
+        warnings.simplefilter('module', DeprecationWarning)
 
 
-def add_options(*opts):
-    def inner(f):
-        for i in reversed(opts):
-            f = i(f)
-        return f
-    return inner
+def _set_log_level(level: int):
+    """Set the logging level for docsforge."""
+    logging.getLogger('docsforge').setLevel(level)
 
 
-def verbose_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        if value:
-            state.logger.setLevel(logging.DEBUG)
-    return click.option(
-        '-v', '--verbose', is_flag=True, expose_value=False,
-        help='Enable verbose output', callback=callback,
-    )(f)
-
-
-def quiet_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        if value:
-            state.logger.setLevel(logging.ERROR)
-    return click.option(
-        '-q', '--quiet', is_flag=True, expose_value=False,
-        help='Silence warnings', callback=callback,
-    )(f)
-
-
-def color_option(f):
-    def callback(ctx, param, value):
-        state = ctx.ensure_object(State)
-        if value is False or (value is None and (
-            not sys.stdout.isatty() or os.environ.get('NO_COLOR') or os.environ.get('TERM') == 'dumb'
-        )):
-            state.stream.setFormatter(logging.Formatter('%(levelname)-8s-  %(message)s'))
-    return click.option(
-        '--color/--no-color', is_flag=True, default=None, expose_value=False,
-        help="Force enable or disable color and wrapping for the output. Default is auto-detect.",
-        callback=callback,
-    )(f)
-
-
-common_options = add_options(quiet_option, verbose_option)
-common_config_options = add_options(
-    click.option('-f', '--config-file', type=click.File('rb'), help=config_help),
-    click.option('-s', '--strict/--no-strict', is_flag=True, default=None, help=strict_help),
-    click.option('-t', '--theme', type=click.Choice(theme_choices), help=theme_help),
-    click.option(
-        '--use-directory-urls/--no-directory-urls',
-        is_flag=True, default=None, help=use_directory_urls_help,
-    ),
-)
-
-PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
-PKG_DIR = os.path.dirname(os.path.abspath(__file__))
-
+# ---- Main CLI ----
 
 @click.group(context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120))
-@click.version_option(
-    __version__, '-V', '--version',
-    message=f'%(prog)s, version %(version)s from {PKG_DIR} (Python {PYTHON_VERSION})',
-)
-@common_options
-@color_option
-def cli():
-    """DocsForge - Project documentation with Markdown."""
+@click.version_option(__version__, '-V', '--version', prog_name='docsforge')
+@click.option('-v', '--verbose', is_flag=True, help='Enable verbose output')
+@click.option('-q', '--quiet', is_flag=True, help='Silence warnings')
+@click.option('--color/--no-color', default=None, help='Force enable or disable color output')
+@click.option('--init', is_flag=True, help='Create a new project (interactive wizard)')
+@click.option('--init-defaults', is_flag=True, hidden=True, help='Non-interactive project setup')
+@click.option('--name', help='Site name for --init', default=None)
+@click.option('--migrate', is_flag=True, help='Migrate from legacy config (mkdocs/properdocs)')
+@click.option('--migrate-dry-run', is_flag=True, hidden=True, help='Preview migration')
+@click.option('--migrate-force', is_flag=True, hidden=True, help='Force overwrite')
+@click.option('--check', is_flag=True, help='Validate configuration without building')
+@click.option('--info', is_flag=True, help='Show system information')
+@click.option('--deps', is_flag=True, help='Show required dependencies')
+@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
+@click.option('-t', '--theme', help='Theme to use')
+@click.option('--strict', is_flag=True, help='Fail on warnings')
+@click.option('--no-livereload', is_flag=True, help='Disable live reload (for serve)')
+@click.option('--watch', type=click.Path(exists=True), multiple=True, default=[], help='Extra directories to watch')
+@click.option('--watch-theme', is_flag=True, help='Watch theme files for changes')
+@click.option('--open', 'open_browser', is_flag=True, help='Open browser after starting server')
+@click.pass_context
+def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, migrate_dry_run,
+              migrate_force, check, info, deps, config_file, theme, strict, no_livereload,
+              watch, watch_theme, open_browser):
+    """DocsForge - Project documentation with Markdown.
 
-
-@cli.command(name="serve")
-@click.option('-a', '--dev-addr', help=dev_addr_help, metavar='<IP:PORT>')
-@click.option('-o', '--open', 'open_in_browser', help=serve_open_help, is_flag=True)
-@click.option('--no-livereload', is_flag=True, help=no_reload_help)
-@click.option('--livereload', is_flag=True, hidden=True)
-@click.option('--dirtyreload', 'build_type', flag_value='dirty', hidden=True)
-@click.option('--dirty', 'build_type', flag_value='dirty', help=serve_dirty_help)
-@click.option('-c', '--clean', 'build_type', flag_value='clean', help=serve_clean_help)
-@click.option('--watch-theme', help=watch_theme_help, is_flag=True)
-@click.option('-w', '--watch', help=watch_help, type=click.Path(exists=True), multiple=True, default=[])
-@common_config_options
-@common_options
-def serve_command(**kwargs):
-    """Run the builtin development server."""
-    from docsforge.commands import serve
-    if kwargs.pop('no_livereload', False):
-        kwargs['livereload'] = False
-    else:
-        kwargs['livereload'] = True
-    _enable_warnings()
-    serve.serve(**kwargs)
-
-
-@cli.command(name="build")
-@click.option('-c', '--clean/--dirty', is_flag=True, default=True, help=clean_help)
-@click.option('--progress/--no-progress', is_flag=True, default=None, help='Show progress bar during build')
-@common_config_options
-@click.option('-d', '--site-dir', type=click.Path(), help=site_dir_help)
-@common_options
-def build_command(clean, progress, **kwargs):
-    """Build the DocsForge documentation."""
-    from docsforge.commands import build
-    _enable_warnings()
-    cfg = config.load_config(**kwargs)
-    cfg.plugins.on_startup(command='build', dirty=not clean)
-    try:
-        build.build(cfg, dirty=not clean, progress=progress)
-    finally:
-        cfg.plugins.on_shutdown()
-
-
-@cli.command(name="migrate")
-@click.option('--dry-run', is_flag=True, help='Preview changes without writing')
-@click.option('--force', is_flag=True, help='Overwrite existing docsforge.yml')
-@common_options
-def migrate_command(dry_run, force, **kwargs):
-    """Migrate from MkDocs/Material to DocsForge.
-    
-    Reads mkdocs.yml and converts it to docsforge.yml format.
-    Reports which plugins are supported and which need attention.
+    Smart default: run 'docsforge' alone to start the dev server,
+    or create a new project if no config is found.
     """
-    from docsforge.commands import migrate
-    _enable_warnings()
-    sys.exit(migrate.migrate(dry_run=dry_run, force=force))
+    # Setup logging
+    if quiet:
+        _set_log_level(logging.ERROR)
+    elif verbose:
+        _set_log_level(logging.DEBUG)
+
+    if color is False or (color is None and not sys.stdout.isatty()):
+        logging.getLogger('docsforge').handlers[0].setFormatter(
+            logging.Formatter('%(levelname)-8s-  %(message)s')
+        )
+
+    # Handle forced commands
+    if init or init_defaults:
+        sys.exit(ProjectManager.init(
+            interactive=not init_defaults,
+            site_name=name,
+        ))
+
+    if migrate:
+        sys.exit(ProjectManager.migrate(
+            dry_run=migrate_dry_run,
+            force=migrate_force,
+            config_file=config_file.name if config_file else None,
+        ))
+
+    if check:
+        sys.exit(Validator.check(config_file=config_file.name if config_file else None))
+
+    if info:
+        InfoReporter.show()
+        sys.exit(0)
+
+    if deps:
+        # Show dependencies
+        from docsforge.commands.get_deps import get_deps, get_projects_file
+        from docsforge.config.base import _open_config_file
+        p = get_projects_file(None)
+        with _open_config_file(config_file.name if config_file else None) as f:
+            deps_list = get_deps(config_file=f, projects_file=p)
+        for dep in deps_list:
+            print(dep)
+        sys.exit(0)
+
+    # Smart routing: serve, migrate, or init based on project state
+    sys.exit(AutoRouter.route(
+        force_init=False,
+        force_migrate=False,
+        force_check=False,
+        force_info=False,
+        config_file=config_file.name if config_file else None,
+        theme=theme,
+        strict=strict,
+        livereload=not no_livereload,
+        watch_theme=watch_theme,
+        watch=list(watch),
+        open_browser=open_browser,
+    ))
 
 
-@cli.command(name="check")
-@common_config_options
-@common_options
-def check_command(**kwargs):
-    """Validate configuration without building.
-    
-    Checks docsforge.yml syntax, plugin availability, and docs/
-    directory structure. Fast feedback for CI/CD pipelines.
+@docsforge.command()
+@click.option('-c', '--clean/--dirty', is_flag=True, default=True, help='Clean build (default) or dirty (incremental)')
+@click.option('--strict', is_flag=True, help='Fail on warnings')
+@click.option('--deploy', is_flag=True, help='Deploy to GitHub Pages after build')
+@click.option('--check', 'check_first', is_flag=True, help='Validate config before building')
+@click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
+@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
+@click.option('-t', '--theme', help='Theme to use')
+@click.option('-v', '--verbose', is_flag=True, help='Enable verbose output')
+@click.option('-q', '--quiet', is_flag=True, help='Silence warnings')
+@click.option('--color/--no-color', default=None, help='Force enable or disable color output')
+def build(clean, strict, deploy, check_first, site_dir, config_file, theme, verbose, quiet, color):
+    """Build the DocsForge documentation for production.
+
+    Outputs to site/ by default (or --site-dir).
+    Use --deploy to publish to GitHub Pages after building.
     """
-    from docsforge.commands import check
+    # Setup logging
+    if quiet:
+        _set_log_level(logging.ERROR)
+    elif verbose:
+        _set_log_level(logging.DEBUG)
+
+    if color is False or (color is None and not sys.stdout.isatty()):
+        logging.getLogger('docsforge').handlers[0].setFormatter(
+            logging.Formatter('%(levelname)-8s-  %(message)s')
+        )
+
     _enable_warnings()
-    sys.exit(check.check(**kwargs))
 
+    config_file_name = config_file.name if config_file else None
 
-@cli.command(name="info")
-@common_options
-def info_command(**kwargs):
-    """Show system information for debugging.
-    
-    Displays DocsForge version, Python version, installed plugins,
-    config paths, and theme availability.
-    """
-    from docsforge.commands import info
-    _enable_warnings()
-    info.info()
+    # Check first if requested
+    if check_first:
+        result = Validator.check(config_file=config_file_name)
+        if result != 0:
+            sys.exit(result)
 
-
-@cli.command(name="gh-deploy")
-@click.option('-c', '--clean/--dirty', is_flag=True, default=True, help=clean_help)
-@click.option('-m', '--message', help=commit_message_help)
-@click.option('-b', '--remote-branch', help=remote_branch_help)
-@click.option('-r', '--remote-name', help=remote_name_help)
-@click.option('--force', is_flag=True, help=force_help)
-@click.option('--no-history', is_flag=True, help=no_history_help)
-@click.option('--ignore-version', is_flag=True, help=ignore_version_help)
-@click.option('--shell', is_flag=True, help=shell_help)
-@common_config_options
-@click.option('-d', '--site-dir', type=click.Path(), help=site_dir_help)
-@common_options
-def gh_deploy_command(
-    clean, message, remote_branch, remote_name, force, no_history, ignore_version, shell, **kwargs
-):
-    """Deploy your documentation to GitHub Pages."""
-    from docsforge.commands import build, gh_deploy
-    _enable_warnings()
-    cfg = config.load_config(remote_branch=remote_branch, remote_name=remote_name, **kwargs)
-    cfg.plugins.on_startup(command='gh-deploy', dirty=not clean)
-    try:
-        build.build(cfg, dirty=not clean)
-    finally:
-        cfg.plugins.on_shutdown()
-    gh_deploy.gh_deploy(
-        cfg, message=message, force=force, no_history=no_history,
-        ignore_version=ignore_version, shell=shell,
+    # Build
+    result = BuildEngine.build(
+        config_file=config_file_name,
+        clean=clean,
+        strict=strict,
+        site_dir=site_dir,
+        theme=theme,
     )
 
+    if result != 0:
+        sys.exit(result)
 
-@cli.command(name="get-deps")
-@verbose_option
-@click.option('-f', '--config-file', type=click.File('rb'), help=config_help)
-@click.option('-p', '--projects-file', default=None, help=projects_file_help, show_default=True)
-def get_deps_command(config_file, projects_file):
-    """Show required PyPI packages inferred from plugins in docsforge.yml."""
-    from docsforge.commands.get_deps import get_deps, get_projects_file
-    from docsforge.config.base import _open_config_file
-    warning_counter = utils.CountHandler()
-    warning_counter.setLevel(logging.WARNING)
-    logging.getLogger('docsforge').addHandler(warning_counter)
-    p = get_projects_file(projects_file)
-    with _open_config_file(config_file) as f:
-        deps = get_deps(config_file=f, projects_file=p)
-    if hasattr(p, 'close'):
-        p.close()
-    for dep in deps:
-        print(dep)
-    if warning_counter.get_counts():
-        sys.exit(1)
+    # Deploy if requested
+    if deploy:
+        from docsforge.commands import gh_deploy
+        from docsforge import config as config_module
+        try:
+            cfg = config_module.load_config(config_file=config_file_name)
+            gh_deploy.gh_deploy(cfg)
+        except Exception as e:
+            log.error(f"Deploy failed: {e}")
+            sys.exit(1)
+
+    sys.exit(0)
 
 
-@cli.command(name="new")
-@click.argument("project_directory")
-@common_options
-def new_command(project_directory):
-    """Create a new DocsForge project."""
-    from docsforge.commands import new
-    new.new(project_directory)
+# Legacy commands (hidden, for backwards compatibility)
+@docsforge.command(hidden=True, deprecated=True)
+def serve():
+    """Deprecated: Use 'docsforge' without arguments."""
+    log.warning("'docsforge serve' is deprecated. Use 'docsforge' instead.")
+    sys.exit(AutoRouter.route())
 
 
-@cli.command(name="init")
-@click.argument("project_directory", required=False, default=".")
-@click.option('--name', prompt='Site name', help='Documentation site name')
-@click.option('--url', prompt='Site URL (optional)', default='', help='Production site URL')
-@click.option('--theme-color', type=click.Choice(['teal', 'indigo', 'blue', 'green', 'red', 'orange', 'purple', 'pink']), 
-              default='teal', prompt='Primary theme color')
-@click.option('--blog/--no-blog', default=False, help='Enable blog plugin')
-@click.option('--search/--no-search', default=True, help='Enable search plugin')
-@click.option('--tags/--no-tags', default=False, help='Enable tags plugin')
-@common_options
-def init_command(project_directory, name, url, theme_color, blog, search, tags):
-    """Interactive setup wizard for new DocsForge projects.
-    
-    Creates a tailored docsforge.yml based on your choices.
-    More flexible than 'docsforge new' which uses defaults.
-    """
-    from docsforge.commands import init
-    init.init(
-        project_directory=project_directory,
-        site_name=name,
-        site_url=url or None,
-        theme_color=theme_color,
-        enable_blog=blog,
-        enable_search=search,
-        enable_tags=tags,
-    )
+@docsforge.command(hidden=True, deprecated=True)
+def new():
+    """Deprecated: Use 'docsforge --init'."""
+    log.warning("'docsforge new' is deprecated. Use 'docsforge --init' instead.")
+    sys.exit(ProjectManager.init(interactive=True))
+
+
+@docsforge.command(hidden=True, deprecated=True)
+def gh_deploy():
+    """Deprecated: Use 'docsforge build --deploy'."""
+    log.warning("'docsforge gh-deploy' is deprecated. Use 'docsforge build --deploy' instead.")
+    # Build then deploy
+    result = BuildEngine.build()
+    if result != 0:
+        sys.exit(result)
+    from docsforge.commands import gh_deploy as gh_deploy_cmd
+    from docsforge import config as config_module
+    cfg = config_module.load_config()
+    gh_deploy_cmd.gh_deploy(cfg)
 
 
 if __name__ == '__main__':
-    cli()
+    docsforge()

@@ -250,7 +250,10 @@ def _build_page(
         if not isinstance(e, BuildError):
             message += f" {e}"
         log.error(message)
-        raise
+        # Continue building other pages instead of crashing
+        if config.strict:
+            raise
+        return
     finally:
         # Deactivate page
         page.active = False
