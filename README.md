@@ -2,6 +2,7 @@
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
 > One package. One command. Beautiful docs. Zero CDN calls.
+> ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v1.0.0.
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
