@@ -124,15 +124,18 @@ def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, mi
     or create a new project if no config is found.
     """
     # Setup logging
+    _ = State()  # Initialize logger with ColorFormatter handler
     if quiet:
         _set_log_level(logging.ERROR)
     elif verbose:
         _set_log_level(logging.DEBUG)
 
     if color is False or (color is None and not sys.stdout.isatty()):
-        logging.getLogger('docsforge').handlers[0].setFormatter(
-            logging.Formatter('%(levelname)-8s-  %(message)s')
-        )
+        handlers = logging.getLogger('docsforge').handlers
+        if handlers:
+            handlers[0].setFormatter(
+                logging.Formatter('%(levelname)-8s-  %(message)s')
+            )
 
     # Handle forced commands
     if init or init_defaults:
@@ -200,15 +203,18 @@ def build(clean, strict, deploy, check_first, site_dir, config_file, theme, verb
     Use --deploy to publish to GitHub Pages after building.
     """
     # Setup logging
+    _ = State()  # Initialize logger with ColorFormatter handler
     if quiet:
         _set_log_level(logging.ERROR)
     elif verbose:
         _set_log_level(logging.DEBUG)
 
     if color is False or (color is None and not sys.stdout.isatty()):
-        logging.getLogger('docsforge').handlers[0].setFormatter(
-            logging.Formatter('%(levelname)-8s-  %(message)s')
-        )
+        handlers = logging.getLogger('docsforge').handlers
+        if handlers:
+            handlers[0].setFormatter(
+                logging.Formatter('%(levelname)-8s-  %(message)s')
+            )
 
     _enable_warnings()
 
