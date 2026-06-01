@@ -68,13 +68,18 @@ class State:
         self.logger.setLevel(logging.INFO)
         self.logger.propagate = False
 
-        self.stream = logging.StreamHandler()
-        self.stream.setFormatter(ColorFormatter())
-        self.stream.name = 'DocsForgeStreamHandler'
-        self.logger.addHandler(self.stream)
+        # Avoid duplicate handlers when group + subcommand both instantiate
+        if not any(h.name == 'DocsForgeStreamHandler' for h in self.logger.handlers):
+            self.stream = logging.StreamHandler()
+            self.stream.setFormatter(ColorFormatter())
+            self.stream.name = 'DocsForgeStreamHandler'
+            self.logger.addHandler(self.stream)
 
     def __del__(self):
-        self.logger.removeHandler(self.stream)
+        # Only remove if we created it
+        for h in list(self.logger.handlers):
+            if h.name == 'DocsForgeStreamHandler':
+                self.logger.removeHandler(h)
 
 
 def _enable_warnings():
@@ -170,19 +175,21 @@ def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, mi
         sys.exit(0)
 
     # Smart routing: serve, migrate, or init based on project state
-    sys.exit(AutoRouter.route(
-        force_init=False,
-        force_migrate=False,
-        force_check=False,
-        force_info=False,
-        config_file=config_file.name if config_file else None,
-        theme=theme,
-        strict=strict,
-        livereload=not no_livereload,
-        watch_theme=watch_theme,
-        watch=list(watch),
-        open_browser=open_browser,
-    ))
+    # Only runs when no subcommand is invoked (e.g. plain 'docsforge')
+    if ctx.invoked_subcommand is None:
+        sys.exit(AutoRouter.route(
+            force_init=False,
+            force_migrate=False,
+            force_check=False,
+            force_info=False,
+            config_file=config_file.name if config_file else None,
+            theme=theme,
+            strict=strict,
+            livereload=not no_livereload,
+            watch_theme=watch_theme,
+            watch=list(watch),
+            open_browser=open_browser,
+        ))
 
 
 @docsforge.command()
