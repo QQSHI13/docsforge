@@ -277,3 +277,6 @@ def gh_deploy():
 
 if __name__ == '__main__':
     docsforge()
+
+# Entry point alias for console scripts
+cli = docsforge
