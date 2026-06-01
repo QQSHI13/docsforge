@@ -1,239 +1,89 @@
-# DocsForge
+# DocsForge Monorepo
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
 > One package. One command. Beautiful docs. Zero CDN calls.
 > ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v11.0.0.
 
-[![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
-[![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
-[![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
+This is the monorepo containing all DocsForge projects:
 
-**DocsForge** is a self-contained, actively-maintained documentation engine. If you use MkDocs, Material for MkDocs, or are looking for a modern alternative, you're in the right place.
-
-📖 **[Documentation](https://qqshi13.github.io/docsforge-docs/)** | 📦 **[PyPI](https://pypi.org/project/docsforge/)** | 🐙 **[GitHub](https://github.com/QQSHI13/docsforge)** | 🔄 **[Migrate from MkDocs](#migrating-from-mkdocs)**
-
----
-
-## Why DocsForge?
-
-| | MkDocs + Material | DocsForge |
-|---|---|---|
-| **Maintenance** | ⚠️ MkDocs is unmaintained; Material is maintenance-only | ✅ Actively developed |
-| **Installation** | `pip install mkdocs-material` + 15+ plugins separately | `pip install docsforge` — everything included |
-| **CDN calls** | Google Fonts, KaTeX, Mermaid loaded from CDN on every build | 🔒 **Zero external network calls** — everything vendored |
-| **Math rendering** | Requires internet or manual KaTeX setup | ✅ KaTeX vendored, works offline instantly |
-| **Diagrams** | Mermaid loaded from CDN | ✅ Mermaid vendored |
-| **Icons** | Downloaded at build time | ✅ 14,000+ icons included |
-| **Privacy** | External font/icon requests | ✅ All assets self-hosted |
-| **Search** | Plugin + external JS | ✅ Lunr.js built-in, works offline |
-| **PWA / Offline** | Not included | ✅ Service worker + offline cache built-in |
-
-**DocsForge is everything MkDocs + Material does, in one package, with zero external dependencies.**
-
----
-
-## Migrating from MkDocs
-
-**One command converts your project:**
-
-```bash
-# In your existing MkDocs project directory
-pip install docsforge
-docsforge migrate        # converts mkdocs.yml → docsforge.yml
-docsforge build          # builds your site
-docsforge serve          # live preview
-```
-
-`docsforge migrate` reads your `mkdocs.yml`, converts it to `docsforge.yml`, and reports which plugins are supported and which need attention.
-
-```bash
-docsforge migrate --dry-run    # preview changes without writing
-docsforge migrate --force      # overwrite existing docsforge.yml
-```
-
-**What gets migrated automatically:**
-- Site configuration (name, URL, repo, nav)
-- Material theme settings
-- Supported plugins (search, tags, blog, info, meta, minify, privacy, social, offline, etc.)
-- Markdown extensions
-- Custom CSS/JS
-
-**DocsForge auto-detects legacy configs:** If you run `docsforge build` in a directory with `mkdocs.yml` but no `docsforge.yml`, it will suggest running `docsforge migrate`.
-
----
-
-## What Makes DocsForge Different
-
-### 🔒 Zero External Network Calls
-Every asset is vendored: KaTeX for math, Mermaid for diagrams, all fonts and icons, the Material theme itself. Your docs build in an air-gapped environment.
-
-### 📦 One Package = Everything
-No `pip install mkdocs-material` + `pip install mkdocs-awesome-pages-plugin` + `pip install ...`. Just:
-
-```bash
-pip install docsforge
-```
-
-You get:
-- ⚡ **Engine** — ProperDocs fork, vendored and maintained
-- 🎨 **Theme** — Material for MkDocs, fully included
-- 🔌 **Plugins** — 7 built-in: search, tags, blog, info, meta, minify, privacy, social, offline, optimize, typeset
-- 📝 **Markdown** — 31 extensions pre-configured (pymdownx + python-markdown)
-- ➗ **Math** — KaTeX vendored (`$$...$$` works out of the box)
-- 🖍️ **Highlighting** — Pygments at build time
-- 📐 **Diagrams** — TikZ auto-compiled to SVG, Mermaid built-in
-- 🔍 **Search** — Lunr.js client-side full-text search
-- 🌙 **Dark mode** — Light/dark toggle with auto system detection
-- 📱 **Offline** — Service worker caches all assets for PWA support
-- 🔤 **Fonts** — Self-hosted (privacy plugin downloads Google Fonts locally)
-
-### 🚀 Production-Ready Defaults
-Sensible defaults for everything. No config file needed for basic sites. Add a `docsforge.yml` when you need customization.
-
----
-
-## Installation
-
-```bash
-pip install docsforge
-```
-
-Requires **Python 3.10+**.
-
----
+| Package | Language | Description |
+|---------|----------|-------------|
+| [`packages/docsforge`](packages/docsforge/) | Python | Core documentation engine |
+| [`packages/docsforge-docs`](packages/docsforge-docs/) | Markdown | Documentation website |
+| [`packages/vscode-docsforge`](packages/vscode-docsforge/) | TypeScript | VS Code extension |
 
 ## Quick Start
 
 ```bash
-# Create a new project
-docsforge new my-docs
-cd my-docs
+# Install the core package
+pip install packages/docsforge
 
-# Start the dev server
+# Or from PyPI
+pip install docsforge
+
+# Create a new project
+docsforge --init
+
+# Start dev server
 docsforge serve
-# → http://localhost:8000
 
 # Build for production
 docsforge build
-# → site/
 ```
 
----
+## Development
 
-## Config File
+```bash
+# Clone the monorepo
+git clone https://github.com/QQSHI13/docsforge.git
+cd docsforge
 
-DocsForge looks for config in this priority:
+# Install core package in development mode
+pip install -e packages/docsforge
 
-1. `docsforge.yml` / `docsforge.yaml` ← **preferred**
-2. `mkdocs.yml` / `mkdocs.yaml` ← legacy fallback (shows migration hint)
+# Build documentation site
+cd packages/docsforge-docs
+docsforge build
 
-### Minimal `docsforge.yml`
-
-```yaml
-site_name: My Documentation
-site_url: https://example.com/
+# Install VS Code extension dependencies
+cd packages/vscode-docsforge
+npm install
 ```
 
-That's it. All plugins, extensions, and theme settings use sensible defaults.
+## Packages
 
-### Full example
+### Core (`packages/docsforge`)
 
-```yaml
-site_name: My Docs
-site_url: https://example.com/
-site_author: Your Name
+The Python package that builds documentation. See its [README](packages/docsforge/) for full details.
 
-repo_url: https://github.com/username/repo
+Features:
+- 31 Markdown extensions (pymdownx + python-markdown)
+- 7 built-in plugins (search, tags, blog, info, meta, minify, privacy)
+- KaTeX math, Mermaid diagrams, TikZ diagrams
+- 14,000+ icons included
+- Dark mode with system detection
+- Offline PWA with service worker
+- Zero CDN calls
 
-nav:
-  - Home: index.md
-  - Getting started: getting-started.md
-  - Blog:
-    - blog/index.md
+### VS Code Extension (`packages/vscode-docsforge`)
 
-theme:
-  name: material
-  palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
-```
+Extension for writing and previewing docs inside VS Code.
 
----
+Features:
+- Initialize project from VS Code
+- Start/stop dev server with one click
+- Live preview in VS Code panel
+- One-click deploy to GitHub Pages
+- Autocomplete for Markdown extensions
 
-## CLI Reference
+### Documentation (`packages/docsforge-docs`)
 
-| Command | Description |
-|---------|-------------|
-| `docsforge new <name>` | Scaffold a new project |
-| `docsforge serve` | Live-reload dev server |
-| `docsforge build` | Static site build |
-| `docsforge migrate` | **Convert mkdocs.yml → docsforge.yml** |
-| `docsforge gh-deploy` | Deploy to GitHub Pages |
+The documentation website at https://qqshi13.github.io/docsforge-docs/
 
----
+## Contributing
 
-## PWA / Offline Support
-
-Every built site includes a **service worker** that:
-
-- Caches HTML pages (network-first, updates in background)
-- Caches assets (CSS, JS, fonts, images — cache-first for speed)
-- **Versioned updates** — Each build generates a unique SW hash, forcing browser refresh
-- **Auto cleanup** — Old caches purged when new version activates
-
-No configuration needed. Works offline after the first visit.
-
----
-
-## Keywords
-
-**DocsForge is the best alternative to:** MkDocs, Material for MkDocs, Docusaurus, GitBook, ReadTheDocs, VuePress, Hugo documentation.
-
-**Use DocsForge for:** Python project documentation, API docs, technical documentation, knowledge bases, blogs, product docs, internal wikis, open-source project sites, static site generation with Markdown.
-
-**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN, self-hosted fonts, vendored dependencies, zero-config documentation.
-
----
-
-## Changelog
-
-See [full changelog](https://qqshi13.github.io/docsforge-docs/changelog/) in the documentation.
-
-Recent highlights:
-
-- **v10.4.1** — Mermaid auto-config, search plugin cleanup
-- **v10.3.3** — Versioned service worker with auto cache cleanup
-- **v10.3.0** — TikZ diagrams, blog plugin, theme playground
-- **v10.1.0** — Zero-config Markdown, KaTeX math, dark mode toggle
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
-LGPL v3-or-later
-
----
-
-*DocsForge is built by QQ (Cyrus) and Nova ☄️ — because documentation tools should just work.*
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=QQSHI13%2Fdocsforge&type=date&legend=top-left">
- <picture>
- <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=QQSHI13/docsforge&type=date&theme=dark&legend=top-left" />
- <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=QQSHI13/docsforge&type=date&legend=top-left" />
- <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=QQSHI13/docsforge&type=date&legend=top-left" />
- </picture>
-</a>
+LGPL v3 - See [LICENSE](packages/docsforge/LICENSE) for details.
