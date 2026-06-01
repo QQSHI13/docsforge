@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install DocsForge
+        run: pip install ./packages/docsforge
+
+      - name: Test build
+        run: cd packages/docsforge-docs && docsforge build
+
+      - name: Test CLI commands
+        run: |
+          docsforge --version
+          docsforge --info
+          cd packages/docsforge-docs && docsforge --check
+
+  test-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install extension dependencies
+        run: cd packages/vscode-docsforge && npm install
+
+      - name: Compile extension
+        run: cd packages/vscode-docsforge && npm run compile

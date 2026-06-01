@@ -3,13 +3,22 @@
   "displayName": "DocsForge",
   "description": "Write and preview DocsForge documentation inside VS Code",
   "version": "0.1.0",
-  "publisher": "qqshi13",
+  "publisher": "QQSHI",
   "license": "LGPL-3.0-or-later",
   "engines": {
     "vscode": "^1.74.0"
   },
-  "categories": ["Programming Languages", "Snippets", "Other"],
-  "keywords": ["docsforge", "documentation", "markdown", "mkdocs"],
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "keywords": [
+    "docsforge",
+    "documentation",
+    "markdown",
+    "mkdocs"
+  ],
   "activationEvents": [
     "onCommand:docsforge.init",
     "workspaceContains:docsforge.yml",
@@ -101,8 +110,13 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/vscode": "^1.74.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/QQSHI13/docsforge",
+    "directory": "packages/vscode-docsforge"
   }
 }
