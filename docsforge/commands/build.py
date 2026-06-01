@@ -272,14 +272,14 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
     try:
         start = time.monotonic()
 
-        # Check if we're building from a legacy mkdocs config
+        # Check if we're building from a legacy config (mkdocs or properdocs)
         if config.config_file_path:
             config_path = Path(config.config_file_path)
-            if config_path.name in ('mkdocs.yml', 'mkdocs.yaml'):
+            if config_path.name in ('mkdocs.yml', 'mkdocs.yaml', 'properdocs.yml', 'properdocs.yaml'):
                 log.info(
                     "\n"
                     "╔══════════════════════════════════════════════════════════════╗\n"
-                    "║  Detected legacy MkDocs configuration file                   ║\n"
+                    "║  Detected legacy configuration file                          ║\n"
                     "║                                                              ║\n"
                     "║  DocsForge is the maintained successor to MkDocs + Material. ║\n"
                     "║                                                              ║\n"

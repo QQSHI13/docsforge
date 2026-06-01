@@ -82,15 +82,6 @@ DEPRECATED_KEYS = {
 }
 
 
-def find_mkdocs_config() -> Path | None:
-    """Find mkdocs.yml or mkdocs.yaml in current directory."""
-    for name in ['mkdocs.yml', 'mkdocs.yaml']:
-        path = Path(name)
-        if path.exists():
-            return path
-    return None
-
-
 def load_yaml(path: Path) -> dict[str, Any]:
     """Load YAML config file."""
     with open(path, 'r', encoding='utf-8') as f:
@@ -189,13 +180,56 @@ def write_yaml(config: dict[str, Any], path: Path) -> None:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
 
+
+# Find all potential config files in current directory
+POSSIBLE_CONFIGS = ['properdocs.yml', 'properdocs.yaml', 'mkdocs.yml', 'mkdocs.yaml']
+
+def find_config_files() -> list[Path]:
+    """Find all potential config files in current directory."""
+    found = []
+    for name in POSSIBLE_CONFIGS:
+        path = Path(name)
+        if path.exists():
+            found.append(path)
+    return found
+
+def prompt_for_config(configs: list[Path]) -> Path | None:
+    """Prompt user to select which config to migrate from."""
+    print()
+    print("Multiple configuration files found:")
+    for i, config in enumerate(configs, 1):
+        print(f"  {i}. {config}")
+    print()
+    
+    while True:
+        try:
+            choice = input("Which config would you like to migrate from? (number, or 'q' to quit): ").strip()
+            if choice.lower() in ('q', 'quit', 'exit'):
+                return None
+            idx = int(choice) - 1
+            if 0 <= idx < len(configs):
+                return configs[idx]
+            print(f"Invalid choice. Please enter 1-{len(configs)}")
+        except ValueError:
+            print("Please enter a number or 'q' to quit")
+    return None
+
 def migrate(dry_run: bool = False, force: bool = False) -> int:
     """Main migration entry point. Returns exit code."""
-    mkdocs_path = find_mkdocs_config()
+    configs = find_config_files()
     
-    if not mkdocs_path:
-        log.error("No mkdocs.yml or mkdocs.yaml found in current directory.")
+    if not configs:
+        log.error("No configuration files found (properdocs.yml, properdocs.yaml, mkdocs.yml, mkdocs.yaml).")
         return 1
+    
+    # Prompt user if multiple configs found
+    if len(configs) > 1:
+        source_path = prompt_for_config(configs)
+        if source_path is None:
+            log.info("Migration cancelled.")
+            return 0
+    else:
+        source_path = configs[0]
     
     docsforge_path = Path('docsforge.yml')
     
@@ -206,19 +240,22 @@ def migrate(dry_run: bool = False, force: bool = False) -> int:
         )
         return 1
     
-    log.info(f"Reading configuration from {mkdocs_path}")
+    log.info(f"Reading configuration from {source_path}")
     
     try:
-        mkdocs_config = load_yaml(mkdocs_path)
+        source_config = load_yaml(source_path)
     except Exception as e:
-        log.error(f"Failed to parse {mkdocs_path}: {e}")
+        log.error(f"Failed to parse {source_path}: {e}")
         return 1
     
     # Analyze plugins
-    supported, unsupported, warnings = analyze_plugins(mkdocs_config)
+    supported, unsupported, warnings = analyze_plugins(source_config)
     
-    # Convert config
-    docsforge_config = convert_config(mkdocs_config)
+    # Convert config (if it's already properdocs.yml, just normalize it)
+    if source_path.name.startswith('properdocs'):
+        docsforge_config = source_config
+    else:
+        docsforge_config = convert_config(source_config)
     
     # Print summary
     print()
@@ -226,7 +263,7 @@ def migrate(dry_run: bool = False, force: bool = False) -> int:
     print("  DOCSFORGE MIGRATION REPORT")
     print("=" * 60)
     print()
-    print(f"  Source:      {mkdocs_path.absolute()}")
+    print(f"  Source:      {source_path.absolute()}")
     print(f"  Destination: {docsforge_path.absolute()}")
     print()
     
@@ -240,7 +277,7 @@ def migrate(dry_run: bool = False, force: bool = False) -> int:
         for w in warnings:
             print(f"    ⚠ {w}")
     
-    deprecated_found = [k for k in DEPRECATED_KEYS if k in mkdocs_config]
+    deprecated_found = [k for k in DEPRECATED_KEYS if k in source_config]
     if deprecated_found:
         print()
         print(f"  Deprecated keys found ({len(deprecated_found)}):")
@@ -264,18 +301,19 @@ def migrate(dry_run: bool = False, force: bool = False) -> int:
         log.error(f"Failed to write {docsforge_path}: {e}")
         return 1
     
-    # Optionally backup the old config
-    backup_path = mkdocs_path.with_suffix('.yml.backup')
-    if not backup_path.exists():
-        shutil.copy2(mkdocs_path, backup_path)
-        log.info(f"Backed up original to {backup_path}")
+    # Backup the original if it's not already properdocs.yml
+    if not source_path.name.startswith('properdocs'):
+        backup_path = source_path.with_suffix('.yml.backup')
+        if not backup_path.exists():
+            shutil.copy2(source_path, backup_path)
+            log.info(f"Backed up original to {backup_path}")
     
     print()
     print("Next steps:")
     print("  1. Review docsforge.yml for any needed adjustments")
     print("  2. Run 'docsforge build' to test the migration")
     print("  3. Run 'docsforge serve' for live preview")
-    print("  4. When satisfied, you can remove mkdocs.yml")
+    print("  4. When satisfied, you can remove the original config")
     print()
     print("Documentation: https://qqshi13.github.io/docsforge-docs/")
     print()

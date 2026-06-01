@@ -26,7 +26,7 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     # 1. Find config file
     config_path = _find_config(config_file)
     if not config_path:
-        log.error("No docsforge.yml, docsforge.yaml, mkdocs.yml, or mkdocs.yaml found.")
+        log.error("No docsforge.yml, docsforge.yaml, properdocs.yml, properdocs.yaml, mkdocs.yml, or mkdocs.yaml found.")
         print()
         print("  To create a new project:")
         print("    docsforge init .")
@@ -183,7 +183,7 @@ def _find_config(config_file) -> str | None:
             # It's a file object
             return os.path.abspath(config_file.name)
     
-    for name in ['docsforge.yml', 'docsforge.yaml', 'mkdocs.yml', 'mkdocs.yaml']:
+    for name in ['docsforge.yml', 'docsforge.yaml', 'properdocs.yml', 'properdocs.yaml', 'mkdocs.yml', 'mkdocs.yaml']:
         if os.path.exists(name):
             return os.path.abspath(name)
     

@@ -34,9 +34,12 @@ def info() -> None:
     
     # Config files
     print("  Configuration files:")
-    for name in ['docsforge.yml', 'docsforge.yaml', 'mkdocs.yml', 'mkdocs.yaml']:
+    for name in ['docsforge.yml', 'docsforge.yaml', 'properdocs.yml', 'properdocs.yaml', 'mkdocs.yml', 'mkdocs.yaml']:
         status = "✓ found" if os.path.exists(name) else "not found"
         print(f"    {name:20} {status}")
+    print()
+    print("  Note: DocsForge can migrate from properdocs or mkdocs configurations")
+    print("        using the 'docsforge migrate' command.")
     print()
     
     # Themes

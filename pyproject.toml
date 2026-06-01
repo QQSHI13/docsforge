@@ -46,6 +46,7 @@ dependencies = [
     "requests >=2.27",
     "babel >=2.9.0",
     "pygments >=2.16",
+    "lunr >=0.7",
 ]
 
 [project.optional-dependencies]
