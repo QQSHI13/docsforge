@@ -26,10 +26,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install build
+          pip install build twine pkginfo
 
       - name: Build package
         run: python -m build
+
+      - name: Verify metadata
+        run: |
+          pip install --upgrade twine pkginfo
+          twine check dist/*
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -51,6 +56,7 @@ jobs:
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@unstable/v1
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+          verify-metadata: false
