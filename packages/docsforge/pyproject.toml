@@ -51,6 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 imaging = ["pillow>=10.2", "cairosvg>=2.6"]
+chinese = ["jieba>=0.42"]
 
 [project.urls]
 Documentation = "https://qqshi13.github.io/docsforge-docs"

@@ -98,6 +98,10 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         for config in self.config.fields.values():
             validator.run_validation(config)
 
+        # Check for jieba if Chinese content is detected
+        if not jieba:
+            self._warn_jieba_missing()
+
         # Merge with default fields
         if "title" not in self.config.fields:
             self.config.fields["title"] = { "boost": 1e3 }
@@ -327,6 +331,14 @@ class SearchIndex:
 
         # Return string with segmented occurrences
         return expr.sub(replace, data).strip("\u200b")
+
+    def _warn_jieba_missing(self):
+        """Warn if jieba is not installed but Chinese content may be present."""
+        log.warning(
+            "Chinese content detected but jieba is not installed. "
+            "Install it for better Chinese search segmentation: "
+            "pip install docsforge[chinese]"
+        )
 
 # -----------------------------------------------------------------------------
 
