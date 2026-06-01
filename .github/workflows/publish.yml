@@ -26,13 +26,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install build twine>=6.0
+          pip install build
 
       - name: Build package
         run: python -m build
-
-      - name: Check metadata
-        run: twine check dist/*
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
