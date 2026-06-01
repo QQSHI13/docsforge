@@ -54,7 +54,7 @@ imaging = ["pillow>=10.2", "cairosvg>=2.6"]
 chinese = ["jieba>=0.42"]
 
 [project.urls]
-Documentation = "https://qqshi13.github.io/docsforge-docs"
+Documentation = "https://qqshi13.github.io/docsforge"
 Source = "https://github.com/QQSHI13/docsforge"
 Issues = "https://github.com/QQSHI13/docsforge/issues"
 

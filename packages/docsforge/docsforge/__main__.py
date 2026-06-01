@@ -82,6 +82,22 @@ class State:
                 self.logger.removeHandler(h)
 
 
+def _setup_logging(verbose: bool, quiet: bool, color: bool | None) -> None:
+    """Configure DocsForge logging with ColorFormatter or plain formatter."""
+    _ = State()  # Initialize logger with ColorFormatter handler
+    if quiet:
+        _set_log_level(logging.ERROR)
+    elif verbose:
+        _set_log_level(logging.DEBUG)
+
+    if color is False or (color is None and not sys.stdout.isatty()):
+        handlers = logging.getLogger('docsforge').handlers
+        if handlers:
+            handlers[0].setFormatter(
+                logging.Formatter('%(levelname)-8s-  %(message)s')
+            )
+
+
 def _enable_warnings():
     if not sys.warnoptions:
         from docsforge import utils
@@ -98,7 +114,10 @@ def _set_log_level(level: int):
 
 # ---- Main CLI ----
 
-@click.group(context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120))
+@click.group(
+    invoke_without_command=True,
+    context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
+)
 @click.version_option(__version__, '-V', '--version', prog_name='docsforge')
 @click.option('-v', '--verbose', is_flag=True, help='Enable verbose output')
 @click.option('-q', '--quiet', is_flag=True, help='Silence warnings')
@@ -128,40 +147,28 @@ def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, mi
     Smart default: run 'docsforge' alone to start the dev server,
     or create a new project if no config is found.
     """
-    # Setup logging
-    _ = State()  # Initialize logger with ColorFormatter handler
-    if quiet:
-        _set_log_level(logging.ERROR)
-    elif verbose:
-        _set_log_level(logging.DEBUG)
-
-    if color is False or (color is None and not sys.stdout.isatty()):
-        handlers = logging.getLogger('docsforge').handlers
-        if handlers:
-            handlers[0].setFormatter(
-                logging.Formatter('%(levelname)-8s-  %(message)s')
-            )
+    _setup_logging(verbose, quiet, color)
 
     # Handle forced commands
     if init or init_defaults:
-        sys.exit(ProjectManager.init(
+        ctx.exit(ProjectManager.init(
             interactive=not init_defaults,
             site_name=name,
         ))
 
     if migrate:
-        sys.exit(ProjectManager.migrate(
+        ctx.exit(ProjectManager.migrate(
             dry_run=migrate_dry_run,
             force=migrate_force,
             config_file=config_file.name if config_file else None,
         ))
 
     if check:
-        sys.exit(Validator.check(config_file=config_file.name if config_file else None))
+        ctx.exit(Validator.check(config_file=config_file.name if config_file else None))
 
     if info:
         InfoReporter.show()
-        sys.exit(0)
+        ctx.exit(0)
 
     if deps:
         # Show dependencies
@@ -172,12 +179,12 @@ def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, mi
             deps_list = get_deps(config_file=f, projects_file=p)
         for dep in deps_list:
             print(dep)
-        sys.exit(0)
+        ctx.exit(0)
 
     # Smart routing: serve, migrate, or init based on project state
     # Only runs when no subcommand is invoked (e.g. plain 'docsforge')
     if ctx.invoked_subcommand is None:
-        sys.exit(AutoRouter.route(
+        ctx.exit(AutoRouter.route(
             force_init=False,
             force_migrate=False,
             force_check=False,
@@ -209,19 +216,7 @@ def build(clean, strict, deploy, check_first, site_dir, config_file, theme, verb
     Outputs to site/ by default (or --site-dir).
     Use --deploy to publish to GitHub Pages after building.
     """
-    # Setup logging
-    _ = State()  # Initialize logger with ColorFormatter handler
-    if quiet:
-        _set_log_level(logging.ERROR)
-    elif verbose:
-        _set_log_level(logging.DEBUG)
-
-    if color is False or (color is None and not sys.stdout.isatty()):
-        handlers = logging.getLogger('docsforge').handlers
-        if handlers:
-            handlers[0].setFormatter(
-                logging.Formatter('%(levelname)-8s-  %(message)s')
-            )
+    _setup_logging(verbose, quiet, color)
 
     _enable_warnings()
 

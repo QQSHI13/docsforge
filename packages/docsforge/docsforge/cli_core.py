@@ -178,7 +178,8 @@ class ProjectManager:
     ) -> int:
         """Initialize a new project.
         
-        If interactive=True, prompts for missing values.
+        If interactive=True and stdin is a TTY, prompts for missing values.
+        If interactive=True but stdin is not a TTY, returns an error.
         If interactive=False, uses defaults or provided values.
         
         Returns exit code.
@@ -186,11 +187,14 @@ class ProjectManager:
         from docsforge.commands import init
         
         if interactive and site_name is None:
+            if not sys.stdin.isatty():
+                log.error("Cannot run interactive init in non-TTY environment.")
+                log.error("Use: docsforge --init --init-defaults --name='My Site'")
+                return 1
             try:
                 site_name = input('Site name: ').strip()
             except EOFError:
-                log.error("Cannot run interactive init in non-TTY environment.")
-                log.error("Use: docsforge --init --defaults --name='My Site'")
+                log.error("EOF reached. Use non-interactive mode.")
                 return 1
         
         if not site_name:

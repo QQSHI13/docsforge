@@ -21,14 +21,23 @@ jobs:
       - name: Install DocsForge
         run: pip install ./packages/docsforge
 
-      - name: Test build
+      - name: Test CLI --version
+        run: docsforge --version
+
+      - name: Test CLI --info
+        run: docsforge --info
+
+      - name: Test build docs site
         run: cd packages/docsforge-docs && docsforge build
 
-      - name: Test CLI commands
-        run: |
-          docsforge --version
-          docsforge --info
-          cd packages/docsforge-docs && docsforge --check
+      - name: Test CLI --check on docs site
+        run: cd packages/docsforge-docs && docsforge --check
+
+      - name: Test CLI --help
+        run: docsforge --help
+
+      - name: Test build subcommand help
+        run: docsforge build --help
 
   test-extension:
     runs-on: ubuntu-latest
@@ -46,3 +55,6 @@ jobs:
 
       - name: Compile extension
         run: cd packages/vscode-docsforge && npm run compile
+
+      - name: Lint extension
+        run: cd packages/vscode-docsforge && npm run lint || true
