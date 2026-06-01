@@ -1,0 +1,108 @@
+{
+  "name": "vscode-docsforge",
+  "displayName": "DocsForge",
+  "description": "Write and preview DocsForge documentation inside VS Code",
+  "version": "0.1.0",
+  "publisher": "qqshi13",
+  "license": "LGPL-3.0-or-later",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Programming Languages", "Snippets", "Other"],
+  "keywords": ["docsforge", "documentation", "markdown", "mkdocs"],
+  "activationEvents": [
+    "onCommand:docsforge.init",
+    "workspaceContains:docsforge.yml",
+    "workspaceContains:mkdocs.yml",
+    "workspaceContains:docsforge.yaml",
+    "workspaceContains:mkdocs.yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "docsforge.init",
+        "title": "DocsForge: Initialize Project",
+        "icon": "$(new-folder)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.serve",
+        "title": "DocsForge: Start Dev Server",
+        "icon": "$(play)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.stop",
+        "title": "DocsForge: Stop Dev Server",
+        "icon": "$(debug-stop)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.preview",
+        "title": "DocsForge: Open Preview",
+        "icon": "$(preview)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.build",
+        "title": "DocsForge: Build",
+        "icon": "$(gear)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.deploy",
+        "title": "DocsForge: Deploy to GitHub Pages",
+        "icon": "$(rocket)",
+        "category": "DocsForge"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "docsforge.preview",
+          "group": "navigation",
+          "when": "editorLangId == markdown"
+        }
+      ],
+      "statusBar": [
+        {
+          "command": "docsforge.serve",
+          "group": "docsforge",
+          "when": "docsforge.serverRunning == false"
+        },
+        {
+          "command": "docsforge.stop",
+          "group": "docsforge",
+          "when": "docsforge.serverRunning == true"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "DocsForge",
+      "properties": {
+        "docsforge.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Python interpreter path"
+        },
+        "docsforge.devAddr": {
+          "type": "string",
+          "default": "localhost:8000",
+          "description": "Dev server address"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
