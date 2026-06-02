@@ -189,17 +189,51 @@ class ProjectManager:
             log.error("No docsforge.yml found. Run in an interactive terminal to create a project.")
             return 1
         
+        # Welcome banner
+        print()
+        print("=" * 56)
+        print("  Welcome to DocsForge!")
+        print("  Let's set up your documentation project.")
+        print("=" * 56)
+        print()
+        
         try:
-            # Interactive prompts
-            site_name = input(f"Site name [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
-            theme_input = input(f"Theme color (teal/indigo/blue/green/red/orange/purple/pink) [{theme_color}]: ").strip() or theme_color
-            enable_search = input("Enable search? [Y/n]: ").strip().lower() in ('', 'y', 'yes')
-            enable_tags = input("Enable tags? [y/N]: ").strip().lower() in ('y', 'yes')
-            enable_blog = input("Enable blog? [y/N]: ").strip().lower() in ('y', 'yes')
+            # Step 1: Site name
+            print("Step 1/5 — Site name")
+            site_name = input(f"  What should we call your docs? [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
+            print()
+            
+            # Step 2: Theme color
+            print("Step 2/5 — Theme color")
+            print("  Available: teal, indigo, blue, green, red, orange, purple, pink")
+            theme_input = input(f"  Pick a color [{theme_color}]: ").strip() or theme_color
             theme_color = theme_input
+            print()
+            
+            # Step 3: Search
+            print("Step 3/5 — Search")
+            print("  Full-text search lets users find content across your docs.")
+            search_input = input("  Enable search? [Y/n]: ").strip().lower()
+            enable_search = search_input in ('', 'y', 'yes')
+            print()
+            
+            # Step 4: Tags
+            print("Step 4/5 — Tags")
+            print("  Tags let you group pages by topic (e.g. 'tutorial', 'reference').")
+            tags_input = input("  Enable tags? [y/N]: ").strip().lower()
+            enable_tags = tags_input in ('y', 'yes')
+            print()
+            
+            # Step 5: Blog
+            print("Step 5/5 — Blog")
+            print("  A blog for changelog posts, announcements, etc.")
+            blog_input = input("  Enable blog? [y/N]: ").strip().lower()
+            enable_blog = blog_input in ('y', 'yes')
+            print()
+            
         except (EOFError, KeyboardInterrupt):
             print()
-            log.error("Init cancelled.")
+            print("  Cancelled.")
             return 1
         
         # Use site name slug as project directory if not explicitly provided
@@ -216,6 +250,22 @@ class ProjectManager:
                 enable_search=enable_search,
                 enable_tags=enable_tags,
             )
+            
+            # Summary
+            print("=" * 56)
+            print("  All done! Here's what was created:")
+            print()
+            print(f"  Directory:  ./{project_directory}/")
+            print(f"  Config:     ./{project_directory}/docsforge.yml")
+            print(f"  Docs:       ./{project_directory}/docs/index.md")
+            print()
+            print("  Next steps:")
+            print(f"    cd {project_directory}")
+            print("    docsforge serve")
+            print()
+            print("  Happy documenting! 📚")
+            print("=" * 56)
+            print()
             return 0
         except Exception as e:
             log.error(f"Init failed: {e}")
