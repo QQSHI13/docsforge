@@ -19,6 +19,8 @@ package-lock.json
 # Python virtual environments
 venv/
 .env/
-.venv/docs/blog/index.md
+.venv/
+
+# Runtime artifacts
 .cache/
 docs/blog/index.md
