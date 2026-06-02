@@ -132,8 +132,9 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         self._rebuild_cond = threading.Condition()  # Must be held when accessing _want_rebuild.
 
         self._shutdown = False
-        self.serve_thread = threading.Thread(target=lambda: self.serve_forever(shutdown_delay))
+        self.serve_thread = threading.Thread(target=lambda: self.serve_forever(shutdown_delay), daemon=True)
         self.observer = watchdog.observers.polling.PollingObserver(timeout=polling_interval)
+        self.observer.daemon = True
 
         self._watched_paths: dict[str, int] = {}
         self._watch_refs: dict[str, Any] = {}
