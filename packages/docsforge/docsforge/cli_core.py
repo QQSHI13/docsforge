@@ -321,14 +321,15 @@ class AutoRouter:
     @staticmethod
     def route(
         *,
+        ctx=None,
         force_migrate: bool = False,
         **kwargs,
     ) -> int:
         """Smart routing - decides what to do based on project state.
         
         Priority:
-        1. If legacy config exists -> prompt to migrate, then serve
-        2. If docsforge.yml exists -> show help
+        1. If legacy config exists -> prompt to migrate, then show help
+        2. If docsforge.yml exists -> show help with project detected notice
         3. If no config exists -> start interactive init
         
         Returns exit code.
@@ -367,20 +368,19 @@ class AutoRouter:
                     )
                     if result != 0:
                         return result
-                    # After migration, show help
-                    return 0
-                else:
-                    # Serve with legacy config anyway
-                    return DevServer.serve(config_file=str(env['config_path']), **kwargs)
+
+                # After migration or decline, show help
+                if ctx:
+                    print("\nDocsForge project detected.\n")
+                    print(ctx.get_help())
+                return 0
             except (EOFError, KeyboardInterrupt):
                 print()
                 log.error("Non-interactive environment. Use 'docsforge --migrate'.")
                 return 1
         
-        # Normal docsforge.yml found -> show help
-        print("DocsForge project detected.\n")
-        print("Available commands:")
-        print("  docsforge serve    Start dev server with live reload")
-        print("  docsforge build    Build for production")
-        print("  docsforge --help   Show all options\n")
+        # Normal docsforge.yml found -> show help with project detected notice
+        if ctx:
+            print("DocsForge project detected.\n")
+            print(ctx.get_help())
         return 0

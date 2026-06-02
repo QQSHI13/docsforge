@@ -1,8 +1,9 @@
 """DocsForge CLI - thin front-end around cli_core.py.
 
 Usage:
-    docsforge              # Serve if config exists, else start interactive init
+    docsforge              # Show help (with project detected notice if in project)
     docsforge build        # Production build
+    docsforge serve        # Start dev server
     docsforge --migrate    # Migrate from legacy config
 """
 
@@ -20,7 +21,7 @@ from typing import ClassVar
 import click
 
 from docsforge import __version__
-from docsforge.cli_core import AutoRouter, BuildEngine
+from docsforge.cli_core import AutoRouter, BuildEngine, DevServer
 
 if sys.platform.startswith("win"):
     try:
@@ -132,13 +133,10 @@ def docsforge(ctx, migrate, migrate_dry_run, migrate_force, strict):
             force=migrate_force,
         ))
 
-    # Smart routing: serve, init, or migrate based on project state
+    # Smart routing: show help, init, or migrate based on project state
     # Only runs when no subcommand is invoked (e.g. plain 'docsforge')
     if ctx.invoked_subcommand is None:
-        ctx.exit(AutoRouter.route(
-            force_migrate=False,
-            strict=strict,
-        ))
+        ctx.exit(AutoRouter.route(ctx=ctx))
 
 
 @docsforge.command()
@@ -146,10 +144,7 @@ def docsforge(ctx, migrate, migrate_dry_run, migrate_force, strict):
 @click.option('--strict', is_flag=True, help='Fail on warnings')
 @click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
 def build(clean, strict, site_dir):
-    """Build the DocsForge documentation for production.
-
-    Outputs to site/ by default (or --site-dir).
-    """
+    """Build the DocsForge documentation for production."""
     _ = State()  # Initialize default logging
     _enable_warnings()
 
@@ -174,6 +169,25 @@ def build(clean, strict, site_dir):
         sys.exit(result)
 
     sys.exit(0)
+
+
+@docsforge.command()
+def serve():
+    """Start the live-reloading docs server."""
+    _ = State()  # Initialize default logging
+    
+    # Auto-check config and dependencies before serving
+    from docsforge.cli_core import Validator, _check_optional_deps
+
+    result = Validator.check()
+    if result != 0:
+        click.secho("\nConfiguration validation failed. Fix the issues above and try again.", fg='red')
+        sys.exit(result)
+
+    _check_optional_deps()
+    
+    # Serve with live reload, watch all, open browser
+    DevServer.serve()
 
 
 if __name__ == '__main__':
