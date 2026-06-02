@@ -228,7 +228,6 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 self._epoch_cond.notify_all()
 
     def shutdown(self, wait=False) -> None:
-        self.observer.stop()
         with self._rebuild_cond:
             self._shutdown = True
             self._rebuild_cond.notify_all()
@@ -237,8 +236,15 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             super().shutdown()
         self.server_close()
         if wait:
-            self.serve_thread.join()
-            self.observer.join()
+            try:
+                self.observer.stop()
+            except Exception:
+                pass
+            self.serve_thread.join(timeout=1)
+            try:
+                self.observer.join(timeout=1)
+            except Exception:
+                pass
 
     def serve_request(self, environ, start_response) -> Iterable[bytes]:
         try:
