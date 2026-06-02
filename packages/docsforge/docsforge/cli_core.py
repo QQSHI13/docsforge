@@ -7,6 +7,7 @@ interface: CLI, VS Code extension, API, or programmatically.
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import BinaryIO
@@ -15,6 +16,13 @@ from docsforge import config as config_module
 from docsforge.config.base import _open_config_file
 
 log = logging.getLogger(__name__)
+
+
+def _slugify(name: str) -> str:
+    """Convert site name to directory slug."""
+    slug = re.sub(r'[^\w\s-]', '', name.lower())
+    slug = re.sub(r'[\s_]+', '-', slug)
+    return slug.strip('-') or 'my-docs'
 
 # Config file priority order (first match wins)
 CONFIG_PRIORITY = [
@@ -160,7 +168,7 @@ class ProjectManager:
     
     @staticmethod
     def init(
-        project_directory: str = '.',
+        project_directory: str | None = None,
         *,
         site_name: str | None = None,
         theme_color: str = 'teal',
@@ -170,7 +178,9 @@ class ProjectManager:
     ) -> int:
         """Initialize a new project interactively.
         
-        Prompts for values in a TTY. If not a TTY, returns error.
+        Prompts for values in a TTY. Creates a new directory named after the
+        site name slug. If not a TTY, returns error.
+        
         Returns exit code: 0 = success, 1 = failure.
         """
         from docsforge.commands import init
@@ -191,6 +201,10 @@ class ProjectManager:
             print()
             log.error("Init cancelled.")
             return 1
+        
+        # Use site name slug as project directory if not explicitly provided
+        if project_directory is None:
+            project_directory = _slugify(site_name)
         
         try:
             init.init(
