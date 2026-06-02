@@ -167,33 +167,29 @@ class ProjectManager:
         enable_blog: bool = False,
         enable_search: bool = True,
         enable_tags: bool = False,
-        interactive: bool = True,
     ) -> int:
-        """Initialize a new project.
+        """Initialize a new project interactively.
         
-        If interactive=True and stdin is a TTY, prompts for missing values.
-        If interactive=True but stdin is not a TTY, returns error.
-        If interactive=False, uses defaults.
-        
+        Prompts for values in a TTY. If not a TTY, returns error.
         Returns exit code: 0 = success, 1 = failure.
         """
         from docsforge.commands import init
         
-        # Handle interactive mode
-        if interactive and sys.stdin.isatty():
-            try:
-                site_name = input(f"Site name [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
-                theme_input = input(f"Theme color (teal/indigo/blue/green/red/orange/purple/pink) [{theme_color}]: ").strip() or theme_color
-                enable_search = input("Enable search? [Y/n]: ").strip().lower() in ('', 'y', 'yes')
-                enable_tags = input("Enable tags? [y/N]: ").strip().lower() in ('y', 'yes')
-                enable_blog = input("Enable blog? [y/N]: ").strip().lower() in ('y', 'yes')
-                theme_color = theme_input
-            except (EOFError, KeyboardInterrupt):
-                print()
-                log.error("Init cancelled.")
-                return 1
-        elif interactive and not sys.stdin.isatty():
-            log.error("Non-interactive environment. Use '--init-defaults' for non-interactive init.")
+        if not sys.stdin.isatty():
+            log.error("No docsforge.yml found. Run in an interactive terminal to create a project.")
+            return 1
+        
+        try:
+            # Interactive prompts
+            site_name = input(f"Site name [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
+            theme_input = input(f"Theme color (teal/indigo/blue/green/red/orange/purple/pink) [{theme_color}]: ").strip() or theme_color
+            enable_search = input("Enable search? [Y/n]: ").strip().lower() in ('', 'y', 'yes')
+            enable_tags = input("Enable tags? [y/N]: ").strip().lower() in ('y', 'yes')
+            enable_blog = input("Enable blog? [y/N]: ").strip().lower() in ('y', 'yes')
+            theme_color = theme_input
+        except (EOFError, KeyboardInterrupt):
+            print()
+            log.error("Init cancelled.")
             return 1
         
         try:
@@ -332,8 +328,8 @@ class AutoRouter:
         
         Priority:
         1. If legacy config exists -> prompt to migrate, then serve
-        2. If docsforge.yml exists -> serve (with auto-check)
-        3. If no config exists -> error
+        2. If docsforge.yml exists -> show help
+        3. If no config exists -> start interactive init
         
         Returns exit code.
         """
@@ -345,9 +341,11 @@ class AutoRouter:
         
         # Smart routing based on environment
         if not env['config_found']:
-            # No config found
-            log.error("No docsforge.yml found. Create a docsforge.yml configuration file or run 'docsforge --init'.")
-            return 1
+            # No config found -> start interactive init
+            if not sys.stdin.isatty():
+                log.error("No docsforge.yml found. Run in an interactive terminal to create a project.")
+                return 1
+            return ProjectManager.init()
         
         if env['is_legacy']:
             # Legacy config found
@@ -369,8 +367,8 @@ class AutoRouter:
                     )
                     if result != 0:
                         return result
-                    # After migration, serve
-                    return DevServer.serve(config_file=str(Path('docsforge.yml')), **kwargs)
+                    # After migration, show help
+                    return 0
                 else:
                     # Serve with legacy config anyway
                     return DevServer.serve(config_file=str(env['config_path']), **kwargs)
@@ -379,13 +377,10 @@ class AutoRouter:
                 log.error("Non-interactive environment. Use 'docsforge --migrate'.")
                 return 1
         
-        # Normal docsforge.yml found -> serve with auto-check
-        result = Validator.check()
-        if result != 0:
-            log.error("Configuration validation failed. Fix issues and try again.")
-            return result
-        
-        _check_optional_deps()
-        
-        # Always serve with live reload, watch theme, open browser
-        return DevServer.serve(config_file=str(env['config_path']), **kwargs)
+        # Normal docsforge.yml found -> show help
+        print("DocsForge project detected.\n")
+        print("Available commands:")
+        print("  docsforge serve    Start dev server with live reload")
+        print("  docsforge build    Build for production")
+        print("  docsforge --help   Show all options\n")
+        return 0
