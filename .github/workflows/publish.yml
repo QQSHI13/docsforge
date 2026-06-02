@@ -13,7 +13,34 @@ permissions:
   id-token: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install DocsForge
+        run: pip install ./packages/docsforge
+
+      - name: Test CLI --version
+        run: docsforge --version
+
+      - name: Test build docs site
+        run: cd packages/docsforge-docs && docsforge build
+
+      - name: Test CLI --help
+        run: docsforge --help
+
+      - name: Test build subcommand help
+        run: docsforge build --help
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
