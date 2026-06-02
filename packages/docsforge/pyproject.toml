@@ -47,11 +47,15 @@ dependencies = [
     "babel >=2.9.0",
     "pygments >=2.16",
     "lunr >=0.7",
+    "csscompressor >=0.9.5",
+    "minify-html >=0.18",
+    "jsmin >=3.0",
 ]
 
 [project.optional-dependencies]
 imaging = ["pillow>=10.2", "cairosvg>=2.6"]
 chinese = ["jieba>=0.42"]
+all = ["pillow>=10.2", "cairosvg>=2.6", "jieba>=0.42"]
 
 [project.urls]
 Documentation = "https://qqshi13.github.io/docsforge"

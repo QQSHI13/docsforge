@@ -44,7 +44,7 @@ YamlLoaderWithSuppressions.add_multi_constructor(
 
 DEFAULT_PROJECTS_FILE = None
 
-BUILTIN_PLUGINS = {"search"}
+BUILTIN_PLUGINS = set()
 _BUILTIN_EXTENSIONS = [
     "abbr",
     "admonition",

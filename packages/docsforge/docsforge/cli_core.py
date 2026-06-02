@@ -243,6 +243,73 @@ class ProjectManager:
         )
 
 
+def _check_optional_deps(config_file=None):
+    """Best-effort detection of missing optional dependencies based on config.
+    
+    Checks configured plugins against importable packages and logs warnings
+    with the exact install command needed.
+    """
+    import yaml
+    from docsforge.config.base import _open_config_file
+
+    # Map: plugin name → (import to try, install command)
+    _OPTIONAL_PLUGINS = {
+        'material/social': [
+            ('PIL', 'pip install docsforge[imaging]'),
+            ('cairosvg', 'pip install docsforge[imaging]'),
+        ],
+        'social': [
+            ('PIL', 'pip install docsforge[imaging]'),
+            ('cairosvg', 'pip install docsforge[imaging]'),
+        ],
+    }
+    
+    try:
+        with _open_config_file(config_file) as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception:
+        return  # Best-effort, don't fail build because dep check failed
+    
+    plugins = cfg.get('plugins', [])
+    if not isinstance(plugins, list):
+        return
+    
+    # Flatten plugin names from list of strings/dicts
+    plugin_names = set()
+    plugin_configs = {}
+    for p in plugins:
+        if isinstance(p, str):
+            plugin_names.add(p)
+        elif isinstance(p, dict):
+            for k, v in p.items():
+                plugin_names.add(k)
+                plugin_configs[k] = v
+    
+    missing = set()
+    
+    # Check plugin-specific optional deps
+    for name in plugin_names:
+        if name in _OPTIONAL_PLUGINS:
+            for import_name, install_cmd in _OPTIONAL_PLUGINS[name]:
+                try:
+                    __import__(import_name)
+                except ImportError:
+                    missing.add(install_cmd)
+    
+    # Check jieba: enabled if search plugin has jieba_dict configured
+    search_cfg = plugin_configs.get('material/search') or plugin_configs.get('search')
+    if isinstance(search_cfg, dict) and search_cfg.get('jieba_dict'):
+        try:
+            __import__('jieba')
+        except ImportError:
+            missing.add('pip install docsforge[chinese]')
+    
+    if missing:
+        log.warning("Optional dependencies missing for configured plugins.")
+        for cmd in sorted(missing):
+            log.warning("  %s", cmd)
+
+
 class Validator:
     """Configuration validation."""
     
@@ -256,16 +323,6 @@ class Validator:
         return check.check(config_file=config_file)
 
 
-class InfoReporter:
-    """System information reporting."""
-    
-    @staticmethod
-    def show() -> None:
-        """Display system information."""
-        from docsforge.commands import info
-        info.info()
-
-
 class AutoRouter:
     """Smart routing based on project state."""
     
@@ -274,8 +331,6 @@ class AutoRouter:
         *,
         force_init: bool = False,
         force_migrate: bool = False,
-        force_check: bool = False,
-        force_info: bool = False,
         **kwargs,
     ) -> int:
         """Smart routing - decides what to do based on project state.
@@ -283,11 +338,9 @@ class AutoRouter:
         Priority:
         1. If --init flag → run init
         2. If --migrate flag → run migrate
-        3. If --check flag → run check
-        4. If --info flag → run info
-        5. If docsforge.yml exists → serve
-        6. If legacy config exists → prompt to migrate, then serve
-        7. If no config exists → prompt to init
+        3. If docsforge.yml exists → serve (with auto-check)
+        4. If legacy config exists → prompt to migrate, then serve
+        5. If no config exists → prompt to init
         
         Returns exit code.
         """
@@ -299,13 +352,6 @@ class AutoRouter:
         
         if force_migrate:
             return ProjectManager.migrate(**kwargs)
-        
-        if force_check:
-            return Validator.check()
-        
-        if force_info:
-            InfoReporter.show()
-            return 0
         
         # Smart routing based on environment
         if not env['config_found']:
@@ -341,18 +387,36 @@ class AutoRouter:
                         config_file=str(env['config_path']),
                     )
                     if result == 0:
+                        # Validate migrated config before serving
+                        check_result = Validator.check(config_file='docsforge.yml')
+                        if check_result != 0:
+                            log.error("Migration succeeded but the new config is invalid.")
+                            return check_result
+                        _check_optional_deps('docsforge.yml')
                         print("\nMigration complete. Starting development server...")
-                        DevServer.serve(**kwargs)
+                        DevServer.serve(config_file='docsforge.yml', **kwargs)
                     return result
                 else:
-                    kwargs.pop('config_file', None)  # Remove if present to avoid duplicate
+                    # Serve with legacy config - auto-check first
+                    result = Validator.check(config_file=str(env['config_path']))
+                    if result != 0:
+                        log.error("Config validation failed. Fix the issues above or run 'docsforge --migrate'.")
+                        return result
+                    _check_optional_deps(str(env['config_path']))
+                    kwargs.pop('config_file', None)
                     DevServer.serve(config_file=str(env['config_path']), **kwargs)
                     return 0
             except EOFError:
                 log.error("Non-interactive environment. Use 'docsforge --migrate'.")
                 return 1
         
-        # docsforge.yml exists → serve
-        kwargs.pop('config_file', None)  # Remove if present to avoid duplicate
+        # docsforge.yml exists → serve (with auto-check)
+        result = Validator.check(config_file=str(env['config_path']))
+        if result != 0:
+            log.error("Config validation failed. Fix the issues above and try again.")
+            return result
+        
+        _check_optional_deps(str(env['config_path']))
+        kwargs.pop('config_file', None)
         DevServer.serve(config_file=str(env['config_path']), **kwargs)
         return 0

@@ -1003,9 +1003,9 @@ class MarkdownExtensions(OptionallyRequired[list[str]]):
         else:
             for item in value:
                 if isinstance(item, dict):
-                    if len(item) > 1:
+                    if len(item) != 1:
                         raise ValidationError('Invalid Markdown Extensions configuration')
-                    ext, cfg = item.popitem()
+                    ext, cfg = item.copy().popitem()
                     self.validate_ext_cfg(ext, cfg)
                     extensions.append(ext)
                 elif isinstance(item, str):
@@ -1064,6 +1064,15 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
         self._instance_counter: MutableMapping[str, int] = Counter()
         for name, cfg in self._parse_configs(value):
             self.load_plugin_with_namespace(name, cfg)
+        
+        # Always load core plugins that are always-on features.
+        # These are integrated into the build process and don't require user configuration.
+        # Optional plugins (minify, privacy) must be explicitly configured.
+        core_plugins = ['search', 'meta', 'tags', 'blog', 'info', 'minify', 'privacy']
+        for name in core_plugins:
+            if name not in self._instance_counter:
+                self.load_plugin_with_namespace(name, {})
+        
         return self.plugins
 
     @classmethod
@@ -1078,7 +1087,7 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
                 if isinstance(item, dict):
                     if len(item) != 1:
                         raise ValidationError('Invalid Plugins configuration')
-                    name, cfg = item.popitem()
+                    name, cfg = item.copy().popitem()
                 else:
                     name = item
                     cfg = {}

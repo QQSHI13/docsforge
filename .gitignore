@@ -19,4 +19,4 @@ package-lock.json
 # Python virtual environments
 venv/
 .env/
-.venv/
+.venv/docs/blog/index.md

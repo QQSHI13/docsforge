@@ -203,10 +203,10 @@ class DocsForgeConfig(base.Config):
     compiled to SVG during the build. Requires a LaTeX toolchain (texlive).
     When False or unset, TikZ compilation is skipped."""
 
-    plugins = c.Plugins(theme_key='theme', default=['search'])
+    plugins = c.Plugins(theme_key='theme', default=[])
     """A list of plugins. Each item may contain a string name or a key value pair.
     A key value pair should be the string name (as the key) and a dict of config
-    options (as the value)."""
+    options (as the value). Core plugins (search, meta, tags, blog, info) are always loaded automatically."""
 
     hooks = c.Hooks('plugins')
     """A list of filenames that will be imported as Python modules and used as

@@ -12,14 +12,13 @@ import os
 import shutil
 import sys
 import textwrap
-import traceback
 import warnings
 from typing import ClassVar
 
 import click
 
 from docsforge import __version__
-from docsforge.cli_core import AutoRouter, BuildEngine, DevServer, InfoReporter, ProjectManager, Validator
+from docsforge.cli_core import AutoRouter, BuildEngine, DevServer, ProjectManager
 
 if sys.platform.startswith("win"):
     try:
@@ -82,22 +81,6 @@ class State:
                 self.logger.removeHandler(h)
 
 
-def _setup_logging(verbose: bool, quiet: bool, color: bool | None) -> None:
-    """Configure DocsForge logging with ColorFormatter or plain formatter."""
-    _ = State()  # Initialize logger with ColorFormatter handler
-    if quiet:
-        _set_log_level(logging.ERROR)
-    elif verbose:
-        _set_log_level(logging.DEBUG)
-
-    if color is False or (color is None and not sys.stdout.isatty()):
-        handlers = logging.getLogger('docsforge').handlers
-        if handlers:
-            handlers[0].setFormatter(
-                logging.Formatter('%(levelname)-8s-  %(message)s')
-            )
-
-
 def _enable_warnings():
     if not sys.warnoptions:
         from docsforge import utils
@@ -119,18 +102,12 @@ def _set_log_level(level: int):
     context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
 )
 @click.version_option(__version__, '-V', '--version', prog_name='docsforge')
-@click.option('-v', '--verbose', is_flag=True, help='Enable verbose output')
-@click.option('-q', '--quiet', is_flag=True, help='Silence warnings')
-@click.option('--color/--no-color', default=None, help='Force enable or disable color output')
 @click.option('--init', is_flag=True, help='Create a new project (interactive wizard)')
 @click.option('--init-defaults', is_flag=True, hidden=True, help='Non-interactive project setup')
 @click.option('--name', help='Site name for --init', default=None)
 @click.option('--migrate', is_flag=True, help='Migrate from legacy config (mkdocs/properdocs)')
 @click.option('--migrate-dry-run', is_flag=True, hidden=True, help='Preview migration')
 @click.option('--migrate-force', is_flag=True, hidden=True, help='Force overwrite')
-@click.option('--check', is_flag=True, help='Validate configuration without building')
-@click.option('--info', is_flag=True, help='Show system information')
-@click.option('--deps', is_flag=True, help='Show required dependencies')
 @click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
 @click.option('-t', '--theme', help='Theme to use')
 @click.option('--strict', is_flag=True, help='Fail on warnings')
@@ -139,15 +116,15 @@ def _set_log_level(level: int):
 @click.option('--watch-theme', is_flag=True, help='Watch theme files for changes')
 @click.option('--open', 'open_browser', is_flag=True, help='Open browser after starting server')
 @click.pass_context
-def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, migrate_dry_run,
-              migrate_force, check, info, deps, config_file, theme, strict, no_livereload,
+def docsforge(ctx, init, init_defaults, name, migrate, migrate_dry_run,
+              migrate_force, config_file, theme, strict, no_livereload,
               watch, watch_theme, open_browser):
     """DocsForge - Project documentation with Markdown.
 
     Smart default: run 'docsforge' alone to start the dev server,
     or create a new project if no config is found.
     """
-    _setup_logging(verbose, quiet, color)
+    _ = State()  # Initialize default logging
 
     # Handle forced commands
     if init or init_defaults:
@@ -163,32 +140,12 @@ def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, mi
             config_file=config_file.name if config_file else None,
         ))
 
-    if check:
-        ctx.exit(Validator.check(config_file=config_file.name if config_file else None))
-
-    if info:
-        InfoReporter.show()
-        ctx.exit(0)
-
-    if deps:
-        # Show dependencies
-        from docsforge.commands.get_deps import get_deps, get_projects_file
-        from docsforge.config.base import _open_config_file
-        p = get_projects_file(None)
-        with _open_config_file(config_file.name if config_file else None) as f:
-            deps_list = get_deps(config_file=f, projects_file=p)
-        for dep in deps_list:
-            print(dep)
-        ctx.exit(0)
-
     # Smart routing: serve, migrate, or init based on project state
     # Only runs when no subcommand is invoked (e.g. plain 'docsforge')
     if ctx.invoked_subcommand is None:
         ctx.exit(AutoRouter.route(
             force_init=False,
             force_migrate=False,
-            force_check=False,
-            force_info=False,
             config_file=config_file.name if config_file else None,
             theme=theme,
             strict=strict,
@@ -202,31 +159,28 @@ def docsforge(ctx, verbose, quiet, color, init, init_defaults, name, migrate, mi
 @docsforge.command()
 @click.option('-c', '--clean/--dirty', is_flag=True, default=True, help='Clean build (default) or dirty (incremental)')
 @click.option('--strict', is_flag=True, help='Fail on warnings')
-@click.option('--deploy', is_flag=True, help='Deploy to GitHub Pages after build')
-@click.option('--check', 'check_first', is_flag=True, help='Validate config before building')
 @click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
 @click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
 @click.option('-t', '--theme', help='Theme to use')
-@click.option('-v', '--verbose', is_flag=True, help='Enable verbose output')
-@click.option('-q', '--quiet', is_flag=True, help='Silence warnings')
-@click.option('--color/--no-color', default=None, help='Force enable or disable color output')
-def build(clean, strict, deploy, check_first, site_dir, config_file, theme, verbose, quiet, color):
+def build(clean, strict, site_dir, config_file, theme):
     """Build the DocsForge documentation for production.
 
     Outputs to site/ by default (or --site-dir).
-    Use --deploy to publish to GitHub Pages after building.
     """
-    _setup_logging(verbose, quiet, color)
-
+    _ = State()  # Initialize default logging
     _enable_warnings()
 
     config_file_name = config_file.name if config_file else None
 
-    # Check first if requested
-    if check_first:
-        result = Validator.check(config_file=config_file_name)
-        if result != 0:
-            sys.exit(result)
+    # Auto-check config and dependencies before building
+    from docsforge.cli_core import Validator, _check_optional_deps
+
+    result = Validator.check(config_file=config_file_name)
+    if result != 0:
+        click.secho("\nConfiguration validation failed. Fix the issues above and try again.", fg='red')
+        sys.exit(result)
+
+    _check_optional_deps(config_file_name)
 
     # Build
     result = BuildEngine.build(
@@ -239,17 +193,6 @@ def build(clean, strict, deploy, check_first, site_dir, config_file, theme, verb
 
     if result != 0:
         sys.exit(result)
-
-    # Deploy if requested
-    if deploy:
-        from docsforge.commands import gh_deploy
-        from docsforge import config as config_module
-        try:
-            cfg = config_module.load_config(config_file=config_file_name)
-            gh_deploy.gh_deploy(cfg)
-        except Exception as e:
-            log.error(f"Deploy failed: {e}")
-            sys.exit(1)
 
     sys.exit(0)
 
@@ -267,20 +210,6 @@ def new():
     """Deprecated: Use 'docsforge --init'."""
     log.warning("'docsforge new' is deprecated. Use 'docsforge --init' instead.")
     sys.exit(ProjectManager.init(interactive=True))
-
-
-@docsforge.command(hidden=True, deprecated=True)
-def gh_deploy():
-    """Deprecated: Use 'docsforge build --deploy'."""
-    log.warning("'docsforge gh-deploy' is deprecated. Use 'docsforge build --deploy' instead.")
-    # Build then deploy
-    result = BuildEngine.build()
-    if result != 0:
-        sys.exit(result)
-    from docsforge.commands import gh_deploy as gh_deploy_cmd
-    from docsforge import config as config_module
-    cfg = config_module.load_config()
-    gh_deploy_cmd.gh_deploy(cfg)
 
 
 if __name__ == '__main__':

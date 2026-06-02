@@ -81,75 +81,8 @@ class InfoPlugin(BasePlugin[InfoConfig]):
     # The author must attach this archive to the bug report.
     @event_priority(100)
     def on_config(self, config):
-        if not self.config.enabled:
-            return
-
-        # By default, the plugin is disabled when the documentation is served,
-        # but not when it is built. This should nicely align with the expected
-        # user experience when creating reproductions.
-        if not self.config.enabled_on_serve and self.is_serve:
-            return
-
-        # Resolve latest version
-        url = "https://github.com/QQSHI13/docsforge/releases/latest"
-        res = requests.get(url, allow_redirects = False)
-
-        # Check if we're running the latest version
-        _, current = res.headers.get("location").rsplit("/", 1)
-        present = version("docsforge")
-        if not present.startswith(current):
-            log.error("Please upgrade to the latest version.")
-            self._help_on_versions_and_exit(present, current)
-
-        # Exit if archive creation is disabled
-        if not self.config.archive:
-            sys.exit(1)
-
-        # Print message that we're creating a bug report
-        log.info("Started archive creation for bug report")
-
-        # Check that there are no overrides in place - we need to use a little
-        # hack to detect whether the custom_dir setting was used without parsing
-        # mkdocs.yml again - we check at which position the directory provided
-        # by the theme resides, and if it's not the first one, abort.
-        if config.theme.custom_dir:
-            log.error("Please remove 'custom_dir' setting.")
-            self._help_on_customizations_and_exit()
-
-        # Check that there are no hooks in place - hooks can alter the behavior
-        # of MkDocs in unpredictable ways, which is why they must be considered
-        # being customizations. Thus, we can't offer support for debugging and
-        # must abort here.
-        if config.hooks:
-            log.error("Please remove 'hooks' setting.")
-            self._help_on_customizations_and_exit()
-
-        # Assure all paths that will be validated are absolute. Convert possible
-        # relative config_file_path to absolute. Its absolute directory path is
-        # being later used to resolve other paths.
-        config.config_file_path = _convert_to_abs(config.config_file_path)
-        config_file_parent = os.path.dirname(config.config_file_path)
-
-        # Convert relative custom_dir path to absolute. The Theme.custom_dir
-        # property cannot be set, therefore a helper variable is used.
-        if config.theme.custom_dir:
-            abs_custom_dir = _convert_to_abs(
-                config.theme.custom_dir,
-                abs_prefix = config_file_parent
-            )
-        else:
-            abs_custom_dir = ""
-
-        # Extract the absolute path to projects plugin's directory to explicitly
-        # support path validation and dynamic exclusion for the plugin
-        projects_plugin = config.plugins.get("docsforge/themes/material/projects")
-        if projects_plugin:
-            abs_projects_dir = _convert_to_abs(
-                projects_plugin.config.projects_dir,
-                abs_prefix = config_file_parent
-            )
-        else:
-            abs_projects_dir = ""
+        """Skip archive creation and version check - just enable info features."""
+        return
 
         # MkDocs removes the INHERIT configuration key during load, and doesn't
         # expose the information in any way, as the parent configuration is
