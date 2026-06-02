@@ -2,6 +2,7 @@
 
 Usage:
     docsforge              # Start dev server with live reload, watching all dirs
+    docsforge --init      # Create a new project
     docsforge build        # Production build
 """
 
@@ -9,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import sys
 import textwrap
@@ -29,6 +31,13 @@ if sys.platform.startswith("win"):
         colorama.init()
 
 log = logging.getLogger(__name__)
+
+
+def _slugify(name: str) -> str:
+    """Convert site name to directory slug."""
+    slug = re.sub(r'[^\w\s-]', '', name.lower())
+    slug = re.sub(r'[\s_]+', '-', slug)
+    return slug.strip('-') or 'my-docs'
 
 
 class ColorFormatter(logging.Formatter):
@@ -102,14 +111,16 @@ def _set_log_level(level: int):
     context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
 )
 @click.version_option(__version__, '-V', '--version', prog_name='docsforge')
+@click.option('--init', is_flag=True, help='Create a new project (interactive wizard)')
+@click.option('--init-defaults', is_flag=True, hidden=True, help='Non-interactive init with defaults')
+@click.option('--name', default='My Documentation', help='Site name for --init')
+@click.option('--dir', default=None, help='Directory for --init (defaults to site name slug)')
 @click.option('--migrate', is_flag=True, help='Migrate from legacy config (mkdocs/properdocs)')
 @click.option('--migrate-dry-run', is_flag=True, hidden=True, help='Preview migration')
 @click.option('--migrate-force', is_flag=True, hidden=True, help='Force overwrite')
-@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
-@click.option('-t', '--theme', help='Theme to use')
 @click.option('--strict', is_flag=True, help='Fail on warnings')
 @click.pass_context
-def docsforge(ctx, migrate, migrate_dry_run, migrate_force, config_file, theme, strict):
+def docsforge(ctx, init, init_defaults, name, dir, migrate, migrate_dry_run, migrate_force, strict):
     """DocsForge - Project documentation with Markdown.
 
     Smart default: run 'docsforge' alone to start the dev server
@@ -117,12 +128,20 @@ def docsforge(ctx, migrate, migrate_dry_run, migrate_force, config_file, theme, 
     """
     _ = State()  # Initialize default logging
 
+    if init:
+        from docsforge.cli_core import ProjectManager
+        project_dir = dir or _slugify(name)
+        ctx.exit(ProjectManager.init(
+            site_name=name,
+            project_directory=project_dir,
+            interactive=not init_defaults,
+        ))
+
     if migrate:
         from docsforge.cli_core import ProjectManager
         ctx.exit(ProjectManager.migrate(
             dry_run=migrate_dry_run,
             force=migrate_force,
-            config_file=config_file.name if config_file else None,
         ))
 
     # Smart routing: serve or migrate based on project state
@@ -131,8 +150,6 @@ def docsforge(ctx, migrate, migrate_dry_run, migrate_force, config_file, theme, 
         ctx.exit(AutoRouter.route(
             force_init=False,
             force_migrate=False,
-            config_file=config_file.name if config_file else None,
-            theme=theme,
             strict=strict,
         ))
 
@@ -141,9 +158,7 @@ def docsforge(ctx, migrate, migrate_dry_run, migrate_force, config_file, theme, 
 @click.option('-c', '--clean/--dirty', is_flag=True, default=True, help='Clean build (default) or dirty (incremental)')
 @click.option('--strict', is_flag=True, help='Fail on warnings')
 @click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
-@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
-@click.option('-t', '--theme', help='Theme to use')
-def build(clean, strict, site_dir, config_file, theme):
+def build(clean, strict, site_dir):
     """Build the DocsForge documentation for production.
 
     Outputs to site/ by default (or --site-dir).
@@ -151,25 +166,21 @@ def build(clean, strict, site_dir, config_file, theme):
     _ = State()  # Initialize default logging
     _enable_warnings()
 
-    config_file_name = config_file.name if config_file else None
-
     # Auto-check config and dependencies before building
     from docsforge.cli_core import Validator, _check_optional_deps
 
-    result = Validator.check(config_file=config_file_name)
+    result = Validator.check()
     if result != 0:
         click.secho("\nConfiguration validation failed. Fix the issues above and try again.", fg='red')
         sys.exit(result)
 
-    _check_optional_deps(config_file_name)
+    _check_optional_deps()
 
     # Build
     result = BuildEngine.build(
-        config_file=config_file_name,
         clean=clean,
         strict=strict,
         site_dir=site_dir,
-        theme=theme,
     )
 
     if result != 0:

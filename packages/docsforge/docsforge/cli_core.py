@@ -103,12 +103,12 @@ class BuildEngine:
         clean: bool = True,
         strict: bool = False,
         site_dir: str | None = None,
-        theme: str | None = None,
         progress: bool | None = None,
         **kwargs,
     ) -> int:
         """Build documentation.
         
+        If config_file is not specified, auto-detects docsforge.yml.
         Returns exit code: 0 = success, 1 = failure.
         """
         from docsforge.commands import build
@@ -117,7 +117,6 @@ class BuildEngine:
             cfg = config_module.load_config(
                 config_file=config_file,
                 strict=strict,
-                theme=theme,
                 site_dir=site_dir,
                 **kwargs,
             )
@@ -157,7 +156,60 @@ class DevServer:
 
 
 class ProjectManager:
-    """Project migration."""
+    """Project initialization and migration."""
+    
+    @staticmethod
+    def init(
+        project_directory: str = '.',
+        *,
+        site_name: str | None = None,
+        theme_color: str = 'teal',
+        enable_blog: bool = False,
+        enable_search: bool = True,
+        enable_tags: bool = False,
+        interactive: bool = True,
+    ) -> int:
+        """Initialize a new project.
+        
+        If interactive=True and stdin is a TTY, prompts for missing values.
+        If interactive=True but stdin is not a TTY, returns error.
+        If interactive=False, uses defaults.
+        
+        Returns exit code: 0 = success, 1 = failure.
+        """
+        from docsforge.commands import init
+        
+        # Handle interactive mode
+        if interactive and sys.stdin.isatty():
+            try:
+                site_name = input(f"Site name [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
+                theme_input = input(f"Theme color (teal/indigo/blue/green/red/orange/purple/pink) [{theme_color}]: ").strip() or theme_color
+                enable_search = input("Enable search? [Y/n]: ").strip().lower() in ('', 'y', 'yes')
+                enable_tags = input("Enable tags? [y/N]: ").strip().lower() in ('y', 'yes')
+                enable_blog = input("Enable blog? [y/N]: ").strip().lower() in ('y', 'yes')
+                theme_color = theme_input
+            except (EOFError, KeyboardInterrupt):
+                print()
+                log.error("Init cancelled.")
+                return 1
+        elif interactive and not sys.stdin.isatty():
+            log.error("Non-interactive environment. Use '--init-defaults' for non-interactive init.")
+            return 1
+        
+        try:
+            init.init(
+                project_directory=project_directory,
+                site_name=site_name or 'My Documentation',
+                site_url=None,
+                theme_color=theme_color,
+                enable_blog=enable_blog,
+                enable_search=enable_search,
+                enable_tags=enable_tags,
+            )
+            return 0
+        except Exception as e:
+            log.error(f"Init failed: {e}")
+            return 1
     
     @staticmethod
     def migrate(
@@ -294,7 +346,7 @@ class AutoRouter:
         # Smart routing based on environment
         if not env['config_found']:
             # No config found
-            log.error("No docsforge.yml found. Create a docsforge.yml configuration file.")
+            log.error("No docsforge.yml found. Create a docsforge.yml configuration file or run 'docsforge --init'.")
             return 1
         
         if env['is_legacy']:
@@ -328,14 +380,12 @@ class AutoRouter:
                 return 1
         
         # Normal docsforge.yml found -> serve with auto-check
-        from docsforge.cli_core import Validator, _check_optional_deps
-        
-        result = Validator.check(config_file=str(env['config_path']))
+        result = Validator.check()
         if result != 0:
             log.error("Configuration validation failed. Fix issues and try again.")
             return result
         
-        _check_optional_deps(str(env['config_path']))
+        _check_optional_deps()
         
         # Always serve with live reload, watch theme, open browser
         return DevServer.serve(config_file=str(env['config_path']), **kwargs)
