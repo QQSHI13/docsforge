@@ -105,6 +105,7 @@ def _set_log_level(level: int):
 @click.option('--init', is_flag=True, help='Create a new project (interactive wizard)')
 @click.option('--init-defaults', is_flag=True, hidden=True, help='Non-interactive project setup')
 @click.option('--name', help='Site name for --init', default=None)
+@click.option('--dir', help='Directory for --init (defaults to site name slug)', default=None)
 @click.option('--migrate', is_flag=True, help='Migrate from legacy config (mkdocs/properdocs)')
 @click.option('--migrate-dry-run', is_flag=True, hidden=True, help='Preview migration')
 @click.option('--migrate-force', is_flag=True, hidden=True, help='Force overwrite')
@@ -116,7 +117,7 @@ def _set_log_level(level: int):
 @click.option('--watch-theme', is_flag=True, help='Watch theme files for changes')
 @click.option('--open', 'open_browser', is_flag=True, help='Open browser after starting server')
 @click.pass_context
-def docsforge(ctx, init, init_defaults, name, migrate, migrate_dry_run,
+def docsforge(ctx, init, init_defaults, name, dir, migrate, migrate_dry_run,
               migrate_force, config_file, theme, strict, no_livereload,
               watch, watch_theme, open_browser):
     """DocsForge - Project documentation with Markdown.
@@ -129,6 +130,7 @@ def docsforge(ctx, init, init_defaults, name, migrate, migrate_dry_run,
     # Handle forced commands
     if init or init_defaults:
         ctx.exit(ProjectManager.init(
+            project_directory=dir,
             interactive=not init_defaults,
             site_name=name,
         ))

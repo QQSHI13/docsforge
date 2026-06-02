@@ -166,7 +166,7 @@ class ProjectManager:
     
     @staticmethod
     def init(
-        project_directory: str = '.',
+        project_directory: str | None = None,
         *,
         site_name: str | None = None,
         site_url: str | None = None,
@@ -178,6 +178,7 @@ class ProjectManager:
     ) -> int:
         """Initialize a new project.
         
+        If project_directory is not specified, creates a directory from the site name.
         If interactive=True and stdin is a TTY, prompts for missing values.
         If interactive=True but stdin is not a TTY, returns an error.
         If interactive=False, uses defaults or provided values.
@@ -185,6 +186,7 @@ class ProjectManager:
         Returns exit code.
         """
         from docsforge.commands import init
+        import re
         
         if interactive and site_name is None:
             if not sys.stdin.isatty():
@@ -193,12 +195,22 @@ class ProjectManager:
                 return 1
             try:
                 site_name = input('Site name: ').strip()
-            except EOFError:
+            except (EOFError, KeyboardInterrupt):
+                print()
                 log.error("EOF reached. Use non-interactive mode.")
                 return 1
         
         if not site_name:
             site_name = 'My Documentation'
+        
+        # If no directory specified, create one from the site name
+        if project_directory is None:
+            # Convert site name to slug: "My Docs" -> "my-docs"
+            slug = re.sub(r'[^\w\s-]', '', site_name.lower())
+            slug = re.sub(r'[-\s]+', '-', slug).strip('-')
+            if not slug:
+                slug = 'docsforge-project'
+            project_directory = slug
         
         try:
             init.init(
