@@ -138,14 +138,9 @@ class DevServer:
     @staticmethod
     def serve(
         config_file: str | BinaryIO | None = None,
-        *,
-        livereload: bool = True,
-        open_browser: bool = False,
-        watch_theme: bool = False,
-        watch: list[str] | None = None,
         **kwargs,
     ) -> None:
-        """Start the development server.
+        """Start the development server with live reload, watch all dirs, open browser.
         
         This function blocks until the server is interrupted.
         """
@@ -153,79 +148,16 @@ class DevServer:
         
         serve.serve(
             config_file=config_file,
-            livereload=livereload,
-            open_in_browser=open_browser,
-            watch_theme=watch_theme,
-            watch=watch or [],
+            livereload=True,
+            open_in_browser=True,
+            watch_theme=True,
+            watch=[],
             **kwargs,
         )
 
 
 class ProjectManager:
-    """Project initialization and migration."""
-    
-    @staticmethod
-    def init(
-        project_directory: str | None = None,
-        *,
-        site_name: str | None = None,
-        site_url: str | None = None,
-        theme_color: str = 'teal',
-        enable_blog: bool = False,
-        enable_search: bool = True,
-        enable_tags: bool = False,
-        interactive: bool = True,
-    ) -> int:
-        """Initialize a new project.
-        
-        If project_directory is not specified, creates a directory from the site name.
-        If interactive=True and stdin is a TTY, prompts for missing values.
-        If interactive=True but stdin is not a TTY, returns an error.
-        If interactive=False, uses defaults or provided values.
-        
-        Returns exit code.
-        """
-        from docsforge.commands import init
-        import re
-        
-        if interactive and site_name is None:
-            if not sys.stdin.isatty():
-                log.error("Cannot run interactive init in non-TTY environment.")
-                log.error("Use: docsforge --init --init-defaults --name='My Site'")
-                return 1
-            try:
-                site_name = input('Site name: ').strip()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                log.error("EOF reached. Use non-interactive mode.")
-                return 1
-        
-        if not site_name:
-            site_name = 'My Documentation'
-        
-        # If no directory specified, create one from the site name
-        if project_directory is None:
-            # Convert site name to slug: "My Docs" -> "my-docs"
-            slug = re.sub(r'[^\w\s-]', '', site_name.lower())
-            slug = re.sub(r'[-\s]+', '-', slug).strip('-')
-            if not slug:
-                slug = 'docsforge-project'
-            project_directory = slug
-        
-        try:
-            init.init(
-                project_directory=project_directory,
-                site_name=site_name,
-                site_url=site_url,
-                theme_color=theme_color,
-                enable_blog=enable_blog,
-                enable_search=enable_search,
-                enable_tags=enable_tags,
-            )
-            return 0
-        except Exception as e:
-            log.error(f"Init failed: {e}")
-            return 1
+    """Project migration."""
     
     @staticmethod
     def migrate(
@@ -264,7 +196,7 @@ def _check_optional_deps(config_file=None):
     import yaml
     from docsforge.config.base import _open_config_file
 
-    # Map: plugin name → (import to try, install command)
+    # Map: plugin name -> (import to try, install command)
     _OPTIONAL_PLUGINS = {
         'material/social': [
             ('PIL', 'pip install docsforge[imaging]'),
@@ -341,53 +273,35 @@ class AutoRouter:
     @staticmethod
     def route(
         *,
-        force_init: bool = False,
         force_migrate: bool = False,
         **kwargs,
     ) -> int:
         """Smart routing - decides what to do based on project state.
         
         Priority:
-        1. If --init flag → run init
-        2. If --migrate flag → run migrate
-        3. If docsforge.yml exists → serve (with auto-check)
-        4. If legacy config exists → prompt to migrate, then serve
-        5. If no config exists → prompt to init
+        1. If legacy config exists -> prompt to migrate, then serve
+        2. If docsforge.yml exists -> serve (with auto-check)
+        3. If no config exists -> error
         
         Returns exit code.
         """
         env = detect_environment()
         
         # Handle forced flags first
-        if force_init:
-            return ProjectManager.init(**kwargs)
-        
         if force_migrate:
             return ProjectManager.migrate(**kwargs)
         
         # Smart routing based on environment
         if not env['config_found']:
             # No config found
-            if not sys.stdin.isatty():
-                log.error("No docsforge.yml found. Run 'docsforge --init' to create a project.")
-                return 1
-            
-            print("No documentation configuration found.")
-            try:
-                response = input("Create a new project? [Y/n]: ").strip().lower()
-                if response in ('', 'y', 'yes'):
-                    return ProjectManager.init(interactive=True)
-                else:
-                    return 0
-            except (EOFError, KeyboardInterrupt):
-                print()
-                log.error("Non-interactive environment. Use 'docsforge --init'.")
-                return 1
+            log.error("No docsforge.yml found. Create a docsforge.yml configuration file.")
+            return 1
         
         if env['is_legacy']:
             # Legacy config found
             print(f"\nDetected legacy config: {env['config_path'].name}")
             print("DocsForge is the maintained successor to MkDocs + Material.")
+            print("Run 'docsforge --migrate' to convert.\n")
             
             if not sys.stdin.isatty():
                 log.error("Legacy config detected. Run 'docsforge --migrate' to convert.")
@@ -398,39 +312,30 @@ class AutoRouter:
                 if response in ('', 'y', 'yes'):
                     result = ProjectManager.migrate(
                         config_file=str(env['config_path']),
+                        dry_run=False,
+                        force=False,
                     )
-                    if result == 0:
-                        # Validate migrated config before serving
-                        check_result = Validator.check(config_file='docsforge.yml')
-                        if check_result != 0:
-                            log.error("Migration succeeded but the new config is invalid.")
-                            return check_result
-                        _check_optional_deps('docsforge.yml')
-                        print("\nMigration complete. Starting development server...")
-                        DevServer.serve(config_file='docsforge.yml', **kwargs)
-                    return result
-                else:
-                    # Serve with legacy config - auto-check first
-                    result = Validator.check(config_file=str(env['config_path']))
                     if result != 0:
-                        log.error("Config validation failed. Fix the issues above or run 'docsforge --migrate'.")
                         return result
-                    _check_optional_deps(str(env['config_path']))
-                    kwargs.pop('config_file', None)
-                    DevServer.serve(config_file=str(env['config_path']), **kwargs)
-                    return 0
+                    # After migration, serve
+                    return DevServer.serve(config_file=str(Path('docsforge.yml')), **kwargs)
+                else:
+                    # Serve with legacy config anyway
+                    return DevServer.serve(config_file=str(env['config_path']), **kwargs)
             except (EOFError, KeyboardInterrupt):
                 print()
                 log.error("Non-interactive environment. Use 'docsforge --migrate'.")
                 return 1
         
-        # docsforge.yml exists → serve (with auto-check)
+        # Normal docsforge.yml found -> serve with auto-check
+        from docsforge.cli_core import Validator, _check_optional_deps
+        
         result = Validator.check(config_file=str(env['config_path']))
         if result != 0:
-            log.error("Config validation failed. Fix the issues above and try again.")
+            log.error("Configuration validation failed. Fix issues and try again.")
             return result
         
         _check_optional_deps(str(env['config_path']))
-        kwargs.pop('config_file', None)
-        DevServer.serve(config_file=str(env['config_path']), **kwargs)
-        return 0
+        
+        # Always serve with live reload, watch theme, open browser
+        return DevServer.serve(config_file=str(env['config_path']), **kwargs)

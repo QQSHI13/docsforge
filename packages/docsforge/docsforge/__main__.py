@@ -1,7 +1,7 @@
 """DocsForge CLI - thin front-end around cli_core.py.
 
 Usage:
-    docsforge              # Smart: serve, init, or migrate based on context
+    docsforge              # Start dev server with live reload, watching all dirs
     docsforge build        # Production build
 """
 
@@ -18,7 +18,7 @@ from typing import ClassVar
 import click
 
 from docsforge import __version__
-from docsforge.cli_core import AutoRouter, BuildEngine, ProjectManager
+from docsforge.cli_core import AutoRouter, BuildEngine
 
 if sys.platform.startswith("win"):
     try:
@@ -102,47 +102,30 @@ def _set_log_level(level: int):
     context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
 )
 @click.version_option(__version__, '-V', '--version', prog_name='docsforge')
-@click.option('--init', is_flag=True, help='Create a new project (interactive wizard)')
-@click.option('--init-defaults', is_flag=True, hidden=True, help='Non-interactive project setup')
-@click.option('--name', help='Site name for --init', default=None)
-@click.option('--dir', help='Directory for --init (defaults to site name slug)', default=None)
 @click.option('--migrate', is_flag=True, help='Migrate from legacy config (mkdocs/properdocs)')
 @click.option('--migrate-dry-run', is_flag=True, hidden=True, help='Preview migration')
 @click.option('--migrate-force', is_flag=True, hidden=True, help='Force overwrite')
 @click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
 @click.option('-t', '--theme', help='Theme to use')
 @click.option('--strict', is_flag=True, help='Fail on warnings')
-@click.option('--no-livereload', is_flag=True, help='Disable live reload (for serve)')
-@click.option('--watch', type=click.Path(exists=True), multiple=True, default=[], help='Extra directories to watch')
-@click.option('--watch-theme', is_flag=True, help='Watch theme files for changes')
-@click.option('--open', 'open_browser', is_flag=True, help='Open browser after starting server')
 @click.pass_context
-def docsforge(ctx, init, init_defaults, name, dir, migrate, migrate_dry_run,
-              migrate_force, config_file, theme, strict, no_livereload,
-              watch, watch_theme, open_browser):
+def docsforge(ctx, migrate, migrate_dry_run, migrate_force, config_file, theme, strict):
     """DocsForge - Project documentation with Markdown.
 
-    Smart default: run 'docsforge' alone to start the dev server,
-    or create a new project if no config is found.
+    Smart default: run 'docsforge' alone to start the dev server
+    with live reload, watching all directories, and open browser.
     """
     _ = State()  # Initialize default logging
 
-    # Handle forced commands
-    if init or init_defaults:
-        ctx.exit(ProjectManager.init(
-            project_directory=dir,
-            interactive=not init_defaults,
-            site_name=name,
-        ))
-
     if migrate:
+        from docsforge.cli_core import ProjectManager
         ctx.exit(ProjectManager.migrate(
             dry_run=migrate_dry_run,
             force=migrate_force,
             config_file=config_file.name if config_file else None,
         ))
 
-    # Smart routing: serve, migrate, or init based on project state
+    # Smart routing: serve or migrate based on project state
     # Only runs when no subcommand is invoked (e.g. plain 'docsforge')
     if ctx.invoked_subcommand is None:
         ctx.exit(AutoRouter.route(
@@ -151,10 +134,6 @@ def docsforge(ctx, init, init_defaults, name, dir, migrate, migrate_dry_run,
             config_file=config_file.name if config_file else None,
             theme=theme,
             strict=strict,
-            livereload=not no_livereload,
-            watch_theme=watch_theme,
-            watch=list(watch),
-            open_browser=open_browser,
         ))
 
 
