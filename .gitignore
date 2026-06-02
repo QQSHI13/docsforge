@@ -20,3 +20,5 @@ package-lock.json
 venv/
 .env/
 .venv/docs/blog/index.md
+.cache/
+docs/blog/index.md

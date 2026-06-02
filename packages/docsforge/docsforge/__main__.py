@@ -18,7 +18,7 @@ from typing import ClassVar
 import click
 
 from docsforge import __version__
-from docsforge.cli_core import AutoRouter, BuildEngine, DevServer, ProjectManager
+from docsforge.cli_core import AutoRouter, BuildEngine, ProjectManager
 
 if sys.platform.startswith("win"):
     try:
@@ -195,21 +195,6 @@ def build(clean, strict, site_dir, config_file, theme):
         sys.exit(result)
 
     sys.exit(0)
-
-
-# Legacy commands (hidden, for backwards compatibility)
-@docsforge.command(hidden=True, deprecated=True)
-def serve():
-    """Deprecated: Use 'docsforge' without arguments."""
-    log.warning("'docsforge serve' is deprecated. Use 'docsforge' instead.")
-    sys.exit(AutoRouter.route())
-
-
-@docsforge.command(hidden=True, deprecated=True)
-def new():
-    """Deprecated: Use 'docsforge --init'."""
-    log.warning("'docsforge new' is deprecated. Use 'docsforge --init' instead.")
-    sys.exit(ProjectManager.init(interactive=True))
 
 
 if __name__ == '__main__':

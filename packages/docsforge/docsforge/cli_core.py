@@ -367,7 +367,8 @@ class AutoRouter:
                     return ProjectManager.init(interactive=True)
                 else:
                     return 0
-            except EOFError:
+            except (EOFError, KeyboardInterrupt):
+                print()
                 log.error("Non-interactive environment. Use 'docsforge --init'.")
                 return 1
         
@@ -406,7 +407,8 @@ class AutoRouter:
                     kwargs.pop('config_file', None)
                     DevServer.serve(config_file=str(env['config_path']), **kwargs)
                     return 0
-            except EOFError:
+            except (EOFError, KeyboardInterrupt):
+                print()
                 log.error("Non-interactive environment. Use 'docsforge --migrate'.")
                 return 1
         
