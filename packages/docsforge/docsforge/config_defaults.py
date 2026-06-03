@@ -6,7 +6,7 @@ from typing import IO
 
 from docsforge import config_base as base
 from docsforge import config_options as c
-from docsforge.extensions.emoji import twemoji, to_svg
+from docsforge.emoji import twemoji, to_svg
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.yaml_utils import get_yaml_loader, yaml_load
 
