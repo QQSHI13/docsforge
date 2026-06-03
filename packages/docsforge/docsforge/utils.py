@@ -110,8 +110,8 @@ def get_theme_dir(name):
     """Return the path to the named theme directory."""
     from importlib.resources import files
     if name == 'material':
-        return files('docsforge') / 'material' / 'templates'
-    return files(f'docsforge.{name}') / 'templates'
+        return files('docsforge') / 'templates'
+    return files('docsforge') / 'templates'
 
 
 def is_markdown_file(path: str) -> bool:

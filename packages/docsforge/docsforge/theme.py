@@ -59,10 +59,15 @@ class Theme(MutableMapping[str, Any]):
         _vars: dict[str, Any] = {'name': name, 'locale': 'en'}
         self.__vars = _vars
 
-        # DocsForge provided static templates are always included
+        # DocsForge provided static templates
         package_dir = os.path.abspath(os.path.dirname(__file__))
         docsforge_templates = os.path.join(package_dir, 'templates')
-        self.static_templates = set(os.listdir(docsforge_templates))
+        # Only include known static templates, not layout templates
+        self.static_templates = set()
+        for name in ('404.html', 'sitemap.xml'):
+            path = os.path.join(docsforge_templates, name)
+            if os.path.exists(path):
+                self.static_templates.add(name)
 
         # Build self.dirs from various sources in order of precedence
         self.dirs = []
@@ -73,8 +78,10 @@ class Theme(MutableMapping[str, Any]):
         if name:
             self._load_theme_config(name)
 
-        # Include templates provided directly by ProperDocs (outside any theme)
-        self.dirs.append(docsforge_templates)
+        # Include templates provided directly by DocsForge (outside any theme)
+        # Skip if already included as the theme directory (e.g., when theme is material)
+        if docsforge_templates not in self.dirs:
+            self.dirs.append(docsforge_templates)
 
         # Handle remaining user configs. Override theme configs (if set)
         self.static_templates.update(static_templates)
