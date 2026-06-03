@@ -4,5 +4,5 @@ DocsForge combines the DocsForge build engine with the Material for MkDocs
 theme and plugins into a single, cohesive package.
 """
 
-__version__ = "10.6.8"
+__version__ = "10.6.9"
 __prog_name__ = "docsforge"

@@ -191,18 +191,6 @@ def serve():
 
 
 @docsforge.command()
-@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
-def check(config_file):
-    """Validate configuration without building."""
-    _ = State()
-    
-    from docsforge.commands import check as check_cmd
-    config_file_name = config_file.name if config_file else None
-    result = check_cmd.check(config_file=config_file_name)
-    sys.exit(result)
-
-
-@docsforge.command()
 @click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
 @click.option('-p', '--platform', type=click.Choice(['github_pages', 'netlify', 'vercel', 'cloudflare']), help='Hosting platform (auto-detect if not specified)')
 @click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')

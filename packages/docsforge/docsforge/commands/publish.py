@@ -59,7 +59,8 @@ def publish(config_file=None, site_dir=None, force_platform=None) -> int:
     except Exception as e:
         log.error(f"Failed to load config: {e}")
         print()
-        print("  Run 'docsforge check' to diagnose configuration issues.")
+        print("  Fix the configuration issues above and try again.")
+        print("  See docs: https://qqshi13.github.io/docsforge-docs/")
         print()
         return 1
     
