@@ -1034,7 +1034,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # still needs to be adopted by MkDocs, and was introduced by the
         # git-revision-date-localized-plugin - see https://bit.ly/3ZUmdBx
         if temp:
-            file.generated_by = "docsforge/themes/material/blog"
+            file.generated_by = "material/blog"
 
         # Return file
         return file

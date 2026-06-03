@@ -73,7 +73,7 @@ def _load_twemoji_index(paths):
 
     # Compute path to theme root and traverse all icon directories
     root = os.path.dirname(getfile(docsforge))
-    root = os.path.join(root, "themes", "material", "templates", ".icons")
+    root = os.path.join(root, "material", "templates", ".icons")
 
     for path in [*paths, root]:
         base = os.path.normpath(path)

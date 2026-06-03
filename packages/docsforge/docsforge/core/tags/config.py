@@ -72,7 +72,7 @@ class TagsConfig(Config):
     listings_sort_reverse = Type(bool, default = False)
     listings_tags_sort_by = Type(Callable, default = tag_name)
     listings_tags_sort_reverse = Type(bool, default = False)
-    listings_directive = Type(str, default = "docsforge/themes/material/tags")
+    listings_directive = Type(str, default = "material/tags")
     listings_layout = Type(str, default = "default")
     listings_toc = Type(bool, default = True)
 

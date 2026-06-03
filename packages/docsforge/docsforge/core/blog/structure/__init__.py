@@ -106,7 +106,7 @@ class Post(Page):
             # way to allow posts to receive metadata from meta files, because
             # posts must be loaded prior to constructing the navigation in
             # `on_files` but the meta plugin first runs in `on_page_markdown`.
-            plugin: MetaPlugin = config.plugins.get("docsforge/themes/material/meta")
+            plugin: MetaPlugin = config.plugins.get("material/meta")
             if plugin:
                 plugin.on_page_markdown(
                     self.markdown, page = self, config = config, files = None

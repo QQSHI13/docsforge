@@ -76,7 +76,7 @@ docsforge = "docsforge.__main__:cli"
 "material/minify" = "docsforge.core.minify.plugin:MinifyPlugin"
 
 [project.entry-points."docsforge.themes"]
-material = "docsforge.themes.material.templates"
+material = "docsforge.material.templates"
 
 [tool.hatch.version]
 path = "docsforge/__init__.py"
@@ -87,4 +87,4 @@ include = ["/docsforge", "/README.md", "/LICENSE"]
 [tool.hatch.build.targets.wheel]
 include = ["/docsforge"]
 # Include .icons/ even if historically gitignored
-artifacts = ["/docsforge/themes/material/templates/.icons/**"]
+artifacts = ["/docsforge/material/templates/.icons/**"]

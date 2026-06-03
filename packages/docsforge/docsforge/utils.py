@@ -109,7 +109,18 @@ def get_theme_names() -> list[str]:
 def get_theme_dir(name):
     """Return the path to the named theme directory."""
     from importlib.resources import files
-    return files('docsforge.themes') / name
+    if name == 'material':
+        return files('docsforge') / 'material' / 'templates'
+    return files(f'docsforge.{name}') / 'templates'
+
+
+def is_markdown_file(path: str) -> bool:
+    """
+    Return True if the given file path is a Markdown file.
+
+    https://superuser.com/questions/249436/file-extension-for-markdown-files
+    """
+    return path.endswith(markdown_extensions)
 
 
 def normalize_url(path, page=None, base=''):
@@ -117,8 +128,52 @@ def normalize_url(path, page=None, base=''):
     if path.startswith(('http://', 'https://', 'mailto:', 'tel:', 'data:')):
         return path
     if page is not None:
-        return posixpath.relpath(path, base)
+        return _get_relative_url(path, base)
     return path
+
+
+def _norm_parts(path):
+    """Normalize path parts for get_relative_url."""
+    if not path or path == '.':
+        return []
+    if path.startswith('/'):
+        path = path[1:]
+    return [part for part in path.split('/') if part and part != '.']
+
+
+def _get_relative_url(url: str, other: str) -> str:
+    """
+    Return given url relative to other.
+
+    Both are operated as slash-separated paths, similarly to the 'path' part of a URL.
+    The last component of `other` is skipped if it contains a dot (considered a file).
+    Actual URLs (with schemas etc.) aren't supported. The leading slash is ignored.
+    Paths are normalized ('..' works as parent directory), but going higher than the
+    root has no effect ('foo/../../bar' ends up just as 'bar').
+    """
+    # Remove filename from other url if it has one.
+    dirname, _, basename = other.rpartition('/')
+    if '.' in basename:
+        other = dirname
+
+    other_parts = _norm_parts(other)
+    dest_parts = _norm_parts(url)
+    common = 0
+    for a, b in zip(other_parts, dest_parts, strict=False):
+        if a != b:
+            break
+        common += 1
+
+    if common == len(other_parts) == len(dest_parts):
+        return '.'
+
+    rel_parts = ['..'] * (len(other_parts) - common) + dest_parts[common:]
+    if not rel_parts:
+        return '.'
+    result = '/'.join(rel_parts)
+    if url.endswith('/'):
+        result += '/'
+    return result
 
 
 def get_relative_url(current, target):
@@ -127,11 +182,7 @@ def get_relative_url(current, target):
         return target
     if current == target:
         return '.'
-    current = current.rsplit('/', 1)[0]
-    rel = posixpath.relpath(target, current)
-    if rel.startswith('.'):
-        return rel
-    return './' + rel
+    return _get_relative_url(target, current)
 
 
 def is_error_template(template_name):
