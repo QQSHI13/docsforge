@@ -145,9 +145,8 @@ def build(strict):
 
     _check_optional_deps()
 
-    # Build (always clean)
+    # Build (dirty/incremental by default — fast, but correct)
     result = BuildEngine.build(
-        clean=True,
         strict=strict,
     )
 

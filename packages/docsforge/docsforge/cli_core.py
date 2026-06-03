@@ -100,7 +100,7 @@ class BuildEngine:
     ) -> int:
         """Build documentation.
         
-        Always performs a clean build.
+        Uses dirty/incremental build by default for speed.
         If config_file is not specified, auto-detects docsforge.yml.
         Returns exit code: 0 = success, 1 = failure.
         """
@@ -112,9 +112,9 @@ class BuildEngine:
                 strict=strict,
                 **kwargs,
             )
-            cfg.plugins.on_startup(command='build', dirty=False)
+            cfg.plugins.on_startup(command='build', dirty=True)
             try:
-                build.build(cfg, dirty=False, progress=progress)
+                build.build(cfg, dirty=True, progress=progress)
             finally:
                 cfg.plugins.on_shutdown()
             return 0
