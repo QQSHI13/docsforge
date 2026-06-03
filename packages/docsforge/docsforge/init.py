@@ -25,6 +25,8 @@ def _generate_config(
     site_url: str | None,
     theme_color: str,
     privacy: bool,
+    author_name: str | None = None,
+    repo_url: str | None = None,
 ) -> str:
     """Generate docsforge.yml content with all core features enabled."""
     
@@ -36,6 +38,14 @@ def _generate_config(
     
     if site_url:
         lines.append(f'site_url: {site_url}')
+    
+    if repo_url:
+        lines.extend([
+            '',
+            '# Repository info for social cards and edit links',
+            f'repo_url: {repo_url}',
+            'edit_uri: edit/main/docs/',
+        ])
     
     lines.extend([
         '',
@@ -67,6 +77,13 @@ def _generate_config(
             '# Privacy: external assets are fetched and inlined locally',
             '# This is the only optional core feature.',
             'privacy: true',
+            '',
+        ])
+    
+    if author_name:
+        lines.extend([
+            'extra:',
+            f'  author: {author_name}',
             '',
         ])
     
@@ -240,14 +257,15 @@ document.addEventListener('keydown', function(e) {
 '''
 
 
-def _generate_authors_yml() -> str:
+def _generate_authors_yml(author_name: str | None = None) -> str:
     """Generate blog authors configuration."""
-    return '''# Blog authors configuration
+    name = author_name or "Author Name"
+    return f'''# Blog authors configuration
 # Add your authors here, then reference them in blog posts
 
 authors:
   default:
-    name: Author Name
+    name: {name}
     description: Brief bio
     avatar: https://github.com/username.png
 '''
@@ -365,10 +383,17 @@ nav:
 '''
 
 
-def _generate_index(site_name: str) -> str:
+def _generate_index(site_name: str, author_name: str | None = None, repo_url: str | None = None) -> str:
     """Generate index.md content."""
-    return f"""# Welcome to {site_name}
-
+    lines = [f"# Welcome to {site_name}"]
+    
+    if author_name:
+        lines.append(f"\nBy **{author_name}**")
+    
+    if repo_url:
+        lines.append(f'\n[:fontawesome-brands-github: Repository]({repo_url})')
+    
+    lines.append("""
 This documentation is built with [DocsForge](https://qqshi13.github.io/docsforge-docs/).
 
 ## Getting Started
@@ -400,7 +425,8 @@ DocsForge includes everything you need out of the box:
 - 🌐 **Social cards** for link previews
 - ⚡ **Minification** for production builds
 - 🖼️ **Image optimization** for faster loading
-"""
+""")
+    return "\n".join(lines)
 
 
 def _generate_blog_index() -> str:
@@ -432,6 +458,8 @@ def init(
     site_url: str | None,
     theme_color: str,
     privacy: bool,
+    author_name: str | None = None,
+    repo_url: str | None = None,
 ) -> None:
     """Create a new DocsForge project with interactive configuration.
     
@@ -462,6 +490,8 @@ def init(
             site_url=site_url,
             theme_color=theme_color,
             privacy=privacy,
+            author_name=author_name,
+            repo_url=repo_url,
         )
         config_path.write_text(config_content, encoding='utf-8')
     
@@ -470,7 +500,7 @@ def init(
         log.warning(f'{index_path} already exists. Skipping index creation.')
     else:
         log.info(f'Writing homepage: {index_path}')
-        index_path.write_text(_generate_index(site_name), encoding='utf-8')
+        index_path.write_text(_generate_index(site_name, author_name, repo_url), encoding='utf-8')
     
     # Write getting-started.md
     getting_started_path = docs_dir / 'getting-started.md'
@@ -500,7 +530,7 @@ def init(
     # Write blog authors config
     authors_path = posts_dir / '.authors.yml'
     if not authors_path.exists():
-        authors_path.write_text(_generate_authors_yml(), encoding='utf-8')
+        authors_path.write_text(_generate_authors_yml(author_name), encoding='utf-8')
     
     # Write stylesheets
     stylesheets_dir = docs_dir / 'stylesheets'

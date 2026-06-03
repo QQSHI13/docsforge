@@ -185,19 +185,37 @@ class ProjectManager:
         
         try:
             # Step 1: Site name
-            print("Step 1/5 — Site name")
+            print("Step 1/6 — Site name")
             site_name = input(f"  What should we call your docs? [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
             print()
             
-            # Step 2: Theme color
-            print("Step 2/5 — Theme color")
+            # Step 2: Author / Organization
+            print("Step 2/6 — Author / Organization")
+            author_name = input("  Who is the author or organization? [Optional]: ").strip()
+            print()
+            
+            # Step 3: Theme color
+            print("Step 3/6 — Theme color")
             print("  Available: teal, indigo, blue, green, red, orange, purple, pink")
             theme_input = input(f"  Pick a color [{theme_color}]: ").strip() or theme_color
             theme_color = theme_input
             print()
             
-            # Step 3: Privacy
-            print("Step 3/3 — Privacy mode")
+            # Step 4: GitHub repository
+            print("Step 4/6 — GitHub repository")
+            print("  Used for social cards and repository info. Format: https://github.com/user/repo")
+            repo_url = input("  GitHub repo URL [Optional]: ").strip()
+            print()
+            
+            # Step 5: Site URL (for social cards, RSS, etc.)
+            print("Step 5/6 — Site URL")
+            print("  Where will your docs be hosted? e.g. https://user.github.io/repo/")
+            site_url_input = input("  Site URL [Optional]: ").strip()
+            site_url = site_url_input if site_url_input else None
+            print()
+            
+            # Step 6: Privacy
+            print("Step 6/6 — Privacy mode")
             print("  Privacy mode fetches external assets and inlines them locally.")
             print("  This prevents tracking and ensures docs work offline.")
             privacy_input = input("  Enable privacy mode? [Y/n]: ").strip().lower()
@@ -217,9 +235,11 @@ class ProjectManager:
             init_module.init(
                 project_directory=project_directory,
                 site_name=site_name or 'My Documentation',
-                site_url=None,
+                site_url=site_url,
                 theme_color=theme_color,
                 privacy=privacy,
+                author_name=author_name or None,
+                repo_url=repo_url or None,
             )
             
             # Summary
