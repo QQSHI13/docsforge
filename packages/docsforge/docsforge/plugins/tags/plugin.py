@@ -37,7 +37,7 @@ import re
 
 from jinja2 import Environment
 from docsforge.utils.filter import FileFilter
-from docsforge.config.defaults import DocsForgeConfig
+from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.structure.pages import Page

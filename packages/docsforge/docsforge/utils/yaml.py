@@ -13,7 +13,7 @@ import yaml_env_tag  # type: ignore[import-untyped]
 from docsforge import exceptions
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
 
 log = logging.getLogger(__name__)
 

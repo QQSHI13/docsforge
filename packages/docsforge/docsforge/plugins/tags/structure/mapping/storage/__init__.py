@@ -38,7 +38,7 @@ from collections.abc import Iterable
 from docsforge.plugins.tags.config import TagsConfig
 from docsforge.plugins.tags.structure.mapping import Mapping
 from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.config.base import ValidationError
+from docsforge.config_base import ValidationError
 from docsforge.structure.nav import Link
 from docsforge.structure.pages import Page
 

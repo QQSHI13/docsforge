@@ -23,7 +23,7 @@ import docsforge.plugins
 import pathspec.gitignore
 
 from docsforge import plugins, utils
-from docsforge.config.base import (
+from docsforge.config_base import (
     BaseConfigOption,
     Config,
     LegacyConfig,

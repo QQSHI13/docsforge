@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-from docsforge import config as config_module
+import docsforge.config_base as config_module
 
 log = logging.getLogger(__name__)
 

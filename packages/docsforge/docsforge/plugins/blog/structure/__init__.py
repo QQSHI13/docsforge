@@ -39,7 +39,7 @@ from copy import copy
 from markdown import Markdown
 from docsforge.plugins.blog.author import Author
 from docsforge.plugins.meta.plugin import MetaPlugin
-from docsforge.config.defaults import DocsForgeConfig
+from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.structure.files import File, Files
 from docsforge.structure.nav import Link, Section

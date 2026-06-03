@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     import jinja2.environment
 
 from docsforge import utils
-from docsforge.config.base import (
+from docsforge.config_base import (
     Config,
     ConfigErrors,
     ConfigWarnings,
@@ -25,7 +25,7 @@ from docsforge.config.base import (
 )
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
     from docsforge.livereload import LiveReloadServer
     from docsforge.structure.files import Files
     from docsforge.structure.nav import Navigation
@@ -81,7 +81,7 @@ class BasePlugin(Generic[SomeConfig]):
 
     def __init_subclass__(cls):
         # Accept both vendored properdocs Config and docsforge.config.base.Config
-        from docsforge.config.base import Config as DocsforgeConfig
+        from docsforge.config_base import Config as DocsforgeConfig
         if not issubclass(cls.config_class, Config) and not issubclass(cls.config_class, DocsforgeConfig):
             raise TypeError(
                 f"config_class {cls.config_class} must be a subclass of `docsforge.config.base.Config`"

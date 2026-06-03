@@ -44,8 +44,8 @@ from concurrent.futures import Future, wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from fnmatch import fnmatch
 from hashlib import sha1
-from docsforge.config.config_options import ExtraScriptValue
-from docsforge.config.defaults import DocsForgeConfig
+from docsforge.config_options import ExtraScriptValue
+from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.structure.files import File, Files

@@ -30,8 +30,8 @@
 # IN THE SOFTWARE.
 
 from collections.abc import Callable
-from docsforge.config.config_options import Choice, Deprecated, Optional, Type
-from docsforge.config.base import Config
+from docsforge.config_options import Choice, Deprecated, Optional, Type
+from docsforge.config_base import Config
 from pymdownx.slugs import slugify
 
 from . import view_name

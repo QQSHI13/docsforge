@@ -41,7 +41,7 @@ from copy import copy
 from datetime import datetime, timezone
 from jinja2 import pass_context
 from jinja2.runtime import Context
-from docsforge.config.defaults import DocsForgeConfig
+from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.structure import StructureItem

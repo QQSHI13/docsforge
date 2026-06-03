@@ -30,8 +30,8 @@
 # IN THE SOFTWARE.
 
 from datetime import date, datetime, time, timezone
-from docsforge.config.base import BaseConfigOption, Config, ValidationError
-from docsforge.config.config_options import ListOfItems, T
+from docsforge.config_base import BaseConfigOption, Config, ValidationError
+from docsforge.config_options import ListOfItems, T
 from docsforge.structure.files import Files
 from docsforge.structure.nav import (
     Navigation, _add_parent_links, _data_to_navigation

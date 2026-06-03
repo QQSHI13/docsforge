@@ -38,7 +38,7 @@ from backrefs import bre
 from html import escape
 from html.parser import HTMLParser
 from docsforge import utils
-from docsforge.config.config_options import SubConfig
+from docsforge.config_options import SubConfig
 from docsforge.plugins import BasePlugin
 
 from .config import SearchConfig, SearchFieldConfig

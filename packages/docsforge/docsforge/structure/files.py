@@ -21,7 +21,7 @@ from docsforge import utils
 if TYPE_CHECKING:
     import jinja2.environment
 
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
     from docsforge.structure.pages import Page
 
 

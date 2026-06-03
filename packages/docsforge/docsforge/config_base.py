@@ -14,7 +14,7 @@ from docsforge import exceptions, utils
 from docsforge.utils import weak_property
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
 
 
 log = logging.getLogger('docsforge.config')
@@ -361,7 +361,7 @@ def load_config(
 
     with _open_config_file(config_file) as fd:
         # Initialize the config with the default schema.
-        from docsforge.config.defaults import DocsForgeConfig
+        from docsforge.config_defaults import DocsForgeConfig
 
         if config_file_path is None:
             if sys.stdin and fd is not sys.stdin.buffer:

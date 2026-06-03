@@ -16,8 +16,8 @@ except ImportError:
 from docsforge.utils import normalize_url
 
 if TYPE_CHECKING:
-    from docsforge.config.config_options import ExtraScriptValue
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_options import ExtraScriptValue
+    from docsforge.config_defaults import DocsForgeConfig
     from docsforge.structure.files import File
     from docsforge.structure.nav import Navigation
     from docsforge.structure.pages import Page

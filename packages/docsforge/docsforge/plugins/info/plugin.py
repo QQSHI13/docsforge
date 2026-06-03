@@ -45,7 +45,7 @@ from colorama import Fore, Style
 from importlib.metadata import distributions, version
 from io import BytesIO
 from markdown.extensions.toc import slugify
-from docsforge.config.defaults import DocsForgeConfig
+from docsforge.config_defaults import DocsForgeConfig
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.utils.yaml import get_yaml_loader
 from zipfile import ZipFile, ZIP_DEFLATED

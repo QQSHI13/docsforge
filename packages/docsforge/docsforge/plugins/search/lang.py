@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 
-from docsforge.config import config_options as c
+from docsforge import config_options as c
 
 log = logging.getLogger(__name__)
 base_path = os.path.dirname(os.path.abspath(__file__))

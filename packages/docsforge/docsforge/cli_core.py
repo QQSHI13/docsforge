@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 from typing import BinaryIO
 
-from docsforge import config as config_module
-from docsforge.config.base import _open_config_file
+import docsforge.config_base as config_module
+from docsforge.config_base import _open_config_file
 
 log = logging.getLogger(__name__)
 
@@ -263,7 +263,7 @@ def _check_optional_deps(config_file=None):
     with the exact install command needed.
     """
     import yaml
-    from docsforge.config.base import _open_config_file
+    from docsforge.config_base import _open_config_file
 
     # Map: plugin name -> (import to try, install command)
     _OPTIONAL_PLUGINS = {

@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING, BinaryIO
 from urllib.parse import urlsplit
 
 from docsforge.build import build
-from docsforge.config import load_config
+from docsforge.config_base import load_config
 from docsforge.livereload import LiveReloadServer, _serve_url
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
 
 log = logging.getLogger(__name__)
 

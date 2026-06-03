@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from jinja2.ext import Extension, InternationalizationExtension
 
-from docsforge.config.base import ValidationError
+from docsforge.config_base import ValidationError
 
 if TYPE_CHECKING:
     import jinja2

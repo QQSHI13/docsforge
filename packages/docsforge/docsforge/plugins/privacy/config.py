@@ -31,8 +31,8 @@
 
 import os
 
-from docsforge.config.base import Config
-from docsforge.config.config_options import (
+from docsforge.config_base import Config
+from docsforge.config_options import (
   Choice, Deprecated, DictOfItems, ListOfItems, Type
 )
 

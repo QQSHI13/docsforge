@@ -10,7 +10,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import minify_html
 import csscompressor
 import jsmin
-from docsforge.config.defaults import DocsForgeConfig
+from docsforge.config_defaults import DocsForgeConfig
 from docsforge.plugins import BasePlugin
 from docsforge.structure.pages import Page
 from packaging import version

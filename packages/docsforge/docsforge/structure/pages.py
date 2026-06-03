@@ -23,7 +23,7 @@ from docsforge.utils.rendering import get_heading_text
 if TYPE_CHECKING:
     from xml.etree import ElementTree as etree
 
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
     from docsforge.structure.files import File, Files
     from docsforge.structure.toc import TableOfContents
 

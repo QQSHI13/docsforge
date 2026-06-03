@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover
     from yaml import SafeLoader  # type: ignore
 
 from docsforge import localization, utils
-from docsforge.config.base import ValidationError
+from docsforge.config_base import ValidationError
 from docsforge.utils import templates
 
 log = logging.getLogger("docsforge.theme")

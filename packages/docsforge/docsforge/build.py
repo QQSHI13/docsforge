@@ -27,7 +27,7 @@ from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileH
 
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
 
 
 log = logging.getLogger(__name__)

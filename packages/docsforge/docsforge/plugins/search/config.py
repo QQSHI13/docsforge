@@ -29,14 +29,14 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-from docsforge.config.config_options import (
+from docsforge.config_options import (
     Choice,
     Deprecated,
     Optional,
     ListOfItems,
     Type
 )
-from docsforge.config.base import Config
+from docsforge.config_base import Config
 from docsforge.plugins.search.lang import LangOption
 
 # -----------------------------------------------------------------------------

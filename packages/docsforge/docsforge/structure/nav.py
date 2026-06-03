@@ -12,7 +12,7 @@ from docsforge.structure.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.utils import nest_paths
 
 if TYPE_CHECKING:
-    from docsforge.config.defaults import DocsForgeConfig
+    from docsforge.config_defaults import DocsForgeConfig
     from docsforge.structure.files import Files
 
 

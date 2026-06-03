@@ -29,8 +29,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-from docsforge.config.base import Config
-from docsforge.config.config_options import DictOfItems, Optional, SubConfig, Type
+from docsforge.config_base import Config
+from docsforge.config_options import DictOfItems, Optional, SubConfig, Type
 
 # -----------------------------------------------------------------------------
 # Classes
