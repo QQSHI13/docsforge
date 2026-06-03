@@ -10,7 +10,7 @@ from os.path import isdir, isfile, join
 from typing import TYPE_CHECKING, BinaryIO
 from urllib.parse import urlsplit
 
-from docsforge.commands.build import build
+from docsforge.build import build
 from docsforge.config import load_config
 from docsforge.livereload import LiveReloadServer, _serve_url
 

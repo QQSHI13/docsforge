@@ -104,7 +104,7 @@ class BuildEngine:
         If config_file is not specified, auto-detects docsforge.yml.
         Returns exit code: 0 = success, 1 = failure.
         """
-        from docsforge.commands import build
+        from docsforge import build as build_module
         
         try:
             cfg = config_module.load_config(
@@ -114,7 +114,7 @@ class BuildEngine:
             )
             cfg.plugins.on_startup(command='build', dirty=True)
             try:
-                build.build(cfg, dirty=True, progress=progress)
+                build_module.build(cfg, dirty=True, progress=progress)
             finally:
                 cfg.plugins.on_shutdown()
             return 0
@@ -135,9 +135,9 @@ class DevServer:
         
         This function blocks until the server is interrupted.
         """
-        from docsforge.commands import serve
+        from docsforge import serve as serve_module
         
-        serve.serve(
+        serve_module.serve(
             config_file=config_file,
             livereload=True,
             open_in_browser=True,
@@ -167,7 +167,7 @@ class ProjectManager:
         
         Returns exit code: 0 = success, 1 = failure.
         """
-        from docsforge.commands import init
+        from docsforge import init as init_module
         
         if not sys.stdin.isatty():
             log.error("No docsforge.yml found. Run in an interactive terminal to create a project.")
@@ -225,7 +225,7 @@ class ProjectManager:
             project_directory = _slugify(site_name)
         
         try:
-            init.init(
+            init_module.init(
                 project_directory=project_directory,
                 site_name=site_name or 'My Documentation',
                 site_url=None,
@@ -332,8 +332,8 @@ class Validator:
         
         Returns exit code: 0 = valid, 1 = errors found.
         """
-        from docsforge.commands import check
-        return check.check(config_file=config_file)
+        from docsforge import check as check_module
+        return check_module.check(config_file=config_file)
 
 
 class AutoRouter:

@@ -23,6 +23,8 @@ from docsforge.utils import (
     templates,
     tikz,
 )
+from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
+
 
 if TYPE_CHECKING:
     from docsforge.config.defaults import DocsForgeConfig
@@ -259,8 +261,21 @@ def _build_page(
 
 
 def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = False, progress: bool | None = None) -> None:
-    """Perform a full site build."""
+    """Perform a full or incremental site build."""
     logger = logging.getLogger("docsforge")
+
+    # Initialize cache for dirty builds
+    cache = CacheManager()
+    hasher = FileHasher()
+    planner = BuildPlanner(cache, hasher)
+
+    # Check config hash for full rebuild decision
+    config_path = Path(config.config_file_path) if config.config_file_path else Path("docsforge.yml")
+    needs_full_rebuild = planner.should_full_rebuild(config_path)
+
+    if dirty and needs_full_rebuild:
+        log.info("Config changed, forcing full rebuild")
+        dirty = False
 
     # Add CountHandler for strict mode
     warning_counter = utils.CountHandler()
@@ -296,17 +311,20 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         if not dirty:
             log.info("Cleaning site directory")
             utils.clean_directory(config.site_dir)
-        else:  # pragma: no cover
-            # Warn user about problems that may occur with --dirty option
-            log.warning(
-                "A 'dirty' build is being performed, this will likely lead to inaccurate navigation and other"
-                " links within your site. This option is designed for site development purposes only."
-            )
+            cache.invalidate()
+        else:
+            # Remove orphaned output files
+            docs_dir = Path(config.docs_dir)
+            site_dir = Path(config.site_dir)
+            orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
+            for f in orphaned:
+                log.debug(f"Removing orphaned output: {f}")
+                f.unlink()
 
-        if not serve_url:  # pragma: no cover
+        if not serve_url:
             log.info(f"Building documentation to directory: {config.site_dir}")
-            if dirty and site_directory_contains_stale_files(config.site_dir):
-                log.info("The directory contains stale files. Use --clean to remove them.")
+            if dirty:
+                log.info("Using incremental build (dirty)")
 
         # Compile TikZ diagrams BEFORE scanning files so MkDocs discovers the SVGs.
         tikz.compile_tikz_files(config, output_to_docs=True)
@@ -336,6 +354,15 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                     excluded.append(urljoin(serve_url, file.url))
                 Page(None, file, config)
             assert file.page is not None
+
+            # Check if page needs rebuilding
+            if dirty:
+                source_path = Path(file.abs_src_path)
+                output_path = Path(file.abs_dest_path)
+                if not planner.should_rebuild(source_path, output_path):
+                    log.debug(f"Skipping unchanged page: {file.src_uri}")
+                    continue
+
             _populate_page(file.page, config, files, dirty)
         if excluded:
             log.info(
@@ -366,9 +393,23 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         doc_files = files.documentation_pages(inclusion=inclusion)
         for file in doc_files:
             assert file.page is not None
+
+            source_path = Path(file.abs_src_path)
+            output_path = Path(file.abs_dest_path)
+
+            # Check if page needs rebuilding
+            if dirty:
+                if not planner.should_rebuild(source_path, output_path):
+                    continue
+
             _build_page(
                 file.page, config, doc_files, nav, env, dirty, excluded=file.inclusion.is_excluded()
             )
+
+            # Update cache after successful build
+            if dirty:
+                deps = DependencyTracker.get_file_deps(source_path, file.page.content or "")
+                planner.update_cache(source_path, output_path, deps)
 
         log_level = config.validation.links.anchors
         for file in doc_files:
@@ -377,6 +418,10 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
         # Run `post_build` plugin events.
         config.plugins.on_post_build(config=config)
+
+        # Save cache state
+        config_hash = hasher.hash_file(config_path) if config_path.exists() else ""
+        planner.save(config_hash=config_hash)
 
         if counts := warning_counter.get_counts():
             msg = ', '.join(f'{v} {k.lower()}s' for k, v in counts)
