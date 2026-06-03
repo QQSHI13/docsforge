@@ -1,70 +1,709 @@
-# Copyright (c) 2016-2025 Martin Donath <martin.donath@squidfunk.com>
-# Copyright (c) 2026 QQ (Cyrus)
-#
-# This file is part of DocsForge.
-#
-# DocsForge is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# DocsForge is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with DocsForge.  If not, see <https://www.gnu.org/licenses/>.
-
-
-
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
+"""Blog plugin - post authoring, archives, categories, authors."""
 
 from __future__ import annotations
 
 import logging
 import os
 import posixpath
+import re
 import yaml
 
-from babel.dates import format_date, format_datetime
+from collections.abc import Callable
 from copy import copy
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
+from html.parser import HTMLParser
 from jinja2 import pass_context
 from jinja2.runtime import Context
-from docsforge.config_defaults import DocsForgeConfig
-from docsforge.exceptions import PluginError
-from docsforge.plugins import BasePlugin, event_priority
-from docsforge.structure import StructureItem
-from docsforge.files import File, Files, InclusionLevel
-from docsforge.nav import Link, Navigation, Section
-from docsforge.pages import Page
-from docsforge.toc import AnchorLink, TableOfContents
-from docsforge import copy_file, get_relative_url
+from markdown import Markdown
+from markdown.treeprocessors import Treeprocessor
+from math import ceil
 from paginate import Page as Pagination
+from pymdownx.slugs import slugify
+from re import Match
 from shutil import rmtree
+from typing import Dict
 from tempfile import mkdtemp
 from urllib.parse import urlparse
+from xml.etree.ElementTree import Element
 from yaml import SafeLoader
 
-from . import view_name
-from .author import Author, Authors
-from .config import BlogConfig
-from .readtime import readtime
-from .structure import (
-  Archive, Category, Profile,
-  Excerpt, Post, View,
-  Reference
-)
+from docsforge import copy_file, get_relative_url
+from docsforge.config_base import BaseConfigOption, Config, ValidationError
+from docsforge.config_defaults import DocsForgeConfig
+from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, Optional, SubConfig, T, Type
+from docsforge.core.meta import MetaPlugin
+from docsforge.core.search import void
+from docsforge.exceptions import PluginError
+from docsforge.files import File, Files, InclusionLevel
+from docsforge.meta import YAML_RE
+from docsforge.nav import Link, Navigation, Section, _add_parent_links, _data_to_navigation
+from docsforge.pages import Page, _RelativePathTreeprocessor
+from docsforge.plugins import BasePlugin, event_priority
+from docsforge.structure import StructureItem
+from docsforge.toc import AnchorLink, TableOfContents, get_toc
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+# Date dictionary
+class DateDict(Dict[str, datetime]):
+
+    # Initialize date dictionary
+    def __init__(self, data: dict):
+        super().__init__(data)
+
+        # Ensure presence of `date.created`
+        self.created: datetime = data["created"]
+
+    # Allow attribute access
+    def __getattr__(self, name: str):
+        if name in self:
+            return self[name]
+
+# -----------------------------------------------------------------------------
+
+# Post date option
+class PostDate(BaseConfigOption[DateDict]):
+
+    # Initialize post dates
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    # Normalize the supported types for post dates to datetime
+    def pre_validation(self, config: Config, key_name: str):
+
+        # If the date points to a scalar value, convert it to a dictionary, as
+        # we want to allow the author to specify custom and arbitrary dates for
+        # posts. Currently, only the `created` date is mandatory, because it's
+        # needed to sort posts for views.
+        if not isinstance(config[key_name], dict):
+            config[key_name] = { "created": config[key_name] }
+
+        # Convert all date values to datetime
+        for key, value in config[key_name].items():
+
+            # Handle datetime - since datetime is a subclass of date, we need
+            # to check it first, or we lose the time - see https://t.ly/-KG9N
+            if isinstance(value, datetime):
+                # Set timezone to UTC if not set
+                if value.tzinfo is None:
+                    config[key_name][key] = value.replace(tzinfo=timezone.utc)
+                continue;
+
+
+            # Handle date - we set 00:00:00 as the default time, if the author
+            # only supplied a date, and convert it to datetime in UTC
+            if isinstance(value, date):
+                config[key_name][key] = datetime.combine(value, time()).replace(tzinfo=timezone.utc)
+
+        # Initialize date dictionary
+        config[key_name] = DateDict(config[key_name])
+
+    # Ensure each date value is of type datetime
+    def run_validation(self, value: DateDict):
+        for key in value:
+            if not isinstance(value[key], datetime):
+                raise ValidationError(
+                    f"Expected type: {date} or {datetime} "
+                    f"but received: {type(value[key])}"
+                )
+
+        # Ensure presence of `date.created`
+        if not value.created:
+            raise ValidationError(
+                "Expected 'created' date when using dictionary syntax"
+            )
+
+        # Return date dictionary
+        return value
+
+# -----------------------------------------------------------------------------
+
+# Post links option
+class PostLinks(BaseConfigOption[Navigation]):
+
+    # Create navigation from structured items - we don't need to provide a
+    # configuration object to the function, because it will not be used
+    def run_validation(self, value: object):
+        items = _data_to_navigation(value, Files([]), None)
+        _add_parent_links(items)
+
+        # Return navigation
+        return Navigation(items, [])
+
+# -----------------------------------------------------------------------------
+
+# Unique list of items
+class UniqueListOfItems(ListOfItems[T]):
+
+    # Ensure that each item is unique
+    def run_validation(self, value: object):
+        data = super().run_validation(value)
+        return list(dict.fromkeys(data))
+
+
+#-----------------------------------------------------------------------------
+# From structure/config.py
+#-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+# Post configuration
+class PostConfig(Config):
+    authors = UniqueListOfItems(Type(str), default = [])
+    categories = UniqueListOfItems(Type(str), default = [])
+    date = PostDate()
+    draft = Optional(Type(bool))
+    pin = Type(bool, default = False)
+    links = Optional(PostLinks())
+    readtime = Optional(Type(int))
+    slug = Optional(Type(str))
+
+
+#-----------------------------------------------------------------------------
+# From structure/markdown.py
+#-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+# Excerpt tree processor
+class ExcerptTreeprocessor(Treeprocessor):
+
+    # Initialize excerpt tree processor
+    def __init__(self, page: Page, base: Page | None = None):
+        self.page = page
+        self.base = base
+
+    # Transform HTML after Markdown processing
+    def run(self, root: Element):
+        assert self.base
+        main = True
+
+        # We're only interested in anchors, which is why we continue when the
+        # link does not start with an anchor tag
+        for el in root.iter("a"):
+            anchor = el.get("href")
+            if not anchor.startswith("#"):
+                continue
+
+            # The main headline should link to the post page, not to a specific
+            # anchor, which is why we remove the anchor in that case
+            path = get_relative_url(self.page.url, self.base.url)
+            if main:
+                el.set("href", path)
+            else:
+                el.set("href", path + anchor)
+
+            # Main headline has been seen
+            main = False
+
+
+#-----------------------------------------------------------------------------
+# From author.py
+#-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+# Author
+class Author(Config):
+    name = Type(str)
+    description = Type(str)
+    avatar = Type(str)
+    slug = Optional(Type(str))
+    url = Optional(Type(str))
+
+# -----------------------------------------------------------------------------
+
+# Authors
+class Authors(Config):
+    authors = DictOfItems(SubConfig(Author), default = {})
+
+
+#-----------------------------------------------------------------------------
+# From config.py
+#-----------------------------------------------------------------------------
+
+# Sort views by name
+def view_name(view: View):
+    return view.name
+
+# Sort views by post count
+def view_post_count(view: View):
+    return len(view.posts)
+
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+# Blog plugin configuration
+class BlogConfig(Config):
+    enabled = Type(bool, default = True)
+
+    # Settings for blog
+    blog_dir = Type(str, default = "blog")
+    blog_toc = Type(bool, default = False)
+
+    # Settings for posts
+    post_dir = Type(str, default = "{blog}/posts")
+    post_date_format = Type(str, default = "long")
+    post_url_date_format = Type(str, default = "yyyy/MM/dd")
+    post_url_format = Type(str, default = "{date}/{slug}")
+    post_url_max_categories = Type(int, default = 1)
+    post_slugify = Type(Callable, default = slugify(case = "lower"))
+    post_slugify_separator = Type(str, default = "-")
+    post_excerpt = Choice(["optional", "required"], default = "optional")
+    post_excerpt_max_authors = Type(int, default = 1)
+    post_excerpt_max_categories = Type(int, default = 5)
+    post_excerpt_separator = Type(str, default = "<!-- more -->")
+    post_readtime = Type(bool, default = True)
+    post_readtime_words_per_minute = Type(int, default = 265)
+
+    # Settings for archive
+    archive = Type(bool, default = True)
+    archive_name = Type(str, default = "blog.archive")
+    archive_date_format = Type(str, default = "yyyy")
+    archive_url_date_format = Type(str, default = "yyyy")
+    archive_url_format = Type(str, default = "archive/{date}")
+    archive_pagination = Optional(Type(bool))
+    archive_pagination_per_page = Optional(Type(int))
+    archive_toc = Optional(Type(bool))
+
+    # Settings for categories
+    categories = Type(bool, default = True)
+    categories_name = Type(str, default = "blog.categories")
+    categories_url_format = Type(str, default = "category/{slug}")
+    categories_slugify = Type(Callable, default = slugify(case = "lower"))
+    categories_slugify_separator = Type(str, default = "-")
+    categories_sort_by = Type(Callable, default = view_name)
+    categories_sort_reverse = Type(bool, default = False)
+    categories_allowed = Type(list, default = [])
+    categories_pagination = Optional(Type(bool))
+    categories_pagination_per_page = Optional(Type(int))
+    categories_toc = Optional(Type(bool))
+
+    # Settings for authors
+    authors = Type(bool, default = True)
+    authors_file = Type(str, default = "{blog}/.authors.yml")
+    authors_profiles = Type(bool, default = False)
+    authors_profiles_name = Type(str, default = "blog.authors")
+    authors_profiles_url_format = Type(str, default = "author/{slug}")
+    authors_profiles_pagination = Optional(Type(bool))
+    authors_profiles_pagination_per_page = Optional(Type(int))
+    authors_profiles_toc = Optional(Type(bool))
+
+    # Settings for pagination
+    pagination = Type(bool, default = True)
+    pagination_per_page = Type(int, default = 10)
+    pagination_url_format = Type(str, default = "page/{page}")
+    pagination_format = Type(str, default = "~2~")
+    pagination_if_single_page = Type(bool, default = False)
+    pagination_keep_content = Type(bool, default = False)
+
+    # Settings for drafts
+    draft = Type(bool, default = False)
+    draft_on_serve = Type(bool, default = True)
+    draft_if_future_date = Type(bool, default = False)
+
+    # Deprecated settings
+    pagination_template = Deprecated(moved_to = "pagination_format")
+
+
+#-----------------------------------------------------------------------------
+# From readtime/parser.py
+#-----------------------------------------------------------------------------
+
+# TODO: Refactor the `void` set into a common module and import it from there
+# and not from the search plugin.
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+# Readtime parser
+class ReadtimeParser(HTMLParser):
+
+    # Initialize parser
+    def __init__(self):
+        super().__init__(convert_charrefs = True)
+
+        # Tags to skip
+        self.skip = set([
+            "object",                  # Objects
+            "script",                  # Scripts
+            "style",                   # Styles
+            "svg"                      # SVGs
+        ])
+
+        # Current context
+        self.context = []
+
+        # Keep track of text and images
+        self.text   = []
+        self.images = 0
+
+    # Called at the start of every HTML tag
+    def handle_starttag(self, tag, attrs):
+        # Collect images
+        if tag == "img":
+            self.images += 1
+
+        # Ignore self-closing tags
+        if tag not in void:
+            # Add tag to context
+            self.context.append(tag)
+
+    # Called for the text contents of each tag
+    def handle_data(self, data):
+        # Collect text if not inside skip context
+        if not self.skip.intersection(self.context):
+            self.text.append(data)
+
+    # Called at the end of every HTML tag
+    def handle_endtag(self, tag):
+        if self.context and self.context[-1] == tag:
+            # Remove tag from context
+            self.context.pop()
+
+
+#-----------------------------------------------------------------------------
+# From readtime/__init__.py
+#-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Functions
+# -----------------------------------------------------------------------------
+
+# Compute readtime - we first used the original readtime library, but the list
+# of dependencies it brings with it increased the size of the Docker image by
+# 20 MB (packed), which is an increase of 50%. For this reason, we adapt the
+# original readtime algorithm to our needs - see https://t.ly/fPZ7L
+def readtime(html: str, words_per_minute: int):
+    parser = ReadtimeParser()
+    parser.feed(html)
+    parser.close()
+
+    # Extract words from text and compute readtime in seconds
+    words = len(re.split(r"\W+", "".join(parser.text)))
+    seconds = ceil(words / words_per_minute * 60)
+
+    # Account for additional images
+    delta = 12
+    for _ in range(parser.images):
+        seconds += delta
+        if delta > 3: delta -= 1
+
+    # Return readtime in minutes
+    return ceil(seconds / 60)
+
+
+#-----------------------------------------------------------------------------
+# From structure/__init__.py
+#-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+# Post
+class Post(Page):
+
+    # Initialize post - posts are never listed in the navigation, which is why
+    # they will never include a title that was manually set, so we can omit it
+    def __init__(self, file: File, config: DocsForgeConfig):
+        super().__init__(None, file, config)
+
+        # Resolve path relative to docs directory
+        docs = os.path.relpath(config.docs_dir)
+        path = os.path.relpath(file.abs_src_path, docs)
+
+        # Read contents and metadata immediately
+        with open(file.abs_src_path, encoding = "utf-8-sig") as f:
+            self.markdown = f.read()
+
+            # Sadly, MkDocs swallows any exceptions that occur during parsing.
+            # Since we want to provide the best possible user experience, we
+            # need to catch errors early and display them nicely. We decided to
+            # drop support for MkDocs' MultiMarkdown syntax, because it is not
+            # correctly implemented anyway. When using MultiMarkdown syntax, all
+            # date formats are returned as strings and list are not properly
+            # supported. Thus, we just use the relevants parts of `get_data`.
+            match: Match = YAML_RE.match(self.markdown)
+            if not match:
+                raise PluginError(
+                    f"Error reading metadata of post '{path}' in '{docs}':\n"
+                    f"Expected metadata to be defined but found nothing"
+                )
+
+            # Extract metadata and parse as YAML
+            try:
+                self.meta = yaml.load(match.group(1), SafeLoader) or {}
+                self.markdown = self.markdown[match.end():].lstrip("\n")
+
+            # The post's metadata could not be parsed because of a syntax error,
+            # which we display to the author with a nice error message
+            except Exception as e:
+                raise PluginError(
+                    f"Error reading metadata of post '{path}' in '{docs}':\n"
+                    f"{e}"
+                )
+
+            # Hack: if the meta plugin is registered, we need to move the call
+            # to `on_page_markdown` here, because we need to merge the metadata
+            # of the post with the metadata of any meta files prior to creating
+            # the post configuration. To our current knowledge, it's the only
+            # way to allow posts to receive metadata from meta files, because
+            # posts must be loaded prior to constructing the navigation in
+            # `on_files` but the meta plugin first runs in `on_page_markdown`.
+            plugin: MetaPlugin = config.plugins.get("material/meta")
+            if plugin:
+                plugin.on_page_markdown(
+                    self.markdown, page = self, config = config, files = None
+                )
+
+        # Initialize post configuration, but remove all keys that this plugin
+        # doesn't care about, or they will be reported as invalid configuration
+        self.config: PostConfig = PostConfig(file.abs_src_path)
+        self.config.load_dict({
+            key: self.meta[key] for key in (
+                set(self.meta.keys()) &
+                set(self.config.keys())
+            )
+        })
+
+        # Validate configuration and throw if errors occurred
+        errors, warnings = self.config.validate()
+        for _, w in warnings:
+            log.warning(w)
+        for k, e in errors:
+            raise PluginError(
+                f"Error reading metadata '{k}' of post '{path}' in '{docs}':\n"
+                f"{e}"
+            )
+
+        # Excerpts are subsets of posts that are used in pages like archive and
+        # category views. They are not rendered as standalone pages, but are
+        # rendered in the context of a view. Each post has a dedicated excerpt
+        # instance which is reused when rendering views.
+        self.excerpt: Excerpt = None
+
+        # Initialize authors and actegories
+        self.authors: list[Author] = []
+        self.categories: list[Category] = []
+
+        # Ensure template is set or use default
+        self.meta.setdefault("template", "blog-post.html")
+
+        # Ensure template hides navigation
+        self.meta["hide"] = self.meta.get("hide", [])
+        if "navigation" not in self.meta["hide"]:
+            self.meta["hide"].append("navigation")
+
+    # The contents and metadata were already read in the constructor (and not
+    # in `read_source` as for pages), so this function must be set to a no-op
+    def read_source(self, config: DocsForgeConfig):
+        pass
+
+# -----------------------------------------------------------------------------
+
+# Excerpt
+class Excerpt(Page):
+
+    # Initialize an excerpt for the given post - we create the Markdown parser
+    # when intitializing the excerpt in order to improve rendering performance
+    # for excerpts, as they are reused across several different views, because
+    # posts might be referenced from multiple different locations
+    def __init__(self, post: Post, config: DocsForgeConfig, files: Files):
+        self.file = copy(post.file)
+        self.post = post
+
+        # Set canonical URL, or we can't print excerpts when debugging the
+        # blog plugin, as the `abs_url` property would be missing
+        self._set_canonical_url(config.site_url)
+
+        # Initialize configuration and metadata
+        self.config = post.config
+        self.meta   = post.meta
+
+        # Initialize authors and categories - note that views usually contain
+        # subsets of those lists, which is why we need to manage them here
+        self.authors: list[Author] = []
+        self.categories: list[Category] = []
+
+        # Initialize content after separator - allow template authors to render
+        # posts inline or to provide a link to the post's page
+        self.more = None
+
+        # Initialize parser - note that we need to patch the configuration,
+        # more specifically the table of contents extension
+        config = _patch(config)
+        self.md = Markdown(
+            extensions = config.markdown_extensions,
+            extension_configs = config.mdx_configs,
+        )
+
+        # Register excerpt tree processor - this processor resolves anchors to
+        # posts from within views, so they point to the correct location
+        self.md.treeprocessors.register(
+            ExcerptTreeprocessor(post),
+            "excerpt",
+            0
+        )
+
+        # Register relative path tree processor - this processor resolves links
+        # to other pages and assets, and is used by MkDocs itself
+        self.md.treeprocessors.register(
+            _RelativePathTreeprocessor(self.file, files, config),
+            "relpath",
+            1
+        )
+
+    # Render an excerpt of the post on the given page - note that this is not
+    # thread-safe because excerpts are shared across views, as it cuts down on
+    # the cost of initialization. However, if in the future, we decide to render
+    # posts and views concurrently, we must change this behavior.
+    def render(self, page: Page, separator: str):
+        self.file.url = page.url
+
+        # Retrieve excerpt tree processor and set page as base
+        at = self.md.treeprocessors.get_index_for_name("excerpt")
+        processor: ExcerptTreeprocessor = self.md.treeprocessors[at]
+        processor.base = page
+
+        # Ensure that the excerpt includes a title in its content, since the
+        # title is linked to the post when rendering - see https://t.ly/5Gg2F
+        self.markdown = self.post.markdown
+        if not self.post._title_from_render:
+            self.markdown = "\n\n".join([f"# {self.post.title}", self.markdown])
+
+        # Convert Markdown to HTML and extract excerpt
+        self.content = self.md.convert(self.markdown)
+        self.content, *more = self.content.split(separator, 1)
+        if more:
+            self.more = more[0]
+
+        # Extract table of contents and reset post URL - if we wouldn't reset
+        # the excerpt URL, linking to the excerpt from the view would not work
+        self.toc = get_toc(getattr(self.md, "toc_tokens", []))
+        self.file.url = self.post.url
+
+# -----------------------------------------------------------------------------
+
+# View
+class View(Page):
+
+    # Parent view
+    parent: View | Section
+
+    # Initialize view
+    def __init__(self, name: str | None, file: File, config: DocsForgeConfig):
+        super().__init__(None, file, config)
+
+        # Initialize name of the view - note that views never pass a title to
+        # the parent constructor, so the author can always override the title
+        # that is used for rendering. However, for some purposes, like for
+        # example sorting, we need something to compare.
+        self.name = name
+
+        # Initialize posts and views
+        self.posts: list[Post] = []
+        self.views: list[View] = []
+
+        # Initialize pages for pagination
+        self.pages: list[View] = []
+
+    # Set necessary metadata
+    def read_source(self, config: DocsForgeConfig):
+        super().read_source(config)
+
+        # Ensure template is set or use default
+        self.meta.setdefault("template", "blog.html")
+
+# -----------------------------------------------------------------------------
+
+# Archive view
+class Archive(View):
+    pass
+
+# -----------------------------------------------------------------------------
+
+# Category view
+class Category(View):
+    pass
+
+# -----------------------------------------------------------------------------
+
+# Profile view
+class Profile(View):
+    pass
+
+# -----------------------------------------------------------------------------
+
+# Reference
+class Reference(Link):
+
+    # Initialize reference - this is essentially a crossover of pages and links,
+    # as it inherits the metadata of the page and allows for anchors
+    def __init__(self, title: str, url: str):
+        super().__init__(title, url)
+        self.meta = {}
+
+# -----------------------------------------------------------------------------
+# Helper functions
+# -----------------------------------------------------------------------------
+
+# Patch configuration
+def _patch(config: DocsForgeConfig):
+    config = copy(config)
+
+    # Copy parts of configuration that needs to be patched
+    config.validation          = copy(config.validation)
+    config.validation.links    = copy(config.validation.links)
+    config.markdown_extensions = copy(config.markdown_extensions)
+    config.mdx_configs         = copy(config.mdx_configs)
+
+    # Make sure that the author did not add another instance of the table of
+    # contents extension to the configuration, as this leads to weird behavior
+    if "markdown.extensions.toc" in config.markdown_extensions:
+        config.markdown_extensions.remove("markdown.extensions.toc")
+
+    # In order to render excerpts for posts, we need to make sure that the
+    # table of contents extension is appropriately configured
+    config.mdx_configs["toc"] = {
+        **config.mdx_configs.get("toc", {}),
+        **{
+            "anchorlink": True,        # Render headline as clickable
+            "baselevel": 2,            # Render h1 as h2 and so forth
+            "permalink": False,        # Remove permalinks
+            "toc_depth": 2             # Remove everything below h2
+        }
+    }
+
+    # Additionally, we disable link validation when rendering excerpts, because
+    # invalid links have already been reported when rendering the page
+    links = config.validation.links
+    links.not_found = logging.DEBUG
+    links.absolute_links = logging.DEBUG
+    links.unrecognized_links = logging.DEBUG
+
+    # Return patched configuration
+    return config
+
+# -----------------------------------------------------------------------------
+# Data
+# -----------------------------------------------------------------------------
+
+# Set up logging
+log = logging.getLogger("mkdocs.material.blog")
+
+
 
 # -----------------------------------------------------------------------------
 # Classes
@@ -1092,3 +1731,9 @@ def _find_anchor(toc: TableOfContents, id: str):
 
 # Set up logging
 log = logging.getLogger("mkdocs.material.blog")
+
+
+#-----------------------------------------------------------------------------
+# From __init__.py
+#-----------------------------------------------------------------------------
+

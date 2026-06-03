@@ -1,19 +1,23 @@
-"""
-An MkDocs plugin to minify HTML, JS or CSS files prior to being written to disk.
+"""An MkDocs plugin to minify HTML, JS or CSS files prior to being written to disk.
+
 Always enabled with no configuration options.
 """
+
+from __future__ import annotations
+
 import hashlib
-from pathlib import Path
 import os
+from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-import minify_html
 import csscompressor
 import jsmin
-from docsforge.config_defaults import DocsForgeConfig
-from docsforge.plugins import BasePlugin
-from docsforge.pages import Page
+import minify_html
 from packaging import version
+
+from docsforge.config_defaults import DocsForgeConfig
+from docsforge.pages import Page
+from docsforge.plugins import BasePlugin
 
 EXTRAS: Dict[str, str] = {
     "js": "extra_javascript",
@@ -32,7 +36,8 @@ if version.parse(csscompressor.__version__) <= version.parse("0.9.5"):
     _url_re = csscompressor._url_re
 
     def my_new_preserve_call_tokens(*args, **kwargs):
-        """If regex is for url pattern, switch the keyword remove_ws to False
+        """If regex is for url pattern, switch the keyword remove_ws to False.
+        
         Such configuration will preserve svg code in url() pattern of CSS file.
         """
         if _url_re == args[1]:
@@ -40,7 +45,6 @@ if version.parse(csscompressor.__version__) <= version.parse("0.9.5"):
         return _preserve_call_tokens_original(*args, **kwargs)
 
     csscompressor._preserve_call_tokens = my_new_preserve_call_tokens
-
     assert csscompressor._preserve_call_tokens == my_new_preserve_call_tokens
 
 
