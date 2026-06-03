@@ -1,10 +1,9 @@
 """DocsForge CLI - thin front-end around cli_core.py.
 
 Usage:
-    docsforge              # Show help (with project detected notice if in project)
+    docsforge              # Show help (or interactive init if no project)
     docsforge build        # Production build
     docsforge serve        # Start dev server
-    docsforge --migrate    # Migrate from legacy config
 """
 
 from __future__ import annotations
@@ -112,12 +111,9 @@ def _set_log_level(level: int):
     context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
 )
 @click.version_option(__version__, '-V', '--version', prog_name='docsforge')
-@click.option('--migrate', is_flag=True, help='Migrate from legacy config (mkdocs/properdocs)')
-@click.option('--migrate-dry-run', is_flag=True, hidden=True, help='Preview migration')
-@click.option('--migrate-force', is_flag=True, hidden=True, help='Force overwrite')
 @click.option('--strict', is_flag=True, help='Fail on warnings')
 @click.pass_context
-def docsforge(ctx, migrate, migrate_dry_run, migrate_force, strict):
+def docsforge(ctx, strict):
     """DocsForge - Project documentation with Markdown.
 
     Smart default: run 'docsforge' alone in a project directory to see
@@ -126,14 +122,7 @@ def docsforge(ctx, migrate, migrate_dry_run, migrate_force, strict):
     """
     _ = State()  # Initialize default logging
 
-    if migrate:
-        from docsforge.cli_core import ProjectManager
-        ctx.exit(ProjectManager.migrate(
-            dry_run=migrate_dry_run,
-            force=migrate_force,
-        ))
-
-    # Smart routing: show help, init, or migrate based on project state
+    # Smart routing: show help or init based on project state
     # Only runs when no subcommand is invoked (e.g. plain 'docsforge')
     if ctx.invoked_subcommand is None:
         ctx.exit(AutoRouter.route(ctx=ctx))
@@ -188,35 +177,6 @@ def serve():
     
     # Serve with live reload, watch all, open browser
     DevServer.serve()
-
-
-@docsforge.command()
-@click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
-@click.option('-p', '--platform', type=click.Choice(['github_pages', 'netlify', 'vercel', 'cloudflare']), help='Hosting platform (auto-detect if not specified)')
-@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
-def publish(site_dir, platform, config_file):
-    """Build and publish documentation to hosting platform.
-    
-    Auto-detects the platform (GitHub Pages, Netlify, Vercel, Cloudflare)
-    from repository files. Builds the site first, then deploys.
-    """
-    _ = State()  # Initialize default logging
-    _enable_warnings()
-
-    from docsforge.commands import publish as publish_cmd
-    
-    config_file_name = config_file.name if config_file else None
-    
-    result = publish_cmd.publish(
-        config_file=config_file_name,
-        site_dir=site_dir,
-        force_platform=platform,
-    )
-
-    if result != 0:
-        sys.exit(result)
-
-    sys.exit(0)
 
 
 if __name__ == '__main__':

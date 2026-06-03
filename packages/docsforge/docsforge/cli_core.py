@@ -28,13 +28,7 @@ def _slugify(name: str) -> str:
 CONFIG_PRIORITY = [
     'docsforge.yml',
     'docsforge.yaml',
-    'properdocs.yml',
-    'properdocs.yaml',
-    'mkdocs.yml',
-    'mkdocs.yaml',
 ]
-
-LEGACY_CONFIGS = {'mkdocs.yml', 'mkdocs.yaml', 'properdocs.yml', 'properdocs.yaml'}
 
 
 def find_config_file(config_file: str | BinaryIO | None = None) -> Path | None:
@@ -57,25 +51,18 @@ def find_config_file(config_file: str | BinaryIO | None = None) -> Path | None:
     return None
 
 
-def is_legacy_config(config_path: Path) -> bool:
-    """Check if the config file is a legacy format (mkdocs/properdocs)."""
-    return config_path.name in LEGACY_CONFIGS
-
-
 def detect_environment() -> dict:
     """Detect the current docs environment.
     
     Returns dict with:
         - config_found: bool
         - config_path: Path | None
-        - is_legacy: bool
         - docs_dir_exists: bool
         - has_index: bool
     """
     result = {
         'config_found': False,
         'config_path': None,
-        'is_legacy': False,
         'docs_dir_exists': False,
         'has_index': False,
     }
@@ -84,7 +71,6 @@ def detect_environment() -> dict:
     if config_path:
         result['config_found'] = True
         result['config_path'] = config_path
-        result['is_legacy'] = is_legacy_config(config_path)
         
         # Check if docs/ directory exists
         try:
@@ -164,7 +150,7 @@ class DevServer:
 
 
 class ProjectManager:
-    """Project initialization and migration."""
+    """Project initialization."""
     
     @staticmethod
     def init(
@@ -270,33 +256,6 @@ class ProjectManager:
         except Exception as e:
             log.error(f"Init failed: {e}")
             return 1
-    
-    @staticmethod
-    def migrate(
-        config_file: str | BinaryIO | None = None,
-        *,
-        dry_run: bool = False,
-        force: bool = False,
-    ) -> int:
-        """Migrate from legacy config to docsforge.yml.
-        
-        If config_file is not specified, searches for legacy configs.
-        Returns exit code.
-        """
-        from docsforge.commands import migrate
-        
-        if config_file is None:
-            # Search for legacy configs
-            for name in ['properdocs.yml', 'properdocs.yaml', 'mkdocs.yml', 'mkdocs.yaml']:
-                path = Path(name)
-                if path.exists():
-                    config_file = str(path)
-                    break
-        
-        return migrate.migrate(
-            dry_run=dry_run,
-            force=force,
-        )
 
 
 def _check_optional_deps(config_file=None):
@@ -386,23 +345,17 @@ class AutoRouter:
     def route(
         *,
         ctx=None,
-        force_migrate: bool = False,
         **kwargs,
     ) -> int:
         """Smart routing - decides what to do based on project state.
         
         Priority:
-        1. If legacy config exists -> prompt to migrate, then show help
-        2. If docsforge.yml exists -> show help with project detected notice
-        3. If no config exists -> start interactive init
+        1. If docsforge.yml exists -> show help with project detected notice
+        2. If no config exists -> start interactive init
         
         Returns exit code.
         """
         env = detect_environment()
-        
-        # Handle forced flags first
-        if force_migrate:
-            return ProjectManager.migrate(**kwargs)
         
         # Smart routing based on environment
         if not env['config_found']:
@@ -411,37 +364,6 @@ class AutoRouter:
                 log.error("No docsforge.yml found. Run in an interactive terminal to create a project.")
                 return 1
             return ProjectManager.init()
-        
-        if env['is_legacy']:
-            # Legacy config found
-            print(f"\nDetected legacy config: {env['config_path'].name}")
-            print("DocsForge is the maintained successor to MkDocs + Material.")
-            print("Run 'docsforge --migrate' to convert.\n")
-            
-            if not sys.stdin.isatty():
-                log.error("Legacy config detected. Run 'docsforge --migrate' to convert.")
-                return 1
-            
-            try:
-                response = input("Migrate to docsforge.yml now? [Y/n]: ").strip().lower()
-                if response in ('', 'y', 'yes'):
-                    result = ProjectManager.migrate(
-                        config_file=str(env['config_path']),
-                        dry_run=False,
-                        force=False,
-                    )
-                    if result != 0:
-                        return result
-
-                # After migration or decline, show help
-                if ctx:
-                    print("\nDocsForge project detected.\n")
-                    print(ctx.get_help())
-                return 0
-            except (EOFError, KeyboardInterrupt):
-                print()
-                log.error("Non-interactive environment. Use 'docsforge --migrate'.")
-                return 1
         
         # Normal docsforge.yml found -> show help with project detected notice
         if ctx:
