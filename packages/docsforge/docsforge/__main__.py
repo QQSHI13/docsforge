@@ -129,10 +129,8 @@ def docsforge(ctx, strict):
 
 
 @docsforge.command()
-@click.option('-c', '--clean/--dirty', is_flag=True, default=True, help='Clean build (default) or dirty (incremental)')
 @click.option('--strict', is_flag=True, help='Fail on warnings')
-@click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
-def build(clean, strict, site_dir):
+def build(strict):
     """Build the DocsForge documentation for production."""
     _ = State()  # Initialize default logging
     _enable_warnings()
@@ -147,11 +145,10 @@ def build(clean, strict, site_dir):
 
     _check_optional_deps()
 
-    # Build
+    # Build (always clean)
     result = BuildEngine.build(
-        clean=clean,
+        clean=True,
         strict=strict,
-        site_dir=site_dir,
     )
 
     if result != 0:

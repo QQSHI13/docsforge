@@ -94,14 +94,13 @@ class BuildEngine:
     def build(
         config_file: str | BinaryIO | None = None,
         *,
-        clean: bool = True,
         strict: bool = False,
-        site_dir: str | None = None,
         progress: bool | None = None,
         **kwargs,
     ) -> int:
         """Build documentation.
         
+        Always performs a clean build.
         If config_file is not specified, auto-detects docsforge.yml.
         Returns exit code: 0 = success, 1 = failure.
         """
@@ -111,12 +110,11 @@ class BuildEngine:
             cfg = config_module.load_config(
                 config_file=config_file,
                 strict=strict,
-                site_dir=site_dir,
                 **kwargs,
             )
-            cfg.plugins.on_startup(command='build', dirty=not clean)
+            cfg.plugins.on_startup(command='build', dirty=False)
             try:
-                build.build(cfg, dirty=not clean, progress=progress)
+                build.build(cfg, dirty=False, progress=progress)
             finally:
                 cfg.plugins.on_shutdown()
             return 0
