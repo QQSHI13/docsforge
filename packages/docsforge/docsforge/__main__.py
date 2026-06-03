@@ -190,6 +190,47 @@ def serve():
     DevServer.serve()
 
 
+@docsforge.command()
+@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
+def check(config_file):
+    """Validate configuration without building."""
+    _ = State()
+    
+    from docsforge.commands import check as check_cmd
+    config_file_name = config_file.name if config_file else None
+    result = check_cmd.check(config_file=config_file_name)
+    sys.exit(result)
+
+
+@docsforge.command()
+@click.option('-d', '--site-dir', type=click.Path(), help='Output directory for built site')
+@click.option('-p', '--platform', type=click.Choice(['github_pages', 'netlify', 'vercel', 'cloudflare']), help='Hosting platform (auto-detect if not specified)')
+@click.option('-f', '--config-file', type=click.File('rb'), help='Specify config file')
+def publish(site_dir, platform, config_file):
+    """Build and publish documentation to hosting platform.
+    
+    Auto-detects the platform (GitHub Pages, Netlify, Vercel, Cloudflare)
+    from repository files. Builds the site first, then deploys.
+    """
+    _ = State()  # Initialize default logging
+    _enable_warnings()
+
+    from docsforge.commands import publish as publish_cmd
+    
+    config_file_name = config_file.name if config_file else None
+    
+    result = publish_cmd.publish(
+        config_file=config_file_name,
+        site_dir=site_dir,
+        force_platform=platform,
+    )
+
+    if result != 0:
+        sys.exit(result)
+
+    sys.exit(0)
+
+
 if __name__ == '__main__':
     docsforge()
 

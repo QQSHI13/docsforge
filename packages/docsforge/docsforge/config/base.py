@@ -61,6 +61,26 @@ class BaseConfigOption(Generic[T]):
         """
         return value
 
+    def format_error(self, value: object, key_name: str, error: Exception) -> str:
+        """Format a user-friendly error message with context and suggestions."""
+        msg = str(error)
+        
+        # Add context based on the option type
+        if hasattr(self, '_type'):
+            expected = self._type.__name__ if hasattr(self._type, '__name__') else str(self._type)
+            msg += f"\n  Expected: {expected}"
+        
+        # Add suggestions for common mistakes
+        suggestions = self._get_suggestions(value, key_name)
+        if suggestions:
+            msg += f"\n  Suggestions: {suggestions}"
+        
+        return msg
+    
+    def _get_suggestions(self, value: object, key_name: str) -> str | None:
+        """Return suggestions for fixing common config errors."""
+        return None
+
     def post_validation(self, config: Config, key_name: str) -> None:
         """
         After all options have passed validation, perform a post-validation
@@ -353,7 +373,29 @@ def load_config(
                 config_file_path = getattr(fd, 'name', None)
         cfg = DocsForgeConfig(config_file_path=config_file_path)
         # load the config file
-        cfg.load_file(fd)
+        try:
+            cfg.load_file(fd)
+        except yaml.YAMLError as e:
+            print()
+            print("=" * 60)
+            print("  YAML SYNTAX ERROR")
+            print("=" * 60)
+            print()
+            print(f"  Failed to parse {config_file_path or 'docsforge.yml'}:")
+            print()
+            if hasattr(e, 'problem_mark'):
+                mark = e.problem_mark
+                print(f"  Line {mark.line + 1}, Column {mark.column + 1}:")
+                print(f"  {e.problem}")
+                print()
+                print("  Common fixes:")
+                print("    - Use spaces, not tabs for indentation")
+                print("    - Wrap special characters in quotes: 'value'")
+                print("    - Ensure lists use '- ' before each item")
+            else:
+                print(f"  {e}")
+            print()
+            raise exceptions.Abort("YAML syntax error — fix the issues above and try again.")
 
     # Then load the options to overwrite anything in the config.
     cfg.load_dict(options)
@@ -363,14 +405,28 @@ def load_config(
     for config_name, warning in warnings:
         log.warning(f"Config value '{config_name}': {warning}")
 
-    for config_name, error in errors:
-        log.error(f"Config value '{config_name}': {error}")
-
     for key, value in cfg.items():
         log.debug(f"Config value '{key}' = {value!r}")
 
     if len(errors) > 0:
-        raise exceptions.Abort("Aborted with a configuration error!")
+        # Format friendly error messages
+        print()
+        print("=" * 60)
+        print("  CONFIGURATION ERROR")
+        print("=" * 60)
+        print()
+        print(f"  Found {len(errors)} error(s) in {config_file_path or 'docsforge.yml'}:")
+        print()
+        for config_name, error in errors:
+            print(f"  ✗ {config_name}")
+            print(f"    {error}")
+            print()
+        print("  Common fixes:")
+        print("    - Check docsforge.yml syntax (no tabs, proper indentation)")
+        print("    - Run 'docsforge check' for detailed diagnostics")
+        print("    - See docs: https://qqshi13.github.io/docsforge-docs/")
+        print()
+        raise exceptions.Abort("Configuration error — fix the issues above and try again.")
     elif cfg.strict and len(warnings) > 0:
         raise exceptions.Abort(
             f"Aborted with {len(warnings)} configuration warnings in 'strict' mode!"
