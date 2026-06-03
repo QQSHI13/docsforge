@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING
 
 from jinja2.ext import Extension, InternationalizationExtension
 
-from docsforge.config_base import ValidationError
-
 if TYPE_CHECKING:
     import jinja2
 
@@ -18,7 +16,7 @@ try:
 
     has_babel = True
 except ImportError:  # pragma: no cover
-    from docsforge.utils.babel_stub import Locale, UnknownLocaleError  # type: ignore
+    from docsforge.babel_stub import Locale, UnknownLocaleError  # type: ignore
 
     has_babel = False
 
@@ -37,6 +35,7 @@ class NoBabelExtension(InternationalizationExtension):  # pragma: no cover
 
 
 def parse_locale(locale: str) -> Locale:
+    from docsforge.config_base import ValidationError
     try:
         return Locale.parse(locale, sep='_')
     except (ValueError, UnknownLocaleError, TypeError) as e:

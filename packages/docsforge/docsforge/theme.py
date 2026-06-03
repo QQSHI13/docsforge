@@ -21,19 +21,14 @@ import logging
 import os
 import warnings
 from collections.abc import Collection, MutableMapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import jinja2
-import yaml
+if TYPE_CHECKING:
+    import jinja2
+    import yaml
 
-try:
-    from yaml import CSafeLoader as SafeLoader
-except ImportError:  # pragma: no cover
-    from yaml import SafeLoader  # type: ignore
-
-from docsforge import localization, utils
+from docsforge import localization
 from docsforge.config_base import ValidationError
-from docsforge.utils import templates
 
 log = logging.getLogger("docsforge.theme")
 
@@ -141,12 +136,23 @@ class Theme(MutableMapping[str, Any]):
 
     def _load_theme_config(self, name: str) -> None:
         """Recursively load theme and any parent themes."""
+        import yaml
+        try:
+            from yaml import CSafeLoader as SafeLoader
+        except ImportError:
+            from yaml import SafeLoader
+        from docsforge import utils
+        from docsforge.config_base import ValidationError
+
         theme_dir = utils.get_theme_dir(name)
         utils.get_themes.cache_clear()
         self.dirs.append(theme_dir)
 
+        # Try theme root first, then templates/ subdirectory
+        file_path = os.path.join(theme_dir, 'docsforge_theme.yml')
+        if not os.path.exists(file_path):
+            file_path = os.path.join(theme_dir, 'templates', 'docsforge_theme.yml')
         try:
-            file_path = os.path.join(theme_dir, 'docsforge_theme.yml')
             with open(file_path, 'rb') as f:
                 theme_config = yaml.load(f, SafeLoader)
         except OSError as e:
@@ -175,6 +181,8 @@ class Theme(MutableMapping[str, Any]):
 
     def get_env(self) -> jinja2.Environment:
         """Return a Jinja environment for the theme."""
+        import jinja2
+        from docsforge import templates
         loader = jinja2.FileSystemLoader(self.dirs)
         # No autoreload because editing a template in the middle of a build is not useful.
         env = jinja2.Environment(loader=loader, auto_reload=False)

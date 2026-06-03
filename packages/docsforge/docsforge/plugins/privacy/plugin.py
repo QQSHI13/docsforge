@@ -49,7 +49,7 @@ from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.files import File, Files
-from docsforge.utils import is_error_template
+from docsforge import is_error_template
 from re import Match
 from urllib.parse import ParseResult as URL, urlparse, unquote
 from xml.etree.ElementTree import Element, tostring

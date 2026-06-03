@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from docsforge.files import Files
     from docsforge.nav import Navigation
     from docsforge.pages import Page
-    from docsforge.utils.templates import TemplateContext
+    from docsforge.templates import TemplateContext
 
 if TYPE_CHECKING:
     from typing_extensions import Concatenate, ParamSpec

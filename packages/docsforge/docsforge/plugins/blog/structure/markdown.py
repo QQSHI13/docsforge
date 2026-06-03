@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from markdown.treeprocessors import Treeprocessor
 from docsforge.pages import Page
-from docsforge.utils import get_relative_url
+from docsforge import get_relative_url
 from xml.etree.ElementTree import Element
 
 # -----------------------------------------------------------------------------

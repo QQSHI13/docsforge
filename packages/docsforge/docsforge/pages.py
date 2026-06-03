@@ -17,8 +17,10 @@ from markdown.util import AMP_SUBSTITUTE
 from docsforge import utils
 from docsforge.structure import StructureItem
 from docsforge.toc import get_toc
-from docsforge.utils import get_build_date, get_markdown_title, meta, weak_property
-from docsforge.utils.rendering import get_heading_text
+from docsforge.weak_property import weak_property
+from docsforge.utils import get_build_date, get_markdown_title
+from docsforge import meta
+from docsforge.rendering import get_heading_text
 
 if TYPE_CHECKING:
     from xml.etree import ElementTree as etree

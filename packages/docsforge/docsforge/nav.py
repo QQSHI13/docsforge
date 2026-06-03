@@ -9,7 +9,7 @@ from docsforge.exceptions import BuildError
 from docsforge.structure import StructureItem
 from docsforge.files import file_sort_key
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
-from docsforge.utils import nest_paths
+from docsforge import nest_paths
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig

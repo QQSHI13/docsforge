@@ -36,12 +36,12 @@ import os
 import re
 
 from jinja2 import Environment
-from docsforge.utils.filter import FileFilter
+from docsforge.filter_config import FileFilter
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
 from docsforge.pages import Page
-from docsforge.utils.templates import TemplateContext
+from docsforge.templates import TemplateContext
 
 from .config import TagsConfig
 from .renderer import Renderer

@@ -11,7 +11,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from typing import IO, TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 from docsforge import exceptions, utils
-from docsforge.utils import weak_property
+from docsforge.weak_property import weak_property
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig

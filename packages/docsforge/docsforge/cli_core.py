@@ -10,10 +10,10 @@ import logging
 import re
 import sys
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, TYPE_CHECKING
 
-import docsforge.config_base as config_module
-from docsforge.config_base import _open_config_file
+if TYPE_CHECKING:
+    import docsforge.config_base as config_module
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,8 @@ def find_config_file(config_file: str | BinaryIO | None = None) -> Path | None:
     
     Returns the path if found, None otherwise.
     """
+    from docsforge.config_base import _open_config_file
+    
     if config_file is not None:
         if isinstance(config_file, str):
             path = Path(config_file)
@@ -107,6 +109,7 @@ class BuildEngine:
         from docsforge import build as build_module
         
         try:
+            import docsforge.config_base as config_module
             cfg = config_module.load_config(
                 config_file=config_file,
                 strict=strict,

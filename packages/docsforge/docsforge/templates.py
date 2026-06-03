@@ -13,8 +13,6 @@ try:
 except ImportError:
     from jinja2 import contextfilter  # type: ignore  # noqa: PGH003
 
-from docsforge.utils import normalize_url
-
 if TYPE_CHECKING:
     from docsforge.config_options import ExtraScriptValue
     from docsforge.config_defaults import DocsForgeConfig
@@ -40,6 +38,7 @@ class TemplateContext(TypedDict):
 @contextfilter
 def url_filter(context: TemplateContext, value: str) -> str:
     """A Template filter to normalize URLs."""
+    from docsforge.utils import normalize_url
     return normalize_url(str(value), page=context['page'], base=context['base_url'])
 
 

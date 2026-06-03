@@ -45,7 +45,7 @@ from docsforge.files import File, Files
 from docsforge.nav import Link, Section
 from docsforge.pages import Page, _RelativePathTreeprocessor
 from docsforge.toc import get_toc
-from docsforge.utils.meta import YAML_RE
+from docsforge.meta import YAML_RE
 from re import Match
 from yaml import SafeLoader
 

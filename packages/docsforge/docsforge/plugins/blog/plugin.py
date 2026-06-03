@@ -49,7 +49,7 @@ from docsforge.files import File, Files, InclusionLevel
 from docsforge.nav import Link, Navigation, Section
 from docsforge.pages import Page
 from docsforge.toc import AnchorLink, TableOfContents
-from docsforge.utils import copy_file, get_relative_url
+from docsforge import copy_file, get_relative_url
 from paginate import Page as Pagination
 from shutil import rmtree
 from tempfile import mkdtemp

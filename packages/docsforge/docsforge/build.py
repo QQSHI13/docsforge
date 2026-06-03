@@ -18,16 +18,12 @@ from docsforge.exceptions import Abort, BuildError
 from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusions
 from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
-from docsforge.utils import (
-    DuplicateFilter,
-    templates,
-    tikz,
-)
 from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
-
+from docsforge import templates
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
+    import jinja2
 
 
 log = logging.getLogger(__name__)
@@ -327,6 +323,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                 log.info("Using incremental build (dirty)")
 
         # Compile TikZ diagrams BEFORE scanning files so MkDocs discovers the SVGs.
+        from docsforge import tikz
         tikz.compile_tikz_files(config, output_to_docs=True)
 
         # First gather all data from all files/pages to ensure all data is consistent across all pages.

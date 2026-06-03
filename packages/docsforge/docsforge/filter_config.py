@@ -32,15 +32,38 @@
 from __future__ import annotations
 
 import logging
-
 from fnmatch import fnmatch
+
+from docsforge.config_base import Config
+from docsforge.config_options import ListOfItems, Type
 from docsforge.files import File
 
-from .config import FilterConfig
+log = logging.getLogger("docsforge.filter")
 
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # Classes
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
+class FilterConfig(Config):
+    """
+    A filter configuration.
+    """
+
+    include = ListOfItems(Type(str), default = [])
+    """
+    Patterns to include.
+
+    This list contains patterns that are matched against the value to filter.
+    If the value matches at least one pattern, it will be included.
+    """
+
+    exclude = ListOfItems(Type(str), default = [])
+    """
+    Patterns to exclude.
+
+    This list contains patterns that are matched against the value to filter.
+    If the value matches at least one pattern, it will be excluded.
+    """
 
 class Filter:
     """
@@ -101,8 +124,6 @@ class Filter:
     The filter configuration.
     """
 
-# -----------------------------------------------------------------------------
-
 class FileFilter(Filter):
     """
     A file filter.
@@ -126,10 +147,3 @@ class FileFilter(Filter):
             file.src_uri,
             file.src_path
         )
-
-# -----------------------------------------------------------------------------
-# Data
-# -----------------------------------------------------------------------------
-
-# Set up logging
-log = logging.getLogger("docsforge.utils.filter")

@@ -47,7 +47,7 @@ from io import BytesIO
 from markdown.extensions.toc import slugify
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.plugins import BasePlugin, event_priority
-from docsforge.utils.yaml import get_yaml_loader
+from docsforge.yaml_utils import get_yaml_loader
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from .config import InfoConfig
