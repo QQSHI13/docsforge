@@ -16,7 +16,7 @@ from markdown.util import AMP_SUBSTITUTE
 
 from docsforge import utils
 from docsforge.structure import StructureItem
-from docsforge.structure.toc import get_toc
+from docsforge.toc import get_toc
 from docsforge.utils import get_build_date, get_markdown_title, meta, weak_property
 from docsforge.utils.rendering import get_heading_text
 
@@ -24,8 +24,8 @@ if TYPE_CHECKING:
     from xml.etree import ElementTree as etree
 
     from docsforge.config_defaults import DocsForgeConfig
-    from docsforge.structure.files import File, Files
-    from docsforge.structure.toc import TableOfContents
+    from docsforge.files import File, Files
+    from docsforge.toc import TableOfContents
 
 
 log = logging.getLogger(__name__)

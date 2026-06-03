@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 
 from fnmatch import fnmatch
-from docsforge.structure.files import File
+from docsforge.files import File
 
 from .config import FilterConfig
 

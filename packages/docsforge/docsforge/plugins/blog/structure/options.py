@@ -32,8 +32,8 @@
 from datetime import date, datetime, time, timezone
 from docsforge.config_base import BaseConfigOption, Config, ValidationError
 from docsforge.config_options import ListOfItems, T
-from docsforge.structure.files import Files
-from docsforge.structure.nav import (
+from docsforge.files import Files
+from docsforge.nav import (
     Navigation, _add_parent_links, _data_to_navigation
 )
 from typing import Dict

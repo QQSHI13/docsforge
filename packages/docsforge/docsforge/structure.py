@@ -1,3 +1,5 @@
+"""StructureItem base class for navigation elements."""
+
 from __future__ import annotations
 
 import abc
@@ -5,7 +7,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from docsforge.structure.nav import Section
+    from docsforge.nav import Section
 
 
 class StructureItem(abc.ABC):

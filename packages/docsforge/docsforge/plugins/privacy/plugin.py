@@ -48,7 +48,7 @@ from docsforge.config_options import ExtraScriptValue
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
-from docsforge.structure.files import File, Files
+from docsforge.files import File, Files
 from docsforge.utils import is_error_template
 from re import Match
 from urllib.parse import ParseResult as URL, urlparse, unquote

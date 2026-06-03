@@ -27,9 +27,9 @@ from docsforge.config_base import (
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
     from docsforge.livereload import LiveReloadServer
-    from docsforge.structure.files import Files
-    from docsforge.structure.nav import Navigation
-    from docsforge.structure.pages import Page
+    from docsforge.files import Files
+    from docsforge.nav import Navigation
+    from docsforge.pages import Page
     from docsforge.utils.templates import TemplateContext
 
 if TYPE_CHECKING:

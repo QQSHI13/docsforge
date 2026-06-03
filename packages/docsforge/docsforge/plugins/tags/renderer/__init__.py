@@ -35,7 +35,7 @@ import posixpath
 
 from jinja2 import Environment
 from docsforge.config_defaults import DocsForgeConfig
-from docsforge.structure.pages import Page
+from docsforge.pages import Page
 from docsforge.utils import get_relative_url
 
 # -----------------------------------------------------------------------------

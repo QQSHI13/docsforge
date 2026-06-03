@@ -33,8 +33,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.structure.nav import Link
-from docsforge.structure.pages import Page
+from docsforge.nav import Link
+from docsforge.pages import Page
 
 # -----------------------------------------------------------------------------
 # Classes

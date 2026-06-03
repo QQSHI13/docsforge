@@ -41,10 +41,10 @@ from docsforge.plugins.blog.author import Author
 from docsforge.plugins.meta.plugin import MetaPlugin
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
-from docsforge.structure.files import File, Files
-from docsforge.structure.nav import Link, Section
-from docsforge.structure.pages import Page, _RelativePathTreeprocessor
-from docsforge.structure.toc import get_toc
+from docsforge.files import File, Files
+from docsforge.nav import Link, Section
+from docsforge.pages import Page, _RelativePathTreeprocessor
+from docsforge.toc import get_toc
 from docsforge.utils.meta import YAML_RE
 from re import Match
 from yaml import SafeLoader

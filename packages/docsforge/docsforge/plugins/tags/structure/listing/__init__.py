@@ -36,7 +36,7 @@ import posixpath
 from collections.abc import Iterator
 from docsforge.plugins.tags.structure.mapping import Mapping
 from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.structure.pages import Page
+from docsforge.pages import Page
 
 from .config import ListingConfig
 from .tree import ListingTree

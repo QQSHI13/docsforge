@@ -12,7 +12,7 @@ import csscompressor
 import jsmin
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.plugins import BasePlugin
-from docsforge.structure.pages import Page
+from docsforge.pages import Page
 from packaging import version
 
 EXTRAS: Dict[str, str] = {

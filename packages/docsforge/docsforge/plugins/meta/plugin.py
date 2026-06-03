@@ -35,7 +35,7 @@ import posixpath
 
 from mergedeep import Strategy, merge
 from docsforge.exceptions import PluginError
-from docsforge.structure.files import InclusionLevel
+from docsforge.files import InclusionLevel
 from docsforge.plugins import BasePlugin, event_priority
 from yaml import SafeLoader, load
 

@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 
 from docsforge.utils.filter import FileFilter, FilterConfig
-from docsforge.structure.pages import _RelativePathTreeprocessor
+from docsforge.pages import _RelativePathTreeprocessor
 from markdown import Extension, Markdown
 from markdown.treeprocessors import Treeprocessor
 from docsforge.exceptions import ConfigurationError

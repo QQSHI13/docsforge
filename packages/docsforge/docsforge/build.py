@@ -15,9 +15,9 @@ from jinja2.exceptions import TemplateNotFound
 import docsforge
 from docsforge import utils
 from docsforge.exceptions import Abort, BuildError
-from docsforge.structure.files import File, Files, InclusionLevel, get_files, set_exclusions
-from docsforge.structure.nav import Navigation, get_navigation
-from docsforge.structure.pages import Page
+from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusions
+from docsforge.nav import Navigation, get_navigation
+from docsforge.pages import Page
 from docsforge.utils import (
     DuplicateFilter,
     templates,

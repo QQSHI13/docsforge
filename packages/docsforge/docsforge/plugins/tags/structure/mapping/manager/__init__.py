@@ -36,7 +36,7 @@ from docsforge.plugins.tags.config import TagsConfig
 from docsforge.plugins.tags.structure.mapping import Mapping
 from docsforge.plugins.tags.structure.tag import Tag
 from docsforge.plugins.tags.structure.tag.options import TagSet
-from docsforge.structure.pages import Page
+from docsforge.pages import Page
 
 # -----------------------------------------------------------------------------
 # Classes

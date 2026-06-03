@@ -40,7 +40,7 @@ from docsforge.utils.filter import FileFilter
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.plugins import BasePlugin, event_priority
-from docsforge.structure.pages import Page
+from docsforge.pages import Page
 from docsforge.utils.templates import TemplateContext
 
 from .config import TagsConfig

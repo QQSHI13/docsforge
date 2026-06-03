@@ -33,8 +33,8 @@ from __future__ import annotations
 
 from docsforge.plugins.tags.structure.listing import Listing
 from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.structure.pages import Page
-from docsforge.structure.toc import AnchorLink
+from docsforge.pages import Page
+from docsforge.toc import AnchorLink
 from typing import Callable
 
 # -----------------------------------------------------------------------------

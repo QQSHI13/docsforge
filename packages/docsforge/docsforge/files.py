@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     import jinja2.environment
 
     from docsforge.config_defaults import DocsForgeConfig
-    from docsforge.structure.pages import Page
+    from docsforge.pages import Page
 
 
 log = logging.getLogger(__name__)

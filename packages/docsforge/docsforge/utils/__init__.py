@@ -27,7 +27,7 @@ from docsforge import exceptions
 from docsforge.utils.yaml import get_yaml_loader, yaml_load  # noqa: F401 - legacy re-export
 
 if TYPE_CHECKING:
-    from docsforge.structure.pages import Page
+    from docsforge.pages import Page
 
 T = TypeVar('T')
 

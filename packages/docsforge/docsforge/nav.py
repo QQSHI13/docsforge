@@ -7,13 +7,13 @@ from urllib.parse import urlsplit
 
 from docsforge.exceptions import BuildError
 from docsforge.structure import StructureItem
-from docsforge.structure.files import file_sort_key
-from docsforge.structure.pages import Page, _AbsoluteLinksValidationValue
+from docsforge.files import file_sort_key
+from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.utils import nest_paths
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
-    from docsforge.structure.files import Files
+    from docsforge.files import Files
 
 
 log = logging.getLogger(__name__)

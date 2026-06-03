@@ -32,7 +32,7 @@
 from __future__ import annotations
 
 from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.structure.nav import Link
+from docsforge.nav import Link
 
 # -----------------------------------------------------------------------------
 # Classes

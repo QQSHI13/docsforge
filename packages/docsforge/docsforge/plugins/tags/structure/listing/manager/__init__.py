@@ -46,8 +46,8 @@ from docsforge.plugins.tags.structure.mapping import Mapping
 from docsforge.plugins.tags.structure.tag import Tag
 from docsforge.plugins.tags.structure.tag.reference import TagReference
 from docsforge.exceptions import PluginError
-from docsforge.structure.pages import Page
-from docsforge.structure.nav import Link
+from docsforge.pages import Page
+from docsforge.nav import Link
 from re import Match
 from urllib.parse import urlparse
 
