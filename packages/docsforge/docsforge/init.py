@@ -20,9 +20,13 @@ COLOR_MAP = {
 }
 
 
-def _generate_config(site_name: str, site_url: str | None, theme_color: str,
-                     enable_blog: bool, enable_search: bool, enable_tags: bool) -> str:
-    """Generate docsforge.yml content based on user choices."""
+def _generate_config(
+    site_name: str,
+    site_url: str | None,
+    theme_color: str,
+    privacy: bool,
+) -> str:
+    """Generate docsforge.yml content with all core features enabled."""
     
     color = COLOR_MAP.get(theme_color, COLOR_MAP['teal'])
     
@@ -33,50 +37,46 @@ def _generate_config(site_name: str, site_url: str | None, theme_color: str,
     if site_url:
         lines.append(f'site_url: {site_url}')
     
-    lines.append('')
-    lines.append('theme:')
-    lines.append('  name: material')
-    lines.append('  palette:')
-    lines.append('    - media: "(prefers-color-scheme: light)"')
-    lines.append('      scheme: default')
-    lines.append(f"      primary: {color['primary']}")
-    lines.append(f"      accent: {color['accent']}")
-    lines.append('      toggle:')
-    lines.append('        icon: material/brightness-7')
-    lines.append('        name: Switch to dark mode')
-    lines.append('    - media: "(prefers-color-scheme: dark)"')
-    lines.append('      scheme: slate')
-    lines.append(f"      primary: {color['primary']}")
-    lines.append(f"      accent: {color['accent']}")
-    lines.append('      toggle:')
-    lines.append('        icon: material/brightness-4')
-    lines.append('        name: Switch to light mode')
-    lines.append('')
+    lines.extend([
+        '',
+        'theme:',
+        '  name: material',
+        '  palette:',
+        '    - media: "(prefers-color-scheme: light)"',
+        '      scheme: default',
+        f"      primary: {color['primary']}",
+        f"      accent: {color['accent']}",
+        '      toggle:',
+        '        icon: material/brightness-7',
+        '        name: Switch to dark mode',
+        '    - media: "(prefers-color-scheme: dark)"',
+        '      scheme: slate',
+        f"      primary: {color['primary']}",
+        f"      accent: {color['accent']}",
+        '      toggle:',
+        '        icon: material/brightness-4',
+        '        name: Switch to light mode',
+        '',
+        '# Core features are always enabled:',
+        '# search, tags, blog, info, meta, minify, social, optimize',
+        '',
+    ])
     
-    # Plugins section
-    plugins = []
-    if enable_search:
-        plugins.append('search')
-    if enable_tags:
-        plugins.append('tags')
-    if enable_blog:
-        plugins.append('blog')
+    if privacy:
+        lines.extend([
+            '# Privacy: external assets are fetched and inlined locally',
+            '# This is the only optional core feature.',
+            'privacy: true',
+            '',
+        ])
     
-    if plugins:
-        lines.append('plugins:')
-        for plugin in plugins:
-            lines.append(f'  - {plugin}')
-        lines.append('')
-    
-    # Nav section
-    lines.append('nav:')
-    lines.append('  - Home: index.md')
-    
-    if enable_blog:
-        lines.append('  - Blog:')
-        lines.append('    - blog/index.md')
-    
-    lines.append('')
+    lines.extend([
+        'nav:',
+        '  - Home: index.md',
+        '  - Blog:',
+        '    - blog/index.md',
+        '',
+    ])
     
     return '\n'.join(lines)
 
@@ -93,9 +93,9 @@ Edit this file at `docs/index.md` to add your content.
 
 ## Commands
 
-- `docsforge serve` - Start live-reloading dev server
-- `docsforge build` - Build for production
-- `docsforge check` - Validate configuration
+- `docsforge serve` — Start live-reloading dev server
+- `docsforge build` — Build for production
+- `docsforge check` — Validate configuration
 
 ## Features
 
@@ -107,6 +107,13 @@ DocsForge includes everything you need out of the box:
 - ➗ **Math rendering** with KaTeX
 - 📐 **Diagrams** with Mermaid and TikZ
 - 📱 **Offline support** with service worker
+- 🏷️ **Tags** for organizing content
+- 📰 **Blog** for announcements and changelogs
+- 🔒 **Privacy** mode (external assets inlined locally)
+- 📊 **Info banners** for highlighting content
+- 🌐 **Social cards** for link previews
+- ⚡ **Minification** for production builds
+- 🖼️ **Image optimization** for faster loading
 """
 
 
@@ -133,10 +140,18 @@ Posts are automatically listed here.
 """
 
 
-def init(project_directory: str, site_name: str, site_url: str | None,
-         theme_color: str, enable_blog: bool, enable_search: bool,
-         enable_tags: bool) -> None:
-    """Create a new DocsForge project with interactive configuration."""
+def init(
+    project_directory: str,
+    site_name: str,
+    site_url: str | None,
+    theme_color: str,
+    privacy: bool,
+) -> None:
+    """Create a new DocsForge project with interactive configuration.
+    
+    All core features (search, tags, blog, info, meta, minify, social, optimize)
+    are always enabled. Privacy is the only optional feature.
+    """
     
     output_dir = Path(project_directory)
     docs_dir = output_dir / 'docs'
@@ -160,9 +175,7 @@ def init(project_directory: str, site_name: str, site_url: str | None,
             site_name=site_name,
             site_url=site_url,
             theme_color=theme_color,
-            enable_blog=enable_blog,
-            enable_search=enable_search,
-            enable_tags=enable_tags,
+            privacy=privacy,
         )
         config_path.write_text(config_content, encoding='utf-8')
     
@@ -173,19 +186,18 @@ def init(project_directory: str, site_name: str, site_url: str | None,
         log.info(f'Writing homepage: {index_path}')
         index_path.write_text(_generate_index(site_name), encoding='utf-8')
     
-    # Write blog index if blog enabled
-    if enable_blog:
-        blog_dir = docs_dir / 'blog'
-        posts_dir = blog_dir / 'posts'
-        blog_index_path = blog_dir / 'index.md'
-        
-        if not blog_dir.exists():
-            blog_dir.mkdir()
-        if not posts_dir.exists():
-            posts_dir.mkdir()
-        
-        if not blog_index_path.exists():
-            blog_index_path.write_text(_generate_blog_index(), encoding='utf-8')
+    # Write blog index and directories
+    blog_dir = docs_dir / 'blog'
+    posts_dir = blog_dir / 'posts'
+    blog_index_path = blog_dir / 'index.md'
+    
+    if not blog_dir.exists():
+        blog_dir.mkdir()
+    if not posts_dir.exists():
+        posts_dir.mkdir()
+    
+    if not blog_index_path.exists():
+        blog_index_path.write_text(_generate_blog_index(), encoding='utf-8')
     
     # Print summary
     print()
@@ -198,9 +210,12 @@ def init(project_directory: str, site_name: str, site_url: str | None,
     if site_url:
         print(f"  Site URL:      {site_url}")
     print(f"  Theme color:   {theme_color}")
-    print(f"  Search:        {'✓' if enable_search else '✗'}")
-    print(f"  Tags:          {'✓' if enable_tags else '✗'}")
-    print(f"  Blog:          {'✓' if enable_blog else '✗'}")
+    print(f"  Privacy:       {'✓ enabled' if privacy else '✗ disabled'}")
+    print()
+    print("  Core features (always enabled):")
+    print("    ✓ Search      ✓ Tags      ✓ Blog")
+    print("    ✓ Info        ✓ Meta      ✓ Minify")
+    print("    ✓ Social      ✓ Optimize")
     print()
     print("  Next steps:")
     print(f"    cd {output_dir}")

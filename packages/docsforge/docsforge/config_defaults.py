@@ -208,6 +208,10 @@ class DocsForgeConfig(base.Config):
     A key value pair should be the string name (as the key) and a dict of config
     options (as the value). Core plugins (search, meta, tags, blog, info) are always loaded automatically."""
 
+    privacy = c.Type(bool, default=False)
+    """Privacy mode. When enabled, external assets are fetched and inlined
+    locally to prevent tracking and ensure offline functionality."""
+
     hooks = c.Hooks('plugins')
     """A list of filenames that will be imported as Python modules and used as
     an instance of a plugin each."""

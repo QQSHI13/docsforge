@@ -159,9 +159,7 @@ class ProjectManager:
         *,
         site_name: str | None = None,
         theme_color: str = 'teal',
-        enable_blog: bool = False,
-        enable_search: bool = True,
-        enable_tags: bool = False,
+        privacy: bool = False,
     ) -> int:
         """Initialize a new project interactively.
         
@@ -181,6 +179,7 @@ class ProjectManager:
         print("=" * 56)
         print("  Welcome to DocsForge!")
         print("  Let's set up your documentation project.")
+        print("  Core features (search, tags, blog, etc.) are always included.")
         print("=" * 56)
         print()
         
@@ -197,25 +196,12 @@ class ProjectManager:
             theme_color = theme_input
             print()
             
-            # Step 3: Search
-            print("Step 3/5 — Search")
-            print("  Full-text search lets users find content across your docs.")
-            search_input = input("  Enable search? [Y/n]: ").strip().lower()
-            enable_search = search_input in ('', 'y', 'yes')
-            print()
-            
-            # Step 4: Tags
-            print("Step 4/5 — Tags")
-            print("  Tags let you group pages by topic (e.g. 'tutorial', 'reference').")
-            tags_input = input("  Enable tags? [y/N]: ").strip().lower()
-            enable_tags = tags_input in ('y', 'yes')
-            print()
-            
-            # Step 5: Blog
-            print("Step 5/5 — Blog")
-            print("  A blog for changelog posts, announcements, etc.")
-            blog_input = input("  Enable blog? [y/N]: ").strip().lower()
-            enable_blog = blog_input in ('y', 'yes')
+            # Step 3: Privacy
+            print("Step 3/3 — Privacy mode")
+            print("  Privacy mode fetches external assets and inlines them locally.")
+            print("  This prevents tracking and ensures docs work offline.")
+            privacy_input = input("  Enable privacy mode? [Y/n]: ").strip().lower()
+            privacy = privacy_input in ('', 'y', 'yes')
             print()
             
         except (EOFError, KeyboardInterrupt):
@@ -233,9 +219,7 @@ class ProjectManager:
                 site_name=site_name or 'My Documentation',
                 site_url=None,
                 theme_color=theme_color,
-                enable_blog=enable_blog,
-                enable_search=enable_search,
-                enable_tags=enable_tags,
+                privacy=privacy,
             )
             
             # Summary

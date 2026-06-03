@@ -1063,13 +1063,18 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
         for name, cfg in self._parse_configs(value):
             self.load_plugin_with_namespace(name, cfg)
         
-        # Always load core plugins that are always-on features.
-        # These are integrated into the build process and don't require user configuration.
-        # Optional plugins (minify, privacy) must be explicitly configured.
-        core_plugins = ['search', 'meta', 'tags', 'blog', 'info', 'minify', 'privacy']
+        # Always load core plugins that are built-in features.
+        # These are always enabled and don't require user configuration.
+        core_plugins = ['search', 'meta', 'tags', 'blog', 'info', 'minify']
         for name in core_plugins:
             if name not in self._instance_counter:
                 self.load_plugin_with_namespace(name, {})
+        
+        # Privacy is loaded only if enabled in config (privacy: true)
+        # It's the only optional core plugin.
+        if self._config and getattr(self._config, 'privacy', False):
+            if 'privacy' not in self._instance_counter:
+                self.load_plugin_with_namespace('privacy', {})
         
         return self.plugins
 
