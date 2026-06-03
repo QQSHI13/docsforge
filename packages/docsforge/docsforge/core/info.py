@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from docsforge.config_options import Type
 from docsforge.config_base import Config
-from docsforge.plugins import BasePlugin
+from docsforge.core.plugin_base import BasePlugin
 
 # Plugin configuration
 class InfoConfig(Config):

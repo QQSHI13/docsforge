@@ -17,7 +17,7 @@ from packaging import version
 
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.pages import Page
-from docsforge.plugins import BasePlugin
+from docsforge.core.plugin_base import BasePlugin
 
 EXTRAS: Dict[str, str] = {
     "js": "extra_javascript",

@@ -16,7 +16,7 @@ from docsforge.config_options import Type
 from docsforge.config_base import Config
 from docsforge.exceptions import PluginError
 from docsforge.files import InclusionLevel
-from docsforge.plugins import BasePlugin, event_priority
+from docsforge.core.plugin_base import BasePlugin, event_priority
 
 
 # Plugin configuration

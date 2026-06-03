@@ -17,7 +17,7 @@ from html.parser import HTMLParser
 from docsforge import utils
 from docsforge.config_options import Choice, Deprecated, ListOfItems, Optional, SubConfig, Type
 from docsforge.config_base import Config
-from docsforge.plugins import BasePlugin
+from docsforge.core.plugin_base import BasePlugin
 
 try:
     import jieba

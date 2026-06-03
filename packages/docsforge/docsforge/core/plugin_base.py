@@ -451,7 +451,7 @@ def event_priority(priority: float) -> Callable[[T], T]:
 
     ```python
     try:
-        from docsforge.plugins import event_priority
+        from docsforge.core.plugin_base import event_priority
     except ImportError:
         event_priority = lambda priority: lambda f: f  # No-op fallback
     ```
@@ -694,7 +694,7 @@ def get_plugin_logger(name: str) -> PrefixedLogger:
 
     Example:
         ```python
-        from docsforge.plugins import get_plugin_logger
+        from docsforge.core.plugin_base import get_plugin_logger
 
         log = get_plugin_logger(__name__)
         log.info("My plugin message")

@@ -19,10 +19,9 @@ from urllib.parse import quote as urlquote
 from urllib.parse import urlsplit, urlunsplit
 
 import markdown
-import docsforge.core
 import pathspec.gitignore
-
-from docsforge import plugins, utils
+from docsforge.core.plugin_base import BasePlugin, get_plugins, PluginCollection
+from docsforge import utils
 from docsforge.config_base import (
     BaseConfigOption,
     Config,
@@ -1037,7 +1036,7 @@ class MarkdownExtensions(OptionallyRequired[list[str]]):
         config[self.configkey] = self.configdata
 
 
-class Plugins(OptionallyRequired[plugins.PluginCollection]):
+class Plugins(OptionallyRequired[PluginCollection]):
     """
     Plugins config option.
 
@@ -1047,18 +1046,18 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
 
     def __init__(self, theme_key: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.installed_plugins = plugins.get_plugins()
+        self.installed_plugins = get_plugins()
         self.theme_key = theme_key
         self._config: Config | None = None
-        self.plugin_cache: dict[str, plugins.BasePlugin] = {}
+        self.plugin_cache: dict[str, BasePlugin] = {}
 
     def pre_validation(self, config, key_name):
         self._config = config
 
-    def run_validation(self, value: object) -> plugins.PluginCollection:
+    def run_validation(self, value: object) -> PluginCollection:
         if not isinstance(value, (list, tuple, dict)):
             raise ValidationError('Invalid Plugins configuration. Expected a list or dict.')
-        self.plugins = plugins.PluginCollection()
+        self.plugins = PluginCollection()
         self._instance_counter: MutableMapping[str, int] = Counter()
         for name, cfg in self._parse_configs(value):
             self.load_plugin_with_namespace(name, cfg)
@@ -1098,7 +1097,7 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
                     raise ValidationError(f"'{name}' is not a valid plugin name.")
                 yield name, cfg
 
-    def load_plugin_with_namespace(self, name: str, config) -> tuple[str, plugins.BasePlugin]:
+    def load_plugin_with_namespace(self, name: str, config) -> tuple[str, BasePlugin]:
         if '/' in name:  # It's already specified with a namespace.
             # Special case: allow to explicitly skip namespaced loading:
             name = name.removeprefix('/')
@@ -1114,7 +1113,7 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
                         name = expanded_name
         return (name, self.load_plugin(name, config))
 
-    def load_plugin(self, name: str, config) -> plugins.BasePlugin:
+    def load_plugin(self, name: str, config) -> BasePlugin:
         if name not in self.installed_plugins:
             raise ValidationError(f'The "{name}" plugin is not installed')
 
@@ -1132,10 +1131,10 @@ class Plugins(OptionallyRequired[plugins.PluginCollection]):
         if plugin is None:
             plugin_cls = self.installed_plugins[name].load()
 
-            if not issubclass(plugin_cls, plugins.BasePlugin):
+            if not issubclass(plugin_cls, BasePlugin):
                 raise ValidationError(
                     f'{plugin_cls.__module__}.{plugin_cls.__name__} must be a subclass of'
-                    f' {plugins.BasePlugin.__module__}.{plugins.BasePlugin.__name__}'
+                    f' {BasePlugin.__module__}.{BasePlugin.__name__}'
                 )
 
             plugin = plugin_cls()

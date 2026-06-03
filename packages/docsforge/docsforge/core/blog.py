@@ -38,7 +38,7 @@ from docsforge.files import File, Files, InclusionLevel
 from docsforge.meta import YAML_RE
 from docsforge.nav import Link, Navigation, Section, _add_parent_links, _data_to_navigation
 from docsforge.pages import Page, _RelativePathTreeprocessor
-from docsforge.plugins import BasePlugin, event_priority
+from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.structure import StructureItem
 from docsforge.toc import AnchorLink, TableOfContents, get_toc
 

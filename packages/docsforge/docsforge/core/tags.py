@@ -10,7 +10,7 @@ from docsforge.exceptions import PluginError
 from docsforge.filter_config import FileFilter, FilterConfig
 from docsforge.nav import Link
 from docsforge.pages import Page
-from docsforge.plugins import BasePlugin, event_priority
+from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.templates import TemplateContext
 from docsforge.toc import AnchorLink
 from collections.abc import Callable
