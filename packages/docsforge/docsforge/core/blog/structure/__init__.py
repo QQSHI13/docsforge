@@ -37,8 +37,8 @@ import yaml
 
 from copy import copy
 from markdown import Markdown
-from docsforge.plugins.blog.author import Author
-from docsforge.plugins.meta.plugin import MetaPlugin
+from docsforge.core.blog.author import Author
+from docsforge.core.meta.plugin import MetaPlugin
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.exceptions import PluginError
 from docsforge.files import File, Files

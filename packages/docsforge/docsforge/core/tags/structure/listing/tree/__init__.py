@@ -33,8 +33,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from functools import total_ordering
-from docsforge.plugins.tags.structure.mapping import Mapping
-from docsforge.plugins.tags.structure.tag import Tag
+from docsforge.core.tags.structure.mapping import Mapping
+from docsforge.core.tags.structure.tag import Tag
 
 # -----------------------------------------------------------------------------
 # Classes

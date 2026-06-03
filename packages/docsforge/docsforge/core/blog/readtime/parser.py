@@ -33,7 +33,7 @@ from html.parser import HTMLParser
 
 # TODO: Refactor the `void` set into a common module and import it from there
 # and not from the search plugin.
-from docsforge.plugins.search.plugin import void
+from docsforge.core.search.plugin import void
 
 # -----------------------------------------------------------------------------
 # Classes

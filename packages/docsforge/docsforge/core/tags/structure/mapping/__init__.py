@@ -32,7 +32,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from docsforge.plugins.tags.structure.tag import Tag
+from docsforge.core.tags.structure.tag import Tag
 from docsforge.nav import Link
 from docsforge.pages import Page
 

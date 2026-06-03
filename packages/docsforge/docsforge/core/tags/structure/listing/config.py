@@ -31,7 +31,7 @@
 
 import yaml
 
-from docsforge.plugins.tags.structure.tag.options import TagSet
+from docsforge.core.tags.structure.tag.options import TagSet
 from docsforge.config_base import Config
 from docsforge.config_options import Optional, Type
 from yaml import Dumper

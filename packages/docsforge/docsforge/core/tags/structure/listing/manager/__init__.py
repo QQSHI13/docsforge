@@ -38,13 +38,13 @@ import re
 import yaml
 
 from collections.abc import Iterable, Iterator
-from docsforge.plugins.tags.config import TagsConfig
-from docsforge.plugins.tags.renderer import Renderer
-from docsforge.plugins.tags.structure.listing import Listing, ListingConfig
-from docsforge.plugins.tags.structure.listing.tree import ListingTree
-from docsforge.plugins.tags.structure.mapping import Mapping
-from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.plugins.tags.structure.tag.reference import TagReference
+from docsforge.core.tags.config import TagsConfig
+from docsforge.core.tags.renderer import Renderer
+from docsforge.core.tags.structure.listing import Listing, ListingConfig
+from docsforge.core.tags.structure.listing.tree import ListingTree
+from docsforge.core.tags.structure.mapping import Mapping
+from docsforge.core.tags.structure.tag import Tag
+from docsforge.core.tags.structure.tag.reference import TagReference
 from docsforge.exceptions import PluginError
 from docsforge.pages import Page
 from docsforge.nav import Link

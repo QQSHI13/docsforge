@@ -19,7 +19,7 @@ from urllib.parse import quote as urlquote
 from urllib.parse import urlsplit, urlunsplit
 
 import markdown
-import docsforge.plugins
+import docsforge.core
 import pathspec.gitignore
 
 from docsforge import plugins, utils

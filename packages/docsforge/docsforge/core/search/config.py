@@ -29,63 +29,46 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-from __future__ import annotations
+from docsforge.config_options import (
+    Choice,
+    Deprecated,
+    Optional,
+    ListOfItems,
+    Type
+)
+from docsforge.config_base import Config
+from docsforge.core.search.lang import LangOption
 
-from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.nav import Link
+# -----------------------------------------------------------------------------
+# Options
+# -----------------------------------------------------------------------------
+
+# Options for search pipeline
+pipeline = ("stemmer", "stopWordFilter", "trimmer")
 
 # -----------------------------------------------------------------------------
 # Classes
 # -----------------------------------------------------------------------------
 
-class TagReference(Tag):
-    """
-    A tag reference.
+# Search field configuration
+class SearchFieldConfig(Config):
+    boost = Type((int, float), default = 1.0)
 
-    Tag references are a subclass of tags that can have associated links, which
-    is primarily used for linking tags to listings. The first link is used as
-    the canonical link, which by default points to the closest listing that
-    features the tag. This is considered to be the canonical listing.
-    """
+# Search plugin configuration
+class SearchConfig(Config):
+    enabled = Type(bool, default = True)
 
-    def __init__(self, tag: Tag, links: list[Link] | None = None):
-        """
-        Initialize the tag reference.
+    # Settings for search
+    lang = Optional(LangOption())
+    separator = Optional(Type(str))
+    pipeline = Optional(ListOfItems(Choice(pipeline)))
+    fields = Type(dict, default = {})
 
-        Arguments:
-            tag: The tag.
-            links: The links associated with the tag.
-        """
-        super().__init__(**vars(tag))
-        self.links = links or []
+    # Settings for text segmentation (Chinese)
+    jieba_dict = Optional(Type(str))
+    jieba_dict_user = Optional(Type(str))
 
-    def __repr__(self) -> str:
-        """
-        Return a printable representation of the tag reference.
-
-        Returns:
-            Printable representation.
-        """
-        return f"TagReference('{self.name}')"
-
-    # -------------------------------------------------------------------------
-
-    links: list[Link]
-    """
-    The links associated with the tag.
-    """
-
-    # -------------------------------------------------------------------------
-
-    @property
-    def url(self) -> str | None:
-        """
-        Return the URL of the tag reference.
-
-        Returns:
-            The URL of the tag reference.
-        """
-        if self.links:
-            return self.links[0].url
-        else:
-            return None
+    # Unsupported settings, originally implemented in MkDocs
+    indexing = Deprecated(message = "Unsupported option")
+    prebuild_index = Deprecated(message = "Unsupported option")
+    min_search_length = Deprecated(message = "Unsupported option")

@@ -32,10 +32,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from docsforge.plugins.tags.config import TagsConfig
-from docsforge.plugins.tags.structure.mapping import Mapping
-from docsforge.plugins.tags.structure.tag import Tag
-from docsforge.plugins.tags.structure.tag.options import TagSet
+from docsforge.core.tags.config import TagsConfig
+from docsforge.core.tags.structure.mapping import Mapping
+from docsforge.core.tags.structure.tag import Tag
+from docsforge.core.tags.structure.tag.options import TagSet
 from docsforge.pages import Page
 
 # -----------------------------------------------------------------------------

@@ -34,8 +34,8 @@ from __future__ import annotations
 import posixpath
 
 from collections.abc import Iterator
-from docsforge.plugins.tags.structure.mapping import Mapping
-from docsforge.plugins.tags.structure.tag import Tag
+from docsforge.core.tags.structure.mapping import Mapping
+from docsforge.core.tags.structure.tag import Tag
 from docsforge.pages import Page
 
 from .config import ListingConfig
