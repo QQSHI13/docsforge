@@ -151,7 +151,6 @@ class OptionallyRequired(Generic[T], BaseConfigOption[T]):
     def __init__(self, default=None, required=None):
         super().__init__()
         self.default = default
-        self._legacy_required = required
         self.required = bool(required)
 
     def validate(self, value):
@@ -297,7 +296,6 @@ class ConfigItems(ListOfItems[LegacyConfig]):
 
     def __init__(self, *config_options: PlainConfigSchemaItem, required=None) -> None:
         super().__init__(SubConfig(*config_options), default=[])
-        self._legacy_required = required
         self.required = bool(required)
 
 

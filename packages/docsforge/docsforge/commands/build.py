@@ -19,7 +19,7 @@ from docsforge.structure.files import File, Files, InclusionLevel, get_files, se
 from docsforge.structure.nav import Navigation, get_navigation
 from docsforge.structure.pages import Page
 from docsforge.utils import (
-    DuplicateFilter,  # noqa: F401 - legacy re-export
+    DuplicateFilter,
     templates,
     tikz,
 )
@@ -57,8 +57,6 @@ def get_context(
         extra_css=extra_css,
         extra_javascript=extra_javascript,
         docsforge_version=docsforge.__version__,
-        properdocs_version=docsforge.__version__,  # Legacy alias - deprecated, use docsforge_version
-        mkdocs_version=f"DocsForge {docsforge.__version__}",
         build_date_utc=utils.get_build_datetime(),
         config=config,
         page=page,
@@ -274,22 +272,6 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
     try:
         start = time.monotonic()
-
-        # Check if we're building from a legacy config (mkdocs or properdocs)
-        if config.config_file_path:
-            config_path = Path(config.config_file_path)
-            if config_path.name in ('mkdocs.yml', 'mkdocs.yaml', 'properdocs.yml', 'properdocs.yaml'):
-                log.info(
-                    "\n"
-                    "╔══════════════════════════════════════════════════════════════╗\n"
-                    "║  Detected legacy configuration file                          ║\n"
-                    "║                                                              ║\n"
-                    "║  DocsForge is the maintained successor to MkDocs + Material. ║\n"
-                    "║                                                              ║\n"
-                    "║  Run: docsforge migrate                                      ║\n"
-                    "║  Docs: https://qqshi13.github.io/docsforge-docs/             ║\n"
-                    "╚══════════════════════════════════════════════════════════════╝\n"
-                )
 
         # Run `config` plugin events.
         config = config.plugins.on_config(config)

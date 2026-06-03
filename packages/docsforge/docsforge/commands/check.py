@@ -26,12 +26,11 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     # 1. Find config file
     config_path = _find_config(config_file)
     if not config_path:
-        log.error("No docsforge.yml, docsforge.yaml, properdocs.yml, properdocs.yaml, mkdocs.yml, or mkdocs.yaml found.")
+        log.error("No docsforge.yml or docsforge.yaml found.")
         print()
         print("  To create a new project:")
-        print("    docsforge init .")
-        print("    # or")
-        print("    docsforge new my-docs")
+        print("    docsforge")
+        print("    # (runs interactive init wizard)")
         print()
         return 1
     
@@ -105,7 +104,7 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     if isinstance(plugins, str):
         plugins = [plugins]
     
-    from docsforge.commands.migrate import SUPPORTED_PLUGINS
+    KNOWN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy'}
     
     if plugins:
         print(f"  Plugins:       {len(plugins)} configured")
@@ -118,7 +117,7 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
                 continue
             
             clean_name = name.split('/')[-1] if '/' in name else name
-            if clean_name in SUPPORTED_PLUGINS or name in SUPPORTED_PLUGINS:
+            if clean_name in KNOWN_PLUGINS or name in KNOWN_PLUGINS:
                 print(f"                   ✓ {name}")
             else:
                 print(f"                   ⚠ {name} (unknown plugin)")
@@ -183,7 +182,7 @@ def _find_config(config_file) -> str | None:
             # It's a file object
             return os.path.abspath(config_file.name)
     
-    for name in ['docsforge.yml', 'docsforge.yaml', 'properdocs.yml', 'properdocs.yaml', 'mkdocs.yml', 'mkdocs.yaml']:
+    for name in ['docsforge.yml', 'docsforge.yaml']:
         if os.path.exists(name):
             return os.path.abspath(name)
     

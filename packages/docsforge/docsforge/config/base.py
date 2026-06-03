@@ -306,7 +306,7 @@ def _open_config_file(config_file: str | IO | None) -> Iterator[IO]:
     """
     # Default to the standard config filename.
     if config_file is None:
-        paths_to_try = ['docsforge.yml', 'docsforge.yaml', 'properdocs.yml', 'properdocs.yaml', 'mkdocs.yml', 'mkdocs.yaml']
+        paths_to_try = ['docsforge.yml', 'docsforge.yaml']
     # If it is a string, we can assume it is a path and attempt to open it.
     elif isinstance(config_file, str):
         paths_to_try = [config_file]
@@ -321,11 +321,6 @@ def _open_config_file(config_file: str | IO | None) -> Iterator[IO]:
             log.debug(f"Loading configuration file: {abspath}")
             try:
                 result_config_file = open(abspath, 'rb')
-                if len(paths_to_try) > 1 and path in ('mkdocs.yml', 'mkdocs.yaml', 'properdocs.yml', 'properdocs.yaml'):
-                    log.info(
-                        f"The configuration file '{path}' should be renamed to 'docsforge.yml', OR it should be passed explicitly on the command line: `-f {path}`.\n"
-                        "Support for using this legacy file name as a fallback will eventually be removed from DocsForge."
-                    )
                 break
             except FileNotFoundError:
                 continue
