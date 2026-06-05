@@ -19,10 +19,19 @@ from docsforge.config_options import Choice, Deprecated, ListOfItems, Optional, 
 from docsforge.config_base import Config
 from docsforge.core.plugin_base import BasePlugin
 
-try:
-    import jieba
-except ImportError:
-    jieba = None
+
+def _get_jieba():
+    """Lazy-load jieba to avoid dictionary loading penalty for non-Chinese sites."""
+    global jieba
+    if jieba is None:
+        try:
+            import jieba as _jieba
+            jieba = _jieba
+        except ImportError:
+            jieba = False
+    return jieba if jieba is not False else None
+
+jieba = None
 
 
 # Plugin configuration
@@ -80,7 +89,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             validator.run_validation(field_config)
 
         # Check jieba for Chinese
-        if not jieba:
+        if not _get_jieba():
             log.warning(
                 "Chinese content may not be segmented correctly without jieba. "
                 "Install it for better Chinese search: pip install docsforge[chinese]"
@@ -98,17 +107,18 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         self.search_index = SearchIndex(**self.config)
 
         # Configure jieba
-        if self.config.jieba_dict:
+        jieba_lib = _get_jieba()
+        if jieba_lib and self.config.jieba_dict:
             path = os.path.normpath(self.config.jieba_dict)
             if os.path.isfile(path):
-                jieba.set_dictionary(path)
+                jieba_lib.set_dictionary(path)
             else:
                 log.warning(f"jieba_dict not found: {self.config.jieba_dict}")
 
-        if self.config.jieba_dict_user:
+        if jieba_lib and self.config.jieba_dict_user:
             path = os.path.normpath(self.config.jieba_dict_user)
             if os.path.isfile(path):
-                jieba.load_userdict(path)
+                jieba_lib.load_userdict(path)
             else:
                 log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
 
@@ -176,7 +186,8 @@ class SearchIndex:
         title = "".join(section.title).strip()
         text = "".join(section.text).strip()
 
-        if jieba:
+        jieba_lib = _get_jieba()
+        if jieba_lib:
             title = self._segment_chinese(title)
             text = self._segment_chinese(text)
 
@@ -231,11 +242,15 @@ class SearchIndex:
     def _segment_chinese(self, data):
         expr = bre.compile(r"(\p{script: Han}+)", bre.UNICODE)
 
+        jieba_lib = _get_jieba()
+        if not jieba_lib:
+            return data
+
         def replace(match):
             value = match.group(0)
             return "".join([
                 "\u200b",
-                "\u200b".join(jieba.cut(value.encode("utf-8"))),
+                "\u200b".join(jieba_lib.cut(value.encode("utf-8"))),
                 "\u200b",
             ])
 

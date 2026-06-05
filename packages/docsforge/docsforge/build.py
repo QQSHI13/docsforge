@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import concurrent.futures
 import gzip
 import logging
 import os
+import threading
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -151,9 +153,13 @@ def _build_extra_template(
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
 
-def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = False) -> None:
+def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = False, _page_lock: threading.Lock | None = None) -> None:
     """Read page content from docs_dir and render Markdown."""
-    config._current_page = page
+    if _page_lock:
+        with _page_lock:
+            config._current_page = page
+    else:
+        config._current_page = page
     try:
         # When --dirty is used, only read the page if the file has been modified since the
         # previous build of the output.
@@ -161,23 +167,39 @@ def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: boo
             return
 
         # Run the `pre_page` plugin event
-        page = config.plugins.on_pre_page(page, config=config, files=files)
+        if _page_lock:
+            with _page_lock:
+                page = config.plugins.on_pre_page(page, config=config, files=files)
+        else:
+            page = config.plugins.on_pre_page(page, config=config, files=files)
 
         page.read_source(config)
         assert page.markdown is not None
 
         # Run `page_markdown` plugin events.
-        page.markdown = config.plugins.on_page_markdown(
-            page.markdown, page=page, config=config, files=files
-        )
+        if _page_lock:
+            with _page_lock:
+                page.markdown = config.plugins.on_page_markdown(
+                    page.markdown, page=page, config=config, files=files
+                )
+        else:
+            page.markdown = config.plugins.on_page_markdown(
+                page.markdown, page=page, config=config, files=files
+            )
 
         page.render(config, files)
         assert page.content is not None
 
         # Run `page_content` plugin events.
-        page.content = config.plugins.on_page_content(
-            page.content, page=page, config=config, files=files
-        )
+        if _page_lock:
+            with _page_lock:
+                page.content = config.plugins.on_page_content(
+                    page.content, page=page, config=config, files=files
+                )
+        else:
+            page.content = config.plugins.on_page_content(
+                page.content, page=page, config=config, files=files
+            )
     except Exception as e:
         message = f"Error reading page '{page.file.src_uri}':"
         # Prevent duplicated the error message because it will be printed immediately afterwards.
@@ -186,7 +208,11 @@ def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: boo
         log.error(message)
         raise
     finally:
-        config._current_page = None
+        if _page_lock:
+            with _page_lock:
+                config._current_page = None
+        else:
+            config._current_page = None
 
 
 def _build_page(
@@ -197,9 +223,14 @@ def _build_page(
     env: jinja2.Environment,
     dirty: bool = False,
     excluded: bool = False,
+    _page_lock: threading.Lock | None = None,
 ) -> None:
     """Pass a Page to theme template and write output to site_dir."""
-    config._current_page = page
+    if _page_lock:
+        with _page_lock:
+            config._current_page = page
+    else:
+        config._current_page = page
     try:
         # When --dirty is used, only build the page if the file has been modified since the
         # previous build of the output.
@@ -217,7 +248,11 @@ def _build_page(
         template = env.get_template(page.meta.get('template', 'main.html'))
 
         # Run `page_context` plugin events.
-        context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
+        if _page_lock:
+            with _page_lock:
+                context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
+        else:
+            context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
 
         if excluded:
             page.content = (
@@ -230,7 +265,11 @@ def _build_page(
         output = template.render(context)
 
         # Run `post_page` plugin events.
-        output = config.plugins.on_post_page(output, page=page, config=config)
+        if _page_lock:
+            with _page_lock:
+                output = config.plugins.on_post_page(output, page=page, config=config)
+        else:
+            output = config.plugins.on_post_page(output, page=page, config=config)
 
         # Write the output file.
         if output.strip():
@@ -253,6 +292,11 @@ def _build_page(
     finally:
         # Deactivate page
         page.active = False
+        if _page_lock:
+            with _page_lock:
+                config._current_page = None
+        else:
+            config._current_page = None
         config._current_page = None
 
 
@@ -351,7 +395,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                     excluded.append(urljoin(serve_url, file.url))
                 Page(None, file, config)
             assert file.page is not None
-
+            
             # Check if page needs rebuilding
             if dirty:
                 source_path = Path(file.abs_src_path)
@@ -359,7 +403,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                 if not planner.should_rebuild(source_path, output_path):
                     log.debug(f"Skipping unchanged page: {file.src_uri}")
                     continue
-
+            
             _populate_page(file.page, config, files, dirty)
         if excluded:
             log.info(
@@ -388,25 +432,44 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
         log.debug("Building markdown pages.")
         doc_files = files.documentation_pages(inclusion=inclusion)
-        for file in doc_files:
-            assert file.page is not None
 
-            source_path = Path(file.abs_src_path)
-            output_path = Path(file.abs_dest_path)
+        # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
+        page_lock = threading.Lock()
+        max_workers = min(32, os.cpu_count() or 1)
 
-            # Check if page needs rebuilding
-            if dirty:
-                if not planner.should_rebuild(source_path, output_path):
-                    continue
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for file in doc_files:
+                assert file.page is not None
 
-            _build_page(
-                file.page, config, doc_files, nav, env, dirty, excluded=file.inclusion.is_excluded()
-            )
+                source_path = Path(file.abs_src_path)
+                output_path = Path(file.abs_dest_path)
 
-            # Update cache after successful build
-            if dirty:
-                deps = DependencyTracker.get_file_deps(source_path, file.page.content or "")
-                planner.update_cache(source_path, output_path, deps)
+                # Check if page needs rebuilding
+                if dirty:
+                    if not planner.should_rebuild(source_path, output_path):
+                        continue
+
+                future = executor.submit(
+                    _build_page,
+                    file.page, config, doc_files, nav, env, dirty,
+                    file.inclusion.is_excluded(),
+                    page_lock,
+                )
+                futures.append((future, source_path, output_path, file.page))
+
+            # Wait for all pages to complete
+            for future, source_path, output_path, page in futures:
+                try:
+                    future.result()
+                except Exception:
+                    # Error already logged in _build_page; continue with other pages
+                    pass
+
+                # Update cache after successful build
+                if dirty:
+                    deps = DependencyTracker.get_file_deps(source_path, page.content or "")
+                    planner.update_cache(source_path, output_path, deps)
 
         log_level = config.validation.links.anchors
         for file in doc_files:
