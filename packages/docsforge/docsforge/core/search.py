@@ -28,8 +28,8 @@ def _get_jieba():
             import jieba as _jieba
             jieba = _jieba
         except ImportError:
-            jieba = False
-    return jieba if jieba is not False else None
+            jieba = None
+    return jieba
 
 jieba = None
 

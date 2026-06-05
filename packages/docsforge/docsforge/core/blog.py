@@ -234,10 +234,6 @@ class Authors(Config):
 def view_name(view: View):
     return view.name
 
-# Sort views by post count
-def view_post_count(view: View):
-    return len(view.posts)
-
 
 # -----------------------------------------------------------------------------
 # Classes

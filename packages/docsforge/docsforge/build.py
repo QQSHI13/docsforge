@@ -153,7 +153,7 @@ def _build_extra_template(
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
 
-def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = False, _page_lock: threading.Lock | None = None) -> None:
+def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = False, _page_lock: threading.RLock | None = None) -> None:
     """Read page content from docs_dir and render Markdown."""
     if _page_lock:
         with _page_lock:
@@ -223,7 +223,7 @@ def _build_page(
     env: jinja2.Environment,
     dirty: bool = False,
     excluded: bool = False,
-    _page_lock: threading.Lock | None = None,
+    _page_lock: threading.RLock | None = None,
 ) -> None:
     """Pass a Page to theme template and write output to site_dir."""
     if _page_lock:
@@ -434,7 +434,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         doc_files = files.documentation_pages(inclusion=inclusion)
 
         # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
-        page_lock = threading.Lock()
+        page_lock = threading.RLock()
         max_workers = min(32, os.cpu_count() or 1)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:

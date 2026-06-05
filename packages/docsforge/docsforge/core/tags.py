@@ -130,7 +130,7 @@ class TagSet(BaseConfigOption[Set[Tag]]):
         return config.get(key_name, set())
 
     def post_validation(self, config: Config, key_name: str, value: Set[Tag]):
-        return config.get(key_name, set())
+        return value
 
 
 # Tags plugin configuration

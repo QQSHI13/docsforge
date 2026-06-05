@@ -19,9 +19,24 @@ from typing import TYPE_CHECKING, TypeVar
 from urllib.parse import urlsplit
 
 from docsforge import exceptions
-from docsforge.weak_property import weak_property  # noqa: F401 - legacy re-export
 from docsforge.yaml_utils import get_yaml_loader, yaml_load  # noqa: F401 - legacy re-export
 from docsforge.tikz import compile_tikz_files  # noqa: F401 - legacy re-export
+
+# ---------------------------------------------------------------------------
+# weak_property descriptor
+# ---------------------------------------------------------------------------
+
+class weak_property:
+    """Same as a read-only property, but allows overwriting the field for good."""
+
+    def __init__(self, func):
+        self.func = func
+        self.__doc__ = func.__doc__
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        return self.func(instance)
 
 if TYPE_CHECKING:
     from docsforge.pages import Page

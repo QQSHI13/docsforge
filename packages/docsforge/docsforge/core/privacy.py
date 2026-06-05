@@ -56,7 +56,7 @@ extensions = {
 LogLevel = ("error", "warn", "info", "debug")
 
 # Set up logging
-log = logging.getLogger("mkdocs.material.privacy")
+log = logging.getLogger("docsforge.privacy")
 
 # ---------------------------------------------------------------------------
 # Fragment Parser

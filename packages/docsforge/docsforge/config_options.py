@@ -279,25 +279,6 @@ class DictOfItems(Generic[T], BaseConfigOption[dict[str, T]]):
         return value
 
 
-class ConfigItems(ListOfItems[LegacyConfig]):
-    """
-    Deprecated: Use `ListOfItems(SubConfig(...))` instead of `ConfigItems(...)`.
-
-    Validates a list of mappings that all must match the same set of
-    options.
-    """
-
-    @overload
-    def __init__(self, *config_options: PlainConfigSchemaItem): ...
-
-    @overload
-    def __init__(self, *config_options: PlainConfigSchemaItem, required: bool): ...
-
-    def __init__(self, *config_options: PlainConfigSchemaItem, required=None) -> None:
-        super().__init__(SubConfig(*config_options), default=[])
-        self.required = bool(required)
-
-
 class Type(Generic[T], OptionallyRequired[T]):
     """
     Type Config Option.

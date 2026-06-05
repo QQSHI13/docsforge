@@ -17,7 +17,7 @@ from markdown.util import AMP_SUBSTITUTE
 from docsforge import utils
 from docsforge.structure import StructureItem
 from docsforge.toc import get_toc
-from docsforge.weak_property import weak_property
+from docsforge.utils import weak_property
 from docsforge.utils import get_build_date, get_markdown_title
 from docsforge import meta
 from docsforge.rendering import get_heading_text
@@ -219,12 +219,6 @@ class Page(StructureItem):
                 raise
 
         self.markdown, self.meta = meta.get_data(source)
-
-    def _set_title(self) -> None:
-        warnings.warn(
-            "_set_title is no longer used in DocsForge and will be removed soon.",
-            DeprecationWarning,
-        )
 
     @weak_property
     def title(self) -> str | None:  # type: ignore[override]
