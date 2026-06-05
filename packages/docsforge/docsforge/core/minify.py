@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import os
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple
 
 import csscompressor
 import jsmin

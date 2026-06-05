@@ -5,7 +5,7 @@ from __future__ import annotations
 from docsforge import get_relative_url
 from docsforge.config_base import BaseConfigOption, Config, ValidationError
 from docsforge.config_defaults import DocsForgeConfig
-from docsforge.config_options import Optional, Type
+from docsforge.config_options import DictOfItems, Deprecated, Optional, Type
 from docsforge.exceptions import PluginError
 from docsforge.filter_config import FileFilter, FilterConfig
 from docsforge.nav import Link
@@ -13,17 +13,13 @@ from docsforge.pages import Page
 from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.templates import TemplateContext
 from docsforge.toc import AnchorLink
-from collections.abc import Callable
-from collections.abc import Iterable
-from collections.abc import Iterable, Iterator
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator
 from functools import total_ordering
 from jinja2 import Environment
 from pymdownx.slugs import slugify
 from re import Match
-from typing import Callable, Dict, Iterator, Set, Tuple, Union
+from typing import Iterator, Set, Tuple
 from urllib.parse import urlparse
-from yaml import Dumper
 import json
 import logging
 import os
@@ -56,21 +52,9 @@ def item_url(mapping: Mapping):
     return mapping.item.url
 
 
-#-----------------------------------------------------------------------------
-# From tags/config.py
-#-----------------------------------------------------------------------------
-
-from docsforge.config_options import DictOfItems, Deprecated, ListOfItems, SubConfig, Type
-
-
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # Classes
-# -----------------------------------------------------------------------------
-
-# TagSet definition
-# -----------------------------------------------------------------------------
-# Classes
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
 @total_ordering
 class Tag:
