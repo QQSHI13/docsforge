@@ -41,6 +41,8 @@ def get_context(
     """Return the template context for a given page or template."""
     if page is not None:
         base_url = utils.get_relative_url(page.url, '.')
+        if base_url and not base_url.endswith('/'):
+            base_url += '/'
 
     extra_javascript = [
         utils.normalize_url(str(script), page, base_url) for script in config.extra_javascript
@@ -79,6 +81,8 @@ def _build_template(
         base_url = urlsplit(config.site_url or '/').path
     else:
         base_url = utils.get_relative_url(name, '.')
+        if base_url and not base_url.endswith('/'):
+            base_url += '/'
 
     context = get_context(nav, files, config, base_url=base_url)
 
