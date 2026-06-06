@@ -226,78 +226,66 @@ def _build_page(
     _page_lock: threading.RLock | None = None,
 ) -> None:
     """Pass a Page to theme template and write output to site_dir."""
-    if _page_lock:
-        with _page_lock:
-            config._current_page = page
-    else:
+    def _do_build():
         config._current_page = page
-    try:
-        # When --dirty is used, only build the page if the file has been modified since the
-        # previous build of the output.
-        if dirty and not page.file.is_modified():
-            return
-
-        log.debug(f"Building page {page.file.src_uri}")
-
-        # Activate page. Signals to theme that this is the current page.
         page.active = True
+        try:
+            # When --dirty is used, only build the page if the file has been modified since the
+            # previous build of the output.
+            if dirty and not page.file.is_modified():
+                return
 
-        context = get_context(nav, doc_files, config, page)
+            log.debug(f"Building page {page.file.src_uri}")
 
-        # Allow 'template:' override in md source files.
-        template = env.get_template(page.meta.get('template', 'main.html'))
+            context = get_context(nav, doc_files, config, page)
 
-        # Run `page_context` plugin events.
-        if _page_lock:
-            with _page_lock:
-                context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
-        else:
+            # Allow 'template:' override in md source files.
+            template = env.get_template(page.meta.get('template', 'main.html'))
+
+            # Run `page_context` plugin events.
             context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
 
-        if excluded:
-            page.content = (
-                '<div class="docsforge-draft-marker" title="This page will not be included into the built site.">'
-                'DRAFT'
-                '</div>' + (page.content or '')
-            )
+            if excluded:
+                page.content = (
+                    '<div class="docsforge-draft-marker" title="This page will not be included into the built site.">'
+                    'DRAFT'
+                    '</div>' + (page.content or '')
+                )
 
-        # Render the template.
-        output = template.render(context)
+            # Render the template.
+            output = template.render(context)
 
-        # Run `post_page` plugin events.
-        if _page_lock:
-            with _page_lock:
-                output = config.plugins.on_post_page(output, page=page, config=config)
-        else:
+            # Run `post_page` plugin events.
             output = config.plugins.on_post_page(output, page=page, config=config)
 
-        # Write the output file.
-        if output.strip():
-            utils.write_file(
-                output.encode('utf-8', errors='xmlcharrefreplace'), page.file.abs_dest_path
-            )
-        else:
-            log.info(f"Page skipped: '{page.file.src_uri}'. Generated empty output.")
+            # Write the output file.
+            if output.strip():
+                utils.write_file(
+                    output.encode('utf-8', errors='xmlcharrefreplace'), page.file.abs_dest_path
+                )
+            else:
+                log.info(f"Page skipped: '{page.file.src_uri}'. Generated empty output.")
 
-    except Exception as e:
-        message = f"Error building page '{page.file.src_uri}':"
-        # Prevent duplicated the error message because it will be printed immediately afterwards.
-        if not isinstance(e, BuildError):
-            message += f" {e}"
-        log.error(message)
-        # Continue building other pages instead of crashing
-        if config.strict:
-            raise
-        return
-    finally:
-        # Deactivate page
-        page.active = False
-        if _page_lock:
-            with _page_lock:
-                config._current_page = None
-        else:
+        except Exception as e:
+            message = f"Error building page '{page.file.src_uri}':"
+            # Prevent duplicated the error message because it will be printed immediately afterwards.
+            if not isinstance(e, BuildError):
+                message += f" {e}"
+            log.error(message)
+            # Continue building other pages instead of crashing
+            if config.strict:
+                raise
+            return
+        finally:
+            # Deactivate page
+            page.active = False
             config._current_page = None
-        config._current_page = None
+
+    if _page_lock:
+        with _page_lock:
+            _do_build()
+    else:
+        _do_build()
 
 
 def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = False, progress: bool | None = None) -> None:
