@@ -146,6 +146,7 @@ class DevServer:
             open_in_browser=True,
             watch_theme=True,
             watch=[],
+            build_type='dirty',
             **kwargs,
         )
 
