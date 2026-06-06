@@ -23,7 +23,6 @@ log = logging.getLogger(__name__)
 def serve(
     config_file: str | BinaryIO | None = None,
     livereload: bool = True,
-    build_type: str | None = None,
     watch_theme: bool = False,
     watch: list[str] = [],
     *,
@@ -62,11 +61,8 @@ def serve(
         config.watch.extend(watch)
         return config
 
-    is_clean = build_type == 'clean'
-    is_dirty = build_type == 'dirty'
-
     config = get_config()
-    config.plugins.on_startup(command=('build' if is_clean else 'serve'), dirty=is_dirty)
+    config.plugins.on_startup(command='serve', dirty=True)
 
     host, port = config.dev_addr
     mount_path = urlsplit(config.site_url or '/').path
@@ -79,7 +75,7 @@ def serve(
             config.site_url = serve_url
 
         try:
-            build(config, serve_url=None if is_clean else serve_url, dirty=is_dirty)
+            build(config, serve_url=serve_url, dirty=True)
         except Exception as e:
             log.error(f"Build error: {e}")
             log.error("Documentation will continue to be served. Fix the error and the page will auto-reload.")

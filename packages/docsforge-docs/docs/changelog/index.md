@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.8.8] — 2026-06-06
+
+### Changed
+
+- **Always dirty builds** — Removed the `build_type` parameter from `serve()` and all `dirty=False` defaults. All builds are now incremental by default. The `dirty` flag was a legacy concept that caused confusion — full rebuilds are only triggered when the config file changes (detected by hash), and `clean_directory` + `cache.invalidate()` are skipped unless the config changes.
+
 ## [10.8.7] — 2026-06-06
 
 ### Fixed

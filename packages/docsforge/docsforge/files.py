@@ -112,7 +112,7 @@ class Files:
 
     def copy_static_files(
         self,
-        dirty: bool = False,
+        dirty: bool = True,
         *,
         inclusion: Callable[[InclusionLevel], bool] = InclusionLevel.is_included,
     ) -> None:
@@ -470,7 +470,7 @@ class File:
         self._content = value
         self.abs_src_path = None
 
-    def copy_file(self, dirty: bool = False) -> None:
+    def copy_file(self, dirty: bool = True) -> None:
         """Copy source file to destination, ensuring parent directories exist."""
         if dirty and not self.is_modified():
             log.debug(f"Skip copying unmodified file: '{self.src_uri}'")

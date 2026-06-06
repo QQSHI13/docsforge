@@ -157,7 +157,7 @@ def _build_extra_template(
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
 
-def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = False, _page_lock: threading.RLock | None = None) -> None:
+def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = True, _page_lock: threading.RLock | None = None) -> None:
     """Read page content from docs_dir and render Markdown."""
     if _page_lock:
         with _page_lock:
@@ -225,7 +225,7 @@ def _build_page(
     doc_files: Sequence[File],
     nav: Navigation,
     env: jinja2.Environment,
-    dirty: bool = False,
+    dirty: bool = True,
     excluded: bool = False,
     _page_lock: threading.RLock | None = None,
 ) -> None:
@@ -292,7 +292,7 @@ def _build_page(
         _do_build()
 
 
-def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = False, progress: bool | None = None) -> None:
+def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = True, progress: bool | None = None) -> None:
     """Perform a full or incremental site build."""
     logger = logging.getLogger("docsforge")
 
