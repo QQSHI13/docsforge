@@ -1,25 +1,28 @@
-# DocsForge v10.8.2
+# DocsForge v10.8.4 Release Notes
 
-## What's Changed
+## Bug Fixes
 
-### Performance Improvements
-- **Lazy jieba loading**: Chinese text segmentation dictionary is now loaded only when Chinese content is detected. For non-Chinese sites, this saves ~1 second per build.
-- **Parallel page building**: The `_build_page` loop (template rendering + file writing) now uses `ThreadPoolExecutor` for parallel execution. I/O-bound operations benefit from concurrent execution.
+### Search index 404 (CRITICAL)
+**Problem:** Search was broken on all non-root pages. The URL `search_index.json` was being resolved relative to the current page instead of the site root, causing 404 errors like:
+```
+GET /docsforge/getting-started/getting-started/search/search_index.json 404
+```
 
-### Build Time Improvements
-- **Before**: ~3.2 seconds for 34-page docs site
-- **After**: ~2.1 seconds (35% faster)
-- For non-Chinese sites: up to 50% faster (no jieba dictionary load)
+**Root cause:** In `build.py`, `base_url` was computed backwards using `get_relative_url('.', page.url)` which returns the path *from root to page* instead of *from page to root*. The template injects this as `base` in the JS config, and the browser resolves `search/search_index.json` against it, producing a duplicated path.
 
-### Code Quality
-- Removed unused imports from `__main__.py`, `check.py`, `init.py`
+**Fix:** Changed to `get_relative_url(page.url, '.')` which correctly returns `../../` for a page at `getting-started/getting-started/`.
 
-## Full Changelog
-- v10.8.0: Complete restructuring — all plugins flattened into `core/`, `plugins/` directory removed
-- v10.8.1: Import cleanup across `core/` plugin files
-- v10.8.2: Performance improvements — lazy jieba loading + parallel page building
+Also fixed the same bug in `_build_template()` for non-error templates (like `search.html`).
 
-## Build Verified
-- 34 HTML files generated successfully
-- All imports working, no circular dependencies
-- Clean working tree
+### Sidebar overlapping footer
+**Problem:** On desktop, the sidebar had `height: 0` with no `max-height` on its scroll container. This allowed the sidebar to grow indefinitely, causing:
+- Sidebar content from all sections to remain visible
+- Visual overlap with the footer when scrolling to the bottom of the page
+- The "index of current part and index of next part" appearing to overlap
+
+**Fix:** Added CSS `max-height: calc(100vh - 2.4rem)` to `.md-sidebar__scrollwrap` on desktop (`min-width: 60em`), with `calc(100vh - 4.8rem)` when the header is lifted (tabs sticky). This constrains the sidebar to the viewport and enables proper scrolling.
+
+## Files changed
+- `docsforge/build.py` — Fixed `base_url` computation in `get_context()` and `_build_template()`
+- `docsforge/templates/base.html` — Added CSS fix for sidebar max-height
+- `docsforge/__init__.py` — Version bump to 10.8.4

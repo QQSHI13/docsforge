@@ -40,7 +40,7 @@ def get_context(
 ) -> templates.TemplateContext:
     """Return the template context for a given page or template."""
     if page is not None:
-        base_url = utils.get_relative_url('.', page.url)
+        base_url = utils.get_relative_url(page.url, '.')
 
     extra_javascript = [
         utils.normalize_url(str(script), page, base_url) for script in config.extra_javascript
@@ -78,7 +78,7 @@ def _build_template(
         # are the same. See https://github.com/mkdocs/mkdocs/issues/1598.
         base_url = urlsplit(config.site_url or '/').path
     else:
-        base_url = utils.get_relative_url('.', name)
+        base_url = utils.get_relative_url(name, '.')
 
     context = get_context(nav, files, config, base_url=base_url)
 

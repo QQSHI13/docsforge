@@ -89,6 +89,16 @@
       .md-header__source { width: auto; }
       .md-source { display: inline-flex; align-items: center; gap: 0.5rem; width: auto; }
       .md-source__repository { max-width: none; }
+
+      /* DocsForge: Fix sidebar height to prevent content overlapping footer */
+      @media screen and (min-width: 60em) {
+        .md-sidebar .md-sidebar__scrollwrap {
+          max-height: calc(100vh - 2.4rem);
+        }
+        .md-header--lifted ~ .md-container .md-sidebar .md-sidebar__scrollwrap {
+          max-height: calc(100vh - 4.8rem);
+        }
+      }
     </style>
   </head>
   {% set direction = config.theme.direction or lang.t("direction") %}
