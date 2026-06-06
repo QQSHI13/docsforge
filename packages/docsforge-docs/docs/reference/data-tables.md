@@ -102,6 +102,43 @@ Apply CSS classes to tables:
 {: .highlight }
 ```
 
+## Table sorting
+
+For interactive sorting, add the `data-table` class:
+
+``` markdown
+| Name | Age | Role |
+|------|-----|------|
+| Alice | 30 | Developer |
+| Bob | 25 | Designer |
+| Carol | 35 | Manager |
+{: data-table }
+```
+
+## Multi-line cells
+
+Use `<br>` for line breaks within cells:
+
+``` markdown
+| Feature | Description |
+|---------|-------------|
+| Search | Full-text search<br>with highlighting |
+| Dark mode | Light and dark<br>themes included |
+```
+
+| Feature | Description |
+|---------|-------------|
+| Search | Full-text search<br>with highlighting |
+| Dark mode | Light and dark<br>themes included |
+
+## Best practices
+
+- Keep tables under 10 columns for readability
+- Use `|--------|` alignment for visual consistency
+- Always include a header row for accessibility
+- Use ` ` (space) for empty cells, not `||`
+- Wrap wide tables in scrollable containers
+
 ## Next steps
 
 - [Admonitions](admonitions.md)

@@ -77,6 +77,7 @@ nav:
     - Setting up a blog: blogging.md
   - Reference:
     - reference/index.md
+    - Configuration: reference/configuration.md
     - Admonitions: reference/admonitions.md
     - Annotations: reference/annotations.md
     - Code blocks: reference/code-blocks.md
@@ -88,3 +89,6 @@ nav:
     - Images: reference/images.md
     - Lists: reference/lists.md
     - Tooltips: reference/tooltips.md
+  - Advanced:
+    - Customization: advanced/customization.md
+  - Troubleshooting: troubleshooting.md

@@ -24,6 +24,21 @@ pngquant --quality=70-90 docs/assets/images/*.png
 cwebp -q 80 image.png -o image.webp
 ```
 
+### Recommended formats
+
+| Format | Best for | Size |
+|--------|----------|------|
+| SVG | Logos, icons, diagrams | Smallest |
+| WebP | Photos, screenshots | ~25% smaller than PNG |
+| PNG | Screenshots with transparency | Lossless |
+| JPEG | Photos without transparency | Good compression |
+
+### Image sizing guidelines
+
+- Keep images under 200KB when possible
+- Use `width` attribute to constrain large images: `![Alt](img.png){ width="400" }`
+- Lazy loading is enabled by default — no configuration needed
+
 ## Privacy plugin (external assets)
 
 The `privacy` plugin downloads and caches external assets (like Google Fonts) during the build. This means:
@@ -41,3 +56,22 @@ docsforge build
 ```
 
 The `site/` directory contains the optimized static site, ready for deployment.
+
+## Performance checklist
+
+- [ ] Images optimized (WebP preferred, SVG for icons)
+- [ ] No external assets (privacy plugin handles this)
+- [ ] Minification enabled (default)
+- [ ] Cache-busting hashes in filenames (default)
+- [ ] Service worker for offline use (default)
+- [ ] Lazy loading for images (default)
+
+## Measuring performance
+
+Use these tools to check your site's performance:
+
+- [Google PageSpeed Insights](https://pagespeed.web.dev/)
+- [Lighthouse](https://developer.chrome.com/docs/lighthouse) (built into Chrome DevTools)
+- [WebPageTest](https://www.webpagetest.org/)
+
+A well-optimized DocsForge site typically scores 90+ on all Lighthouse metrics.

@@ -59,10 +59,39 @@ Definition terms can serve as glossary entries:
 ``` markdown
 DocsForge
 :   A self-contained documentation build system with vendored dependencies.
+
+Material
+:   The most popular documentation theme, built into DocsForge.
 ```
 
 DocsForge
 :   A self-contained documentation build system with vendored dependencies.
+
+Material
+:   The most popular documentation theme, built into DocsForge.
+
+### Creating a glossary page
+
+Collect all definitions on one page for easy reference:
+
+``` markdown
+# Glossary
+
+## A
+
+**API**
+:   Application Programming Interface — a set of protocols for building software.
+
+## B
+
+**Build**
+:   The process of converting Markdown files into a static HTML site.
+
+## D
+
+**DocsForge**
+:   A self-contained documentation engine with vendored dependencies.
+```
 
 ## Magic links
 
@@ -81,6 +110,25 @@ markdown_extensions:
       user: QQSHI13
       repo: docsforge-docs
 ```
+
+## Link preview tooltips
+
+When `content.tooltips` is enabled, links to external sites show a preview on hover:
+
+``` yaml
+theme:
+  features:
+    - content.tooltips
+```
+
+Hover over [this GitHub link](https://github.com/QQSHI13/docsforge) to see a preview.
+
+## Best practices
+
+- Keep abbreviations short and commonly used
+- Write definitions in your own words, not dictionary copies
+- Group related terms in definition lists
+- Test tooltips on mobile (they work differently on touch devices)
 
 ## Next steps
 

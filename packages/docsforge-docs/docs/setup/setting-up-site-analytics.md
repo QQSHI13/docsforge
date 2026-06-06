@@ -57,3 +57,72 @@ The DocsForge development server (`docsforge serve`) does not include analytics 
 
 - [Setting up social cards](setting-up-social-cards.md)
 - [Building an optimized site](building-an-optimized-site.md)
+
+## Common analytics providers
+
+### Fathom Analytics
+
+``` yaml
+extra:
+  analytics:
+    provider: fathom
+    property: ABCDE
+```
+
+### GoatCounter
+
+``` yaml
+extra:
+  analytics:
+    provider: goatcounter
+    property: mydocs.goatcounter.com
+```
+
+### Umami
+
+For self-hosted Umami, add the script via `extra_javascript`:
+
+``` yaml
+extra_javascript:
+  - https://analytics.example.com/script.js
+```
+
+## Tracking events
+
+Track custom events (e.g., button clicks, downloads) by adding JavaScript:
+
+``` js title="docs/assets/javascripts/events.js"
+document.addEventListener('click', function(e) {
+  if (e.target.matches('a[href*=".zip"]')) {
+    // Track download
+    gtag('event', 'download', {
+      event_category: 'documentation',
+      event_label: e.target.href
+    });
+  }
+});
+```
+
+## Best practices
+
+- Use privacy-focused analytics when possible
+- Only track what's necessary for improving docs
+- Document your analytics practices in a privacy policy
+- Respect user preferences (Do Not Track, GDPR consent)
+- Test analytics in production builds, not development
+- Regularly review analytics data to identify popular and underused pages
+
+## Troubleshooting
+
+### Analytics not loading
+
+1. Check that `property` is set correctly
+2. Verify you're viewing a production build, not `docsforge serve`
+3. Check browser console for JavaScript errors
+4. Ensure ad blockers aren't blocking the tracking script
+
+### Data not appearing
+
+1. Analytics dashboards may have a delay (up to 24 hours for some providers)
+2. Verify the correct property ID is configured
+3. Check that the site is publicly accessible (analytics can't track localhost)

@@ -11,7 +11,7 @@ extra:
       link: /
       lang: en
     - name: 中文
-      link /zh/
+      link: /zh/
       lang: zh
 ```
 
