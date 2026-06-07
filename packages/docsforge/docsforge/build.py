@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import gzip
+import json
 import logging
 import os
 import threading
@@ -463,6 +464,9 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                     deps = DependencyTracker.get_file_deps(source_path, page.content or "")
                     planner.update_cache(source_path, output_path, deps)
 
+        # Generate PWA manifest and pre-cache all pages in the service worker
+        _generate_pwa_manifest_and_precache(config, files, nav)
+
         log_level = config.validation.links.anchors
         for file in doc_files:
             assert file.page is not None
@@ -527,3 +531,120 @@ def _inject_sw_build_hash(site_dir: str, files: Files) -> None:
 def site_directory_contains_stale_files(site_directory: str) -> bool:
     """Check if the site directory contains stale files from a previous build."""
     return bool(os.path.exists(site_directory) and os.listdir(site_directory))
+
+
+def _generate_pwa_manifest_and_precache(
+    config: DocsForgeConfig, files: Files, nav: Navigation
+) -> None:
+    """Generate PWA manifest and inject pre-cache list into the service worker.
+
+    After all pages are built, this function:
+    1. Generates a manifest.json with site metadata and icons
+    2. Collects all built HTML page URLs for pre-caching
+    3. Injects the pre-cache list into the service worker template
+
+    This enables full offline browsing of all documentation pages.
+    """
+    site_dir = config.site_dir
+
+    # Collect all HTML page URLs for pre-caching
+    precache_urls = []
+    for file in files.documentation_pages():
+        if file.inclusion.is_included() or file.inclusion.is_not_in_nav():
+            page_url = file.url
+            if page_url:
+                precache_urls.append(page_url)
+
+    # Also include static templates (404.html, sitemap.xml, etc.)
+    for template in config.theme.static_templates:
+        if template.endswith('.html'):
+            template_url = template.replace('.html', '/')
+            if template == '404.html':
+                template_url = '/404.html'
+            precache_urls.append(template_url)
+
+    # Also include the home page explicitly
+    home_url = nav.homepage.url if nav.homepage else './'
+    if home_url not in precache_urls:
+        precache_urls.insert(0, home_url)
+
+    # Remove duplicates, empty strings, and sort for deterministic output
+    precache_urls = sorted(set(url for url in precache_urls if url))
+
+    # Inject pre-cache list into service worker
+    sw_path = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
+    if os.path.isfile(sw_path):
+        try:
+            with open(sw_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            if '__PRE_CACHE_PAGES__' in content:
+                content = content.replace(
+                    '__PRE_CACHE_PAGES__',
+                    json.dumps(precache_urls)
+                )
+                with open(sw_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                log.debug(f"Injected {len(precache_urls)} pages into service worker pre-cache")
+        except Exception as e:
+            log.warning(f"Failed to inject pre-cache list into SW: {e}")
+
+    # Generate manifest.json
+    manifest = {
+        "name": config.site_name,
+        "short_name": config.site_name[:12] if len(config.site_name) > 12 else config.site_name,
+        "description": config.site_description or f"Documentation for {config.site_name}",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#fff",
+        "theme_color": "#4051b5",
+        "icons": []
+    }
+
+    # Use primary color from palette if available
+    palette = config.theme.get('palette', {})
+    if isinstance(palette, list) and palette:
+        palette = palette[0]
+    if isinstance(palette, dict):
+        primary = palette.get('primary', 'indigo')
+        manifest["theme_color"] = primary
+
+    # Add favicon as icon if available
+    favicon = config.theme.get('favicon', '') or config.theme.get('icon', {}).get('favicon', '')
+    if favicon:
+        favicon_path = os.path.join(config.docs_dir, favicon)
+        if os.path.isfile(favicon_path):
+            manifest["icons"].append({
+                "src": favicon,
+                "sizes": "48x48",
+                "type": "image/png"
+            })
+
+    # Add logo as icon if available
+    logo = config.theme.get('logo', '')
+    if logo:
+        logo_path = os.path.join(config.docs_dir, logo)
+        if os.path.isfile(logo_path):
+            manifest["icons"].append({
+                "src": logo,
+                "sizes": "512x512",
+                "type": "image/svg+xml" if logo.endswith('.svg') else "image/png"
+            })
+
+    # Add extra icons if specified
+    extra = config.extra or {}
+    if isinstance(extra, dict):
+        pwa_config = extra.get('pwa', {})
+        if isinstance(pwa_config, dict):
+            extra_icons = pwa_config.get('icons', [])
+            if extra_icons:
+                manifest["icons"].extend(extra_icons)
+
+    # Write manifest.json
+    manifest_path = os.path.join(site_dir, 'manifest.json')
+    try:
+        with open(manifest_path, 'w', encoding='utf-8') as f:
+            json.dump(manifest, f, indent=2)
+        log.debug(f"Generated PWA manifest at {manifest_path}")
+    except Exception as e:
+        log.warning(f"Failed to generate PWA manifest: {e}")

@@ -1,13 +1,23 @@
 /**
- * DocsForge Service Worker - Runtime caching with versioned updates
- * Caches assets as they're fetched, network-first for HTML
+ * DocsForge Service Worker - Full offline support with pre-caching
+ * Pre-caches all pages during install, cache-first with network fallback
  */
 
 const BUILD_HASH = "__DOCSFORGE_BUILD_HASH__";
+const PRE_CACHE_PAGES = __PRE_CACHE_PAGES__;
 const CACHE_NAME = `docsforge-${BUILD_HASH}`;
 
+// Assets to cache aggressively (fonts, styles, scripts, images)
+const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
+
 self.addEventListener("install", (e) => {
-  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRE_CACHE_PAGES).catch((err) => {
+        console.warn("[SW] Pre-cache failed for some pages:", err);
+      });
+    }).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -29,35 +39,66 @@ self.addEventListener("fetch", (e) => {
   // Same-origin only
   if (url.origin !== self.location.origin) return;
 
-  // Cache-first for assets, network-first for HTML
+  // HTML pages: cache-first with network fallback
   if (request.destination === "document" || request.mode === "navigate") {
-    e.respondWith(networkFirst(request));
-  } else {
-    e.respondWith(cacheFirst(request));
+    e.respondWith(cacheFirstWithNetworkFallback(request));
+    return;
   }
+
+  // Assets: cache-first with network fallback
+  if (ASSET_DESTINATIONS.includes(request.destination)) {
+    e.respondWith(cacheFirstWithNetworkFallback(request));
+    return;
+  }
+
+  // Everything else: stale-while-revalidate
+  e.respondWith(staleWhileRevalidate(request));
 });
 
-async function networkFirst(request) {
+async function cacheFirstWithNetworkFallback(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    // Update cache in background (stale-while-revalidate)
+    fetch(request).then((networkResponse) => {
+      if (networkResponse.ok) {
+        cache.put(request, networkResponse.clone());
+      }
+    }).catch(() => {});
+    return cached;
+  }
+
+  // Not in cache, fetch from network
   try {
     const networkResponse = await fetch(request);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(request, networkResponse.clone());
+    if (networkResponse.ok) {
+      cache.put(request, networkResponse.clone());
+    }
     return networkResponse;
-  } catch {
-    const cached = await caches.match(request);
-    return cached || new Response("Offline", { status: 503 });
+  } catch (err) {
+    // Offline and not cached — return offline page for HTML
+    if (request.mode === "navigate" || request.destination === "document") {
+      const offlinePage = await cache.match("/404.html").catch(() => null);
+      if (offlinePage) return offlinePage;
+    }
+    return new Response(
+      "<h1>Offline</h1><p>This page is not available offline. Please connect to the internet.</p>",
+      { status: 503, headers: { "Content-Type": "text/html" } }
+    );
   }
 }
 
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  try {
-    const networkResponse = await fetch(request);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(request, networkResponse.clone());
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+
+  const networkPromise = fetch(request).then((networkResponse) => {
+    if (networkResponse.ok) {
+      cache.put(request, networkResponse.clone());
+    }
     return networkResponse;
-  } catch {
-    return new Response("", { status: 204 });
-  }
+  }).catch(() => cached);
+
+  return cached || networkPromise;
 }

@@ -37,6 +37,8 @@
         <link rel="alternate" type="application/rss+xml" title="{{ lang.t('rss.updated') }}" href="{{ 'feed_rss_updated.xml' | url }}">
       {% endif %}
       <link rel="icon" href="{{ config.theme.favicon | url }}">
+      <link rel="manifest" href="{{ 'manifest.json' | url }}">
+      <meta name="theme-color" content="{{ config.theme.palette[0].primary | d('indigo') }}">
       <meta name="generator" content="docsforge">
     {% endblock %}
     {% block htmltitle %}

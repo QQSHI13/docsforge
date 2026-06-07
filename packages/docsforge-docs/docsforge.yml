@@ -1,6 +1,6 @@
 site_name: DocsForge
 site_url: https://qqshi13.github.io/docsforge/
-site_author: QQ (Cyrus)
+site_author: QQ
 site_description: >-
   Self-contained documentation engine.
   pip install docsforge, write Markdown, done.
@@ -9,7 +9,7 @@ repo_name: QQSHI13/docsforge
 repo_url: https://github.com/QQSHI13/docsforge
 edit_uri: edit/main/packages/docsforge-docs/docs/
 
-copyright: Copyright &copy; 2025–2026 QQ (Cyrus)
+copyright: Copyright &copy; 2025–2026 QQ
 
 theme:
   name: material

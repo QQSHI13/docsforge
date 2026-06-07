@@ -4,6 +4,24 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.8.9] — 2026-06-07
+
+### Added
+
+- **Full PWA / offline support** — DocsForge now generates a `manifest.json` and pre-caches all HTML pages during the service worker install phase, enabling full offline browsing of all documentation pages after the first visit.
+  - **`manifest.json`** — Generated automatically with site name, description, theme color (extracted from palette), and start URL. Linked via `<link rel="manifest">` in the `<head>` of every page.
+  - **Pre-caching all pages** — The service worker now receives a `__PRE_CACHE_PAGES__` placeholder that is replaced at build time with the complete list of all built HTML page URLs. During `install`, the SW caches every page so they work offline immediately without needing to visit each page first.
+  - **Cache-first strategy** — The service worker now uses `cacheFirstWithNetworkFallback` for HTML documents (was `staleWhileRevalidate` which caused network requests on every navigation). This means pages load instantly from cache even online, with a background update.
+  - **Offline fallback** — If a page is not cached and the user is offline, the SW serves the 404 page (or a generic offline message if 404 isn't cached).
+
+### Changed
+
+- **Service worker strategy** — Switched from `staleWhileRevalidate` to `cacheFirstWithNetworkFallback` for HTML pages and assets. This prioritizes offline reliability and instant loads over always-fresh content. For most documentation sites, this is the desired behavior.
+
+### Fixed
+
+- **Removed "Cyrus" from all docs** — Eliminated all remaining references to "Cyrus" from documentation, site footer, and copyright strings. The `license.md` and `docsforge.yml` site author/copyright now use "QQ" only.
+
 ## [10.8.8] — 2026-06-06
 
 ### Changed
