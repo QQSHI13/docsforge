@@ -4,6 +4,18 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.8.10] — 2026-06-08
+
+### Fixed
+
+- **Service worker pre-cache URL resolution** — `PRE_CACHE_PAGES` URLs were relative to the site root (e.g., `"./"`, `"advanced/customization/"`), but `cache.addAll()` inside the SW resolves URLs relative to the **SW script location** (`/assets/javascripts/sw.js`). This caused all pre-cache requests to fail silently, leaving the cache empty and breaking offline support. All pre-cache URLs now prefixed with `../../` so they correctly resolve from the SW to the site root.
+- **Offline 404 fallback for subpath deployments** — `cache.match("/404.html")` was hardcoded to the domain root, which is wrong for sites deployed under a subpath (e.g., `/docsforge/`). The SW now computes `BASE_URL` from its own location and uses `BASE_URL + '404.html'` for the fallback.
+
+### Added
+
+- **PWA update notification** — When a new DocsForge version is deployed, the service worker activates and sends a `DOCSFORGE_UPDATE_READY` message to all open tabs. The page displays a fixed banner at the top: *"A new version of this documentation is available."* with **Refresh** and **Dismiss** buttons. Users can click Refresh to immediately load the new content, or Dismiss to keep reading the current version.
+- **Periodic update checks** — The page checks for service worker updates every 5 minutes (`registration.update()`), so users get notified of new content even on long-running sessions without needing to reload manually.
+
 ## [10.8.9] — 2026-06-07
 
 ### Added

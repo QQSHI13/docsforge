@@ -7,6 +7,9 @@ const BUILD_HASH = "__DOCSFORGE_BUILD_HASH__";
 const PRE_CACHE_PAGES = __PRE_CACHE_PAGES__;
 const CACHE_NAME = `docsforge-${BUILD_HASH}`;
 
+// Compute base URL from SW location (SW is always at <site>/assets/javascripts/sw.js)
+const BASE_URL = self.location.pathname.replace(/assets\/javascripts\/sw\.js$/, '');
+
 // Assets to cache aggressively (fonts, styles, scripts, images)
 const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 
@@ -28,7 +31,18 @@ self.addEventListener("activate", (e) => {
           .filter((key) => key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => {
+      // Notify all clients that a new version is ready
+      self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'DOCSFORGE_UPDATE_READY',
+            hash: BUILD_HASH
+          });
+        });
+      });
+      return self.clients.claim();
+    })
   );
 });
 
@@ -79,7 +93,7 @@ async function cacheFirstWithNetworkFallback(request) {
   } catch (err) {
     // Offline and not cached — return offline page for HTML
     if (request.mode === "navigate" || request.destination === "document") {
-      const offlinePage = await cache.match("/404.html").catch(() => null);
+      const offlinePage = await cache.match(BASE_URL + '404.html').catch(() => null);
       if (offlinePage) return offlinePage;
     }
     return new Response(

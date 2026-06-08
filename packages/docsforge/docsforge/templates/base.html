@@ -442,6 +442,32 @@
           navigator.serviceWorker.register(swUrl, {scope: '/'}).catch(function(e){
             console.warn('SW registration failed:', e.message);
           });
+
+          // Listen for update notifications from service worker
+          navigator.serviceWorker.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'DOCSFORGE_UPDATE_READY') {
+              showDocsForgeUpdateBanner();
+            }
+          });
+
+          // Check for updates periodically (every 5 minutes)
+          setInterval(function() {
+            navigator.serviceWorker.ready.then(function(registration) {
+              registration.update();
+            });
+          }, 300000);
+        }
+
+        // Show update banner when a new version is available
+        function showDocsForgeUpdateBanner() {
+          if (document.getElementById('docsforge-update-banner')) return;
+          var banner = document.createElement('div');
+          banner.id = 'docsforge-update-banner';
+          banner.innerHTML = '<span>A new version of this documentation is available.</span><button onclick="location.reload()">Refresh</button><button onclick="this.parentElement.remove()">Dismiss</button>';
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#4051b5;color:#fff;padding:12px 16px;font-size:14px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+          banner.querySelector('button').style.cssText = 'background:#fff;color:#4051b5;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500;';
+          banner.querySelectorAll('button')[1].style.cssText = 'background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;';
+          document.body.appendChild(banner);
         }
       </script>
     {% endblock %}

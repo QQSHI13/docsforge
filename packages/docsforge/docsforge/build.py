@@ -568,8 +568,21 @@ def _generate_pwa_manifest_and_precache(
     if home_url not in precache_urls:
         precache_urls.insert(0, home_url)
 
-    # Remove duplicates, empty strings, and sort for deterministic output
-    precache_urls = sorted(set(url for url in precache_urls if url))
+    # Convert all URLs to be relative to the SW script location
+    # SW is at <site_root>/assets/javascripts/sw.js
+    # So ../../ goes up to site_root
+    sw_relative_urls = []
+    for url in precache_urls:
+        if url.startswith('/'):
+            sw_relative_urls.append(f'../..{url}')
+        else:
+            sw_relative_urls.append(f'../../{url}')
+
+    # Remove redundant ./ in the result
+    sw_relative_urls = [url.replace('../.././', '../../') for url in sw_relative_urls]
+
+    # Remove duplicates and sort for deterministic output
+    sw_relative_urls = sorted(set(url for url in sw_relative_urls if url))
 
     # Inject pre-cache list into service worker
     sw_path = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
@@ -581,11 +594,11 @@ def _generate_pwa_manifest_and_precache(
             if '__PRE_CACHE_PAGES__' in content:
                 content = content.replace(
                     '__PRE_CACHE_PAGES__',
-                    json.dumps(precache_urls)
+                    json.dumps(sw_relative_urls)
                 )
                 with open(sw_path, 'w', encoding='utf-8') as f:
                     f.write(content)
-                log.debug(f"Injected {len(precache_urls)} pages into service worker pre-cache")
+                log.debug(f"Injected {len(sw_relative_urls)} pages into service worker pre-cache")
         except Exception as e:
             log.warning(f"Failed to inject pre-cache list into SW: {e}")
 
