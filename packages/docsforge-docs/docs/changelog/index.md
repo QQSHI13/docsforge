@@ -4,6 +4,16 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.8.11] — 2026-06-08
+
+### Changed
+
+- **Lazy background caching** — Replaced the blocking `cache.addAll()` during service worker install with non-blocking incremental background caching. Previously, the SW tried to download all pages at once during install, which could block the initial page load. Now:
+  1. The SW installs and activates immediately — the current page loads without delay.
+  2. After activation, other pages are cached one by one in the background via `backgroundCachePages()`.
+  3. The current page is already cached by the `fetch` handler when visited.
+  4. A `DOCSFORGE_CACHE_COMPLETE` message is sent to all clients when done, so the UI can show a subtle indicator (e.g., "All pages available offline").
+
 ## [10.8.10] — 2026-06-08
 
 ### Fixed

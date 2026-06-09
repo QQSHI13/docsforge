@@ -448,6 +448,18 @@
             if (event.data && event.data.type === 'DOCSFORGE_UPDATE_READY') {
               showDocsForgeUpdateBanner();
             }
+            if (event.data && event.data.type === 'DOCSFORGE_CACHE_COMPLETE') {
+              // Show a subtle offline-ready indicator for 3 seconds
+              var indicator = document.createElement('div');
+              indicator.textContent = 'All pages available offline';
+              indicator.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;background:rgba(64,81,181,0.9);color:#fff;padding:8px 14px;border-radius:4px;font-size:12px;opacity:0;transition:opacity 0.5s;pointer-events:none;';
+              document.body.appendChild(indicator);
+              requestAnimationFrame(function() { indicator.style.opacity = '1'; });
+              setTimeout(function() {
+                indicator.style.opacity = '0';
+                setTimeout(function() { indicator.remove(); }, 500);
+              }, 3000);
+            }
           });
 
           // Check for updates periodically (every 5 minutes)
