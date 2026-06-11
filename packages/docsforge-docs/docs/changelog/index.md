@@ -4,6 +4,29 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.9.0] — 2026-06-11
+
+### Added
+
+- **Git revision dates** — Every page now automatically shows "Last updated" and "Created" dates from git history. No configuration required — works out of the box for any docs site in a git repository. The dates are read from `git log` and formatted as human-readable strings (e.g., "Jun 11, 2026"). The existing `source-file.html` template already supported this — now it's actually populated. Disable with `extra.git_revision_date: false` in docsforge.yml.
+
+- **CLI serve options** — Added `--no-open`, `--port`, and `--host` flags to `docsforge serve`:
+  ```bash
+  docsforge serve --no-open          # Don't auto-open browser
+  docsforge serve --port 3000        # Serve on port 3000
+  docsforge serve --host 0.0.0.0     # Serve on all interfaces
+  ```
+
+### Changed
+
+- **All theme features enabled by default** — The material theme now enables a rich set of features out of the box, so new sites get the full experience without needing a long `features:` list in docsforge.yml. New defaults include:
+  - `content.action.edit`, `content.action.view`
+  - `content.code.annotate`, `content.code.copy`
+  - `content.tooltips`
+  - `navigation.footer`, `navigation.indexes`, `navigation.sections`, `navigation.tabs`, `navigation.top`, `navigation.tracking`, `navigation.instant`, `navigation.instant.progress`
+  - `search.highlight`, `search.share`, `search.suggest`
+  - `toc.follow`
+
 ## [10.8.12] — 2026-06-11
 
 ### Optimized

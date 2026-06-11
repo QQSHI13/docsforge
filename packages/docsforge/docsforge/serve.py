@@ -27,6 +27,8 @@ def serve(
     watch: list[str] = [],
     *,
     open_in_browser: bool = False,
+    host: str | None = None,
+    port: int | None = None,
     **kwargs,
 ) -> None:
     """
@@ -64,7 +66,9 @@ def serve(
     config = get_config()
     config.plugins.on_startup(command='serve', dirty=True)
 
-    host, port = config.dev_addr
+    config_host, config_port = config.dev_addr
+    host = host or config_host
+    port = port or config_port
     mount_path = urlsplit(config.site_url or '/').path
     config.site_url = serve_url = _serve_url(host, port, mount_path)
 

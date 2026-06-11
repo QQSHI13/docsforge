@@ -25,10 +25,30 @@ language: en
 direction:
 
 # Feature flags for functionality that alters behavior significantly, and thus
-# may be a matter of taste
+# may be a matter of taste. DocsForge enables a rich set of defaults to
+# maximize the out-of-the-box experience.
 features:
+  # Content
+  - content.action.edit
+  - content.action.view
+  - content.code.annotate
+  - content.code.copy
+  - content.tooltips
+  # Navigation
+  - navigation.footer
+  - navigation.indexes
+  - navigation.sections
+  - navigation.tabs
+  - navigation.top
+  - navigation.tracking
   - navigation.instant
   - navigation.instant.progress
+  # Search
+  - search.highlight
+  - search.share
+  - search.suggest
+  # TOC
+  - toc.follow
 
 # Fonts used by Material, automatically loaded from Google Fonts - see the site
 # for a list of available fonts

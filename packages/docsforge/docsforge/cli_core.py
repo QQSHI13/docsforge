@@ -132,6 +132,9 @@ class DevServer:
     @staticmethod
     def serve(
         config_file: str | BinaryIO | None = None,
+        *,
+        host: str | None = None,
+        port: int | None = None,
         **kwargs,
     ) -> None:
         """Start the development server with live reload, watch all dirs, open browser.
@@ -146,6 +149,8 @@ class DevServer:
             open_in_browser=True,
             watch_theme=True,
             watch=[],
+            host=host,
+            port=port,
             **kwargs,
         )
 

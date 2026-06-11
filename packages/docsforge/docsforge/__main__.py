@@ -156,7 +156,10 @@ def build(strict):
 
 
 @docsforge.command()
-def serve():
+@click.option('--no-open', is_flag=True, help='Do not open the browser automatically')
+@click.option('--port', type=int, help='Override the port (default: 8000)')
+@click.option('--host', type=str, help='Override the host (default: 127.0.0.1)')
+def serve(no_open, port, host):
     """Start the live-reloading docs server."""
     _ = State()  # Initialize default logging
     
@@ -170,8 +173,15 @@ def serve():
 
     _check_optional_deps()
     
-    # Serve with live reload, watch all, open browser
-    DevServer.serve()
+    # Serve with live reload, watch all, open browser (unless --no-open)
+    kwargs = {}
+    if no_open:
+        kwargs['open_in_browser'] = False
+    if port is not None:
+        kwargs['port'] = port
+    if host is not None:
+        kwargs['host'] = host
+    DevServer.serve(**kwargs)
 
 
 if __name__ == '__main__':

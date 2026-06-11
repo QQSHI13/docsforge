@@ -24,6 +24,7 @@ from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
 from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
 from docsforge import templates
+from docsforge.git_info import get_git_page_info
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
@@ -45,6 +46,15 @@ def get_context(
         base_url = utils.get_relative_url(page.url, '.')
         if base_url and not base_url.endswith('/'):
             base_url += '/'
+
+        # Inject git revision info into page meta if available and not disabled
+        extra_cfg = config.get('extra', {})
+        git_enabled = getattr(extra_cfg, 'git_revision_date', True) if extra_cfg else True
+        if git_enabled and not page.meta.get('git_revision_date_localized'):
+            git_info = get_git_page_info(page.file.abs_src_path)
+            if git_info:
+                page.meta['git_revision_date_localized'] = git_info['updated_display']
+                page.meta['git_creation_date_localized'] = git_info['created_display']
 
     extra_javascript = [
         utils.normalize_url(str(script), page, base_url) for script in config.extra_javascript
