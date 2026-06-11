@@ -25,6 +25,7 @@ from docsforge.pages import Page
 from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
 from docsforge import templates
 from docsforge.git_info import get_git_page_info
+from docsforge.asset_optimizer import optimize_assets
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
@@ -460,6 +461,9 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
         # Run `post_build` plugin events.
         config.plugins.on_post_build(config=config)
+
+        # Optimize static assets: remove unused files, source maps, old font formats
+        optimize_assets(config.site_dir)
 
         # Save cache state
         config_hash = hasher.hash_file(config_path) if config_path.exists() else ""

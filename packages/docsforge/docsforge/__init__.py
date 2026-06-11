@@ -28,5 +28,5 @@ from docsforge.utils import (
     write_file,
 )
 
-__version__ = "10.9.1"
+__version__ = "10.9.2"
 __prog_name__ = "docsforge"

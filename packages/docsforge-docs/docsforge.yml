@@ -59,7 +59,11 @@ nav:
     - Installation: getting-started.md
     - Migrating from MkDocs: getting-started/migrating-from-mkdocs.md
     - Creating your site: creating-your-site.md
-    - Publishing your site: publishing-your-site.md
+    - Publishing:
+      - publishing/index.md
+      - Usage Guide: publishing/usage.md
+      - Migration Guide: publishing/migration.md
+      - Deployment Guide: publishing/deployment-guide.md
     - Features: features.md
     - Philosophy: philosophy.md
     - License: license.md
