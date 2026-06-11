@@ -4,6 +4,25 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.8.12] — 2026-06-11
+
+### Optimized
+
+- **Markdown instance reuse** — Added per-thread caching of `markdown.Markdown` instances in `pages.py`. Previously, every page created a new Markdown instance, re-initializing all extensions (pymdownx, codehilite, etc.) from scratch. With 36 pages and 10+ extensions, this was a significant overhead. Now:
+  - Each thread gets a cached Markdown instance keyed by `(extensions, configs)`
+  - Instances are `reset()` between pages instead of recreated
+  - **Build time improvement**: ~2.5s (was ~3.4s) — **~25% faster**
+  - Especially impactful for large sites with many Markdown extensions
+
+- **Streamlined build.py** — Multiple internal optimizations:
+  - Removed redundant `if _page_lock: with _page_lock:` branching in `_populate_page` (it was always called sequentially, no lock needed)
+  - Removed nested `_do_build()` closure in `_build_page` that added function call overhead per page
+  - Cached `files.documentation_pages()` result instead of calling it 3 times per build
+  - Moved `hashlib` import from inline (inside `_inject_sw_build_hash`) to module top level
+  - Simplified lock handling: always acquire lock in `_build_page`, removed `None` fallback path
+
+- **Removed "Cyrus" from copyright headers** — Found and fixed 3 remaining files that still had "Cyrus" in the copyright string: `theme.py`, `preview.py`, `filter_config.py`
+
 ## [10.8.11] — 2026-06-08
 
 ### Changed

@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import logging
 import posixpath
+import threading
 import warnings
 from collections.abc import Callable, Iterator, MutableMapping, Sequence
 from typing import TYPE_CHECKING, Any
@@ -31,6 +32,42 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
+
+# Module-level cache for Markdown instances per thread
+# Each thread gets its own instance to avoid conflicts in parallel builds.
+_md_thread_local = threading.local()
+
+
+def _get_markdown_instance(extensions: list[str], extension_configs: dict) -> markdown.Markdown:
+    """Get or create a cached Markdown instance for this thread.
+
+    The instance is reset between uses, and extensions are initialized only once
+    per thread, avoiding the expensive re-initialization on every page render.
+    """
+    # Create a cache key from the extensions and configs
+    ext_key = tuple(extensions)
+    # Convert nested dicts to nested tuples for hashability
+    def _freeze(obj):
+        if isinstance(obj, dict):
+            return tuple(sorted((k, _freeze(v)) for k, v in obj.items()))
+        if isinstance(obj, list):
+            return tuple(_freeze(v) for v in obj)
+        return obj
+    cfg_key = _freeze(extension_configs)
+    cache_key = (ext_key, cfg_key)
+
+    if not hasattr(_md_thread_local, 'instances'):
+        _md_thread_local.instances = {}
+
+    md = _md_thread_local.instances.get(cache_key)
+    if md is None:
+        md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
+        _md_thread_local.instances[cache_key] = md
+    else:
+        md.reset()
+
+    return md
 
 
 class Page(StructureItem):
@@ -263,10 +300,8 @@ class Page(StructureItem):
 
         mdx_configs = dict(config['mdx_configs'] or {})
 
-        md = markdown.Markdown(
-            extensions=config['markdown_extensions'],
-            extension_configs=mdx_configs,
-        )
+        # Use cached Markdown instance for this thread to avoid re-initializing extensions
+        md = _get_markdown_instance(config['markdown_extensions'], mdx_configs)
 
         raw_html_ext = _RawHTMLPreprocessor()
         raw_html_ext._register(md)

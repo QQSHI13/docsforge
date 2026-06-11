@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import gzip
+import hashlib
 import json
 import logging
 import os
@@ -158,53 +159,33 @@ def _build_extra_template(
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
 
-def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = True, _page_lock: threading.RLock | None = None) -> None:
+def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = True) -> None:
     """Read page content from docs_dir and render Markdown."""
-    if _page_lock:
-        with _page_lock:
-            config._current_page = page
-    else:
-        config._current_page = page
+    config._current_page = page
     try:
-        # When --dirty is used, only read the page if the file has been modified since the
+        # When dirty, only read the page if the file has been modified since the
         # previous build of the output.
         if dirty and not page.file.is_modified():
             return
 
         # Run the `pre_page` plugin event
-        if _page_lock:
-            with _page_lock:
-                page = config.plugins.on_pre_page(page, config=config, files=files)
-        else:
-            page = config.plugins.on_pre_page(page, config=config, files=files)
+        page = config.plugins.on_pre_page(page, config=config, files=files)
 
         page.read_source(config)
         assert page.markdown is not None
 
         # Run `page_markdown` plugin events.
-        if _page_lock:
-            with _page_lock:
-                page.markdown = config.plugins.on_page_markdown(
-                    page.markdown, page=page, config=config, files=files
-                )
-        else:
-            page.markdown = config.plugins.on_page_markdown(
-                page.markdown, page=page, config=config, files=files
-            )
+        page.markdown = config.plugins.on_page_markdown(
+            page.markdown, page=page, config=config, files=files
+        )
 
         page.render(config, files)
         assert page.content is not None
 
         # Run `page_content` plugin events.
-        if _page_lock:
-            with _page_lock:
-                page.content = config.plugins.on_page_content(
-                    page.content, page=page, config=config, files=files
-                )
-        else:
-            page.content = config.plugins.on_page_content(
-                page.content, page=page, config=config, files=files
-            )
+        page.content = config.plugins.on_page_content(
+            page.content, page=page, config=config, files=files
+        )
     except Exception as e:
         message = f"Error reading page '{page.file.src_uri}':"
         # Prevent duplicated the error message because it will be printed immediately afterwards.
@@ -213,11 +194,7 @@ def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: boo
         log.error(message)
         raise
     finally:
-        if _page_lock:
-            with _page_lock:
-                config._current_page = None
-        else:
-            config._current_page = None
+        config._current_page = None
 
 
 def _build_page(
@@ -231,11 +208,13 @@ def _build_page(
     _page_lock: threading.RLock | None = None,
 ) -> None:
     """Pass a Page to theme template and write output to site_dir."""
-    def _do_build():
+    lock = _page_lock or threading.Lock()  # Always have a lock
+
+    with lock:
         config._current_page = page
         page.active = True
         try:
-            # When --dirty is used, only build the page if the file has been modified since the
+            # When dirty, only build the page if the file has been modified since the
             # previous build of the output.
             if dirty and not page.file.is_modified():
                 return
@@ -285,12 +264,6 @@ def _build_page(
             # Deactivate page
             page.active = False
             config._current_page = None
-
-    if _page_lock:
-        with _page_lock:
-            _do_build()
-    else:
-        _do_build()
 
 
 def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = True, progress: bool | None = None) -> None:
@@ -380,8 +353,10 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         nav = config.plugins.on_nav(nav, config=config, files=files)
 
         log.debug("Reading markdown pages.")
+        # Cache the documentation pages list to avoid repeated iteration
+        all_doc_files = list(files.documentation_pages(inclusion=inclusion))
         excluded = []
-        for file in files.documentation_pages(inclusion=inclusion):
+        for file in all_doc_files:
             log.debug(f"Reading: {file.src_uri}")
             if file.page is None and file.inclusion.is_not_in_nav():
                 if serve_url and file.inclusion.is_excluded():
@@ -424,7 +399,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
             _build_extra_template(template, files, config, nav)
 
         log.debug("Building markdown pages.")
-        doc_files = files.documentation_pages(inclusion=inclusion)
+        # Reuse the cached doc_files list instead of calling documentation_pages() again
+        doc_files = all_doc_files
 
         # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
         page_lock = threading.RLock()
@@ -479,6 +455,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         config_hash = hasher.hash_file(config_path) if config_path.exists() else ""
         planner.save(config_hash=config_hash)
 
+        # Save cache after successful build (only if not in strict mode with errors)
         if counts := warning_counter.get_counts():
             msg = ', '.join(f'{v} {k.lower()}s' for k, v in counts)
             raise Abort(f'Aborted with {msg} in strict mode!')
@@ -508,7 +485,6 @@ def _inject_sw_build_hash(site_dir: str, files: Files) -> None:
         return
 
     # Generate hash from current time (unique per build)
-    import hashlib
     build_hash = hashlib.sha256(str(time.time()).encode()).hexdigest()[:12]
 
     try:

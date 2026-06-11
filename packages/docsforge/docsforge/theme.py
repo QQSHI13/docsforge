@@ -1,4 +1,4 @@
-# Copyright (c) 2026 QQ (Cyrus)
+# Copyright (c) 2026 QQ
 #
 # This file is part of DocsForge.
 #

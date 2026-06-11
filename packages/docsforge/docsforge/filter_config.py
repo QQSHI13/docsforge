@@ -1,5 +1,5 @@
 # Copyright (c) 2016-2025 Martin Donath <martin.donath@squidfunk.com>
-# Copyright (c) 2026 QQ (Cyrus)
+# Copyright (c) 2026 QQ
 #
 # This file is part of DocsForge.
 #
