@@ -4,6 +4,30 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.9.1] — 2026-06-11
+
+### Fixed
+
+- **CLI `--strict` flag moved to `build` subcommand** — The `--strict` flag was previously defined on the base `docsforge` group command, which was confusing since it only applied to `build`. Now it's only on `docsforge build --strict` where it belongs.
+
+- **Streamlined `docsforge serve` CLI** — Removed unnecessary options:
+  - `--no-open` removed — browser auto-open is harmless, always enabled
+  - `--port` removed — automatically finds an available port starting from the configured one (e.g., 8000 → 8001 → 8002 if taken)
+  - `--host` removed — replaced with single `--lan` flag that binds to `0.0.0.0` for network access
+  - New usage: `docsforge serve --lan` to serve on all interfaces
+
+## [10.9.1] — 2026-06-11
+
+### Fixed
+
+- **CLI `--strict` flag moved to `build` subcommand** — The `--strict` flag was previously defined on the base `docsforge` group command, which was confusing since it only applied to `build`. Now it's only on `docsforge build --strict` where it belongs.
+
+- **Streamlined `docsforge serve` CLI** — Removed unnecessary options:
+  - `--no-open` removed — browser auto-open is harmless, always enabled
+  - `--port` removed — automatically finds an available port starting from the configured one (e.g., 8000 → 8001 → 8002 if taken)
+  - `--host` removed — replaced with single `--lan` flag that binds to `0.0.0.0` for network access
+  - New usage: `docsforge serve --lan` to serve on all interfaces
+
 ## [10.9.0] — 2026-06-11
 
 ### Added

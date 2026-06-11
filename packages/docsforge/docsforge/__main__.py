@@ -110,9 +110,8 @@ def _set_log_level(level: int):
     context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
 )
 @click.version_option(__version__, '-V', '--version', prog_name='docsforge')
-@click.option('--strict', is_flag=True, help='Fail on warnings')
 @click.pass_context
-def docsforge(ctx, strict):
+def docsforge(ctx):
     """DocsForge - Project documentation with Markdown.
 
     Smart default: run 'docsforge' alone in a project directory to see
@@ -156,10 +155,8 @@ def build(strict):
 
 
 @docsforge.command()
-@click.option('--no-open', is_flag=True, help='Do not open the browser automatically')
-@click.option('--port', type=int, help='Override the port (default: 8000)')
-@click.option('--host', type=str, help='Override the host (default: 127.0.0.1)')
-def serve(no_open, port, host):
+@click.option('--lan', is_flag=True, help='Serve on all interfaces (0.0.0.0) instead of localhost')
+def serve(lan):
     """Start the live-reloading docs server."""
     _ = State()  # Initialize default logging
     
@@ -173,14 +170,10 @@ def serve(no_open, port, host):
 
     _check_optional_deps()
     
-    # Serve with live reload, watch all, open browser (unless --no-open)
+    # Serve with live reload, auto-increment port if taken, auto-open browser
     kwargs = {}
-    if no_open:
-        kwargs['open_in_browser'] = False
-    if port is not None:
-        kwargs['port'] = port
-    if host is not None:
-        kwargs['host'] = host
+    if lan:
+        kwargs['host'] = '0.0.0.0'
     DevServer.serve(**kwargs)
 
 

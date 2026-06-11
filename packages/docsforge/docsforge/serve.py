@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import logging
 import shutil
+import socket
 import sys
 import tempfile
 from collections.abc import Callable
@@ -20,15 +21,32 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> int:
+    """Find an available port starting from start_port, incrementing until one works."""
+    import ipaddress
+    # Use the correct address family for the host (IPv4 vs IPv6)
+    try:
+        if isinstance(ipaddress.ip_address(host), ipaddress.IPv6Address):
+            family = socket.AF_INET6
+        else:
+            family = socket.AF_INET
+    except ValueError:
+        family = socket.AF_INET
+
+    for port in range(start_port, start_port + max_attempts):
+        with socket.socket(family, socket.SOCK_STREAM) as s:
+            if s.connect_ex((host, port)) != 0:
+                return port
+    raise RuntimeError(f"No available port found in range {start_port}-{start_port + max_attempts - 1}")
+
+
 def serve(
     config_file: str | BinaryIO | None = None,
     livereload: bool = True,
     watch_theme: bool = False,
     watch: list[str] = [],
     *,
-    open_in_browser: bool = False,
     host: str | None = None,
-    port: int | None = None,
     **kwargs,
 ) -> None:
     """
@@ -68,7 +86,9 @@ def serve(
 
     config_host, config_port = config.dev_addr
     host = host or config_host
-    port = port or config_port
+    port = _find_available_port(host, config_port)
+    if port != config_port:
+        log.info(f"Port {config_port} in use, using port {port} instead")
     mount_path = urlsplit(config.site_url or '/').path
     config.site_url = serve_url = _serve_url(host, port, mount_path)
 
@@ -122,7 +142,7 @@ def serve(
             for item in config.watch:
                 server.watch(item)
 
-        server.serve(open_in_browser=open_in_browser)
+        server.serve(open_in_browser=True)
     except KeyboardInterrupt:
         log.info("Shutting down...")
         sys.exit(0)
