@@ -25,9 +25,6 @@ def _get_jieba():
     global jieba
     if jieba is None:
         try:
-            import warnings
-            warnings.filterwarnings('ignore', category=DeprecationWarning, module='jieba')
-            warnings.filterwarnings('ignore', category=DeprecationWarning, module='pkg_resources')
             import jieba as _jieba
             jieba = _jieba
         except ImportError:
