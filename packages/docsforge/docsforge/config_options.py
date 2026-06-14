@@ -1040,15 +1040,25 @@ class Plugins(OptionallyRequired[PluginCollection]):
             raise ValidationError('Invalid Plugins configuration. Expected a list or dict.')
         self.plugins = PluginCollection()
         self._instance_counter: MutableMapping[str, int] = Counter()
-        for name, cfg in self._parse_configs(value):
+        
+        # Parse user-specified plugins first
+        user_plugins = list(self._parse_configs(value))
+        user_plugin_names = {name for name, _ in user_plugins}
+        
+        for name, cfg in user_plugins:
             self.load_plugin_with_namespace(name, cfg)
         
         # Always load core plugins that are built-in features.
         # These are always enabled and don't require user configuration.
-        core_plugins = ['search', 'meta', 'tags', 'blog', 'info', 'minify']
+        core_plugins = ['meta', 'tags', 'blog', 'info', 'minify']
         for name in core_plugins:
             if name not in self._instance_counter:
                 self.load_plugin_with_namespace(name, {})
+        
+        # Search plugin: only auto-load if user didn't specify it
+        # This avoids the 'specified multiple times' warning
+        if 'search' not in user_plugin_names:
+            self.load_plugin_with_namespace('search', {})
         
         # Privacy is loaded only if enabled in config (privacy: true)
         # It's the only optional core plugin.

@@ -27,6 +27,56 @@ import posixpath
 import re
 import yaml
 
+# ------------------------------------------------------------------------------
+# Classes
+# ------------------------------------------------------------------------------
+
+@total_ordering
+class Tag:
+    """A tag with name, parent, and hidden status."""
+    
+    def __init__(self, name: str, parent: Tag | None = None, hidden: bool = False):
+        self.name = name
+        self.parent = parent
+        self.hidden = hidden
+    
+    def __eq__(self, other):
+        if not isinstance(other, Tag):
+            return NotImplemented
+        return self.name == other.name and self.parent == other.parent
+    
+    def __lt__(self, other):
+        if not isinstance(other, Tag):
+            return NotImplemented
+        return (self.name, self.parent) < (other.name, other.parent)
+    
+    def __hash__(self):
+        return hash((self.name, self.parent))
+
+
+class TagReference:
+    """A reference to a tag and its items."""
+    
+    def __init__(self, tag: Tag, items: list = None):
+        self.tag = tag
+        self.items = items or []
+
+
+class Mapping:
+    """A mapping between a page and its tags."""
+    
+    def __init__(self, page: Page):
+        self.page = page
+        self.item = page
+        self.tags: set[Tag] = set()
+    
+    @property
+    def title(self) -> str:
+        return self.page.title or ""
+    
+    def __repr__(self):
+        return f"Mapping({self.page.url!r})"
+
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
@@ -154,6 +204,8 @@ class TagsConfig(Config):
     })
     listings_sort_by = Optional(Type(Callable))
     listings_sort_reverse = Type(bool, default = False)
+    listings_tags_sort_by = Optional(Type(Callable))
+    listings_tags_sort_reverse = Type(bool, default = False)
     listings_shuffle = Optional(Type(int))
     listings_limit = Optional(Type(int))
     listings_pagination = Type(int, default = 10)
@@ -162,8 +214,14 @@ class TagsConfig(Config):
     listings_page_separator = Type(str, default = "<!-- more -->")
     shadow = Type(bool, default = False)
     shadow_tags = Optional(Type(list))
+    shadow_tags_prefix = Optional(Type(str))
+    shadow_tags_suffix = Optional(Type(str))
     shadow_on_serve = Type(bool, default = True)
     shadow_page_limit = Optional(Type(int))
+    tags_sort_by = Optional(Type(Callable))
+    tags_sort_reverse = Type(bool, default = False)
+    tags_slugify_format = Optional(Type(str))
+    tags_slugify_separator = Optional(Type(str))
     export = Type(bool, default = False)
     export_file = Type(str, default = "tags.json")
     export_json_encoder = Optional(Type(str))
@@ -1021,6 +1079,9 @@ class MappingManager:
 
         # Retrieve and validate tags, and add to mapping
         for tag in self.format.validate(page.meta[tags]):
+            # Convert string tags to Tag objects
+            if isinstance(tag, str):
+                tag = Tag(name=tag)
             mapping.tags.add(self._configure(tag))
 
         # Return mapping
@@ -1110,7 +1171,7 @@ class MappingManager:
             The configured tag.
         """
         if not tag.hidden:
-            tag.hidden = tag in self.config.shadow_tags
+            tag.hidden = tag in (self.config.shadow_tags or [])
 
         # Check if tag matches shadow prefix, if defined
         if not tag.hidden and self.config.shadow_tags_prefix:

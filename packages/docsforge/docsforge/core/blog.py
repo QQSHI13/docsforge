@@ -40,6 +40,13 @@ from docsforge.nav import Link, Navigation, Section, _add_parent_links, _data_to
 from docsforge.pages import Page, _RelativePathTreeprocessor
 from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.structure import StructureItem
+# Try to import babel date formatting, fall back to strftime if unavailable
+try:
+    from babel.dates import format_date, format_datetime
+except ImportError:
+    format_date = None
+    format_datetime = None
+
 from docsforge.toc import AnchorLink, TableOfContents, get_toc
 
 # -----------------------------------------------------------------------------
@@ -1614,10 +1621,14 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # as by our assumptions - see https://t.ly/Yi7ZC
     def _format_date(self, date: datetime, format: str, config: DocsForgeConfig):
         locale: str = config.theme["language"].replace("-", "_")
-        if format in ["full", "long", "medium", "short"]:
-            return format_date(date, format = format, locale = locale)
+        if format_date and format_datetime:
+            if format in ["full", "long", "medium", "short"]:
+                return format_date(date, format = format, locale = locale)
+            else:
+                return format_datetime(date, format = format, locale = locale)
         else:
-            return format_datetime(date, format = format, locale = locale)
+            # Fallback to strftime if babel is not available
+            return date.strftime(format)
 
     # Format date for post
     def _format_date_for_post(self, date: datetime, config: DocsForgeConfig):
