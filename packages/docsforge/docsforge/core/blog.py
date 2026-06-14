@@ -904,6 +904,12 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             if not self._config_pagination(page):
                 return
 
+            # Set template for blog views if not already set
+            view = self._resolve_original(page)
+            if view in self._resolve_views(self.blog):
+                if 'template' not in page.meta:
+                    page.meta['template'] = 'blog.html'
+
             # We set the contents of the view to its title if pagination should
             # not keep the content of the original view on paginated views
             if not self.config.pagination_keep_content:
@@ -1022,6 +1028,11 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         if view not in self._resolve_views(self.blog):
             return
 
+        # Ensure all posts have excerpts before rendering views
+        for post in self.blog.posts:
+            if not post.excerpt:
+                post.excerpt = Excerpt(post, config, files)
+
         # Render excerpts and prepare pagination
         posts, pagination = self._render(page)
 
@@ -1075,12 +1086,16 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             file = self._path_to_file(path, config, temp = False)
             files.append(file)
 
-            # Create file in docs directory
-            self._save_to_file(file.abs_src_path, "# Blog\n\n")
+            # Create file in docs directory with template frontmatter so it uses blog.html
+            self._save_to_file(file.abs_src_path, "---\ntemplate: blog.html\n---\n\n# Blog\n\n")
 
         # Create and return entrypoint
         file = files.get_file_from_path(path)
-        return View(None, file, config)
+        if not isinstance(file.page, View):
+            return View(None, file, config)
+
+        # Return existing view
+        return file.page
 
     # Resolve post - the caller must make sure that the given file points to an
     # actual post (and not a page), or behavior might be unpredictable
@@ -1112,9 +1127,12 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         if not os.path.isdir(name):
             os.makedirs(name, exist_ok = True)
 
-        # Filter posts from pages
-        for file in files.documentation_pages():
+        # Filter posts from all files (not just documentation_pages, since another
+        # plugin instance may have already excluded them)
+        for file in files:
             if not file.src_path.startswith(path):
+                continue
+            if not file.is_documentation_page():
                 continue
 
             # Temporarily remove post from navigation
@@ -1212,8 +1230,8 @@ class BlogPlugin(BasePlugin[BlogConfig]):
                 file = self._path_to_file(path, config)
                 files.append(file)
 
-                # Create file in temporary directory
-                self._save_to_file(file.abs_src_path, f"# {name}")
+                # Create file in temporary directory with template frontmatter
+                self._save_to_file(file.abs_src_path, f"---\ntemplate: blog.html\n---\n\n# {name}\n\n")
 
             # Temporarily remove view from navigation
             file.inclusion = InclusionLevel.EXCLUDED
@@ -1249,8 +1267,8 @@ class BlogPlugin(BasePlugin[BlogConfig]):
                     file = self._path_to_file(path, config)
                     files.append(file)
 
-                    # Create file in temporary directory
-                    self._save_to_file(file.abs_src_path, f"# {name}")
+                    # Create file in temporary directory with template frontmatter
+                    self._save_to_file(file.abs_src_path, f"---\ntemplate: blog.html\n---\n\n# {name}\n\n")
 
                 # Temporarily remove view from navigation
                 file.inclusion = InclusionLevel.EXCLUDED
@@ -1278,8 +1296,8 @@ class BlogPlugin(BasePlugin[BlogConfig]):
                     file = self._path_to_file(path, config)
                     files.append(file)
 
-                    # Create file in temporary directory
-                    self._save_to_file(file.abs_src_path, f"# {author.name}")
+                    # Create file in temporary directory with template frontmatter
+                    self._save_to_file(file.abs_src_path, f"---\ntemplate: blog.html\n---\n\n# {author.name}\n\n")
 
                 # Temporarily remove view from navigation and assign profile
                 # URL to author, if not explicitly set

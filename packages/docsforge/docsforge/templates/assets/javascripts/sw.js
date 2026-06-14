@@ -1,6 +1,6 @@
 /**
- * DocsForge Service Worker - Full offline support with pre-caching
- * Pre-caches all pages during install, cache-first with network fallback
+ * DocsForge Service Worker - Visit once, use for a lifetime
+ * Pre-caches all pages during install so everything works offline immediately.
  */
 
 const BUILD_HASH = "__DOCSFORGE_BUILD_HASH__";
@@ -14,8 +14,28 @@ const BASE_URL = self.location.pathname.replace(/assets\/javascripts\/sw\.js$/, 
 const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 
 self.addEventListener("install", (e) => {
-  // Don't block on pre-caching — just activate immediately so the page loads fast
-  e.waitUntil(self.skipWaiting());
+  e.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        // Pre-cache all pages - each page is cached independently so one failure
+        // doesn't stop the rest
+        return Promise.all(
+          PRE_CACHE_PAGES.map(url => {
+            return fetch(url)
+              .then(response => {
+                if (response.ok) {
+                  return cache.put(url, response.clone());
+                }
+                console.warn('[SW] Pre-cache skipped (not OK):', url, response.status);
+              })
+              .catch(err => {
+                console.warn('[SW] Pre-cache failed for:', url, err);
+              });
+          })
+        );
+      })
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -39,47 +59,7 @@ self.addEventListener("activate", (e) => {
       return self.clients.claim();
     })
   );
-
-  // Start caching pages in the background after activation.
-  // This is NON-BLOCKING — user can browse while other pages are cached.
-  backgroundCachePages();
 });
-
-// Cache pages one by one in the background without blocking the user
-async function backgroundCachePages() {
-  const cache = await caches.open(CACHE_NAME);
-  let cached = 0;
-  let failed = 0;
-
-  for (const url of PRE_CACHE_PAGES) {
-    try {
-      // Skip if already cached (e.g., the current page was just visited)
-      const existing = await cache.match(url);
-      if (existing) continue;
-
-      const response = await fetch(url);
-      if (response.ok) {
-        await cache.put(url, response.clone());
-        cached++;
-      }
-    } catch (err) {
-      failed++;
-      console.warn('[SW] Background cache failed for:', url, err);
-    }
-  }
-
-  console.log(`[SW] Background caching complete: ${cached} cached, ${failed} failed`);
-
-  // Notify clients that background caching is done
-  const clients = await self.clients.matchAll({ type: 'window' });
-  clients.forEach(client => {
-    client.postMessage({
-      type: 'DOCSFORGE_CACHE_COMPLETE',
-      cached: cached,
-      failed: failed
-    });
-  });
-}
 
 self.addEventListener("fetch", (e) => {
   const { request } = e;
