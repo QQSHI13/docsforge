@@ -2,7 +2,6 @@
 
 Write your documentation in Markdown. Build a professional static site in seconds. Deploy anywhere.
 
-![test 2](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQDdL8tcAJ5VzB7748bnESWJNl3tZ5mYTYCnQklOwtKRw&s=10)
 
 !!! tip "Coming from MkDocs?"
 
