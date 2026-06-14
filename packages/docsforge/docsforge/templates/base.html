@@ -521,8 +521,7 @@
 
         // Register service worker for offline support
         if ('serviceWorker' in navigator) {
-          var swUrl = "{{ 'assets/javascripts/sw.js' | url }}";
-          // Default scope is the script's directory, which is correct for all deployments
+          var swUrl = "sw.js";
           navigator.serviceWorker.register(swUrl).catch(function(e){
             console.warn('SW registration failed:', e.message);
           });

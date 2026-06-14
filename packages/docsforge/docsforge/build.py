@@ -559,26 +559,34 @@ def _generate_pwa_manifest_and_precache(
         precache_urls.insert(0, home_url)
 
     # Convert all URLs to be relative to the SW script location
-    # SW is at <site_root>/assets/javascripts/sw.js
-    # So ../../ goes up to site_root
+    # SW is now at <site_root>/sw.js (root of site)
+    # So URLs are just relative to root
     sw_relative_urls = []
     for url in precache_urls:
         if url.startswith('/'):
-            sw_relative_urls.append(f'../..{url}')
+            sw_relative_urls.append(url.lstrip('/'))
         else:
-            sw_relative_urls.append(f'../../{url}')
+            # Already relative, keep as-is
+            sw_relative_urls.append(url)
 
     # Remove redundant ./ in the result
-    sw_relative_urls = [url.replace('../.././', '../../') for url in sw_relative_urls]
+    sw_relative_urls = [url.replace('./', '') for url in sw_relative_urls]
 
     # Remove duplicates and sort for deterministic output
     sw_relative_urls = sorted(set(url for url in sw_relative_urls if url))
 
     # Inject pre-cache list into service worker
-    sw_path = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
-    if os.path.isfile(sw_path):
+    # SW is placed at site root for maximum scope coverage
+    sw_source = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
+    sw_dest = os.path.join(site_dir, 'sw.js')
+    if os.path.isfile(sw_source):
         try:
-            with open(sw_path, 'r', encoding='utf-8') as f:
+            # Move SW to site root if not already there
+            if not os.path.isfile(sw_dest):
+                import shutil
+                shutil.copy2(sw_source, sw_dest)
+            
+            with open(sw_dest, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             if '__PRE_CACHE_PAGES__' in content:
@@ -586,7 +594,7 @@ def _generate_pwa_manifest_and_precache(
                     '__PRE_CACHE_PAGES__',
                     json.dumps(sw_relative_urls)
                 )
-                with open(sw_path, 'w', encoding='utf-8') as f:
+                with open(sw_dest, 'w', encoding='utf-8') as f:
                     f.write(content)
                 log.debug(f"Injected {len(sw_relative_urls)} pages into service worker pre-cache")
         except Exception as e:
