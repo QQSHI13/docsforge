@@ -521,7 +521,7 @@
 
         // Register service worker for offline support
         if ('serviceWorker' in navigator) {
-          var swUrl = "sw.js";
+          var swUrl = "{{ 'sw.js' | url }}";
           navigator.serviceWorker.register(swUrl).catch(function(e){
             console.warn('SW registration failed:', e.message);
           });
