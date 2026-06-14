@@ -285,6 +285,8 @@
           bar.style.cssText = 'height:100%;width:0%;background:linear-gradient(90deg, #ff9800, #ff5722);transition:width 0.3s ease;box-shadow:0 0 6px rgba(255,87,34,0.4);';
           container.appendChild(bar);
           document.body.appendChild(container);
+          
+          console.log('[DocsForge] Network indicator created');
 
           var progress = 0;
           var animationId = null;
@@ -312,11 +314,24 @@
               }, 300);
             }, 200);
           }
+          
+          // Debug: test function available in console
+          window.testNetworkIndicator = function() {
+            console.log('[DocsForge] Test indicator');
+            progress = 0;
+            bar.style.width = '0%';
+            container.style.transform = 'translateY(0)';
+            animateProgress();
+            setTimeout(stopProgress, 2000);
+          };
 
           // Listen for SW messages
           if ('serviceWorker' in navigator) {
+            console.log('[DocsForge] Setting up SW message listener');
             navigator.serviceWorker.addEventListener('message', function(event) {
+              console.log('[DocsForge] SW message received:', event.data);
               if (event.data && event.data.type === 'DOCSFORGE_FETCH_STATUS') {
+                console.log('[DocsForge] Fetch status:', event.data.status);
                 if (event.data.status === 'start') {
                   progress = 0;
                   bar.style.width = '0%';
@@ -331,6 +346,13 @@
                 }
               }
             });
+            
+            // Also listen for controller changes to know when SW is active
+            navigator.serviceWorker.addEventListener('controllerchange', function() {
+              console.log('[DocsForge] SW controller changed');
+            });
+          } else {
+            console.log('[DocsForge] ServiceWorker not supported');
           }
         })();
 
