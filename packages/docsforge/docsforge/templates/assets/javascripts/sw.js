@@ -98,14 +98,19 @@ async function cacheFirstWithNetworkFallback(request) {
     return cached;
   }
 
+  // Not in cache - notify clients we're fetching from network
+  broadcastFetchStatus('network', request.url, 'start');
+
   // Not in cache, fetch from network
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
       cache.put(request, networkResponse.clone());
     }
+    broadcastFetchStatus('network', request.url, 'done');
     return networkResponse;
   } catch (err) {
+    broadcastFetchStatus('network', request.url, 'error');
     // Offline and not cached — return offline page for HTML
     if (request.mode === "navigate" || request.destination === "document") {
       const offlinePage = await cache.match(BASE_URL + '404.html').catch(() => null);
@@ -130,4 +135,19 @@ async function staleWhileRevalidate(request) {
   }).catch(() => cached);
 
   return cached || networkPromise;
+}
+
+// Helper to broadcast fetch status to all clients
+async function broadcastFetchStatus(type, url, status) {
+  try {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'DOCSFORGE_FETCH_STATUS',
+        fetchType: type,
+        url: url,
+        status: status
+      });
+    });
+  } catch (e) {}
 }
