@@ -16,9 +16,10 @@ const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
+      .then(async cache => {
         console.log('[SW] Pre-caching', PRE_CACHE_PAGES.length, 'pages...');
-        return Promise.all(
+        // Cache all pages
+        await Promise.all(
           PRE_CACHE_PAGES.map(url => {
             return fetch(url)
               .then(response => {
@@ -27,11 +28,28 @@ self.addEventListener("install", (e) => {
               .catch(() => {});
           })
         );
-      })
-      .then(() => {
+        // Also cache critical assets (favicon, logo, main CSS/JS)
+        console.log('[SW] Pre-caching critical assets...');
+        const criticalAssets = [
+          'images/favicon.png',
+          'images/docsforge.png',
+          'assets/stylesheets/main.484c7ddc.min.css',
+          'assets/javascripts/bundle.79ae519e.min.js',
+          'assets/katex/katex.min.css',
+          'assets/katex/katex.min.js'
+        ];
+        await Promise.all(
+          criticalAssets.map(url => {
+            return fetch(url)
+              .then(response => {
+                if (response.ok) return cache.put(url, response.clone());
+              })
+              .catch(() => {});
+          })
+        );
         console.log('[SW] Pre-caching complete');
-        return self.skipWaiting();
       })
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -64,6 +82,9 @@ self.addEventListener("fetch", (e) => {
 
   // Same-origin only
   if (url.origin !== self.location.origin) return;
+
+  // Skip livereload requests
+  if (url.pathname.includes('/livereload/')) return;
 
   // HTML pages: cache-first with network fallback
   if (request.destination === "document" || request.mode === "navigate") {
@@ -128,9 +149,17 @@ async function staleWhileRevalidate(request) {
     }
     return networkResponse;
   }).catch((err) => {
-    console.log('[SW] Stale-while-revalidate failed:', request.url, err);
-    return cached;
+    console.log('[SW] Stale-while-revalidate failed:', request.url);
+    // Return cached if available, otherwise a 503 response
+    return cached || new Response(
+      "Offline - resource not cached",
+      { status: 503, headers: { "Content-Type": "text/plain" } }
+    );
   });
 
-  return cached || networkPromise;
+  // If we have cached content, return it immediately while network updates in background
+  if (cached) return cached;
+  
+  // No cache, wait for network
+  return networkPromise;
 }
