@@ -24,11 +24,11 @@ self.addEventListener("install", (e) => {
         console.log('[SW] Pre-caching critical assets...');
         const criticalAssets = [
           'images/favicon.png',
-          'images/docsforge.png',
           'assets/stylesheets/main.484c7ddc.min.css',
           'assets/javascripts/bundle.79ae519e.min.js',
           'assets/katex/katex.min.css',
-          'assets/katex/katex.min.js'
+          'assets/katex/katex.min.js',
+          'assets/external/unpkg.com/mermaid@11.15.0/dist/mermaid.min.js'
         ];
         await Promise.all(
           criticalAssets.map(url => {
