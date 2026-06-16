@@ -17,32 +17,10 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then(async cache => {
-        console.log('[SW] Pre-caching', PRE_CACHE_PAGES.length, 'pages...');
         let cached = 0;
         let failed = 0;
         
-        // Cache all pages
-        await Promise.all(
-          PRE_CACHE_PAGES.map(url => {
-            return fetch(url)
-              .then(response => {
-                if (response.ok) {
-                  console.log('[SW] Cached page:', url);
-                  cached++;
-                  return cache.put(url, response.clone());
-                } else {
-                  console.log('[SW] Failed to cache page (status', response.status, '):', url);
-                  failed++;
-                }
-              })
-              .catch(err => {
-                console.log('[SW] Failed to cache page (error):', url, err.message);
-                failed++;
-              });
-          })
-        );
-        
-        // Also cache critical assets (favicon, logo, main CSS/JS)
+        // First cache critical assets (CSS, JS, favicon, logo) - needed for basic functionality
         console.log('[SW] Pre-caching critical assets...');
         const criticalAssets = [
           'images/favicon.png',
@@ -71,7 +49,35 @@ self.addEventListener("install", (e) => {
               });
           })
         );
-        console.log('[SW] Pre-caching complete:', cached, 'cached,', failed, 'failed');
+        console.log('[SW] Critical assets cached:', cached, 'cached,', failed, 'failed');
+        
+        // Then cache all pages
+        console.log('[SW] Pre-caching', PRE_CACHE_PAGES.length, 'pages...');
+        let pageCached = 0;
+        let pageFailed = 0;
+        
+        await Promise.all(
+          PRE_CACHE_PAGES.map(url => {
+            return fetch(url)
+              .then(response => {
+                if (response.ok) {
+                  console.log('[SW] Cached page:', url);
+                  pageCached++;
+                  return cache.put(url, response.clone());
+                } else {
+                  console.log('[SW] Failed to cache page (status', response.status, '):', url);
+                  pageFailed++;
+                }
+              })
+              .catch(err => {
+                console.log('[SW] Failed to cache page (error):', url, err.message);
+                pageFailed++;
+              });
+          })
+        );
+        
+        console.log('[SW] Pages cached:', pageCached, 'cached,', pageFailed, 'failed');
+        console.log('[SW] Pre-caching complete:', (cached + pageCached), 'total cached,', (failed + pageFailed), 'total failed');
       })
       .then(() => self.skipWaiting())
   );
