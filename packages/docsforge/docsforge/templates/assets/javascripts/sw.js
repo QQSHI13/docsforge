@@ -18,16 +18,30 @@ self.addEventListener("install", (e) => {
     caches.open(CACHE_NAME)
       .then(async cache => {
         console.log('[SW] Pre-caching', PRE_CACHE_PAGES.length, 'pages...');
+        let cached = 0;
+        let failed = 0;
+        
         // Cache all pages
         await Promise.all(
           PRE_CACHE_PAGES.map(url => {
             return fetch(url)
               .then(response => {
-                if (response.ok) return cache.put(url, response.clone());
+                if (response.ok) {
+                  console.log('[SW] Cached page:', url);
+                  cached++;
+                  return cache.put(url, response.clone());
+                } else {
+                  console.log('[SW] Failed to cache page (status', response.status, '):', url);
+                  failed++;
+                }
               })
-              .catch(() => {});
+              .catch(err => {
+                console.log('[SW] Failed to cache page (error):', url, err.message);
+                failed++;
+              });
           })
         );
+        
         // Also cache critical assets (favicon, logo, main CSS/JS)
         console.log('[SW] Pre-caching critical assets...');
         const criticalAssets = [
@@ -42,12 +56,22 @@ self.addEventListener("install", (e) => {
           criticalAssets.map(url => {
             return fetch(url)
               .then(response => {
-                if (response.ok) return cache.put(url, response.clone());
+                if (response.ok) {
+                  console.log('[SW] Cached asset:', url);
+                  cached++;
+                  return cache.put(url, response.clone());
+                } else {
+                  console.log('[SW] Failed to cache asset (status', response.status, '):', url);
+                  failed++;
+                }
               })
-              .catch(() => {});
+              .catch(err => {
+                console.log('[SW] Failed to cache asset (error):', url, err.message);
+                failed++;
+              });
           })
         );
-        console.log('[SW] Pre-caching complete');
+        console.log('[SW] Pre-caching complete:', cached, 'cached,', failed, 'failed');
       })
       .then(() => self.skipWaiting())
   );
