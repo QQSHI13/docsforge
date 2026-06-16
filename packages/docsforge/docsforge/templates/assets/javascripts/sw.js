@@ -17,6 +17,7 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
+        console.log('[SW] Pre-caching', PRE_CACHE_PAGES.length, 'pages...');
         return Promise.all(
           PRE_CACHE_PAGES.map(url => {
             return fetch(url)
@@ -27,7 +28,10 @@ self.addEventListener("install", (e) => {
           })
         );
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[SW] Pre-caching complete');
+        return self.skipWaiting();
+      })
   );
 });
 
@@ -83,9 +87,15 @@ async function cacheFirstWithNetworkFallback(request) {
 
   if (cached) {
     // Update cache in background (stale-while-revalidate)
+    console.log('[SW] Background update started:', request.url);
     fetch(request).then((networkResponse) => {
-      if (networkResponse.ok) cache.put(request, networkResponse.clone());
-    }).catch(() => {});
+      if (networkResponse.ok) {
+        cache.put(request, networkResponse.clone());
+        console.log('[SW] Background update complete:', request.url);
+      }
+    }).catch((err) => {
+      console.log('[SW] Background update failed:', request.url, err);
+    });
     return cached;
   }
 
@@ -114,9 +124,13 @@ async function staleWhileRevalidate(request) {
   const networkPromise = fetch(request).then((networkResponse) => {
     if (networkResponse.ok) {
       cache.put(request, networkResponse.clone());
+      console.log('[SW] Stale-while-revalidate updated:', request.url);
     }
     return networkResponse;
-  }).catch(() => cached);
+  }).catch((err) => {
+    console.log('[SW] Stale-while-revalidate failed:', request.url, err);
+    return cached;
+  });
 
   return cached || networkPromise;
 }
