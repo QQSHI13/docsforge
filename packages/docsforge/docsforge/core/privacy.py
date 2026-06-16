@@ -24,6 +24,7 @@ from docsforge.config_base import Config
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.config_options import (
     Choice,
+    Deprecated,
     DictOfItems,
     ExtraScriptValue,
     ListOfItems,
