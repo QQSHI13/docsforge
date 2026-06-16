@@ -6,7 +6,7 @@ Write your documentation in Markdown. Build a professional static site in second
 !!! tip "Coming from MkDocs?"
 
     DocsForge is the actively maintained successor to MkDocs + Material for MkDocs.
-    Migrate in one command: [`docsforge migrate`](getting-started/migrating-from-mkdocs.md).
+    See the [migration guide](getting-started/migrating-from-mkdocs.md) to convert your project manually.
 
 ```bash
 pip install docsforge
@@ -33,7 +33,7 @@ docsforge serve
 
     ---
 
-    Write `$$...$$` and it renders. KaTeX is vendored — no CDN, no `extra_javascript`, no setup.
+    Write `$$...$$` and it renders. KaTeX is vendored — no CDN calls in the browser, no `extra_javascript`, no setup.
 
 -   :material-code-tags:{ .lg .middle } &nbsp; **Syntax Highlighted**
 
@@ -77,7 +77,7 @@ docsforge serve
 
 ```bash
 pip install docsforge
-docsforge new my-docs
+docsforge          # create a new project interactively
 cd my-docs
 docsforge serve
 ```

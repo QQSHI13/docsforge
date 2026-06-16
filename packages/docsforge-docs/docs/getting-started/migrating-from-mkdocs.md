@@ -42,32 +42,16 @@ DocsForge uses the same visual foundation as MkDocs Material (the most popular M
 
 ## Migration Command
 
-### Automatic Migration (Recommended)
+### Manual Migration
 
-DocsForge provides a migration command to convert your existing MkDocs project:
-
-```bash
-docsforge migrate
-```
-
-This command will:
-
-1. Detect `mkdocs.yml` in the current directory
-2. Convert it to `docsforge.yml`
-3. Map plugins and extensions to their built-in equivalents
-4. Remove redundant asset declarations (KaTeX, fonts, icons)
-5. Report any items that need manual review
+DocsForge does not yet provide an automatic migration command. Convert your project manually by following the steps below. The rest of this guide covers each aspect in detail.
 
 !!! warning "Backup First"
-    Always commit your current state to version control before running `docsforge migrate`:
+    Always commit your current state to version control before migrating:
     ```bash
     git add -A
     git commit -m "backup before docsforge migration"
     ```
-
-### Manual Migration
-
-If the automatic migration isn't available or you prefer full control, follow the manual steps below. The rest of this guide covers each aspect in detail.
 
 ---
 
@@ -195,10 +179,10 @@ These MkDocs plugins are **built into DocsForge** and should be removed from you
 | `search` | ✅ Built-in | Full-text search with no config needed |
 | `minify` | ✅ Built-in | HTML/CSS/JS minification always enabled in production |
 | `offline` | ✅ Built-in | Service worker generated automatically |
-| `social` | ✅ Built-in | Social cards generated during build |
 | `tags` | ✅ Built-in | Tag support enabled by default |
 | `blog` | ✅ Built-in | Blog plugin available |
-| `i18n` | ✅ Built-in | Internationalization support |
+| `social` | ❌ Not built-in | Requires Pillow + CairoSVG; use custom images if needed |
+| `i18n` | ❌ Not built-in | Multi-language support not yet available |
 
 ### Plugins to Remove from `mkdocs.yml`
 
@@ -219,10 +203,10 @@ If you use custom MkDocs plugins, check if DocsForge has a native equivalent:
 
 | Custom Plugin | DocsForge Alternative |
 |--------------|------------------------|
-| `mkdocs-with-pdf` | Use `docsforge export pdf` |
-| `mkdocs-exclude` | Use `exclude:` in `docsforge.yml` |
-| `mkdocs-redirects` | Use `redirects:` in `docsforge.yml` |
-| `mkdocs-git-revision-date` | Use `{{ git_revision_date }}` in templates |
+| `mkdocs-with-pdf` | Not available; use an external PDF generator |
+| `mkdocs-exclude` | Use `exclude_docs:` in `docsforge.yml` |
+| `mkdocs-redirects` | Not built-in; requires a custom plugin |
+| `mkdocs-git-revision-date` | Git dates are populated automatically in templates |
 
 !!! warning "Plugin Compatibility"
     MkDocs plugins are **not compatible** with DocsForge. Custom plugins must be rewritten using the DocsForge plugin API. Contact the plugin author or check the DocsForge plugin registry for alternatives.
@@ -751,14 +735,13 @@ nav:
 - [ ] Identify which entries are for KaTeX, Mermaid, fonts, or other vendored assets
 - [ ] Back up `mkdocs.yml` (it will be rewritten as `docsforge.yml`)
 
-### Migration (Automatic)
+### Migration
 
-- [ ] Install DocsForge: `npm install -g @docsforge/cli` (or equivalent)
-- [ ] Run `docsforge migrate` in your project directory
-- [ ] Review the migration report for warnings or manual steps needed
-- [ ] Check the generated `docsforge.yml` for correctness
-
-### Migration (Manual)
+- [ ] Install DocsForge: `pip install docsforge`
+- [ ] Rename `mkdocs.yml` to `docsforge.yml`
+- [ ] Remove built-in plugins and extensions from explicit lists
+- [ ] Remove vendored asset references (KaTeX, Mermaid, fonts, icons)
+- [ ] Check the updated `docsforge.yml` for correctness
 
 - [ ] Rename `mkdocs.yml` → `docsforge.yml`
 - [ ] Remove `theme:` wrapper, promote all keys to top-level
@@ -822,13 +805,13 @@ palette:
 
 **Error:** `Plugin 'search' not found`
 
-**Fix:** Remove the `plugins:` section entirely, or remove `search` from it. Search is built-in.
+**Fix:** Do not declare built-in plugins under `plugins:`. Search is loaded automatically.
 
 ---
 
 **Error:** `Extension 'pymdownx.highlight' not found`
 
-**Fix:** Remove the `markdown_extensions:` section entirely. All common extensions are built-in.
+**Fix:** Do not declare built-in extensions under `markdown_extensions:`. All common extensions are loaded automatically.
 
 ---
 
@@ -853,10 +836,9 @@ palette:
 
 If you encounter issues not covered in this guide:
 
-1. Check the [DocsForge documentation](https://docsforge.com/docs/)
-2. Search existing [GitHub issues](https://github.com/docsforge/docsforge/issues)
-3. Join the [Discord community](https://discord.gg/docsforge)
-4. Open a new issue with:
+1. Read the [DocsForge documentation](https://qqshi13.github.io/docsforge-docs/)
+2. Search existing [GitHub issues](https://github.com/QQSHI13/docsforge/issues)
+3. Open a new issue with:
    - Your original `mkdocs.yml`
    - Your current `docsforge.yml`
    - The error message or unexpected behavior
@@ -870,8 +852,5 @@ After migration, explore DocsForge features that go beyond MkDocs:
 
 - **Faster builds:** Incremental builds and hot reload
 - **Built-in preview:** `docsforge serve` with live reload
-- **TypeScript support:** Write plugins in TypeScript
-- **Modern toolchain:** Built on Vite for fast development
-- **Integrated hosting:** Deploy with `docsforge deploy`
 
 Welcome to DocsForge! 🚀

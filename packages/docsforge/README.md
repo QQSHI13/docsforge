@@ -1,7 +1,7 @@
 # DocsForge
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
-> One package. One command. Beautiful docs. Zero CDN calls.
+> One package. One command. Beautiful docs. Zero CDN calls at runtime.
 > ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v11.0.0.
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
@@ -20,7 +20,7 @@
 |---|---|---|
 | **Maintenance** | ⚠️ MkDocs is unmaintained; Material is maintenance-only | ✅ Actively developed |
 | **Installation** | `pip install mkdocs-material` + 15+ plugins separately | `pip install docsforge` — everything included |
-| **CDN calls** | Google Fonts, KaTeX, Mermaid loaded from CDN on every build | 🔒 **Zero external network calls** — everything vendored |
+| **CDN calls** | Google Fonts, KaTeX, Mermaid loaded from CDN in the browser | 🔒 **Zero CDN calls at runtime** — everything vendored for readers |
 | **Math rendering** | Requires internet or manual KaTeX setup | ✅ KaTeX vendored, works offline instantly |
 | **Diagrams** | Mermaid loaded from CDN | ✅ Mermaid vendored |
 | **Icons** | Downloaded at build time | ✅ 14,000+ icons included |
@@ -34,38 +34,29 @@
 
 ## Migrating from MkDocs
 
-**One command converts your project:**
+To migrate an existing MkDocs project, manually convert `mkdocs.yml` to `docsforge.yml`:
+
+1. Rename `mkdocs.yml` to `docsforge.yml`.
+2. Keep the `theme:` block as-is (DocsForge uses the built-in Material theme).
+3. Remove built-in plugins and extensions from explicit lists — they are loaded by default.
+4. Remove KaTeX, Mermaid, font, and icon CDN references — these are vendored.
+
+Then build and preview:
 
 ```bash
-# In your existing MkDocs project directory
 pip install docsforge
-docsforge migrate        # converts mkdocs.yml → docsforge.yml
 docsforge build          # builds your site
 docsforge serve          # live preview
 ```
 
-`docsforge migrate` reads your `mkdocs.yml`, converts it to `docsforge.yml`, and reports which plugins are supported and which need attention.
-
-```bash
-docsforge migrate --dry-run    # preview changes without writing
-docsforge migrate --force      # overwrite existing docsforge.yml
-```
-
-**What gets migrated automatically:**
-- Site configuration (name, URL, repo, nav)
-- Material theme settings
-- Supported plugins (search, tags, blog, info, meta, minify, privacy, social, offline, etc.)
-- Markdown extensions
-- Custom CSS/JS
-
-**DocsForge auto-detects legacy configs:** If you run `docsforge build` in a directory with `mkdocs.yml` but no `docsforge.yml`, it will suggest running `docsforge migrate`.
+See the [migration guide](https://qqshi13.github.io/docsforge-docs/getting-started/migrating-from-mkdocs/) for a detailed walkthrough.
 
 ---
 
 ## What Makes DocsForge Different
 
-### 🔒 Zero External Network Calls
-Every asset is vendored: KaTeX for math, Mermaid for diagrams, all fonts and icons, the Material theme itself. Your docs build in an air-gapped environment.
+### 🔒 Zero External Network Calls at Runtime
+Every asset served to readers is vendored: KaTeX for math, Mermaid for diagrams, all fonts and icons, the Material theme itself. Your built site makes no CDN requests in the browser and works fully offline. (External assets referenced by your content may still be fetched during the build process.)
 
 ### 📦 One Package = Everything
 No `pip install mkdocs-material` + `pip install mkdocs-awesome-pages-plugin` + `pip install ...`. Just:
@@ -105,8 +96,9 @@ Requires **Python 3.10+**.
 ## Quick Start
 
 ```bash
-# Create a new project
-docsforge new my-docs
+# Create a new project interactively
+docsforge
+# Follow the prompts, then:
 cd my-docs
 
 # Start the dev server
@@ -176,11 +168,11 @@ theme:
 
 | Command | Description |
 |---------|-------------|
-| `docsforge new <name>` | Scaffold a new project |
+| `docsforge` | Interactive project setup (when no config exists) |
 | `docsforge serve` | Live-reload dev server |
 | `docsforge build` | Static site build |
-| `docsforge migrate` | **Convert mkdocs.yml → docsforge.yml** |
-| `docsforge gh-deploy` | Deploy to GitHub Pages |
+| `docsforge --version` | Show version |
+| `docsforge --help` | Show help |
 
 ---
 
@@ -203,7 +195,7 @@ No configuration needed. Works offline after the first visit.
 
 **Use DocsForge for:** Python project documentation, API docs, technical documentation, knowledge bases, blogs, product docs, internal wikis, open-source project sites, static site generation with Markdown.
 
-**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN, self-hosted fonts, vendored dependencies, zero-config documentation.
+**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN at runtime, self-hosted fonts, vendored dependencies, zero-config documentation.
 
 ---
 
@@ -226,7 +218,7 @@ LGPL v3-or-later
 
 ---
 
-*DocsForge is built by QQ (Cyrus) and Nova ☄️ — because documentation tools should just work.*
+*DocsForge is built by QQ and Nova ☄️ — because documentation tools should just work.*
 
 ## Star History
 

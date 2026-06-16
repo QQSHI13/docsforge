@@ -18,7 +18,7 @@ markdown_extensions:
 ```
 
 !!! note "Vendored"
-    Mermaid is bundled with DocsForge. No CDN calls, no external dependencies.
+    Mermaid is bundled with DocsForge. No CDN calls in the browser, no external runtime dependencies.
 
 ---
 

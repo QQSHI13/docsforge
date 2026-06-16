@@ -27,7 +27,7 @@ You configure only what you want to customize, not what you need to exist.
 
 **After `pip install docsforge`, you own everything.**
 
-The theme, all plugins, all extensions, KaTeX, fonts, and Pygments are bundled inside the package. No CDN calls at runtime. No external fetches during build. Works offline.
+The theme, all plugins, all extensions, KaTeX, fonts, and Pygments are bundled inside the package. No CDN calls at runtime for your readers. Works offline.
 
 ### 3. Stable
 

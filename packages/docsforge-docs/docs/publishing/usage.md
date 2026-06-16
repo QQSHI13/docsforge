@@ -9,8 +9,8 @@ DocsForge is a drop-in replacement for MkDocs + Material. This guide covers dail
 # Install DocsForge
 pip install docsforge
 
-# Create a new project
-docsforge new my-docs
+# Create a new project interactively
+docsforge
 cd my-docs
 
 # Build and serve
@@ -29,10 +29,9 @@ docsforge build
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `docsforge new <path>` | Create a new project | `docsforge new docs/` |
+| `docsforge` | Create a new project interactively | `docsforge` |
 | `docsforge build` | Build the site | `docsforge build` |
-| `docsforge serve` | Build + serve locally | `docsforge serve` |
-| `docsforge serve --dirty` | Incremental rebuild | `docsforge serve --dirty` |
+| `docsforge serve` | Build + serve locally with live reload | `docsforge serve` |
 | `docsforge --version` | Show version | `docsforge --version` |
 | `docsforge --help` | Show help | `docsforge --help` |
 
@@ -121,28 +120,25 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:docsforge.emoji.twemoji
+      emoji_generator: !!python/name:docsforge.emoji.to_svg
   - tables
   - toc:
       permalink: true
 ```
 
 ### Plugins
+Built-in plugins are loaded automatically. You only need to declare plugins when you want to customize them:
+
 ```yaml
 plugins:
-  - search
-  - tags
+  - search:
+      lang: en
+  - tags:
+      tags_file: tags.md
   - blog:
       blog_dir: blog
       blog_toc: true
-  - rss:
-      match_path: blog/posts/.*
-      date_from_meta:
-        as_creation: date
-      categories:
-        - categories
-        - tags
 ```
 
 ## Content Features
@@ -226,16 +222,6 @@ $$
 $$
 ```
 
-### Social Cards
-
-DocsForge automatically generates social cards (Twitter/OG images) for every page. Enable in config:
-```yaml
-plugins:
-  - social:
-      cards: true
-      cards_layout: default
-```
-
 ### Tags
 ```markdown
 ---
@@ -250,14 +236,7 @@ tags:
 ## Git Integration
 
 ### Revision Dates
-DocsForge automatically shows when each page was last updated, powered by git history:
-
-```yaml
-plugins:
-  - git-revision-date-localized
-```
-
-This adds a "Last updated" line to each page footer.
+DocsForge automatically shows when each page was last updated, powered by git history. No plugin configuration is needed.
 
 ### Edit Links
 ```yaml
@@ -304,11 +283,8 @@ Place files in `docs/stylesheets/` and `docs/javascripts/`.
 
 ## Performance Tips
 
-### Incremental Builds (`--dirty`)
-```bash
-docsforge serve --dirty
-```
-Only rebuilds changed pages. Fast for large sites.
+### Incremental Builds
+Both `docsforge build` and `docsforge serve` use incremental builds by default. Only changed pages are rebuilt, which is fast for large sites.
 
 ### Build Optimization
 DocsForge automatically optimizes after each build:
@@ -327,7 +303,7 @@ No manual steps needed.
 | Theme not found | DocsForge bundles Material — no extra install needed |
 | Search not working | Ensure `search` plugin is in `plugins:` list |
 | CSS not loading | Check path is relative to `docs_dir` |
-| Build is slow | Use `--dirty` for incremental builds |
+| Build is slow | Incremental builds are on by default; restart `docsforge serve` if needed |
 | Icons missing | Use `material/` prefix (e.g., `material/home`) |
 
 ## Next Steps

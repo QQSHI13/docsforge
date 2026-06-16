@@ -13,8 +13,8 @@ Requires **Python 3.10+**.
 ## Quick start
 
 ```bash
-# Create a new project
-docsforge new my-docs
+# Create a new project interactively
+docsforge
 cd my-docs
 
 # Start the dev server
@@ -26,7 +26,7 @@ docsforge build
 
 ## What's inside
 
-After `docsforge new`, your project looks like this:
+After running `docsforge` to create a project, your directory looks like this:
 
 ``` { .sh .no-copy }
 my-docs/

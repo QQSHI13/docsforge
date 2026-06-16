@@ -9,10 +9,10 @@ DocsForge handles images with enhanced styling options. Images are responsive by
 Standard Markdown syntax:
 
 ``` markdown
-![Alt text](assets/images/screenshot.png)
+![Alt text](../assets/images/screenshot.svg)
 ```
 
-![Alt text](assets/images/screenshot.png)
+![Alt text](../assets/images/screenshot.svg)
 
 Always use descriptive alt text for accessibility and SEO.
 
@@ -24,13 +24,13 @@ Use `figure` markup for captions:
 
 ``` markdown
 <figure markdown="span">
-  ![Screenshot](assets/images/screenshot.png)
+  ![Screenshot](../assets/images/screenshot.svg)
   <figcaption>Documentation site preview</figcaption>
 </figure>
 ```
 
 <figure markdown="span">
-  ![Screenshot](assets/images/screenshot.png)
+  ![Screenshot](../assets/images/screenshot.svg)
   <figcaption>Documentation site preview</figcaption>
 </figure>
 
@@ -41,7 +41,7 @@ Use `figure` markup for captions:
 ### Left aligned
 
 ``` markdown
-![Image](assets/images/screenshot.png){ align=left }
+![Image](../assets/images/screenshot.svg){ align=left }
 ```
 
 Text wraps around the image on the right.
@@ -49,7 +49,7 @@ Text wraps around the image on the right.
 ### Right aligned
 
 ``` markdown
-![Image](assets/images/screenshot.png){ align=right }
+![Image](../assets/images/screenshot.svg){ align=right }
 ```
 
 Text wraps around the image on the left.
@@ -57,7 +57,7 @@ Text wraps around the image on the left.
 ### Center aligned
 
 ``` markdown
-![Image](assets/images/screenshot.png){ align=center }
+![Image](../assets/images/screenshot.svg){ align=center }
 ```
 
 Image is centered with text above and below.
@@ -69,19 +69,19 @@ Image is centered with text above and below.
 Set width and height:
 
 ``` markdown
-![Image](assets/images/screenshot.png){ width="300" }
+![Image](../assets/images/screenshot.svg){ width="300" }
 ```
 
 Set width as a percentage:
 
 ``` markdown
-![Image](assets/images/screenshot.png){ width="50%" }
+![Image](../assets/images/screenshot.svg){ width="50%" }
 ```
 
 Set both width and height:
 
 ``` markdown
-![Image](assets/images/screenshot.png){ width="300" height="200" }
+![Image](../assets/images/screenshot.svg){ width="300" height="200" }
 ```
 
 !!! warning "Aspect ratio"
@@ -109,7 +109,7 @@ Images load lazily by default. To disable for above-the-fold images (like hero b
 Add a subtle shadow for depth:
 
 ``` markdown
-![Image](assets/images/screenshot.png){ .shadow }
+![Image](../assets/images/screenshot.svg){ .shadow }
 ```
 
 This works well for screenshots and UI mockups to separate them from the page background.
@@ -121,13 +121,13 @@ This works well for screenshots and UI mockups to separate them from the page ba
 Make an image a link:
 
 ``` markdown
-[![Alt text](assets/images/screenshot.png)](https://example.com)
+[![Alt text](../assets/images/screenshot.svg)](https://example.com)
 ```
 
 Open in new tab:
 
 ``` markdown
-[![Alt text](assets/images/screenshot.png)](https://example.com){ target="_blank" }
+[![Alt text](../assets/images/screenshot.svg)](https://example.com){ target="_blank" }
 ```
 
 ---

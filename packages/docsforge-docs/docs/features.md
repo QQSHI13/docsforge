@@ -10,7 +10,7 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     ---
 
-    `pip install docsforge` gets you the engine, Material theme, all plugins, all Markdown extensions, KaTeX math, Pygments highlighting, fonts, icons, and a service worker. Nothing else to install.
+    `pip install docsforge` gets you the engine, Material theme, all plugins, all Markdown extensions, KaTeX math, Pygments highlighting, fonts, icons, and a service worker. Nothing else to install for your readers.
 
 -   :material-rocket-launch:{ .lg .middle } &nbsp; **Zero Configuration**
 
@@ -34,7 +34,7 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     ---
 
-    Write `$$...$$` and it renders with KaTeX. No CDN, no `extra_javascript`, no configuration.
+    Write `$$...$$` and it renders with KaTeX. No CDN calls in the browser, no `extra_javascript`, no configuration.
 
 -   :material-code-tags:{ .lg .middle } &nbsp; **Syntax Highlighting**
 

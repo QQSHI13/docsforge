@@ -49,7 +49,7 @@ theme:
   font:
     text: Roboto
     code: Roboto Mono
-  favicon: assets/images/favicon.png
+  favicon: assets/images/favicon.svg
   icon:
     logo: material/hammer-wrench
 

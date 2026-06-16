@@ -11,10 +11,9 @@ Moving from MkDocs/Material to DocsForge is straightforward for most sites. This
 | **Theme settings** | ✅ Direct | Colors, fonts, logos, favicons |
 | **Extra CSS/JS** | ✅ Direct | `extra_css`, `extra_javascript` |
 | **Markdown extensions** | ✅ Direct | admonition, pymdownx, etc. |
-| **Social cards** | ✅ Direct | `social:` plugin built-in |
 | **Search** | ✅ Direct | Built-in, no config needed |
 | **Tags** | ✅ Direct | `tags:` plugin built-in |
-| **Git revision info** | ✅ Direct | `git_revision_date_localized` built-in |
+| **Git revision info** | ✅ Direct | Git dates displayed automatically |
 | **PWA / Service Worker** | ✅ Direct | Built-in, auto-generated |
 | **Sitemap** | ✅ Direct | Auto-generated |
 
@@ -25,7 +24,7 @@ Moving from MkDocs/Material to DocsForge is straightforward for most sites. This
 | **Custom hooks** | ⚠️ Adapt | Rewrite as DocsForge plugins or use `hooks:` if compatible |
 | **Custom plugins** | ⚠️ Adapt | Check if DocsForge has equivalent; otherwise rewrite |
 | **Custom templates** | ⚠️ Adapt | Template paths differ; check `docsforge/templates/` |
-| **Insiders features** | ⚠️ Adapt | Many are included in DocsForge; check [feature parity](#feature-parity) |
+| **Insiders features** | ⚠️ Adapt | Many are included in DocsForge; check [feature parity](#feature-parity-material-vs-docsforge) |
 | **Privacy plugin** | ⚠️ Built-in | DocsForge includes privacy features by default |
 | **Optimize plugin** | ⚠️ Built-in | Asset optimization runs automatically post-build |
 
@@ -67,7 +66,7 @@ OI Wiki uses several advanced features. Here's how each maps:
 | Material theme | ✅ | ✅ (included) |
 | Search | ✅ | ✅ (built-in) |
 | Tags | ✅ | ✅ (built-in) |
-| Social cards | ✅ (Insiders) | ✅ (built-in) |
+| Social cards | ✅ (Insiders) | ❌ Not built-in |
 | Blog | ✅ (Insiders) | ✅ (built-in) |
 | Privacy plugin | ✅ (Insiders) | ✅ (built-in) |
 | Optimize plugin | ✅ (Insiders) | ✅ (auto post-build) |
@@ -140,8 +139,7 @@ markdown_extensions:
 plugins:
   - tags
   - search
-  # - social      # built-in, no config needed
-  # - blog        # built-in, no config needed
+  # - blog        # built-in, customize only if needed
 ```
 
 ### 3. Convert Config Keys
@@ -176,7 +174,7 @@ DocsForge outputs static HTML to `site/` — deploy to any static host. See [Dep
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
-| `plugin not found` | Plugin not in DocsForge | Check [feature parity](#feature-parity) or install separately |
+| `plugin not found` | Plugin not in DocsForge | Check [feature parity](#feature-parity-material-vs-docsforge) or install separately |
 | `theme not found` | Material theme path | DocsForge bundles Material; use `name: material` |
 | Custom hook fails | MkDocs API differences | Update hook to use DocsForge APIs |
 | CSS/JS not loading | Path resolution | Check paths relative to `docs_dir` |

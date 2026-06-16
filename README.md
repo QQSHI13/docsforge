@@ -1,7 +1,7 @@
 # DocsForge Monorepo
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
-> One package. One command. Beautiful docs. Zero CDN calls.
+> One package. One command. Beautiful docs. Zero CDN calls at runtime.
 > ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v11.0.0.
 
 This is the monorepo containing all DocsForge projects:
@@ -15,14 +15,11 @@ This is the monorepo containing all DocsForge projects:
 ## Quick Start
 
 ```bash
-# Install the core package
-pip install packages/docsforge
-
-# Or from PyPI
+# Install from PyPI
 pip install docsforge
 
-# Create a new project
-docsforge --init
+# Run interactively to create a new project
+docsforge
 
 # Start dev server
 docsforge serve
