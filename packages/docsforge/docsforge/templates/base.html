@@ -272,82 +272,14 @@
     {% endblock %}
     {% block scripts %}
       <script>
-        // DocsForge Network Loading Indicator with Progress
+        // DocsForge Service Worker — console logs only, no visual indicators
         (function() {
-          // Create indicator container
-          var container = document.createElement('div');
-          container.id = 'docsforge-network-indicator';
-          container.style.cssText = 'position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;transform:translateY(-100%);transition:transform 0.3s ease;pointer-events:none;overflow:hidden;';
-          
-          // Create progress bar inside
-          var bar = document.createElement('div');
-          bar.id = 'docsforge-network-bar';
-          bar.style.cssText = 'height:100%;width:0%;background:linear-gradient(90deg, #ff9800, #ff5722);transition:width 0.3s ease;box-shadow:0 0 6px rgba(255,87,34,0.4);';
-          container.appendChild(bar);
-          document.body.appendChild(container);
-          
-          console.log('[DocsForge] Network indicator created');
-
-          var progress = 0;
-          var animationId = null;
-
-          function animateProgress() {
-            if (progress < 90) {
-              progress += (90 - progress) * 0.05 + 1;
-              bar.style.width = progress + '%';
-              animationId = requestAnimationFrame(animateProgress);
-            }
-          }
-
-          function stopProgress() {
-            if (animationId) {
-              cancelAnimationFrame(animationId);
-              animationId = null;
-            }
-            progress = 100;
-            bar.style.width = '100%';
-            setTimeout(function() {
-              container.style.transform = 'translateY(-100%)';
-              setTimeout(function() {
-                progress = 0;
-                bar.style.width = '0%';
-              }, 300);
-            }, 200);
-          }
-          
-          // Debug: test function available in console
-          window.testNetworkIndicator = function() {
-            console.log('[DocsForge] Test indicator');
-            progress = 0;
-            bar.style.width = '0%';
-            container.style.transform = 'translateY(0)';
-            animateProgress();
-            setTimeout(stopProgress, 2000);
-          };
-
-          // Listen for SW messages
+          // Listen for SW messages (console only)
           if ('serviceWorker' in navigator) {
             console.log('[DocsForge] Setting up SW message listener');
             navigator.serviceWorker.addEventListener('message', function(event) {
-              console.log('[DocsForge] SW message received:', event.data);
-              if (event.data && event.data.type === 'DOCSFORGE_FETCH_STATUS') {
-                console.log('[DocsForge] Fetch status:', event.data.status);
-                if (event.data.status === 'start') {
-                  progress = 0;
-                  bar.style.width = '0%';
-                  container.style.transform = 'translateY(0)';
-                  animateProgress();
-                } else if (event.data.status === 'done') {
-                  stopProgress();
-                } else if (event.data.status === 'error') {
-                  bar.style.background = 'linear-gradient(90deg, #f44336, #d32f2f)';
-                  bar.style.boxShadow = '0 0 6px rgba(244,67,54,0.4)';
-                  stopProgress();
-                }
-              }
+              console.log('[DocsForge] SW message:', event.data);
             });
-            
-            // Also listen for controller changes to know when SW is active
             navigator.serviceWorker.addEventListener('controllerchange', function() {
               console.log('[DocsForge] SW controller changed');
             });
@@ -526,22 +458,17 @@
             console.warn('SW registration failed:', e.message);
           });
 
-          // Listen for update notifications from service worker
+          // Listen for update notifications from service worker (console only)
           navigator.serviceWorker.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'DOCSFORGE_UPDATE_READY') {
-              showDocsForgeUpdateBanner();
+              console.log('[DocsForge] Update available, will refresh on next navigation');
+              // Silently refresh on next page navigation (no banner)
+              window.addEventListener('beforeunload', function() {
+                // Let browser handle normal navigation; SW will serve new version
+              });
             }
             if (event.data && event.data.type === 'DOCSFORGE_CACHE_COMPLETE') {
-              // Show a subtle offline-ready indicator for 3 seconds
-              var indicator = document.createElement('div');
-              indicator.textContent = 'All pages available offline';
-              indicator.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;background:rgba(64,81,181,0.9);color:#fff;padding:8px 14px;border-radius:4px;font-size:12px;opacity:0;transition:opacity 0.5s;pointer-events:none;';
-              document.body.appendChild(indicator);
-              requestAnimationFrame(function() { indicator.style.opacity = '1'; });
-              setTimeout(function() {
-                indicator.style.opacity = '0';
-                setTimeout(function() { indicator.remove(); }, 500);
-              }, 3000);
+              console.log('[DocsForge] All pages cached for offline use');
             }
           });
 
@@ -551,18 +478,6 @@
               registration.update();
             });
           }, 300000);
-        }
-
-        // Show update banner when a new version is available
-        function showDocsForgeUpdateBanner() {
-          if (document.getElementById('docsforge-update-banner')) return;
-          var banner = document.createElement('div');
-          banner.id = 'docsforge-update-banner';
-          banner.innerHTML = '<span>A new version of this documentation is available.</span><button onclick="location.reload()">Refresh</button><button onclick="this.parentElement.remove()">Dismiss</button>';
-          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#4051b5;color:#fff;padding:12px 16px;font-size:14px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
-          banner.querySelector('button').style.cssText = 'background:#fff;color:#4051b5;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500;';
-          banner.querySelectorAll('button')[1].style.cssText = 'background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;';
-          document.body.appendChild(banner);
         }
       </script>
     {% endblock %}

@@ -17,20 +17,13 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        // Pre-cache all pages - each page is cached independently so one failure
-        // doesn't stop the rest
         return Promise.all(
           PRE_CACHE_PAGES.map(url => {
             return fetch(url)
               .then(response => {
-                if (response.ok) {
-                  return cache.put(url, response.clone());
-                }
-                console.warn('[SW] Pre-cache skipped (not OK):', url, response.status);
+                if (response.ok) return cache.put(url, response.clone());
               })
-              .catch(err => {
-                console.warn('[SW] Pre-cache failed for:', url, err);
-              });
+              .catch(() => {});
           })
         );
       })
@@ -65,17 +58,11 @@ self.addEventListener("fetch", (e) => {
   const { request } = e;
   const url = new URL(request.url);
 
-  console.log('[SW] Fetch event:', request.url, 'destination:', request.destination, 'mode:', request.mode);
-
   // Same-origin only
-  if (url.origin !== self.location.origin) {
-    console.log('[SW] Skipping - different origin');
-    return;
-  }
+  if (url.origin !== self.location.origin) return;
 
   // HTML pages: cache-first with network fallback
   if (request.destination === "document" || request.mode === "navigate") {
-    console.log('[SW] Intercepting page:', request.url);
     e.respondWith(cacheFirstWithNetworkFallback(request));
     return;
   }
@@ -93,32 +80,21 @@ self.addEventListener("fetch", (e) => {
 async function cacheFirstWithNetworkFallback(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
-  console.log('[SW] Cache check for:', request.url, 'found:', !!cached);
 
   if (cached) {
     // Update cache in background (stale-while-revalidate)
     fetch(request).then((networkResponse) => {
-      if (networkResponse.ok) {
-        cache.put(request, networkResponse.clone());
-      }
+      if (networkResponse.ok) cache.put(request, networkResponse.clone());
     }).catch(() => {});
     return cached;
   }
 
-  // Not in cache - notify clients we're fetching from network
-  console.log('[SW] Cache miss - fetching from network:', request.url);
-  broadcastFetchStatus('network', request.url, 'start');
-
   // Not in cache, fetch from network
   try {
     const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone());
-    }
-    broadcastFetchStatus('network', request.url, 'done');
+    if (networkResponse.ok) cache.put(request, networkResponse.clone());
     return networkResponse;
   } catch (err) {
-    broadcastFetchStatus('network', request.url, 'error');
     // Offline and not cached — return offline page for HTML
     if (request.mode === "navigate" || request.destination === "document") {
       const offlinePage = await cache.match(BASE_URL + '404.html').catch(() => null);
@@ -143,24 +119,4 @@ async function staleWhileRevalidate(request) {
   }).catch(() => cached);
 
   return cached || networkPromise;
-}
-
-// Helper to broadcast fetch status to all clients
-async function broadcastFetchStatus(type, url, status) {
-  console.log('[SW] Broadcasting status:', status, 'for', url);
-  try {
-    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    console.log('[SW] Found', clients.length, 'clients');
-    clients.forEach(client => {
-      console.log('[SW] Posting to client:', client.id);
-      client.postMessage({
-        type: 'DOCSFORGE_FETCH_STATUS',
-        fetchType: type,
-        url: url,
-        status: status
-      });
-    });
-  } catch (e) {
-    console.error('[SW] Broadcast error:', e);
-  }
 }
