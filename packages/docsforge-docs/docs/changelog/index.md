@@ -201,7 +201,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - **Zero-config Markdown** — 31 extensions loaded by default (all pymdownx + python-markdown). No `markdown_extensions:` config needed.
-- **KaTeX math** — Vendored KaTeX (1.5MB) renders `$$...$$` inline and display math. No CDN calls in the browser, no config.
+- **KaTeX math** — Vendored KaTeX (1.5MB) renders `$$...$$` inline and display math. No CDN calls for readers, no config.
 - **Pygments highlighting** — Syntax-colored code blocks at build time. No client-side JS.
 - **Dark mode toggle** — Light/dark mode switch in header. Auto-detects system preference.
 - **Auto-loaded plugins** — search, tags, blog, info, meta, minify, privacy all work without config.

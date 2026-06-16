@@ -24,6 +24,7 @@ from docsforge.utils import (
     nest_paths,
     normalize_url,
     reduce_list,
+    slugify,
     weak_property,
     write_file,
 )

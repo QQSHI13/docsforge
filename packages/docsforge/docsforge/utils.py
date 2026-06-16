@@ -45,6 +45,14 @@ T = TypeVar('T')
 
 log = logging.getLogger(__name__)
 
+
+def slugify(name: str) -> str:
+    """Convert a site name or title to a URL-friendly directory slug."""
+    slug = re.sub(r'[^\w\s-]', '', name.lower())
+    slug = re.sub(r'[\s_]+', '-', slug)
+    return slug.strip('-') or 'my-docs'
+
+
 markdown_extensions = (
     '.markdown',
     '.mdown',
@@ -188,6 +196,8 @@ def _get_relative_url(url: str, other: str) -> str:
     result = '/'.join(rel_parts)
     if url.endswith('/'):
         result += '/'
+    with open('/tmp/docsforge_debug.log', 'a') as f:
+        f.write(f"_get_relative_url debug: url={url}, other={other}, other_parts={other_parts}, dest_parts={dest_parts}, common={common}, rel_parts={rel_parts}, result={result}\n")
     return result
 
 

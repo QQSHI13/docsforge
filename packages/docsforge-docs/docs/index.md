@@ -33,7 +33,7 @@ docsforge serve
 
     ---
 
-    Write `$$...$$` and it renders. KaTeX is vendored — no CDN calls in the browser, no `extra_javascript`, no setup.
+    Write `$$...$$` and it renders. KaTeX is vendored — no CDN calls for readers, no `extra_javascript`, no setup.
 
 -   :material-code-tags:{ .lg .middle } &nbsp; **Syntax Highlighted**
 

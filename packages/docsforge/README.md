@@ -1,7 +1,7 @@
 # DocsForge
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
-> One package. One command. Beautiful docs. Zero CDN calls at runtime.
+> One package. One command. Beautiful docs. Zero CDN calls.
 > ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v11.0.0.
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
@@ -20,7 +20,7 @@
 |---|---|---|
 | **Maintenance** | ⚠️ MkDocs is unmaintained; Material is maintenance-only | ✅ Actively developed |
 | **Installation** | `pip install mkdocs-material` + 15+ plugins separately | `pip install docsforge` — everything included |
-| **CDN calls** | Google Fonts, KaTeX, Mermaid loaded from CDN in the browser | 🔒 **Zero CDN calls at runtime** — everything vendored for readers |
+| **CDN calls** | Google Fonts, KaTeX, Mermaid loaded from CDN in the browser | 🔒 **Zero CDN calls** — external assets are fetched during the build and served locally, so readers never call a CDN |
 | **Math rendering** | Requires internet or manual KaTeX setup | ✅ KaTeX vendored, works offline instantly |
 | **Diagrams** | Mermaid loaded from CDN | ✅ Mermaid vendored |
 | **Icons** | Downloaded at build time | ✅ 14,000+ icons included |
@@ -55,8 +55,8 @@ See the [migration guide](https://qqshi13.github.io/docsforge-docs/getting-start
 
 ## What Makes DocsForge Different
 
-### 🔒 Zero External Network Calls at Runtime
-Every asset served to readers is vendored: KaTeX for math, Mermaid for diagrams, all fonts and icons, the Material theme itself. Your built site makes no CDN requests in the browser and works fully offline. (External assets referenced by your content may still be fetched during the build process.)
+### 🔒 Zero CDN Calls
+DocsForge fetches external assets (such as fonts, icons, and emojis) during the build process and serves them from your site. Readers never contact a CDN, so your docs load fast, work offline, and respect privacy.
 
 ### 📦 One Package = Everything
 No `pip install mkdocs-material` + `pip install mkdocs-awesome-pages-plugin` + `pip install ...`. Just:
@@ -68,7 +68,7 @@ pip install docsforge
 You get:
 - ⚡ **Engine** — ProperDocs fork, vendored and maintained
 - 🎨 **Theme** — Material for MkDocs, fully included
-- 🔌 **Plugins** — 7 built-in: search, tags, blog, info, meta, minify, privacy, social, offline, optimize, typeset
+- 🔌 **Plugins** — 7 built-in: search, tags, blog, info, meta, minify, privacy
 - 📝 **Markdown** — 31 extensions pre-configured (pymdownx + python-markdown)
 - ➗ **Math** — KaTeX vendored (`$$...$$` works out of the box)
 - 🖍️ **Highlighting** — Pygments at build time
@@ -195,7 +195,7 @@ No configuration needed. Works offline after the first visit.
 
 **Use DocsForge for:** Python project documentation, API docs, technical documentation, knowledge bases, blogs, product docs, internal wikis, open-source project sites, static site generation with Markdown.
 
-**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN at runtime, self-hosted fonts, vendored dependencies, zero-config documentation.
+**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN for readers, self-hosted fonts, vendored dependencies, zero-config documentation.
 
 ---
 

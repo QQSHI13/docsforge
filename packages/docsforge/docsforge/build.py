@@ -400,9 +400,6 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         log.debug("Copying static assets.")
         files.copy_static_files(dirty=dirty, inclusion=inclusion)
 
-        # Inject build hash into service worker for cache versioning
-        _inject_sw_build_hash(config.site_dir, files)
-
         for template in config.theme.static_templates:
             _build_theme_template(template, env, files, config, nav)
 
@@ -488,36 +485,6 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         logger.removeHandler(warning_counter)
 
 
-def _inject_sw_build_hash(site_dir: str, files: Files) -> None:
-    """Inject a build hash into the service worker for cache versioning.
-
-    Each build generates a unique hash, ensuring the browser installs a new SW
-    and cleans old caches. This guarantees users get fresh content after deploy.
-    """
-    sw_path = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
-    if not os.path.isfile(sw_path):
-        return
-
-    # Generate hash from current time (unique per build)
-    build_hash = hashlib.sha256(str(time.time()).encode()).hexdigest()[:12]
-
-    try:
-        with open(sw_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        if '__DOCSFORGE_BUILD_HASH__' not in content:
-            return
-
-        content = content.replace('__DOCSFORGE_BUILD_HASH__', build_hash)
-
-        with open(sw_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-
-        log.debug(f"Injected build hash {build_hash} into service worker")
-    except Exception as e:
-        log.warning(f"Failed to inject build hash into SW: {e}")
-
-
 def site_directory_contains_stale_files(site_directory: str) -> bool:
     """Check if the site directory contains stale files from a previous build."""
     return bool(os.path.exists(site_directory) and os.listdir(site_directory))
@@ -575,18 +542,13 @@ def _generate_pwa_manifest_and_precache(
     # Remove duplicates and sort for deterministic output
     sw_relative_urls = sorted(set(url for url in sw_relative_urls if url))
 
-    # Inject pre-cache list into service worker
-    # SW is placed at site root for maximum scope coverage
+# Inject pre-cache list and deterministic build hash into service worker.
+    # The SW is placed at site root for maximum scope coverage.
     sw_source = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
     sw_dest = os.path.join(site_dir, 'sw.js')
     if os.path.isfile(sw_source):
         try:
-            # Move SW to site root if not already there
-            if not os.path.isfile(sw_dest):
-                import shutil
-                shutil.copy2(sw_source, sw_dest)
-            
-            with open(sw_dest, 'r', encoding='utf-8') as f:
+            with open(sw_source, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             if '__PRE_CACHE_PAGES__' in content:
@@ -594,9 +556,31 @@ def _generate_pwa_manifest_and_precache(
                     '__PRE_CACHE_PAGES__',
                     json.dumps(sw_relative_urls)
                 )
-                with open(sw_dest, 'w', encoding='utf-8') as f:
-                    f.write(content)
-                log.debug(f"Injected {len(sw_relative_urls)} pages into service worker pre-cache")
+
+            if '__DOCSFORGE_BUILD_HASH__' in content:
+                # Deterministic hash: identical source + config + precache list
+                # produces identical SW hash, so unchanged builds don't force
+                # clients to reinstall the service worker.
+                hasher = hashlib.sha256()
+                hasher.update(content.encode('utf-8'))
+                hasher.update(json.dumps(sw_relative_urls).encode('utf-8'))
+                config_path = Path(config.config_file_path) if config.config_file_path else Path('docsforge.yml')
+                if config_path.exists():
+                    hasher.update(config_path.read_bytes())
+                build_hash = hasher.hexdigest()[:12]
+                content = content.replace('__DOCSFORGE_BUILD_HASH__', build_hash)
+                log.debug(f"Injected deterministic build hash {build_hash} into service worker")
+
+            with open(sw_dest, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            # Remove the template copy in assets to avoid a duplicate worker.
+            try:
+                os.remove(sw_source)
+            except OSError as e:
+                log.debug(f"Could not remove duplicate service worker template: {e}")
+
+            log.debug(f"Injected {len(sw_relative_urls)} pages into service worker pre-cache")
         except Exception as e:
             log.warning(f"Failed to inject pre-cache list into SW: {e}")
 

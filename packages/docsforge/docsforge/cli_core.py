@@ -7,22 +7,16 @@ interface: CLI, VS Code extension, API, or programmatically.
 from __future__ import annotations
 
 import logging
-import re
 import sys
 from pathlib import Path
 from typing import BinaryIO, TYPE_CHECKING
+
+from docsforge import slugify
 
 if TYPE_CHECKING:
     import docsforge.config_base as config_module
 
 log = logging.getLogger(__name__)
-
-
-def _slugify(name: str) -> str:
-    """Convert site name to directory slug."""
-    slug = re.sub(r'[^\w\s-]', '', name.lower())
-    slug = re.sub(r'[\s_]+', '-', slug)
-    return slug.strip('-') or 'my-docs'
 
 # Config file priority order (first match wins)
 CONFIG_PRIORITY = [
@@ -231,7 +225,7 @@ class ProjectManager:
         
         # Use site name slug as project directory if not explicitly provided
         if project_directory is None:
-            project_directory = _slugify(site_name)
+            project_directory = slugify(site_name)
         
         try:
             init_module.init(

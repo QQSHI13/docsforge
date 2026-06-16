@@ -9,7 +9,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import re
 import shutil
 import sys
 import textwrap
@@ -30,13 +29,6 @@ if sys.platform.startswith("win"):
         colorama.init()
 
 log = logging.getLogger(__name__)
-
-
-def _slugify(name: str) -> str:
-    """Convert site name to directory slug."""
-    slug = re.sub(r'[^\w\s-]', '', name.lower())
-    slug = re.sub(r'[\s_]+', '-', slug)
-    return slug.strip('-') or 'my-docs'
 
 
 class ColorFormatter(logging.Formatter):
