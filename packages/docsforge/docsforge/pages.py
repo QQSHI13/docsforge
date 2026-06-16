@@ -509,6 +509,8 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                     f"Doc file '{self.file.src_uri}' contains a link '{url}', "
                     f"but the target{target} is not found among documentation files."
                 )
+            print(f"[DEBUG] target_file is None for url={url}, target_uri={target_uri}")
+            print(f"[DEBUG] warning={warning}")
 
         if warning:
             if self.file.inclusion.is_excluded():
@@ -537,7 +539,6 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
 
         assert target_uri is not None
         assert target_file is not None
-
         if anchor:
             # Register that this page links to the target file with an anchor.
             self.links_to_anchors.setdefault(target_file, {}).setdefault(anchor, url)
@@ -552,7 +553,7 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                 f"'{target_uri}' which is excluded from the built site."
             )
             log.log(warning_level, warning)
-        path = utils.get_relative_url(target_file.url, self.file.url)
+        path = utils.get_relative_url(self.file.url, target_file.url)
         return urlunsplit(('', '', path, query, anchor))
 
     def _register(self, md: markdown.Markdown) -> None:

@@ -178,11 +178,12 @@ def cleanup_unused_assets(site_dir: str, extra_whitelist: set[str] | None = None
 
 
 def remove_source_maps(site_dir: str) -> None:
-    """Remove .map files from the built site."""
+    """Remove .map files and sourceMappingURL comments from the built site."""
     site_path = Path(site_dir)
     if not site_path.exists():
         return
     
+    # Remove .map files
     removed_count = 0
     removed_size = 0
     
@@ -202,6 +203,26 @@ def remove_source_maps(site_dir: str) -> None:
         log.info(
             f"Removed {removed_count} source map files ({removed_size / 1024:.2f} KB saved)"
         )
+    
+    # Strip sourceMappingURL comments from JS files to prevent 404 requests
+    js_files_modified = 0
+    sourcemap_pattern = re.compile(r'//# sourceMappingURL=[^\s]+\s*\n?')
+    
+    for js_file in site_path.rglob('*.js'):
+        if not js_file.is_file():
+            continue
+        
+        try:
+            content = js_file.read_text(encoding='utf-8', errors='ignore')
+            if 'sourceMappingURL=' in content:
+                cleaned = sourcemap_pattern.sub('', content)
+                js_file.write_text(cleaned, encoding='utf-8')
+                js_files_modified += 1
+        except Exception as e:
+            log.warning(f"Could not strip source map comment from {js_file}: {e}")
+    
+    if js_files_modified > 0:
+        log.info(f"Stripped source map comments from {js_files_modified} JS files")
 
 
 def remove_unused_font_formats(site_dir: str) -> None:

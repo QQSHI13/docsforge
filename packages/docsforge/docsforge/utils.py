@@ -196,8 +196,6 @@ def _get_relative_url(url: str, other: str) -> str:
     result = '/'.join(rel_parts)
     if url.endswith('/'):
         result += '/'
-    with open('/tmp/docsforge_debug.log', 'a') as f:
-        f.write(f"_get_relative_url debug: url={url}, other={other}, other_parts={other_parts}, dest_parts={dest_parts}, common={common}, rel_parts={rel_parts}, result={result}\n")
     return result
 
 
