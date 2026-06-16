@@ -395,11 +395,13 @@
         // KaTeX rendering — supports both generic \(...\) and legacy <script type="math/tex"> formats
         function renderKaTeX() {
           if (typeof katex === 'undefined') return;
+
+          // 1. Render existing .arithmatex elements (from Markdown processing)
           document.querySelectorAll('.arithmatex').forEach(function(el) {
             var tex = null;
             var isDisplay = el.classList.contains('arithmatex--block') || el.tagName === 'DIV';
 
-            // 1. Generic format: \( ... \) or \[ ... \]
+            // Generic format: \( ... \) or \[ ... \]
             var text = el.textContent.trim();
             if (text.startsWith('\\(') && text.endsWith('\\)')) {
               tex = text.slice(2, -2);
@@ -409,7 +411,7 @@
               isDisplay = true;
             }
 
-            // 2. Legacy format: inner <script type="math/tex">
+            // Legacy format: inner <script type="math/tex">
             if (!tex) {
               var script = el.querySelector('script[type^="math/tex"]');
               if (script) {
@@ -418,7 +420,7 @@
               }
             }
 
-            // 3. Data attribute (fallback)
+            // Data attribute (fallback)
             if (!tex) {
               tex = el.getAttribute('data-tex');
             }
@@ -437,6 +439,82 @@
               el.textContent = tex.trim();
             }
           });
+
+          // 2. Scan all text nodes for \( ... \) and \[ ... \] patterns
+          // This enables math in sidebars, headers, navigation, etc.
+          var skipTags = ['SCRIPT', 'STYLE', 'PRE', 'CODE', 'KBD', 'SAMP', 'VAR'];
+          var skipClasses = ['highlight', 'arithmatex', 'katex', 'MathJax_Preview'];
+          var inlinePattern = /\\\((.+?)\\\)/g;
+          var displayPattern = /\\\[([\s\S]+?)\\\]/g;
+
+          function shouldSkip(el) {
+            if (!el || !el.parentNode) return true;
+            var tag = el.parentNode.tagName;
+            if (skipTags.indexOf(tag) !== -1) return true;
+            var className = el.parentNode.className || '';
+            for (var i = 0; i < skipClasses.length; i++) {
+              if (className.indexOf(skipClasses[i]) !== -1) return true;
+            }
+            return false;
+          }
+
+          function renderTextNode(node, pattern, isDisplay) {
+            var text = node.textContent;
+            var match;
+            var lastIndex = 0;
+            var fragments = [];
+
+            while ((match = pattern.exec(text)) !== null) {
+              if (match.index > lastIndex) {
+                fragments.push(document.createTextNode(text.slice(lastIndex, match.index)));
+              }
+              var tex = match[1].trim();
+              var span = document.createElement('span');
+              try {
+                katex.render(tex, span, {throwOnError: false, displayMode: isDisplay});
+              } catch (e) {
+                span.textContent = match[0];
+              }
+              fragments.push(span);
+              lastIndex = pattern.lastIndex;
+            }
+
+            if (fragments.length > 0) {
+              if (lastIndex < text.length) {
+                fragments.push(document.createTextNode(text.slice(lastIndex)));
+              }
+              var parent = node.parentNode;
+              fragments.forEach(function(f) { parent.insertBefore(f, node); });
+              parent.removeChild(node);
+              return true;
+            }
+            return false;
+          }
+
+          var walker = document.createTreeWalker(
+            document.body,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+          );
+
+          var nodesToProcess = [];
+          var node;
+          while ((node = walker.nextNode()) !== null) {
+            if (!shouldSkip(node) && (inlinePattern.test(node.textContent) || displayPattern.test(node.textContent))) {
+              nodesToProcess.push(node);
+            }
+            // Reset regex lastIndex
+            inlinePattern.lastIndex = 0;
+            displayPattern.lastIndex = 0;
+          }
+
+          nodesToProcess.forEach(function(node) {
+            // Process display math first (\[ ... \]), then inline (\( ... \))
+            if (renderTextNode(node, displayPattern, true)) return;
+            renderTextNode(node, inlinePattern, false);
+          });
+        }
         }
 
         // Render on initial load
