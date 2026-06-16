@@ -314,7 +314,11 @@ DocsForge supports keyboard navigation out of the box. Custom interactive elemen
 
 ## Multi-language Sites
 
-### Structure
+DocsForge does not include a built-in internationalization plugin. You have two practical options:
+
+### Option 1: Build separate sites per language
+
+Maintain a `docsforge.yml` for each language and build them independently:
 
 ```
 docs/
@@ -322,37 +326,31 @@ docs/
 │   └── index.md
 ├── de/
 │   └── index.md
-├── fr/
-│   └── index.md
-└── mkdocs.yml
+└── fr/
+    └── index.md
 ```
 
-### Configuration
+Use a small build script to output each language to a separate subdirectory.
+
+### Option 2: Use a third-party i18n plugin
+
+Install a MkDocs-compatible i18n plugin and declare it under `plugins:`:
 
 ```yaml
 plugins:
-  i18n:
-    languages:
-      - locale: en
-        name: English
-        default: true
-      - locale: de
-        name: Deutsch
-      - locale: fr
-        name: Français
-
-extra:
-  alternate:
-    - name: English
-      link: /
-      lang: en
-    - name: Deutsch
-      link: /de/
-      lang: de
-    - name: Français
-      link: /fr/
-      lang: fr
+  - i18n:
+      languages:
+        - locale: en
+          name: English
+          default: true
+        - locale: de
+          name: Deutsch
+        - locale: fr
+          name: Français
 ```
+
+!!! warning "Compatibility"
+    Third-party MkDocs plugins may need to be adapted for DocsForge. Test thoroughly before relying on them in production.
 
 ---
 

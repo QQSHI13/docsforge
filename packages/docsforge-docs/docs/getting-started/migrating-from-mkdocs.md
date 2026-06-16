@@ -635,52 +635,46 @@ repo_url: https://github.com/cloudplatform/docs
 repo_name: cloudplatform/docs
 edit_uri: edit/main/docs/
 
-# Theme is built-in — no "theme:" section
-palette:
-  - media: "(prefers-color-scheme: light)"
-    scheme: default
-    primary: blue
-    accent: blue
-    toggle:
-      icon: material/brightness-7
-      name: Switch to dark mode
-  - media: "(prefers-color-scheme: dark)"
-    scheme: slate
-    primary: blue
-    accent: blue
-    toggle:
-      icon: material/brightness-4
-      name: Switch to light mode
-
-features:
-  - navigation.tabs
-  - navigation.sections
-  - navigation.expand
-  - navigation.path
-  - navigation.top
-  - search.suggest
-  - search.highlight
-  - content.tabs.link
-  - content.code.copy
-  - content.action.edit
-
-icon:
-  repo: fontawesome/brands/github
-
-logo: assets/logo.svg
-favicon: assets/favicon.png
+# Theme is built-in — keep the "theme:" section
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+    - content.action.edit
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
 
 # Font is vendored — no "font:" section needed
 
-# Search is built-in — no "plugins: search" needed
-# Minify is built-in — no "plugins: minify" needed
-# Tags are built-in — no "plugins: tags" needed
-# Blog is built-in — no "plugins: blog" needed
+# Search, minify, tags, and blog are built-in — no "plugins:" entry needed
 # Keep only non-built-in plugins:
-plugins:
-  redirects:
-    redirect_maps:
-      old-page.md: new-page.md
+# plugins:
+#   - your-custom-plugin
 
 # Extensions are built-in — remove all standard ones
 # Keep only custom/non-standard extensions if any
@@ -695,8 +689,6 @@ extra:
       link: https://github.com/cloudplatform
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/cloudplatform
-  version:
-    provider: mike
   analytics:
     provider: google
     property: G-XXXXXXXXXX
@@ -713,12 +705,12 @@ nav:
 ```
 
 !!! note "What Changed?"
-    - Removed `theme:` wrapper — all theme keys are top-level
-    - Removed `font:` — fonts are vendored
-    - Removed `plugins: search, minify, tags, blog` — built-in
-    - Removed entire `markdown_extensions:` section — built-in
+    - Kept the `theme:` block — Material is built-in
+    - Removed `theme.font:` — fonts are vendored
+    - Removed built-in plugins from `plugins:` (search, minify, tags, blog)
+    - Removed standard `markdown_extensions:` entries — they are built-in
     - Removed `extra_javascript` and KaTeX `extra_css` — vendored
-    - Kept `redirects` plugin — not built-in
+    - Removed `redirects`, `version`, and other non-built-in plugins
     - Kept `custom.css` — truly custom styling
     - Kept `nav`, `extra`, `site_*` — same syntax
 
@@ -739,21 +731,15 @@ nav:
 
 - [ ] Install DocsForge: `pip install docsforge`
 - [ ] Rename `mkdocs.yml` to `docsforge.yml`
+- [ ] Keep the `theme:` block; remove `theme.font:`
 - [ ] Remove built-in plugins and extensions from explicit lists
 - [ ] Remove vendored asset references (KaTeX, Mermaid, fonts, icons)
-- [ ] Check the updated `docsforge.yml` for correctness
-
-- [ ] Rename `mkdocs.yml` → `docsforge.yml`
-- [ ] Remove `theme:` wrapper, promote all keys to top-level
-- [ ] Remove `theme.name` and `theme.font` entries
-- [ ] Remove `plugins:` entries for built-in plugins (search, minify, tags, blog)
-- [ ] Remove `markdown_extensions:` section entirely (or keep only custom ones)
-- [ ] Remove `extra_javascript:` entries for KaTeX, Mermaid, polyfills
-- [ ] Remove `extra_css:` entries for KaTeX, fonts, external libraries
+- [ ] Remove non-built-in plugins such as `redirects` and `version`
 - [ ] Keep only truly custom `extra_css` and `extra_javascript` entries
 - [ ] Verify `nav:` structure is unchanged
 - [ ] Verify `extra:` variables are unchanged
 - [ ] Verify `site_*` metadata keys are unchanged
+- [ ] Check the updated `docsforge.yml` for correctness
 
 ### Post-Migration
 

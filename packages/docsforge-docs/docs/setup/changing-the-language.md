@@ -67,16 +67,7 @@ theme:
 
 ## Custom translations
 
-You can override individual translation strings:
-
-``` yaml
-extra:
-  social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/username/repo
-```
-
-Or create a custom translation file in `docs/locales/xx/LC_MESSAGES/messages.po`.
+You can override individual translation strings through the theme's localization files, or create a custom translation file in `docs/locales/xx/LC_MESSAGES/messages.po` and reference it from your overrides.
 
 ## Next steps
 

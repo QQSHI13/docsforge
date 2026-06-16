@@ -560,13 +560,13 @@ pip install docsforge
 
 ??? question "How do I debug plugin issues?"
 
-    Run the build with verbose logging:
+    Run the build with debug logging:
 
     ```bash
-    docsforge build --verbose
+    docsforge build
     ```
 
-    This shows plugin load order, file processing, and any warnings. If a specific plugin fails, try disabling it temporarily to isolate the issue.
+    Set the logger level to `DEBUG` in your environment if you need more detail. If a specific plugin fails, try disabling it temporarily to isolate the issue.
 
 ??? question "Does DocsForge support multi-language sites?"
 
@@ -594,7 +594,7 @@ pip install docsforge
 
 If none of the above solutions work:
 
-1. Run `docsforge build --verbose` and capture the full output.
+1. Run `docsforge build` and capture the full output.
 2. Check your `docsforge.yml` against the [Reference](reference/index.md).
 3. Search existing [GitHub issues](https://github.com/docsforge/docsforge/issues) for the error message.
 4. Open a new issue with:

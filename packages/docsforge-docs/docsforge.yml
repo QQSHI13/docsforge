@@ -60,6 +60,7 @@ nav:
     - Migrating from MkDocs: getting-started/migrating-from-mkdocs.md
     - Creating your site: creating-your-site.md
     - Publishing:
+      - publishing-your-site.md
       - publishing/index.md
       - Usage Guide: publishing/usage.md
       - Migration Guide: publishing/migration.md

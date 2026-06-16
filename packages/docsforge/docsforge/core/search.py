@@ -88,13 +88,6 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         for field_config in self.config.fields.values():
             validator.run_validation(field_config)
 
-        # Check jieba for Chinese
-        if not _get_jieba():
-            log.warning(
-                "Chinese content may not be segmented correctly without jieba. "
-                "Install it for better Chinese search: pip install docsforge[chinese]"
-            )
-
         # Default field boosts
         if "title" not in self.config.fields:
             self.config.fields["title"] = {"boost": 1e3}
@@ -106,21 +99,38 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         # Initialize search index
         self.search_index = SearchIndex(**self.config)
 
-        # Configure jieba
-        jieba_lib = _get_jieba()
-        if jieba_lib and self.config.jieba_dict:
-            path = os.path.normpath(self.config.jieba_dict)
-            if os.path.isfile(path):
-                jieba_lib.set_dictionary(path)
-            else:
-                log.warning(f"jieba_dict not found: {self.config.jieba_dict}")
+        # Configure jieba only when Chinese search is requested
+        if self._needs_jieba():
+            jieba_lib = _get_jieba()
+            if not jieba_lib:
+                log.warning(
+                    "Chinese content may not be segmented correctly without jieba. "
+                    "Install it for better Chinese search: pip install docsforge[chinese]"
+                )
+            elif self.config.jieba_dict:
+                path = os.path.normpath(self.config.jieba_dict)
+                if os.path.isfile(path):
+                    jieba_lib.set_dictionary(path)
+                else:
+                    log.warning(f"jieba_dict not found: {self.config.jieba_dict}")
 
-        if jieba_lib and self.config.jieba_dict_user:
-            path = os.path.normpath(self.config.jieba_dict_user)
-            if os.path.isfile(path):
-                jieba_lib.load_userdict(path)
-            else:
-                log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
+            if jieba_lib and self.config.jieba_dict_user:
+                path = os.path.normpath(self.config.jieba_dict_user)
+                if os.path.isfile(path):
+                    jieba_lib.load_userdict(path)
+                else:
+                    log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
+
+    def _needs_jieba(self) -> bool:
+        """Return True if jieba Chinese segmentation should be loaded."""
+        if self.config.jieba_dict or self.config.jieba_dict_user:
+            return True
+        lang = self.config.lang
+        if isinstance(lang, str):
+            return lang.startswith('zh')
+        if isinstance(lang, list):
+            return any(isinstance(l, str) and l.startswith('zh') for l in lang)
+        return False
 
     def on_page_context(self, context, *, page, config, nav):
         if not self.config.enabled:

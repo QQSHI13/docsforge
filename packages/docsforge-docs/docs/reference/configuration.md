@@ -230,28 +230,75 @@ extra_javascript:
 
 ## Theme settings
 
-In DocsForge, theme settings are **top-level keys** — there is no `theme:` wrapper (unlike MkDocs).
+Theme settings live under the `theme:` block, just like MkDocs Material.
 
-### `palette`
+```yaml
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
+```
+
+### `theme.name`
+
+The theme to use. DocsForge bundles Material, so this is usually `material`.
+
+```yaml
+theme:
+  name: material
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `string` | `material` | No |
+
+---
+
+### `theme.palette`
 
 Color scheme configuration. Supports light/dark mode toggling.
 
 ```yaml
-palette:
-  - media: "(prefers-color-scheme: light)"
-    scheme: default
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-7
-      name: Switch to dark mode
-  - media: "(prefers-color-scheme: dark)"
-    scheme: slate
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-4
-      name: Switch to light mode
+theme:
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 ```
 
 | Property | Type | Description |
@@ -266,22 +313,23 @@ palette:
 
 ---
 
-### `features`
+### `theme.features`
 
 Navigation and UI features to enable.
 
 ```yaml
-features:
-  - navigation.tabs
-  - navigation.sections
-  - navigation.expand
-  - navigation.path
-  - navigation.top
-  - search.suggest
-  - search.highlight
-  - content.tabs.link
-  - content.code.copy
-  - content.action.edit
+theme:
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+    - content.action.edit
 ```
 
 | Feature | Description |
@@ -305,14 +353,15 @@ features:
 
 ---
 
-### `icon`
+### `theme.icon`
 
 Icon configuration for various UI elements.
 
 ```yaml
-icon:
-  repo: fontawesome/brands/github
-  logo: material/library
+theme:
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/library
 ```
 
 | Property | Type | Description |
@@ -323,12 +372,13 @@ icon:
 
 ---
 
-### `logo`
+### `theme.logo`
 
 Path to your site logo (relative to `docs_dir`).
 
 ```yaml
-logo: assets/logo.svg
+theme:
+  logo: assets/logo.svg
 ```
 
 | Type | Default | Required |
@@ -337,12 +387,13 @@ logo: assets/logo.svg
 
 ---
 
-### `favicon`
+### `theme.favicon`
 
 Path to favicon (relative to `docs_dir`).
 
 ```yaml
-favicon: assets/favicon.png
+theme:
+  favicon: assets/favicon.svg
 ```
 
 | Type | Default | Required |
@@ -351,12 +402,13 @@ favicon: assets/favicon.png
 
 ---
 
-### `language`
+### `theme.language`
 
 Site language for internationalization.
 
 ```yaml
-language: en
+theme:
+  language: en
 ```
 
 | Type | Default | Required |
@@ -365,12 +417,13 @@ language: en
 
 ---
 
-### `direction`
+### `theme.direction`
 
 Text direction.
 
 ```yaml
-direction: ltr
+theme:
+  direction: ltr
 ```
 
 | Type | Default | Options |
@@ -379,12 +432,13 @@ direction: ltr
 
 ---
 
-### `custom_dir`
+### `theme.custom_dir`
 
 Directory for custom templates and overrides (relative to `docs_dir`).
 
 ```yaml
-custom_dir: overrides
+theme:
+  custom_dir: overrides
 ```
 
 | Type | Default | Required |
@@ -461,15 +515,21 @@ plugins:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `assets` | `boolean` | `true` | Download external assets |
-| `assets_dir` | `string` | `assets/externals` | Storage directory |
-| `concurrency` | `integer` | `1` | Download concurrency |
 | `enabled` | `boolean` | `true` | Enable plugin |
-| `extra_modules` | `list` | `[]` | Extra modules to download |
-| `extra_requests` | `list` | `[]` | Extra requests to download |
+| `concurrency` | `integer` | `CPU count - 1` | Download concurrency |
+| `cache` | `boolean` | `true` | Cache downloaded assets between builds |
+| `cache_dir` | `string` | `.cache/plugin/privacy` | Local cache directory |
 | `log` | `boolean` | `true` | Log downloads |
-| `externals` | `list` | `[]` | External URLs to cache |
-| `externals_dir` | `string` | `assets/externals` | Cache directory |
+| `log_level` | `string` | `info` | Download log level: `error`, `warn`, `info`, `debug` |
+| `assets` | `boolean` | `true` | Download external assets |
+| `assets_fetch` | `boolean` | `true` | Fetch assets from the network |
+| `assets_fetch_dir` | `string` | `assets/external` | Storage directory inside `site_dir` |
+| `assets_include` | `list` | `[]` | Glob patterns of external URLs to always fetch |
+| `assets_exclude` | `list` | `[]` | Glob patterns of external URLs to skip |
+| `assets_expr_map` | `dict` | `{}` | Extra regexes for finding assets in CSS/JS |
+| `links` | `boolean` | `true` | Process external links |
+| `links_attr_map` | `dict` | `{}` | Extra attributes to add to external links |
+| `links_noopener` | `boolean` | `true` | Add `noopener` to external links |
 
 #### `info` plugin
 
@@ -552,25 +612,6 @@ extra:
 
 ---
 
-### `extra.version`
-
-Version information.
-
-```yaml
-extra:
-  version:
-    provider: mike
-    default: stable
-```
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `provider` | `string` | Version provider: `mike` |
-| `default` | `string` | Default version label |
-| `alias` | `boolean` | Enable version aliases |
-
----
-
 ### `extra.alternate`
 
 Language alternates for multi-language sites.
@@ -611,21 +652,6 @@ Code annotation settings.
 extra:
   annotate:
     json: [.s2]
-```
-
----
-
-### `extra.discussion`
-
-Comment system integration.
-
-```yaml
-extra:
-  discussion:
-    enabled: true
-    provider: giscus
-    repo: example/discussions
-    category: General
 ```
 
 ---
@@ -674,24 +700,37 @@ nav:
 
 ### `validation`
 
-Link and anchor validation.
+Link, anchor, and navigation validation.
 
 ```yaml
 validation:
-  omitted_files: warn
-  absolute_links: warn
-  unrecognized_links: warn
-  anchors: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
 ```
+
+### `validation.nav`
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `omitted_files` | `string` | `warn` | Files not in `nav` |
-| `absolute_links` | `string` | `warn` | Absolute link warnings |
-| `unrecognized_links` | `string` | `warn` | Unknown link warnings |
-| `anchors` | `string` | `warn` | Missing anchor warnings |
+| `omitted_files` | `string` | `info` | Files not in `nav` |
+| `not_found` | `string` | `warn` | Navigation links to missing pages |
+| `absolute_links` | `string` | `info` | Absolute nav links |
 
-Values: `warn`, `ignore`, `strict`.
+### `validation.links`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `absolute_links` | `string` | `info` | Absolute Markdown links |
+| `unrecognized_links` | `string` | `info` | Links that don't look like internal pages |
+| `not_found` | `string` | `warn` | Markdown links to missing pages |
+| `anchors` | `string` | `info` | Links to missing anchors |
+
+Values: `warn`, `info`, `ignore`.
 
 ---
 
@@ -717,39 +756,38 @@ use_directory_urls: true
 strict: false
 
 # Theme
-palette:
-  - media: "(prefers-color-scheme: light)"
-    scheme: default
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-7
-      name: Switch to dark mode
-  - media: "(prefers-color-scheme: dark)"
-    scheme: slate
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-4
-      name: Switch to light mode
-
-features:
-  - navigation.tabs
-  - navigation.sections
-  - navigation.expand
-  - navigation.top
-  - search.suggest
-  - search.highlight
-  - content.tabs.link
-  - content.code.copy
-  - content.action.edit
-
-logo: assets/logo.svg
-favicon: assets/favicon.png
-icon:
-  repo: fontawesome/brands/github
-
-language: en
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+    - content.action.edit
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
+  language: en
 
 # Custom assets
 extra_css:
@@ -775,11 +813,6 @@ extra:
       link: https://github.com/example
     - icon: fontawesome/brands/twitter
       link: https://twitter.com/example
-  version:
-    provider: mike
-    default: stable
-  annotate:
-    json: [.s2]
 
 # Navigation
 nav:
@@ -794,8 +827,11 @@ nav:
 
 # Validation
 validation:
-  omitted_files: warn
-  absolute_links: warn
-  unrecognized_links: warn
-  anchors: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
 ```

@@ -30,16 +30,17 @@ description: Custom description for this page
 
 ## Social card image
 
-DocsForge does not automatically generate social card images. To add a custom card image:
+DocsForge does not automatically generate social card images. To add a custom card image, place the image in your `docs/` folder and reference it with an absolute URL in your site metadata or custom templates:
 
 ``` yaml
+site_name: My Project Docs
+site_description: Complete documentation for My Project
+site_url: https://docs.example.com/
 extra:
-  social:
-    cards: true
-    cards_image: assets/images/social-card.png
+  social_image: https://docs.example.com/assets/images/social-card.png
 ```
 
-Create a 1200×630 PNG image for optimal display across platforms.
+Create a 1200×630 PNG image for optimal display across platforms. You can then use `extra.social_image` in a custom `main.html` override to populate `twitter:image` and `og:image` tags.
 
 ## Platform-specific tags
 

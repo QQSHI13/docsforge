@@ -74,7 +74,7 @@ docker run -v $(pwd)/site:/usr/share/nginx/html:ro -p 8080:80 nginx:alpine
 DocsForge handles these automatically:
 - ✅ Sitemap (`sitemap.xml.gz`)
 - ✅ PWA manifest (`manifest.json`)
-- ✅ Social cards (auto-generated)
+- ✅ OpenGraph tags (automatic)
 - ✅ Semantic HTML
 - ✅ Fast loading (optimized assets)
 

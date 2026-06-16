@@ -16,21 +16,13 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     
     Returns exit code: 0 = valid, 1 = errors found.
     """
-    print()
-    print("=" * 60)
-    print("  DOCSFORGE CONFIGURATION CHECK")
-    print("=" * 60)
-    print()
-    
     # 1. Find config file
     config_path = _find_config(config_file)
     if not config_path:
         log.error("No docsforge.yml or docsforge.yaml found.")
-        print()
         print("  To create a new project:")
         print("    docsforge")
         print("    # (runs interactive init wizard)")
-        print()
         return 1
     
     print(f"  Config file:   {config_path}")
@@ -124,7 +116,6 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
         print(f"  Plugins:       default set (search, meta, etc.)")
     
     # 7. Full config load test
-    print()
     print("  Validating full configuration...")
     try:
         cfg = config_module.load_config(
@@ -138,35 +129,15 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
         issues.append(f"Configuration validation failed: {e}")
     
     # 8. Print results
-    print()
-    print("=" * 60)
-    
     if issues:
-        print()
         print(f"  ERRORS ({len(issues)}):")
         for issue in issues:
             print(f"    ✗ {issue}")
     
     if warnings_list:
-        print()
         print(f"  WARNINGS ({len(warnings_list)}):")
         for warning in warnings_list:
             print(f"    ⚠ {warning}")
-    
-    if not issues and not warnings_list:
-        print()
-        print("  ✓ Configuration is valid. Ready to build.")
-    elif not issues:
-        print()
-        print("  ✓ Configuration is valid (with warnings).")
-    
-    print()
-    print("  Next step:")
-    if not issues:
-        print("    docsforge build")
-    else:
-        print("    Fix errors above, then run: docsforge check")
-    print()
     
     return 1 if issues else 0
 
