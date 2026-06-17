@@ -87,10 +87,14 @@ def serve(
 
     config = get_config()
     config.plugins.on_startup(command='serve', dirty=True)
+    import sys as _sp, time as _tp
+    _sp.stderr.write(f'[{_tp.time():.0f}] on_startup done\n'); _sp.stderr.flush()
 
     config_host, config_port = config.dev_addr
     host = host or config_host
+    _sp.stderr.write(f'[{_tp.time():.0f}] _find_available_port({host}, {config_port})...\n'); _sp.stderr.flush()
     port = _find_available_port(host, config_port)
+    _sp.stderr.write(f'[{_tp.time():.0f}] port={port}\n'); _sp.stderr.flush()
     if port != config_port:
         log.info(f"Port {config_port} in use, using port {port} instead")
     mount_path = urlsplit(config.site_url or '/').path
