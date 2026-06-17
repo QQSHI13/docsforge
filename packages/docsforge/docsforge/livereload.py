@@ -302,6 +302,10 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         elif path == "/":
             start_response("302 Found", [("Location", urllib.parse.quote(self.mount_path))])
             return []
+        elif path.startswith("/.well-known/"):
+            # Browser probes (Chrome DevTools, etc.) — return empty JSON
+            start_response("200 OK", [("Content-Type", "application/json")])
+            return [b"{}"]
         else:
             return None  # Not found
 
