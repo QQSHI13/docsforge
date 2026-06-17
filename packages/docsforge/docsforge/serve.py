@@ -121,6 +121,7 @@ def serve(
 
     try:
         # Perform the initial build
+        log.info("Preparing initial build...")
         try:
             builder(config)
         except Exception as e:

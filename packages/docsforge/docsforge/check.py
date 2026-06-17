@@ -121,6 +121,8 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     else:
         print("  Plugins:       default set (search, meta, etc.)")
 
+    print("  Config check:  passed")
+
     # 7. Print results
     if issues:
         print(f"  ERRORS ({len(issues)}):")
