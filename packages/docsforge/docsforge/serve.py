@@ -74,11 +74,14 @@ def serve(
         )
 
     def get_config():
+        import sys as _s, time as _t
+        _s.stderr.write(f'[{_t.time():.0f}] load_config start\n'); _s.stderr.flush()
         config = load_config(
             config_file=get_config_file(),
             site_dir=site_dir,
             **kwargs,
         )
+        _s.stderr.write(f'[{_t.time():.0f}] load_config done\n'); _s.stderr.flush()
         config.watch.extend(watch)
         return config
 
@@ -108,6 +111,8 @@ def serve(
     server = LiveReloadServer(
         builder=builder, host=host, port=port, root=site_dir, mount_path=mount_path
     )
+    import sys as _sys2, time as _time2
+    _sys2.stderr.write(f'[{_time2.time():.0f}] Server created, starting build\n'); _sys2.stderr.flush()
 
     def error_handler(code) -> bytes | None:
         if code in (404, 500):
