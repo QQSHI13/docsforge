@@ -169,12 +169,7 @@ def serve(lan, no_open):
         kwargs['host'] = '0.0.0.0'
     if no_open:
         kwargs['open_in_browser'] = False
-    
-    import time as _time
-    _t0 = _time.time()
-    log.info('Starting dev server...')
     DevServer.serve(**kwargs)
-    log.info('DevServer.serve() returned in %.1fs', _time.time() - _t0)
 
 
 if __name__ == '__main__':
