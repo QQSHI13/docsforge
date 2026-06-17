@@ -368,22 +368,8 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
 
 class _Handler(wsgiref.simple_server.WSGIRequestHandler):
-    # Harmless requests that should not produce warnings
-    _quiet_paths = (
-        '/.well-known/appspecific/',
-        '/.well-known/',
-        '/favicon.ico',
-        '/apple-touch-icon',
-    )
-
     def log_request(self, code="-", size="-"):
-        str_code = str(code)
-        if str_code == "200":
-            level = logging.DEBUG
-        elif str_code == "404" and any(self.path.startswith(p) for p in self._quiet_paths):
-            level = logging.DEBUG  # Silently ignore browser probes
-        else:
-            level = logging.WARNING
+        level = logging.DEBUG if str(code) == "200" else logging.WARNING
         log.log(level, f'"{self.requestline}" code {code}')
 
     def log_message(self, format, *args):
