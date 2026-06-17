@@ -101,7 +101,7 @@ def _set_log_level(level: int):
     invoke_without_command=True,
     context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
 )
-@click.version_option(__version__, '-V', '--version', prog_name='docsforge')
+@click.version_option(__version__, '-v', '--version', prog_name='docsforge')
 @click.pass_context
 def docsforge(ctx):
     """DocsForge - Project documentation with Markdown.

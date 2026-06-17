@@ -24,7 +24,13 @@
                 {% for author in page.authors %}
                   <div class="md-profile md-post__profile">
                     <span class="md-author md-author--long">
-                      <img src="{{ author.avatar | url }}" alt="{{ author.name }}">
+                      {% if author.avatar %}
+                        <img src="{{ author.avatar | url }}" alt="{{ author.name }}">
+                      {% else %}
+                        <span class="md-author__fallback" aria-label="{{ author.name }}" style="display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:100%;background:var(--md-accent-fg-color);color:var(--md-accent-bg-color);font-size:.9rem;font-weight:700;text-transform:uppercase;">
+                          {{ author.name[:1] }}
+                        </span>
+                      {% endif %}
                     </span>
                     <span class="md-profile__description">
                       <strong>

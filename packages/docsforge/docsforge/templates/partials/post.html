@@ -7,7 +7,13 @@
       <nav class="md-post__authors md-typeset">
         {% for author in post.authors %}
           <span class="md-author">
-            <img src="{{ author.avatar | url }}" alt="{{ author.name }}">
+            {% if author.avatar %}
+              <img src="{{ author.avatar | url }}" alt="{{ author.name }}">
+            {% else %}
+              <span class="md-author__fallback" aria-label="{{ author.name }}" style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:100%;background:var(--md-accent-fg-color);color:var(--md-accent-bg-color);font-size:.8rem;font-weight:700;text-transform:uppercase;">
+                {{ author.name[:1] }}
+              </span>
+            {% endif %}
           </span>
         {% endfor %}
       </nav>
