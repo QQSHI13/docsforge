@@ -348,7 +348,6 @@ theme:
 | `content.code.annotate` | Code annotations |
 | `content.action.edit` | Edit page button |
 | `content.action.view` | View source button |
-| `header.autohide` | Auto-hide header on scroll |
 | `announce.dismiss` | Dismissible announcement bar |
 
 ---
@@ -462,8 +461,6 @@ plugins:
   blog:
     blog_dir: blog
     blog_toc: true
-  minify:
-    minify_html: true
 ```
 
 #### `search` plugin
@@ -473,9 +470,8 @@ plugins:
 | `lang` | `string` | `en` | Search language for stemming |
 | `separator` | `string` | `[\s\-]+` | Word separator regex |
 | `pipeline` | `list` | `[trimmer, stopWordFilter, stemmer]` | Processing pipeline |
-| `min_search_length` | `integer` | `3` | Minimum query length |
-| `prebuild_index` | `boolean` | `false` | Prebuild Lunr index |
-| `index_dynamics` | `boolean` | `false` | Dynamic index updates |
+| `jieba_dict` | `string` | `null` | Path to a custom jieba dictionary |
+| `jieba_dict_user` | `string` | `null` | Path to a custom jieba user dictionary |
 
 #### `tags` plugin
 
@@ -503,13 +499,7 @@ plugins:
 
 #### `minify` plugin
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `minify_html` | `boolean` | `true` | Minify HTML output |
-| `minify_css` | `boolean` | `true` | Minify CSS |
-| `minify_js` | `boolean` | `true` | Minify JavaScript |
-| `cache_busting` | `boolean` | `true` | Add cache-busting hashes |
-| `htmlmin_opts` | `object` | `{}` | Extra htmlmin options |
+The minify plugin is always enabled and has no configuration options. It minifies HTML pages and any `extra_css` / `extra_javascript` files.
 
 #### `privacy` plugin
 
@@ -517,17 +507,12 @@ plugins:
 |--------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Enable plugin |
 | `concurrency` | `integer` | `CPU count - 1` | Download concurrency |
-| `cache` | `boolean` | `true` | Cache downloaded assets between builds |
 | `cache_dir` | `string` | `.cache/plugin/privacy` | Local cache directory |
-| `log` | `boolean` | `true` | Log downloads |
-| `log_level` | `string` | `info` | Download log level: `error`, `warn`, `info`, `debug` |
-| `assets` | `boolean` | `true` | Download external assets |
-| `assets_fetch` | `boolean` | `true` | Fetch assets from the network |
+| `assets_fetch` | `boolean` | `true` | Fetch external assets from the network |
 | `assets_fetch_dir` | `string` | `assets/external` | Storage directory inside `site_dir` |
 | `assets_include` | `list` | `[]` | Glob patterns of external URLs to always fetch |
 | `assets_exclude` | `list` | `[]` | Glob patterns of external URLs to skip |
 | `assets_expr_map` | `dict` | `{}` | Extra regexes for finding assets in CSS/JS |
-| `links` | `boolean` | `true` | Process external links |
 | `links_attr_map` | `dict` | `{}` | Extra attributes to add to external links |
 | `links_noopener` | `boolean` | `true` | Add `noopener` to external links |
 
@@ -535,8 +520,8 @@ plugins:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Enable info banner |
-| `enabled_on_home` | `boolean` | `false` | Show on home page |
+| `enabled` | `boolean` | `true` | Enable plugin |
+| `enabled_on_serve` | `boolean` | `false` | Show info output when serving |
 
 #### `meta` plugin
 

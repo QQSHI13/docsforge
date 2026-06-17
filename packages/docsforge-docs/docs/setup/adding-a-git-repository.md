@@ -96,10 +96,11 @@ If the edit button leads to a 404 page:
 The repository icon is auto-detected from the URL. If the wrong icon appears:
 
 1. Check `repo_url` is correct
-2. For custom icons, set `icon.repo` in `docsforge.yml`:
+2. For custom icons, set `theme.icon.repo` in `docsforge.yml`:
    ```yaml
-   icon:
-     repo: fontawesome/brands/github
+   theme:
+     icon:
+       repo: fontawesome/brands/github
    ```
 
 ## Private repositories

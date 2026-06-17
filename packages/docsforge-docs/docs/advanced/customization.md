@@ -106,7 +106,8 @@ window.addEventListener('docsforge-theme', function(e) {
 Override built-in templates by creating an `overrides` directory and referencing it in `docsforge.yml`:
 
 ```yaml
-custom_dir: overrides
+theme:
+  custom_dir: overrides
 ```
 
 ### Override partials
@@ -194,7 +195,8 @@ Usage in Markdown:
 Use an SVG for crisp rendering at any size:
 
 ```yaml
-logo: assets/logo.svg
+theme:
+  logo: assets/logo.svg
 ```
 
 The SVG should be optimized and have `viewBox` for proper scaling.
@@ -387,7 +389,7 @@ extra:
 
 ## Social Cards
 
-DocsForge generates social cards automatically. For custom control, override in templates:
+DocsForge does not auto-generate social card images, but it does set basic OpenGraph tags. For a custom card image, add it manually in a template override:
 
 ```html
 {% block extrahead %}
@@ -403,33 +405,28 @@ DocsForge generates social cards automatically. For custom control, override in 
 
 ## Build Hooks
 
-### Pre-build script
-
-Run a script before building:
-
-```bash
-#!/bin/bash
-# scripts/pre-build.sh
-python scripts/generate-api-docs.py
-```
-
-```yaml
-# docsforge.yml
-hooks:
-  pre-build:
-    - scripts/pre-build.sh
-```
-
-### Post-build script
-
-```bash
-#!/bin/bash
-# scripts/post-build.sh
-rsync -av site/ production-server:/var/www/docs/
-```
+`hooks` are Python modules that act like mini-plugins. Each file listed under `hooks:` is imported and can implement `on_pre_build` and/or `on_post_build` events.
 
 ```yaml
 hooks:
-  post-build:
-    - scripts/post-build.sh
+  - scripts/hooks.py
 ```
+
+Create `docs/scripts/hooks.py`:
+
+```python
+import os
+
+
+def on_pre_build(*, config):
+    """Run before DocsForge starts building pages."""
+    print("Pre-build hook running...")
+
+
+def on_post_build(*, config):
+    """Run after DocsForge has written the site directory."""
+    print(f"Site built at: {config.site_dir}")
+```
+
+!!! note "Shell scripts"
+    If you need to run a shell command, invoke it from the Python hook with `subprocess.run(["..."])`.

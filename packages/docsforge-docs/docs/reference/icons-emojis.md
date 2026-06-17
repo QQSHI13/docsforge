@@ -186,7 +186,7 @@ Font Awesome brand icons are also available:
 Place SVG icons in `docs/assets/icons/` and reference them:
 
 ``` yaml
-extra:
+theme:
   icon:
     logo: assets/icons/my-logo.svg
     repo: assets/icons/custom-repo.svg
@@ -201,7 +201,7 @@ extra:
 Requires registering the icon in your `docsforge.yml`:
 
 ``` yaml
-extra:
+theme:
   icon:
     admonition:
       note: custom-icon-name

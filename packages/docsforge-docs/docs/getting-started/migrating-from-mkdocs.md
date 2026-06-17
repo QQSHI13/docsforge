@@ -132,25 +132,27 @@ extra_css:
 site_name: My Documentation
 site_url: https://example.com/docs
 
-# Theme is built-in, no "theme:" section needed
-palette:
-  - scheme: default
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-7
-      name: Switch to dark mode
-  - scheme: slate
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-4
-      name: Switch to light mode
+# Theme is built-in — use "theme: name: material"
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 # No plugins section needed for built-ins
 # Add only custom plugins here:
 # plugins:
-#   - with-pdf
+#   - your-custom-plugin
 
 # No markdown_extensions section needed for built-ins
 # Add only custom extensions here:
@@ -315,13 +317,13 @@ MkDocs Material theme options map to top-level DocsForge keys:
 #   logo: assets/logo.png
 
 # DocsForge
-palette:
-  scheme: slate
-
-features:
-  - navigation.tabs
-
-logo: assets/logo.png
+theme:
+  name: material
+  palette:
+    - scheme: slate
+  features:
+    - navigation.tabs
+  logo: assets/logo.png
 ```
 
 ---
@@ -773,18 +775,19 @@ nav:
 
 **Error:** `Unknown configuration key: theme.name`
 
-**Fix:** Remove the `theme:` wrapper. In DocsForge, theme keys are top-level.
+**Fix:** Theme keys belong under the `theme:` block.
 
 ```yaml
 # Wrong
+name: material
+palette:
+  - scheme: default
+
+# Right
 theme:
   name: material
   palette:
     - scheme: default
-
-# Right
-palette:
-  - scheme: default
 ```
 
 ---

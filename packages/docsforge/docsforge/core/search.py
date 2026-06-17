@@ -34,6 +34,18 @@ def _get_jieba():
 jieba = None
 
 
+def _needs_jieba(config) -> bool:
+    """Return True if jieba Chinese segmentation should be loaded."""
+    if config.get("jieba_dict") or config.get("jieba_dict_user"):
+        return True
+    lang = config.get("lang")
+    if isinstance(lang, str):
+        return lang.startswith('zh')
+    if isinstance(lang, list):
+        return any(isinstance(l, str) and l.startswith('zh') for l in lang)
+    return False
+
+
 # Plugin configuration
 pipeline = ("stemmer", "stopWordFilter", "trimmer")
 
@@ -78,6 +90,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             self.config.lang = [self._translate(config, "search.config.lang")]
         if not self.config.separator:
             self.config.separator = self._translate(config, "search.config.separator")
+
         if self.config.pipeline is None:
             self.config.pipeline = list(filter(len, re.split(
                 r"\s*,\s*", self._translate(config, "search.config.pipeline")
@@ -100,7 +113,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         self.search_index = SearchIndex(**self.config)
 
         # Configure jieba only when Chinese search is requested
-        if self._needs_jieba():
+        if _needs_jieba(self.config):
             jieba_lib = _get_jieba()
             if not jieba_lib:
                 log.warning(
@@ -120,17 +133,6 @@ class SearchPlugin(BasePlugin[SearchConfig]):
                     jieba_lib.load_userdict(path)
                 else:
                     log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
-
-    def _needs_jieba(self) -> bool:
-        """Return True if jieba Chinese segmentation should be loaded."""
-        if self.config.jieba_dict or self.config.jieba_dict_user:
-            return True
-        lang = self.config.lang
-        if isinstance(lang, str):
-            return lang.startswith('zh')
-        if isinstance(lang, list):
-            return any(isinstance(l, str) and l.startswith('zh') for l in lang)
-        return False
 
     def on_page_context(self, context, *, page, config, nav):
         if not self.config.enabled:
@@ -169,6 +171,7 @@ class SearchIndex:
     def __init__(self, **config):
         self.config = config
         self.entries = []
+        self.needs_jieba = _needs_jieba(config)
 
     def add_entry_from_context(self, page):
         search = page.meta.get("search") or {}
@@ -196,10 +199,11 @@ class SearchIndex:
         title = "".join(section.title).strip()
         text = "".join(section.text).strip()
 
-        jieba_lib = _get_jieba()
-        if jieba_lib:
-            title = self._segment_chinese(title)
-            text = self._segment_chinese(text)
+        if self.needs_jieba:
+            jieba_lib = _get_jieba()
+            if jieba_lib:
+                title = self._segment_chinese(title)
+                text = self._segment_chinese(text)
 
         entry = {
             "location": url,
@@ -260,7 +264,7 @@ class SearchIndex:
             value = match.group(0)
             return "".join([
                 "\u200b",
-                "\u200b".join(jieba_lib.cut(value.encode("utf-8"))),
+                "\u200b".join(jieba_lib.cut(value)),
                 "\u200b",
             ])
 

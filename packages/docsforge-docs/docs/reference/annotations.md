@@ -152,8 +152,9 @@ site_name: My Project
 Code blocks get a copy button automatically when `content.code.copy` is enabled in your `docsforge.yml`:
 
 ``` yaml
-features:
-  - content.code.copy
+theme:
+  features:
+    - content.code.copy
 ```
 
 The copy button appears in the top-right corner of every code block on hover.

@@ -2,18 +2,9 @@
 
 Add analytics to understand how readers use your documentation.
 
-## Plausible Analytics
+## Google Analytics 4 (built-in)
 
-[Plausible](https://plausible.io) is privacy-friendly, lightweight, and open source.
-
-``` yaml
-extra:
-  analytics:
-    provider: plausible
-    property: docs.example.com
-```
-
-## Google Analytics
+DocsForge ships with a built-in Google Analytics 4 integration.
 
 ``` yaml
 extra:
@@ -22,9 +13,9 @@ extra:
     property: G-XXXXXXXXXX  # Your Measurement ID
 ```
 
-## Custom analytics
+## Other providers
 
-For other analytics providers, add the tracking script via extra JavaScript:
+For Plausible, Fathom, GoatCounter, Umami, or any other provider, add the tracking script via `extra_javascript`:
 
 ``` yaml
 extra_javascript:
@@ -57,35 +48,6 @@ The DocsForge development server (`docsforge serve`) does not include analytics 
 
 - [Setting up social cards](setting-up-social-cards.md)
 - [Building an optimized site](building-an-optimized-site.md)
-
-## Common analytics providers
-
-### Fathom Analytics
-
-``` yaml
-extra:
-  analytics:
-    provider: fathom
-    property: ABCDE
-```
-
-### GoatCounter
-
-``` yaml
-extra:
-  analytics:
-    provider: goatcounter
-    property: mydocs.goatcounter.com
-```
-
-### Umami
-
-For self-hosted Umami, add the script via `extra_javascript`:
-
-``` yaml
-extra_javascript:
-  - https://analytics.example.com/script.js
-```
 
 ## Tracking events
 
