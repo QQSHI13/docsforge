@@ -122,26 +122,28 @@ class BuildEngine:
 
 class DevServer:
     """Development server engine."""
-    
+
     @staticmethod
     def serve(
         config_file: str | BinaryIO | None = None,
         *,
         host: str | None = None,
+        open_in_browser: bool = True,
         **kwargs,
     ) -> None:
         """Start the development server with live reload, watch all dirs, open browser.
-        
+
         This function blocks until the server is interrupted.
         """
         from docsforge import serve as serve_module
-        
+
         serve_module.serve(
             config_file=config_file,
             livereload=True,
             watch_theme=True,
             watch=[],
             host=host,
+            open_in_browser=open_in_browser,
             **kwargs,
         )
 

@@ -148,10 +148,11 @@ def build(strict):
 
 @docsforge.command()
 @click.option('--lan', is_flag=True, help='Serve on all interfaces (0.0.0.0) instead of localhost')
-def serve(lan):
+@click.option('--no-open', is_flag=True, help='Do not open a browser tab automatically')
+def serve(lan, no_open):
     """Start the live-reloading docs server."""
     _ = State()  # Initialize default logging
-    
+
     # Auto-check config and dependencies before serving
     from docsforge.cli_core import Validator, _check_optional_deps
 
@@ -161,11 +162,13 @@ def serve(lan):
         sys.exit(result)
 
     _check_optional_deps()
-    
+
     # Serve with live reload, auto-increment port if taken, auto-open browser
     kwargs = {}
     if lan:
         kwargs['host'] = '0.0.0.0'
+    if no_open:
+        kwargs['open_in_browser'] = False
     DevServer.serve(**kwargs)
 
 

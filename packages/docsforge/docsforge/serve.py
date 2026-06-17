@@ -47,6 +47,7 @@ def serve(
     watch: list[str] = [],
     *,
     host: str | None = None,
+    open_in_browser: bool = True,
     **kwargs,
 ) -> None:
     """
@@ -142,7 +143,7 @@ def serve(
             for item in config.watch:
                 server.watch(item)
 
-        server.serve(open_in_browser=True)
+        server.serve(open_in_browser=open_in_browser)
     except KeyboardInterrupt:
         log.info("Shutting down...")
         sys.exit(0)

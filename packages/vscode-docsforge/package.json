@@ -21,6 +21,11 @@
   ],
   "activationEvents": [
     "onCommand:docsforge.init",
+    "onCommand:docsforge.serve",
+    "onCommand:docsforge.stop",
+    "onCommand:docsforge.build",
+    "onCommand:docsforge.preview",
+    "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
     "workspaceContains:docsforge.yaml",
@@ -31,42 +36,68 @@
     "commands": [
       {
         "command": "docsforge.init",
-        "title": "DocsForge: Initialize Project",
+        "title": "Initialize Project",
         "icon": "$(new-folder)",
         "category": "DocsForge"
       },
       {
         "command": "docsforge.serve",
-        "title": "DocsForge: Start Dev Server",
+        "title": "Start Dev Server",
         "icon": "$(play)",
         "category": "DocsForge"
       },
       {
         "command": "docsforge.stop",
-        "title": "DocsForge: Stop Dev Server",
+        "title": "Stop Dev Server",
         "icon": "$(debug-stop)",
         "category": "DocsForge"
       },
       {
         "command": "docsforge.preview",
-        "title": "DocsForge: Open Preview",
+        "title": "Open Preview",
         "icon": "$(preview)",
         "category": "DocsForge"
       },
       {
         "command": "docsforge.build",
-        "title": "DocsForge: Build",
+        "title": "Build",
         "icon": "$(gear)",
         "category": "DocsForge"
       },
       {
-        "command": "docsforge.deploy",
-        "title": "DocsForge: Deploy to GitHub Pages",
-        "icon": "$(rocket)",
+        "command": "docsforge.refreshSidebar",
+        "title": "Refresh",
+        "icon": "$(refresh)",
         "category": "DocsForge"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "docsforge",
+          "title": "DocsForge",
+          "icon": "images/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "docsforge": [
+        {
+          "id": "docsforge.sidebar",
+          "name": "Actions",
+          "when": "workspaceFolderCount >= 1"
+        }
+      ]
+    },
     "menus": {
+      "view/title": [
+        {
+          "command": "docsforge.refreshSidebar",
+          "group": "navigation",
+          "when": "view == docsforge.sidebar"
+        }
+      ],
+      "view/item/context": [],
       "editor/title": [
         {
           "command": "docsforge.preview",
@@ -95,10 +126,10 @@
           "default": "python",
           "description": "Python interpreter path"
         },
-        "docsforge.devAddr": {
-          "type": "string",
-          "default": "localhost:8000",
-          "description": "Dev server address"
+        "docsforge.lan": {
+          "type": "boolean",
+          "default": false,
+          "description": "Serve on all interfaces (0.0.0.0)"
         }
       }
     }
