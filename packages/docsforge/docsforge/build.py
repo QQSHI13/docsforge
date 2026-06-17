@@ -174,11 +174,6 @@ def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: boo
     """Read page content from docs_dir and render Markdown."""
     config._current_page = page
     try:
-        # When dirty, only read the page if the file has been modified since the
-        # previous build of the output.
-        if dirty and not page.file.is_modified():
-            return
-
         # Run the `pre_page` plugin event
         page = config.plugins.on_pre_page(page, config=config, files=files)
 
@@ -225,11 +220,6 @@ def _build_page(
         config._current_page = page
         page.active = True
         try:
-            # When dirty, only build the page if the file has been modified since the
-            # previous build of the output.
-            if dirty and not page.file.is_modified():
-                return
-
             log.debug(f"Building page {page.file.src_uri}")
 
             context = get_context(nav, doc_files, config, page)
@@ -278,7 +268,7 @@ def _build_page(
 
 
 def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = True, progress: bool | None = None) -> None:
-    """Perform a full or incremental site build."""
+    """Perform a site build — always incremental, always complete."""
     logger = logging.getLogger("docsforge")
 
     # Initialize cache for dirty builds
@@ -291,8 +281,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
     needs_full_rebuild = planner.should_full_rebuild(config_path)
 
     if dirty and needs_full_rebuild:
-        log.info("Config changed, forcing full rebuild")
-        dirty = False
+        # Config changed — invalidate cache for a fresh baseline
+        cache.invalidate()
 
     # Add CountHandler for strict mode
     warning_counter = utils.CountHandler()
@@ -325,23 +315,16 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         # Run `pre_build` plugin events.
         config.plugins.on_pre_build(config=config)
 
-        if not dirty:
-            log.info("Cleaning site directory")
-            utils.clean_directory(config.site_dir)
-            cache.invalidate()
-        else:
-            # Remove orphaned output files
-            docs_dir = Path(config.docs_dir)
-            site_dir = Path(config.site_dir)
-            orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
-            for f in orphaned:
-                log.debug(f"Removing orphaned output: {f}")
-                f.unlink()
+        # Remove orphaned output files (pages deleted from source)
+        docs_dir = Path(config.docs_dir)
+        site_dir = Path(config.site_dir)
+        orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
+        for f in orphaned:
+            log.debug(f"Removing orphaned output: {f}")
+            f.unlink()
 
         if not serve_url:
             log.info(f"Building documentation to directory: {config.site_dir}")
-            if dirty:
-                log.info("Using incremental build (dirty)")
 
         # Compile TikZ diagrams BEFORE scanning files so MkDocs discovers the SVGs.
         from docsforge import tikz
@@ -376,14 +359,13 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
             assert file.page is not None
             
             # Check if page needs rebuilding
-            if dirty:
-                source_path = Path(file.abs_src_path)
-                output_path = Path(file.abs_dest_path)
-                if not planner.should_rebuild(source_path, output_path):
-                    log.debug(f"Skipping unchanged page: {file.src_uri}")
-                    continue
+            source_path = Path(file.abs_src_path)
+            output_path = Path(file.abs_dest_path)
+            if not planner.should_rebuild(source_path, output_path):
+                log.debug(f"Skipping unchanged page: {file.src_uri}")
+                continue
             
-            _populate_page(file.page, config, files, dirty)
+            _populate_page(file.page, config, files, True)
         if excluded:
             log.info(
                 "The following pages are being built only for the preview "
@@ -398,7 +380,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         # with lower precedence get written first so that files with higher precedence can overwrite them.
 
         log.debug("Copying static assets.")
-        files.copy_static_files(dirty=dirty, inclusion=inclusion)
+        files.copy_static_files(dirty=False, inclusion=inclusion)
 
         for template in config.theme.static_templates:
             _build_theme_template(template, env, files, config, nav)
@@ -423,13 +405,12 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                 output_path = Path(file.abs_dest_path)
 
                 # Check if page needs rebuilding
-                if dirty:
-                    if not planner.should_rebuild(source_path, output_path):
-                        continue
+                if not planner.should_rebuild(source_path, output_path):
+                    continue
 
                 future = executor.submit(
                     _build_page,
-                    file.page, config, doc_files, nav, env, dirty,
+                    file.page, config, doc_files, nav, env, True,
                     file.inclusion.is_excluded(),
                     page_lock,
                 )
@@ -444,9 +425,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                     pass
 
                 # Update cache after successful build
-                if dirty:
-                    deps = DependencyTracker.get_file_deps(source_path, page.content or "")
-                    planner.update_cache(source_path, output_path, deps)
+                deps = DependencyTracker.get_file_deps(source_path, page.content or "")
+                planner.update_cache(source_path, output_path, deps)
 
         # Generate PWA manifest and pre-cache all pages in the service worker
         _generate_pwa_manifest_and_precache(config, files, nav)
