@@ -90,11 +90,17 @@ def serve(
     import time as _serve_time
     _t0 = _serve_time.time()
     config.plugins.on_startup(command='serve', dirty=True)
-    log.info('on_startup took %.1fs', _serve_time.time() - _t0)
+    _t1 = _serve_time.time()
+    if _t1 - _t0 > 0.1:
+        log.info(f'on_startup took {_t1-_t0:.1f}s')
 
     config_host, config_port = config.dev_addr
     host = host or config_host
+    _t2 = _serve_time.time()
     port = _find_available_port(host, config_port)
+    _t3 = _serve_time.time()
+    if _t3 - _t2 > 0.1:
+        log.info(f'find_port took {_t3-_t2:.1f}s')
     if port != config_port:
         log.info(f"Port {config_port} in use, using port {port} instead")
     mount_path = urlsplit(config.site_url or '/').path
@@ -115,6 +121,9 @@ def serve(
     server = LiveReloadServer(
         builder=builder, host=host, port=port, root=site_dir, mount_path=mount_path
     )
+    _t4 = _serve_time.time()
+    if _t4 - _t3 > 0.1:
+        log.info(f'LiveReloadServer init took {_t4-_t3:.1f}s')
 
     def error_handler(code) -> bytes | None:
         if code in (404, 500):
@@ -129,6 +138,7 @@ def serve(
     try:
         # Perform the initial build
         log.info("Preparing initial build...")
+        _t5 = _serve_time.time()
         try:
             builder(config)
         except Exception as e:
