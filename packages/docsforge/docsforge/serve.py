@@ -35,7 +35,13 @@ def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> 
 
     for port in range(start_port, start_port + max_attempts):
         with socket.socket(family, socket.SOCK_STREAM) as s:
-            if s.connect_ex((host, port)) != 0:
+            s.settimeout(0.3)  # Prevent WSL firewall hangs (dropped SYN packets)
+            try:
+                result = s.connect_ex((host, port))
+            except (socket.timeout, OSError):
+                # Port is likely available but firewall drops the probe
+                return port
+            if result != 0:
                 return port
     raise RuntimeError(f"No available port found in range {start_port}-{start_port + max_attempts - 1}")
 
@@ -74,27 +80,20 @@ def serve(
         )
 
     def get_config():
-        import sys as _s, time as _t
-        _s.stderr.write(f'[{_t.time():.0f}] load_config start\n'); _s.stderr.flush()
         config = load_config(
             config_file=get_config_file(),
             site_dir=site_dir,
             **kwargs,
         )
-        _s.stderr.write(f'[{_t.time():.0f}] load_config done\n'); _s.stderr.flush()
         config.watch.extend(watch)
         return config
 
     config = get_config()
     config.plugins.on_startup(command='serve', dirty=True)
-    import sys as _sp, time as _tp
-    _sp.stderr.write(f'[{_tp.time():.0f}] on_startup done\n'); _sp.stderr.flush()
 
     config_host, config_port = config.dev_addr
     host = host or config_host
-    _sp.stderr.write(f'[{_tp.time():.0f}] _find_available_port({host}, {config_port})...\n'); _sp.stderr.flush()
     port = _find_available_port(host, config_port)
-    _sp.stderr.write(f'[{_tp.time():.0f}] port={port}\n'); _sp.stderr.flush()
     if port != config_port:
         log.info(f"Port {config_port} in use, using port {port} instead")
     mount_path = urlsplit(config.site_url or '/').path
@@ -115,8 +114,6 @@ def serve(
     server = LiveReloadServer(
         builder=builder, host=host, port=port, root=site_dir, mount_path=mount_path
     )
-    import sys as _sys2, time as _time2
-    _sys2.stderr.write(f'[{_time2.time():.0f}] Server created, starting build\n'); _sys2.stderr.flush()
 
     def error_handler(code) -> bytes | None:
         if code in (404, 500):

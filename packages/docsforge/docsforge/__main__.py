@@ -163,10 +163,6 @@ def serve(lan, no_open):
 
     _check_optional_deps()
 
-    import sys as _sys, time as _time
-    _sys.stderr.write(f'[{_time.time():.0f}] Entering DevServer.serve()\n')
-    _sys.stderr.flush()
-    
     # Serve with live reload, auto-increment port if taken, auto-open browser
     kwargs = {}
     if lan:
