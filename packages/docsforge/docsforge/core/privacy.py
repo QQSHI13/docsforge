@@ -263,6 +263,20 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         wait(self.pool_jobs)
         self.pool_jobs.clear()
 
+        # First pass: discover nested URLs in downloaded CSS/JS files
+        # (e.g., font files referenced inside Google Fonts CSS)
+        for file in list(self.assets):
+            _, extension = posixpath.splitext(file.dest_uri)
+            if extension in [".css", ".js"]:
+                for url in self._parse_media(file):
+                    if not self._is_excluded(url, file):
+                        self._queue(url, config, concurrent=True)
+
+        # Wait for nested downloads
+        wait(self.pool_jobs)
+        self.pool_jobs.clear()
+
+        # Second pass: patch CSS/JS files with local URLs and copy remaining assets
         for file in self.assets:
             _, extension = posixpath.splitext(file.dest_uri)
             if extension in [".css", ".js"]:
