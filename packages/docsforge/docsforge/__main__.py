@@ -169,6 +169,7 @@ def serve(lan, no_open):
         kwargs['host'] = '0.0.0.0'
     if no_open:
         kwargs['open_in_browser'] = False
+    log.info('Starting dev server...')
     DevServer.serve(**kwargs)
 
 
