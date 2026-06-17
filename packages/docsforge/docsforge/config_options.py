@@ -993,40 +993,24 @@ class MarkdownExtensions(OptionallyRequired[list[str]]):
 
         extensions = utils.reduce_list(self.builtins + extensions)
 
-        # Lightweight validation: check that extensions can be imported.
-        # Full extension initialization happens later during build().
-        # This avoids loading 45+ extensions twice (once here, once during build)
-        # saving ~0.5s on config load.
+        # Confirm that Markdown considers extensions to be valid
+        md = markdown.Markdown()
         for ext in extensions:
-            self._check_extension_importable(ext)
+            try:
+                md.registerExtensions((ext,), self.configdata)
+            except Exception as e:
+                stack: list = []
+                for frame in reversed(traceback.extract_tb(sys.exc_info()[2])):
+                    if not frame.line:  # Ignore frames before <frozen importlib._bootstrap>
+                        break
+                    stack.insert(0, frame)
+                tb = ''.join(traceback.format_list(stack))
+
+                raise ValidationError(
+                    f"Failed to load extension '{ext}'.\n{tb}{type(e).__name__}: {e}"
+                )
 
         return extensions
-
-    @staticmethod
-    def _check_extension_importable(ext: str) -> None:
-        """Lightweight check that an extension can be imported without initializing it.
-
-        Only imports the module to verify it exists. Does not build a Markdown
-        instance or create the extension class. Full validation (including config
-        option checks) happens later during build().
-        """
-        import importlib
-        try:
-            importlib.import_module(ext)
-        except ModuleNotFoundError:
-            # Some extensions use dotted names that don't match import paths.
-            # Fall back to the full markdown registration only if import fails.
-            try:
-                md = markdown.Markdown()
-                md.registerExtensions((ext,), {})
-            except Exception as e:
-                raise ValidationError(
-                    f"Failed to load extension '{ext}': {e}"
-                ) from e
-        except ImportError as e:
-            raise ValidationError(
-                f"Failed to load extension '{ext}': {e}"
-            ) from e
 
     def post_validation(self, config: Config, key_name: str):
         config._current_page = None  # type: ignore[attr-defined]
