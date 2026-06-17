@@ -6,14 +6,23 @@ import logging
 import os
 from pathlib import Path
 
-import docsforge.config_base as config_module
+import yaml
 
 log = logging.getLogger(__name__)
 
 
+KNOWN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy'}
+
+
 def check(config_file=None, strict=None, theme=None, use_directory_urls=None) -> int:
     """Validate DocsForge configuration without building.
-    
+
+    This is intentionally a lightweight check: it parses the YAML, verifies
+    required keys, docs directory, theme and plugin names, then lets the real
+    ``load_config`` (called by ``build``/``serve``) do the full validation.
+    That avoids loading the config twice and keeps ``docsforge serve`` startup
+    fast.
+
     Returns exit code: 0 = valid, 1 = errors found.
     """
     # 1. Find config file
@@ -24,51 +33,50 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
         print("    docsforge")
         print("    # (runs interactive init wizard)")
         return 1
-    
+
     print(f"  Config file:   {config_path}")
-    
+
     # 2. Parse YAML
     try:
-        import yaml
         with open(config_path, 'r', encoding='utf-8') as f:
             raw_config = yaml.safe_load(f) or {}
     except Exception as e:
         log.error(f"Failed to parse {config_path}: {e}")
         return 1
-    
-    print(f"  YAML syntax:   ✓ Valid")
-    
+
+    print("  YAML syntax:   ✓ Valid")
+
     # 3. Validate required keys
     issues = []
     warnings_list = []
-    
+
     if 'site_name' not in raw_config:
         issues.append("Missing required key: 'site_name'")
     else:
         print(f"  Site name:     {raw_config['site_name']}")
-    
+
     if 'site_url' not in raw_config:
         warnings_list.append("No 'site_url' set. SEO and some features will be limited.")
     else:
         print(f"  Site URL:      {raw_config['site_url']}")
-    
+
     # 4. Check docs/ directory
     docs_dir = raw_config.get('docs_dir', 'docs')
     docs_path = Path(config_path).parent / docs_dir
-    
+
     if not docs_path.exists():
         issues.append(f"Docs directory not found: {docs_path}")
     else:
         md_files = list(docs_path.rglob('*.md'))
         print(f"  Docs folder:   {docs_path} ({len(md_files)} Markdown files)")
-        
+
         if not md_files:
             warnings_list.append("No .md files found in docs/ directory.")
-        
+
         # Check for index.md
         if not (docs_path / 'index.md').exists():
             warnings_list.append("No index.md in docs/. Site will have no homepage.")
-    
+
     # 5. Check theme
     theme_config = raw_config.get('theme', {})
     if isinstance(theme_config, str):
@@ -77,15 +85,15 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
         theme_name = theme_config.get('name', 'material')
     else:
         theme_name = 'material'
-    
+
     from docsforge.utils import get_theme_names
     available_themes = get_theme_names()
-    
+
     if theme_name not in available_themes:
         issues.append(f"Theme '{theme_name}' not found. Available: {', '.join(available_themes)}")
     else:
         print(f"  Theme:         {theme_name} ✓")
-    
+
     # 6. Check plugins
     plugins = raw_config.get('plugins', [])
     if plugins is None:
@@ -94,9 +102,7 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
         plugins = [plugins]
     if isinstance(plugins, str):
         plugins = [plugins]
-    
-    KNOWN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy'}
-    
+
     if plugins:
         print(f"  Plugins:       {len(plugins)} configured")
         for plugin in plugins:
@@ -106,39 +112,26 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
                 name = list(plugin.keys())[0]
             else:
                 continue
-            
+
             clean_name = name.split('/')[-1] if '/' in name else name
             if clean_name in KNOWN_PLUGINS or name in KNOWN_PLUGINS:
                 print(f"                   ✓ {name}")
             else:
                 print(f"                   ⚠ {name} (unknown plugin)")
     else:
-        print(f"  Plugins:       default set (search, meta, etc.)")
-    
-    # 7. Full config load test
-    print("  Validating full configuration...")
-    try:
-        cfg = config_module.load_config(
-            config_file=str(config_path),
-            strict=strict,
-            theme=theme,
-            use_directory_urls=use_directory_urls,
-        )
-        print("  Full config:   ✓ Valid")
-    except Exception as e:
-        issues.append(f"Configuration validation failed: {e}")
-    
-    # 8. Print results
+        print("  Plugins:       default set (search, meta, etc.)")
+
+    # 7. Print results
     if issues:
         print(f"  ERRORS ({len(issues)}):")
         for issue in issues:
             print(f"    ✗ {issue}")
-    
+
     if warnings_list:
         print(f"  WARNINGS ({len(warnings_list)}):")
         for warning in warnings_list:
             print(f"    ⚠ {warning}")
-    
+
     return 1 if issues else 0
 
 
@@ -151,9 +144,9 @@ def _find_config(config_file) -> str | None:
         else:
             # It's a file object
             return os.path.abspath(config_file.name)
-    
+
     for name in ['docsforge.yml', 'docsforge.yaml']:
         if os.path.exists(name):
             return os.path.abspath(name)
-    
+
     return None

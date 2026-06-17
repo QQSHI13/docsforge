@@ -448,8 +448,11 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                     deps = DependencyTracker.get_file_deps(source_path, page.content or "")
                     planner.update_cache(source_path, output_path, deps)
 
-        # Generate PWA manifest and pre-cache all pages in the service worker
-        _generate_pwa_manifest_and_precache(config, files, nav)
+        # Generate PWA manifest and pre-cache all pages in the service worker.
+        # Skip this during `docsforge serve` so the service worker does not
+        # install/update itself on every live reload.
+        if serve_url is None:
+            _generate_pwa_manifest_and_precache(config, files, nav)
 
         log_level = config.validation.links.anchors
         for file in doc_files:
