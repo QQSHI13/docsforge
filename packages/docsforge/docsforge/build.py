@@ -519,6 +519,9 @@ def _generate_pwa_manifest_and_precache(
     # Remove redundant ./ in the result
     sw_relative_urls = [url.replace('./', '') for url in sw_relative_urls]
 
+    # Always include cache manifest for hash-based syncing
+    sw_relative_urls.append('cache-manifest.json')
+
     # Remove duplicates and sort for deterministic output
     sw_relative_urls = sorted(set(url for url in sw_relative_urls if url))
 
@@ -623,3 +626,39 @@ def _generate_pwa_manifest_and_precache(
         log.debug(f"Generated PWA manifest at {manifest_path}")
     except Exception as e:
         log.warning(f"Failed to generate PWA manifest: {e}")
+
+    # Generate cache-manifest.json with page hashes for SW hash-based invalidation
+    _generate_cache_manifest(site_dir, sw_relative_urls)
+
+
+def _generate_cache_manifest(site_dir: str, page_urls: list[str]) -> None:
+    """Generate cache-manifest.json listing every page URL + SHA-256 content hash.
+
+    The service worker fetches this on activation and compares hashes with
+    cached versions. Only pages with changed hashes are re-fetched.
+    """
+    hasher = hashlib.sha256()
+    files = {}
+
+    for url in page_urls:
+        file_path = os.path.join(site_dir, url, 'index.html') if not url.endswith('.html') else os.path.join(site_dir, url)
+        if os.path.isfile(file_path):
+            with open(file_path, 'rb') as f:
+                h = hashlib.sha256(f.read()).hexdigest()[:16]
+            files[url] = h
+        elif url.endswith('.html'):
+            alt_path = os.path.join(site_dir, url)
+            if os.path.isfile(alt_path):
+                with open(alt_path, 'rb') as f:
+                    h = hashlib.sha256(f.read()).hexdigest()[:16]
+                files[url] = h
+
+    manifest = {
+        "version": hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()[:12],
+        "files": files,
+    }
+
+    manifest_path = os.path.join(site_dir, 'cache-manifest.json')
+    with open(manifest_path, 'w', encoding='utf-8') as f:
+        json.dump(manifest, f, indent=2)
+    log.debug(f"Generated cache manifest with {len(files)} entries at {manifest_path}")
