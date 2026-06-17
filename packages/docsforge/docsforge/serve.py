@@ -74,16 +74,23 @@ def serve(
         )
 
     def get_config():
+        import time as _t
+        _t0 = _t.time()
         config = load_config(
             config_file=get_config_file(),
             site_dir=site_dir,
             **kwargs,
         )
+        log.info('load_config took %.1fs', _t.time() - _t0)
         config.watch.extend(watch)
         return config
 
     config = get_config()
+    
+    import time as _serve_time
+    _t0 = _serve_time.time()
     config.plugins.on_startup(command='serve', dirty=True)
+    log.info('on_startup took %.1fs', _serve_time.time() - _t0)
 
     config_host, config_port = config.dev_addr
     host = host or config_host
