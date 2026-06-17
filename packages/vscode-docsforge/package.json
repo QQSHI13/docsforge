@@ -65,6 +65,12 @@
         "category": "DocsForge"
       },
       {
+        "command": "docsforge.openServer",
+        "title": "Open in VS Code Browser",
+        "icon": "$(globe)",
+        "category": "DocsForge"
+      },
+      {
         "command": "docsforge.refreshSidebar",
         "title": "Refresh",
         "icon": "$(refresh)",
@@ -130,6 +136,11 @@
           "type": "boolean",
           "default": false,
           "description": "Serve on all interfaces (0.0.0.0)"
+        },
+        "docsforge.openBrowser": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open the DocsForge site in VS Code's Simple Browser when the server starts"
         }
       }
     }

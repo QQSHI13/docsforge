@@ -183,52 +183,74 @@ class ProjectManager:
         
         try:
             # Step 1: Site name
-            print("Step 1/6 — Site name")
+            print("Step 1/10 — Site name")
             site_name = input(f"  What should we call your docs? [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
             print()
-            
-            # Step 2: Author / Organization
-            print("Step 2/6 — Author / Organization")
-            author_name = input("  Who is the author or organization? [Optional]: ").strip()
+
+            # Step 2: Site description
+            print("Step 2/10 — Site description")
+            site_description = input("  Short description [Optional]: ").strip() or None
             print()
-            
-            # Step 3: Theme color
-            print("Step 3/6 — Theme color")
+
+            # Step 3: Author / Organization
+            print("Step 3/10 — Author / Organization")
+            author_name = input("  Who is the author or organization? [Optional]: ").strip() or None
+            print()
+
+            # Step 4: Copyright
+            print("Step 4/10 — Copyright")
+            copyright = input("  Copyright notice [Optional]: ").strip() or None
+            print()
+
+            # Step 5: Theme color
+            print("Step 5/10 — Theme color")
             print("  Available: teal, indigo, blue, green, red, orange, purple, pink")
             theme_input = input(f"  Pick a color [{theme_color}]: ").strip() or theme_color
             theme_color = theme_input
             print()
-            
-            # Step 4: GitHub repository
-            print("Step 4/6 — GitHub repository")
-            print("  Used for social cards and repository info. Format: https://github.com/user/repo")
-            repo_url = input("  GitHub repo URL [Optional]: ").strip()
+
+            # Step 6: Language
+            print("Step 6/10 — Language")
+            language_input = input("  Site language code [en]: ").strip() or 'en'
+            language = language_input
             print()
-            
-            # Step 5: Site URL (for social cards, RSS, etc.)
-            print("Step 5/6 — Site URL")
+
+            # Step 7: GitHub repository
+            print("Step 7/10 — GitHub repository")
+            print("  Used for social cards and edit links. Format: https://github.com/user/repo")
+            repo_url = input("  GitHub repo URL [Optional]: ").strip() or None
+            print()
+
+            # Step 8: Site URL (for social cards, RSS, etc.)
+            print("Step 8/10 — Site URL")
             print("  Where will your docs be hosted? e.g. https://user.github.io/repo/")
             site_url_input = input("  Site URL [Optional]: ").strip()
             site_url = site_url_input if site_url_input else None
             print()
-            
-            # Step 6: Privacy
-            print("Step 6/6 — Privacy mode")
+
+            # Step 9: Branding assets
+            print("Step 9/10 — Branding assets")
+            favicon = input("  Path to favicon (relative to docs/) [Optional]: ").strip() or None
+            logo = input("  Path to logo (relative to docs/) [Optional]: ").strip() or None
+            print()
+
+            # Step 10: Privacy
+            print("Step 10/10 — Privacy mode")
             print("  Privacy mode fetches external assets and inlines them locally.")
             print("  This prevents tracking and ensures docs work offline.")
             privacy_input = input("  Enable privacy mode? [Y/n]: ").strip().lower()
             privacy = privacy_input in ('', 'y', 'yes')
             print()
-            
+
         except (EOFError, KeyboardInterrupt):
             print()
             print("  Cancelled.")
             return 1
-        
+
         # Use site name slug as project directory if not explicitly provided
         if project_directory is None:
             project_directory = slugify(site_name)
-        
+
         try:
             init_module.init(
                 project_directory=project_directory,
@@ -236,8 +258,13 @@ class ProjectManager:
                 site_url=site_url,
                 theme_color=theme_color,
                 privacy=privacy,
-                author_name=author_name or None,
-                repo_url=repo_url or None,
+                author_name=author_name,
+                repo_url=repo_url,
+                site_description=site_description,
+                language=language,
+                copyright=copyright,
+                favicon=favicon,
+                logo=logo,
             )
             
             # Summary

@@ -10,11 +10,11 @@ let sidebarProvider: DocsForgeSidebarProvider;
 export function activate(context: vscode.ExtensionContext) {
   console.log('DocsForge extension activated');
 
-serverManager = new ServerManager();
-  sidebarProvider = new DocsForgeSidebarProvider();
-
   // Initialize server state context so conditional sidebar items render correctly
   vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
+
+  serverManager = new ServerManager();
+  sidebarProvider = new DocsForgeSidebarProvider();
 
   // Register sidebar tree view
   const treeView = vscode.window.createTreeView('docsforge.sidebar', {
@@ -25,6 +25,10 @@ serverManager = new ServerManager();
   // Register commands
   context.subscriptions.push(
     vscode.commands.registerCommand('docsforge.init', () => {
+      if (!vscode.workspace.workspaceFolders?.length) {
+        vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
+        return;
+      }
       InitWizard.run();
     }),
 
@@ -34,6 +38,10 @@ serverManager = new ServerManager();
 
     vscode.commands.registerCommand('docsforge.stop', () => {
       serverManager.stop();
+    }),
+
+    vscode.commands.registerCommand('docsforge.openServer', () => {
+      serverManager.openBrowser();
     }),
 
     vscode.commands.registerCommand('docsforge.preview', () => {
@@ -56,7 +64,7 @@ serverManager = new ServerManager();
   });
 
   // Auto-start server if docsforge.yml exists
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (workspaceRoot) {
     const fs = require('fs');
     const path = require('path');
@@ -77,5 +85,5 @@ serverManager = new ServerManager();
 }
 
 export function deactivate() {
-  serverManager?.stop();
+  serverManager?.dispose();
 }

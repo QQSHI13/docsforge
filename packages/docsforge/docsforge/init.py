@@ -26,18 +26,29 @@ def _generate_config(
     privacy: bool,
     author_name: str | None = None,
     repo_url: str | None = None,
+    site_description: str | None = None,
+    language: str = 'en',
+    copyright: str | None = None,
+    favicon: str | None = None,
+    logo: str | None = None,
 ) -> str:
     """Generate docsforge.yml content with all core features enabled."""
-    
+
     color = COLOR_MAP.get(theme_color, COLOR_MAP['teal'])
-    
+
     lines = [
         f'site_name: {site_name}',
     ]
-    
+
+    if site_description:
+        lines.append(f'site_description: {site_description}')
+
     if site_url:
         lines.append(f'site_url: {site_url}')
-    
+
+    if copyright:
+        lines.append(f'copyright: {copyright}')
+
     if repo_url:
         lines.extend([
             '',
@@ -45,7 +56,7 @@ def _generate_config(
             f'repo_url: {repo_url}',
             'edit_uri: edit/main/docs/',
         ])
-    
+
     lines.extend([
         '',
         'theme:',
@@ -65,12 +76,22 @@ def _generate_config(
         '      toggle:',
         '        icon: material/brightness-4',
         '        name: Switch to light mode',
+        f'  language: {language}',
+    ])
+
+    if favicon or logo:
+        if favicon:
+            lines.append(f'  favicon: {favicon}')
+        if logo:
+            lines.append(f'  logo: {logo}')
+
+    lines.extend([
         '',
         '# Core features are always enabled:',
         '# search, tags, blog, info, meta, minify, social, optimize',
         '',
     ])
-    
+
     if privacy:
         lines.extend([
             '# Privacy: external assets are fetched and inlined locally',
@@ -78,7 +99,7 @@ def _generate_config(
             'privacy: true',
             '',
         ])
-    
+
     if author_name:
         lines.extend([
             'extra:',
@@ -459,9 +480,14 @@ def init(
     privacy: bool,
     author_name: str | None = None,
     repo_url: str | None = None,
+    site_description: str | None = None,
+    language: str = 'en',
+    copyright: str | None = None,
+    favicon: str | None = None,
+    logo: str | None = None,
 ) -> None:
     """Create a new DocsForge project with interactive configuration.
-    
+
     All core features (search, tags, blog, info, meta, minify, social, optimize)
     are always enabled. Privacy is the only optional feature.
     """
@@ -491,6 +517,11 @@ def init(
             privacy=privacy,
             author_name=author_name,
             repo_url=repo_url,
+            site_description=site_description,
+            language=language,
+            copyright=copyright,
+            favicon=favicon,
+            logo=logo,
         )
         config_path.write_text(config_content, encoding='utf-8')
     

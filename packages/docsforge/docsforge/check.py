@@ -58,9 +58,26 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     if 'site_url' not in raw_config:
         warnings_list.append("No 'site_url' set. SEO and some features will be limited.")
     else:
-        print(f"  Site URL:      {raw_config['site_url']}")
+        site_url = raw_config['site_url']
+        print(f"  Site URL:      {site_url}")
+        if isinstance(site_url, str) and not site_url.endswith('/'):
+            warnings_list.append("'site_url' should usually end with a trailing slash.")
 
-    # 4. Check docs/ directory
+    if 'site_description' in raw_config:
+        print(f"  Description:   {raw_config['site_description']}")
+    if 'site_author' in raw_config:
+        print(f"  Author:        {raw_config['site_author']}")
+    if 'repo_url' in raw_config:
+        print(f"  Repository:    {raw_config['repo_url']}")
+        if 'edit_uri' in raw_config:
+            print(f"  Edit URI:      {raw_config['edit_uri']}")
+        else:
+            warnings_list.append("'repo_url' is set but 'edit_uri' is not. The default edit path may not match your repo layout.")
+
+    # 4. Check directories
+    site_dir = raw_config.get('site_dir', 'site')
+    print(f"  Site dir:      {site_dir}")
+
     docs_dir = raw_config.get('docs_dir', 'docs')
     docs_path = Path(config_path).parent / docs_dir
 
@@ -94,6 +111,14 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     else:
         print(f"  Theme:         {theme_name} ✓")
 
+    # Warn if theme keys are placed at the top level instead of under `theme:`
+    top_level_theme_keys = {'palette', 'features', 'logo', 'favicon', 'icon', 'font', 'language', 'direction', 'custom_dir'}
+    misplaced = top_level_theme_keys & set(raw_config.keys())
+    if misplaced:
+        warnings_list.append(
+            f"Theme keys should be under 'theme:' (found at top level: {', '.join(sorted(misplaced))})."
+        )
+
     # 6. Check plugins
     plugins = raw_config.get('plugins', [])
     if plugins is None:
@@ -116,10 +141,32 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
             clean_name = name.split('/')[-1] if '/' in name else name
             if clean_name in KNOWN_PLUGINS or name in KNOWN_PLUGINS:
                 print(f"                   ✓ {name}")
+                if clean_name in KNOWN_PLUGINS:
+                    warnings_list.append(
+                        f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
+                    )
             else:
                 print(f"                   ⚠ {name} (unknown plugin)")
     else:
         print("  Plugins:       default set (search, meta, etc.)")
+
+    # Check extras
+    extra = raw_config.get('extra', {})
+    if isinstance(extra, dict):
+        if 'social' in extra:
+            social = extra['social']
+            count = len(social) if isinstance(social, list) else 0
+            print(f"  Social links:  {count}")
+        if 'analytics' in extra:
+            analytics = extra['analytics']
+            provider = analytics.get('provider', 'unknown') if isinstance(analytics, dict) else 'unknown'
+            print(f"  Analytics:     {provider}")
+
+    # Check for extra assets
+    if raw_config.get('extra_css'):
+        print(f"  Extra CSS:     {len(raw_config['extra_css'])} file(s)")
+    if raw_config.get('extra_javascript'):
+        print(f"  Extra JS:      {len(raw_config['extra_javascript'])} file(s)")
 
     print("  Config check:  passed")
 
