@@ -6,7 +6,7 @@
   "publisher": "QQSHI",
   "license": "LGPL-3.0-or-later",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.99.0"
   },
   "categories": [
     "Programming Languages",
@@ -24,7 +24,7 @@
     "onCommand:docsforge.serve",
     "onCommand:docsforge.stop",
     "onCommand:docsforge.build",
-    "onCommand:docsforge.preview",
+    "onCommand:docsforge.openServer",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
@@ -50,12 +50,6 @@
         "command": "docsforge.stop",
         "title": "Stop Dev Server",
         "icon": "$(debug-stop)",
-        "category": "DocsForge"
-      },
-      {
-        "command": "docsforge.preview",
-        "title": "Open Preview",
-        "icon": "$(preview)",
         "category": "DocsForge"
       },
       {
@@ -103,26 +97,7 @@
           "when": "view == docsforge.sidebar"
         }
       ],
-      "view/item/context": [],
-      "editor/title": [
-        {
-          "command": "docsforge.preview",
-          "group": "navigation",
-          "when": "editorLangId == markdown"
-        }
-      ],
-      "statusBar": [
-        {
-          "command": "docsforge.serve",
-          "group": "docsforge",
-          "when": "docsforge.serverRunning == false"
-        },
-        {
-          "command": "docsforge.stop",
-          "group": "docsforge",
-          "when": "docsforge.serverRunning == true"
-        }
-      ]
+      "view/item/context": []
     },
     "configuration": {
       "title": "DocsForge",
@@ -152,8 +127,8 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/vscode": "^1.74.0",
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.99.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",

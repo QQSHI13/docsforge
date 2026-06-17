@@ -30,10 +30,10 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     tooltip: 'Build the DocsForge documentation',
   },
   {
-    label: 'Open Preview',
-    command: 'docsforge.preview',
-    icon: 'preview',
-    tooltip: 'Open the DocsForge preview panel',
+    label: 'Open in VS Code Browser',
+    command: 'docsforge.openServer',
+    icon: 'globe',
+    tooltip: 'Open the DocsForge site in VS Code\'s Simple Browser',
   },
   {
     label: 'Initialize Project',

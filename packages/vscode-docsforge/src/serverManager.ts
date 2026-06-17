@@ -1,12 +1,15 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 
 export class ServerManager {
   private process: ChildProcess | null = null;
   private outputChannel: vscode.OutputChannel;
   private statusBarItem: vscode.StatusBarItem;
-  private serverUrl: string | null = null;
+  private _serverUrl: string | null = null;
   private static stateChangeEmitter = new vscode.EventEmitter<void>();
+  static instance: ServerManager | undefined;
 
   static onStateChange(listener: () => void): vscode.Disposable {
     return ServerManager.stateChangeEmitter.event(listener);
@@ -17,6 +20,7 @@ export class ServerManager {
   }
 
   constructor() {
+    ServerManager.instance = this;
     this.outputChannel = vscode.window.createOutputChannel('DocsForge');
     this.statusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Left,
@@ -25,6 +29,10 @@ export class ServerManager {
     this.statusBarItem.command = 'docsforge.openServer';
     this.updateStatusBar();
     this.statusBarItem.show();
+  }
+
+  get serverUrl(): string | null {
+    return this._serverUrl;
   }
 
   private get pythonPath(): string {
@@ -44,25 +52,23 @@ export class ServerManager {
   }
 
   private updateStatusBar() {
-    if (this.process && this.serverUrl) {
-      this.statusBarItem.text = `$(play) DocsForge: ${this.serverUrl}`;
+    if (this.process && this._serverUrl) {
+      this.statusBarItem.text = `$(play) DocsForge: ${this._serverUrl}`;
       this.statusBarItem.tooltip = 'DocsForge server is running. Click to open.';
-      this.statusBarItem.show();
     } else if (this.process) {
       this.statusBarItem.text = `$(play) DocsForge: starting...`;
       this.statusBarItem.tooltip = 'DocsForge server is starting...';
-      this.statusBarItem.show();
     } else {
       this.statusBarItem.text = `$(debug-disconnect) DocsForge: stopped`;
       this.statusBarItem.tooltip = 'Click to start DocsForge server';
-      this.statusBarItem.show();
     }
+    this.statusBarItem.show();
   }
 
   start() {
     if (this.process) {
       vscode.window.showWarningMessage('DocsForge server is already running');
-      if (this.serverUrl) {
+      if (this._serverUrl) {
         this.openBrowser();
       }
       return;
@@ -71,6 +77,16 @@ export class ServerManager {
     const workspaceRoot = this.workspaceRoot;
     if (!workspaceRoot) {
       vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
+      return;
+    }
+
+    const hasConfig = ['docsforge.yml', 'docsforge.yaml', 'mkdocs.yml', 'mkdocs.yaml'].some(
+      (c) => fs.existsSync(path.join(workspaceRoot, c))
+    );
+    if (!hasConfig) {
+      vscode.window.showErrorMessage(
+        'DocsForge: no docsforge.yml or mkdocs.yml found. Run "Initialize Project" first.'
+      );
       return;
     }
 
@@ -83,41 +99,33 @@ export class ServerManager {
 
     this.outputChannel.show();
     this.outputChannel.appendLine('Starting DocsForge server...');
-    this.serverUrl = null;
+    this._serverUrl = null;
     this.updateStatusBar();
 
     this.process = spawn(this.pythonPath, args, {
       cwd: workspaceRoot,
-      env: { ...process.env, FORCE_COLOR: '1' }
+      env: { ...process.env, FORCE_COLOR: '1' },
     });
 
-    this.process.stdout?.on('data', (data) => {
+    this.process.stdout?.on('data', (data: Buffer) => {
       const text = data.toString();
       this.outputChannel.append(text);
       this.detectServerUrl(text);
     });
 
-    this.process.stderr?.on('data', (data) => {
+    this.process.stderr?.on('data', (data: Buffer) => {
       const text = data.toString();
       this.outputChannel.append(text);
       this.detectServerUrl(text);
     });
 
-    this.process.on('error', (err) => {
-      this.process = null;
-      this.serverUrl = null;
-      vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
-      ServerManager.emitStateChange();
-      this.updateStatusBar();
+    this.process.on('error', (err: Error) => {
+      this.cleanupAfterStop();
       this.showError(`Failed to start DocsForge server: ${err.message}`);
     });
 
-    this.process.on('close', (code) => {
-      this.process = null;
-      this.serverUrl = null;
-      vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
-      ServerManager.emitStateChange();
-      this.updateStatusBar();
+    this.process.on('close', (code: number | null) => {
+      this.cleanupAfterStop();
       if (code !== 0 && code !== null) {
         this.outputChannel.appendLine(`Server exited with code ${code}`);
         this.showError(`DocsForge server exited with code ${code}`);
@@ -128,32 +136,33 @@ export class ServerManager {
     ServerManager.emitStateChange();
 
     if (openBrowser) {
-      // Wait briefly for the server to print its URL, then open browser.
       const disposable = ServerManager.onStateChange(() => {
-        if (this.serverUrl) {
+        if (this._serverUrl) {
           this.openBrowser();
           disposable.dispose();
         }
       });
-      // Fallback: if no URL after 10s, stop listening.
       setTimeout(() => disposable.dispose(), 10000);
     }
   }
 
   private detectServerUrl(text: string) {
-    const match = text.match(/Serving on (https?:\/\/[^\s]+)/);
-    if (match && !this.serverUrl) {
-      this.serverUrl = match[1];
+    // Match common server messages from DocsForge/MkDocs, including host:port forms.
+    const match = text.match(/(?:Serving on|Started server at)\s+(https?:\/\/[^\s]+)/i);
+    if (match && !this._serverUrl) {
+      this._serverUrl = match[1];
       this.updateStatusBar();
       ServerManager.emitStateChange();
     }
   }
 
   openBrowser() {
-    if (this.serverUrl) {
-      vscode.commands.executeCommand('simpleBrowser.show', this.serverUrl);
+    if (this._serverUrl) {
+      vscode.commands.executeCommand('simpleBrowser.show', vscode.Uri.parse(this._serverUrl));
+    } else if (this.process) {
+      vscode.window.showInformationMessage('DocsForge server URL is not known yet.');
     } else {
-      vscode.window.showWarningMessage('DocsForge server URL is not known yet.');
+      vscode.window.showInformationMessage('DocsForge server is not running.');
     }
   }
 
@@ -163,13 +172,27 @@ export class ServerManager {
       return;
     }
 
-    this.process.kill();
+    const proc = this.process;
     this.process = null;
-    this.serverUrl = null;
+    this._serverUrl = null;
+
+    proc.kill('SIGTERM');
+    setTimeout(() => {
+      if (!proc.killed) {
+        proc.kill('SIGKILL');
+      }
+    }, 2000);
+
+    this.cleanupAfterStop();
+    vscode.window.showInformationMessage('DocsForge server stopped');
+  }
+
+  private cleanupAfterStop() {
+    this.process = null;
+    this._serverUrl = null;
     vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
     ServerManager.emitStateChange();
     this.updateStatusBar();
-    vscode.window.showInformationMessage('DocsForge server stopped');
   }
 
   isRunning(): boolean {
@@ -183,41 +206,46 @@ export class ServerManager {
       return;
     }
 
-    vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: 'Building DocsForge documentation',
-      cancellable: false
-    }, async () => {
-      return new Promise<void>((resolve, reject) => {
-        const proc = spawn(this.pythonPath, ['-m', 'docsforge', 'build'], {
-          cwd: workspaceRoot,
-          env: { ...process.env, FORCE_COLOR: '1' }
-        });
+    vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Building DocsForge documentation',
+        cancellable: false,
+      },
+      async () => {
+        return new Promise<void>((resolve, reject) => {
+          const proc = spawn(this.pythonPath, ['-m', 'docsforge', 'build'], {
+            cwd: workspaceRoot,
+            env: { ...process.env, FORCE_COLOR: '1' },
+          });
 
-        proc.stdout?.on('data', (data) => {
-          this.outputChannel.append(data.toString());
-        });
-        proc.stderr?.on('data', (data) => {
-          this.outputChannel.append(data.toString());
-        });
+          proc.stdout?.on('data', (data: Buffer) => {
+            this.outputChannel.append(data.toString());
+          });
+          proc.stderr?.on('data', (data: Buffer) => {
+            this.outputChannel.append(data.toString());
+          });
 
-        proc.on('error', (err) => {
-          this.showError(`Build failed to start: ${err.message}`);
-          reject();
-        });
-
-        proc.on('close', (code) => {
-          if (code === 0) {
-            vscode.window.showInformationMessage('DocsForge build successful');
-            resolve();
-          } else {
-            vscode.window.showErrorMessage('DocsForge build failed', 'Show Output')
-              .then(() => this.outputChannel.show());
+          proc.on('error', (err: Error) => {
+            this.showError(`Build failed to start: ${err.message}`);
             reject();
-          }
+          });
+
+          proc.on('close', (code: number | null) => {
+            this.outputChannel.appendLine(`Build finished with code ${code ?? 'unknown'}`);
+            if (code === 0) {
+              vscode.window.showInformationMessage('DocsForge build successful');
+              resolve();
+            } else {
+              vscode.window
+                .showErrorMessage('DocsForge build failed', 'Show Output')
+                .then(() => this.outputChannel.show());
+              reject();
+            }
+          });
         });
-      });
-    });
+      }
+    );
   }
 
   dispose() {

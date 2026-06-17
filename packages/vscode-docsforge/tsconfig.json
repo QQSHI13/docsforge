@@ -6,7 +6,9 @@
     "lib": ["ES2022"],
     "sourceMap": true,
     "rootDir": "src",
-    "strict": true
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true
   },
   "exclude": ["node_modules", ".vscode-test"]
 }
