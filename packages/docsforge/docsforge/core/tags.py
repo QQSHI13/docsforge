@@ -454,7 +454,7 @@ class ListingManager:
 
         # Render tags for listing headlines - the listing configuration allows
         # tp specify a custom layout, so we resolve the template for tags here
-        name = posixpath.join(listing.config.layout, "tag.html")
+        name = f"{listing.config.layout}-tag.html"
         for tree in listing:
             tree.content = renderer.render(page, name, tag = tree.tag)
 
@@ -494,7 +494,7 @@ class ListingManager:
 
             # Render listing - the listing configuration allows to specify a
             # custom layout, so we resolve the template for listings here
-            name = posixpath.join(listing.config.layout, "listing.html")
+            name = f"{listing.config.layout}-listing.html"
             return "\n".join([
                 renderer.render(page, name, listing = tree)
                     for tree in listing.tags.values()

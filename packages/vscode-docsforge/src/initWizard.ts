@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
+import { ServerManager } from './serverManager';
 
 const THEME_COLORS = [
   'teal',
@@ -24,7 +25,10 @@ const LANGUAGES = [
 ];
 
 export class InitWizard {
-  static async run() {
+  /** Run the interactive project initialization wizard, matching the CLI
+   *  `docsforge init` flow. Accepts a ServerManager so the user can
+   *  immediately start the server after creation. */
+  static async run(serverManager?: ServerManager) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
       vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
@@ -38,6 +42,7 @@ export class InitWizard {
       return;
     }
 
+    // --- Step 1: Site name ---
     const siteName = await vscode.window.showInputBox({
       prompt: 'Site name',
       placeHolder: 'My Documentation',
@@ -45,36 +50,32 @@ export class InitWizard {
     });
     if (!siteName) { return; }
 
+    // --- Step 2: Site description ---
     const siteDescription = await vscode.window.showInputBox({
       prompt: 'Site description (optional)',
       placeHolder: 'A short description of the project',
     });
 
-    const siteUrl = await vscode.window.showInputBox({
-      prompt: 'Public site URL (optional)',
-      placeHolder: 'https://example.github.io/project',
-    });
-
-    const repoUrl = await vscode.window.showInputBox({
-      prompt: 'Repository URL (optional)',
-      placeHolder: 'https://github.com/user/repo',
-    });
-
+    // --- Step 3: Author / Organization ---
     const authorName = await vscode.window.showInputBox({
-      prompt: 'Author name (optional)',
+      prompt: 'Author / Organization (optional)',
       placeHolder: 'Jane Doe',
     });
 
+    // --- Step 4: Copyright ---
+    const currentYear = new Date().getFullYear().toString();
     const copyright = await vscode.window.showInputBox({
-      prompt: 'Copyright text (optional)',
-      placeHolder: 'Copyright 2026 Jane Doe',
+      prompt: 'Copyright notice (optional)',
+      placeHolder: `Copyright ${currentYear} ${authorName || 'Jane Doe'}`,
     });
 
+    // --- Step 5: Theme color ---
     const themeColor = await vscode.window.showQuickPick(THEME_COLORS, {
       placeHolder: 'Select a theme color',
     });
     if (!themeColor) { return; }
 
+    // --- Step 6: Language ---
     const languagePick = await vscode.window.showQuickPick(LANGUAGES, {
       placeHolder: 'Select a language',
     });
@@ -86,6 +87,30 @@ export class InitWizard {
       })) || 'en';
     }
 
+    // --- Step 7: GitHub repository ---
+    const repoUrl = await vscode.window.showInputBox({
+      prompt: 'GitHub repository URL (optional)',
+      placeHolder: 'https://github.com/user/repo',
+    });
+
+    // --- Step 8: Site URL ---
+    const siteUrl = await vscode.window.showInputBox({
+      prompt: 'Public site URL (optional)',
+      placeHolder: 'https://example.github.io/project',
+    });
+
+    // --- Step 9: Branding assets ---
+    const favicon = await vscode.window.showInputBox({
+      prompt: 'Path to favicon, relative to docs/ (optional)',
+      placeHolder: 'assets/favicon.png',
+    });
+
+    const logo = await vscode.window.showInputBox({
+      prompt: 'Path to logo, relative to docs/ (optional)',
+      placeHolder: 'assets/logo.png',
+    });
+
+    // --- Step 10: Privacy mode ---
     const privacyPick = await vscode.window.showQuickPick(
       [
         { label: 'Yes', value: true, description: 'Fetch and inline external assets locally' },
@@ -95,16 +120,7 @@ export class InitWizard {
     );
     if (privacyPick === undefined) { return; }
 
-    const favicon = await vscode.window.showInputBox({
-      prompt: 'Path to favicon (optional)',
-      placeHolder: 'assets/favicon.png',
-    });
-
-    const logo = await vscode.window.showInputBox({
-      prompt: 'Path to logo (optional)',
-      placeHolder: 'assets/logo.png',
-    });
-
+    // --- Run init via Python CLI ---
     const pythonPath = vscode.workspace.getConfiguration('docsforge').get('pythonPath', 'python');
 
     const initArgs = JSON.stringify({
@@ -122,40 +138,65 @@ export class InitWizard {
       logo: logo?.trim() || null,
     });
 
-    const pythonScript = `
-import sys, json
-from docsforge import init
-args = json.loads(sys.argv[1])
-init.init(**args)
-`;
+    // Use the CLI's `ProjectManager.init()` code path for consistent behavior.
+    // We call `docsforge.init.init(**args)` directly — same backend the CLI uses.
+    const pythonScript = [
+      'import sys, json',
+      "from docsforge import init",
+      'args = json.loads(sys.argv[1])',
+      'init.init(**args)',
+    ].join('\n');
 
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: 'Creating DocsForge project...',
-        cancellable: false,
-      },
-      () => new Promise<void>((resolve, reject) => {
-        const proc = spawn(pythonPath, ['-c', pythonScript, initArgs], {
-          cwd: workspaceRoot,
-        });
+    const outputChannel = vscode.window.createOutputChannel('DocsForge Init');
+    outputChannel.show();
+    outputChannel.appendLine('Creating DocsForge project...');
+    outputChannel.appendLine(`$ ${pythonPath} -c "<init script>"`);
+    outputChannel.appendLine('');
 
-        let stderr = '';
-        proc.stderr?.on('data', (data: Buffer) => { stderr += data.toString(); });
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: 'Creating DocsForge project...',
+          cancellable: false,
+        },
+        () => new Promise<void>((resolve, reject) => {
+          const proc = spawn(pythonPath, ['-c', pythonScript, initArgs], {
+            cwd: workspaceRoot,
+          });
 
-        proc.on('error', (err: Error) => {
-          reject(new Error(`Failed to run DocsForge init: ${err.message}`));
-        });
+          proc.stdout?.on('data', (data: Buffer) => {
+            outputChannel.append(data.toString());
+          });
 
-        proc.on('close', (code: number | null) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(stderr || `DocsForge init exited with code ${code}`));
-          }
-        });
-      })
-    );
+          let stderr = '';
+          proc.stderr?.on('data', (data: Buffer) => {
+            stderr += data.toString();
+            outputChannel.append(data.toString());
+          });
+
+          proc.on('error', (err: Error) => {
+            const msg = `Failed to run python: ${err.message}. Check "docsforge.pythonPath" in settings.`;
+            outputChannel.appendLine(msg);
+            reject(new Error(msg));
+          });
+
+          proc.on('close', (code: number | null) => {
+            if (code === 0) {
+              outputChannel.appendLine('Project created successfully.');
+              resolve();
+            } else {
+              const msg = stderr.trim() || `docsforge init exited with code ${code}`;
+              outputChannel.appendLine(`Init failed: ${msg}`);
+              reject(new Error(msg));
+            }
+          });
+        })
+      );
+    } catch (err) {
+      // Error already shown via showErrorMessage by the caller (extension.ts)
+      throw err;
+    }
 
     const choice = await vscode.window.showInformationMessage(
       'DocsForge project created!',

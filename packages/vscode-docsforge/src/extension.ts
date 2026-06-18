@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
 import { ServerManager } from './serverManager';
 import { InitWizard } from './initWizard';
 import { DocsForgeSidebarProvider } from './sidebarProvider';
@@ -28,7 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
         return;
       }
-      InitWizard.run().catch((err) => {
+      InitWizard.run(serverManager).catch((err) => {
         vscode.window.showErrorMessage(`DocsForge init failed: ${err.message}`);
       });
     }),
@@ -54,27 +52,22 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Refresh sidebar when server state changes
+  // Keep sidebar in sync with server state
   ServerManager.onStateChange(() => {
     sidebarProvider.serverRunning = serverManager.isRunning();
     sidebarProvider.refresh();
   });
 
-  // Auto-start server if docsforge.yml exists and user confirms
+  // Auto-start prompt if a config is found at startup
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (workspaceRoot) {
-    const configs = ['docsforge.yml', 'docsforge.yaml', 'mkdocs.yml', 'mkdocs.yaml'];
-    const hasConfig = configs.some((c) => fs.existsSync(path.join(workspaceRoot, c)));
-
-    if (hasConfig) {
-      vscode.window
-        .showInformationMessage('DocsForge project detected. Start dev server?', 'Yes', 'Later')
-        .then((choice) => {
-          if (choice === 'Yes') {
-            serverManager.start();
-          }
-        });
-    }
+  if (workspaceRoot && ServerManager.hasConfig(workspaceRoot)) {
+    vscode.window
+      .showInformationMessage('DocsForge project detected. Start dev server?', 'Yes', 'Later')
+      .then((choice) => {
+        if (choice === 'Yes') {
+          serverManager.start();
+        }
+      });
   }
 }
 

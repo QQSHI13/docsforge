@@ -2,7 +2,7 @@
   "name": "vscode-docsforge",
   "displayName": "DocsForge",
   "description": "Write and preview DocsForge documentation inside VS Code",
-  "version": "0.1.0",
+  "version": "10.9.6",
   "publisher": "QQSHI",
   "license": "LGPL-3.0-or-later",
   "engines": {
@@ -110,12 +110,12 @@
         "docsforge.lan": {
           "type": "boolean",
           "default": false,
-          "description": "Serve on all interfaces (0.0.0.0)"
+          "description": "Serve on all interfaces (0.0.0.0) instead of localhost only. Equivalent to docsforge serve --lan."
         },
         "docsforge.openBrowser": {
           "type": "boolean",
           "default": true,
-          "description": "Open the DocsForge site in VS Code's Simple Browser when the server starts"
+          "description": "Open the DocsForge site in VS Code's Simple Browser when the server detects its URL. The CLI always runs with --no-open so the extension manages browser access."
         }
       }
     }

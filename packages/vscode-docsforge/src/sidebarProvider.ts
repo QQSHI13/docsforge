@@ -5,6 +5,8 @@ export interface DocsForgeTreeItem {
   command: string;
   icon: string;
   tooltip: string;
+  /** Context key expression: item is shown when this evaluates to true.
+   *  Currently supports: "docsforge.serverRunning" (true/false). */
   when?: string;
 }
 
@@ -14,14 +16,14 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     command: 'docsforge.serve',
     icon: 'play',
     tooltip: 'Start the DocsForge development server',
-    when: 'docsforge.serverRunning == false',
+    when: '!docsforge.serverRunning',
   },
   {
     label: 'Stop Server',
     command: 'docsforge.stop',
     icon: 'debug-stop',
     tooltip: 'Stop the DocsForge development server',
-    when: 'docsforge.serverRunning == true',
+    when: 'docsforge.serverRunning',
   },
   {
     label: 'Build',
@@ -34,6 +36,7 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     command: 'docsforge.openServer',
     icon: 'globe',
     tooltip: 'Open the DocsForge site in VS Code\'s Simple Browser',
+    when: 'docsforge.serverRunning',
   },
   {
     label: 'Initialize Project',
@@ -43,15 +46,42 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
   },
 ];
 
+/** Evaluate a simple sidebar `when` expression against the current state. */
+function evalWhen(expr: string | undefined, serverRunning: boolean): boolean {
+  if (!expr) { return true; }
+
+  const trimmed = expr.trim();
+
+  // Negation: "!docsforge.serverRunning"
+  if (trimmed.startsWith('!')) {
+    const inner = trimmed.slice(1).trim();
+    return !evalWhen(inner, serverRunning);
+  }
+
+  // Equality: "docsforge.serverRunning == true" / "docsforge.serverRunning == false"
+  const eqMatch = trimmed.match(/^docsforge\.serverRunning\s*==\s*(true|false)\s*$/);
+  if (eqMatch) {
+    const expected = eqMatch[1] === 'true';
+    return serverRunning === expected;
+  }
+
+  // Bare context key: "docsforge.serverRunning"
+  if (trimmed === 'docsforge.serverRunning') {
+    return serverRunning;
+  }
+
+  // Unknown expression — show the item
+  return true;
+}
+
 export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsForgeTreeItem> {
-  private _onDidChangeTreeData: vscode.EventEmitter<
+  private _onDidChangeTreeData = new vscode.EventEmitter<
     DocsForgeTreeItem | undefined | null | void
-  > = new vscode.EventEmitter<DocsForgeTreeItem | undefined | null | void>();
+  >();
 
   serverRunning = false;
 
-  readonly onDidChangeTreeData: vscode.Event<DocsForgeTreeItem | undefined | null | void> =
-    this._onDidChangeTreeData.event;
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
@@ -68,18 +98,14 @@ export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsFor
     };
     item.iconPath = new vscode.ThemeIcon(element.icon);
     item.tooltip = element.tooltip;
-    item.contextValue = element.command.replace('docsforge.', '');
+    item.contextValue = element.command.slice('docsforge.'.length);
     return item;
   }
 
   getChildren(): Thenable<DocsForgeTreeItem[]> {
-    const items = ROOT_ITEMS.filter(item => {
-      if (item.when === undefined) {
-        return true;
-      }
-      const expected = item.when.includes('true');
-      return expected === this.serverRunning;
-    });
-    return Promise.resolve(items);
+    const running = this.serverRunning;
+    return Promise.resolve(
+      ROOT_ITEMS.filter((item) => evalWhen(item.when, running))
+    );
   }
 }

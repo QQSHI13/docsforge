@@ -1,0 +1,121 @@
+name: Release
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'New version number (e.g. 10.10.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need full history and token to push back
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate version format
+        run: |
+          if ! echo "${{ github.event.inputs.version }}" | grep -Pq '^\d+\.\d+\.\d+$'; then
+            echo "ERROR: Version must be in format X.Y.Z (e.g. 10.10.0)"
+            exit 1
+          fi
+
+      - name: Bump version in main code
+        run: |
+          FILE="packages/docsforge/docsforge/__init__.py"
+          sed -i "s/^__version__ = .*/__version__ = \"${{ github.event.inputs.version }}\"/" "$FILE"
+          echo "Updated $FILE: $(grep __version__ $FILE)"
+
+      - name: Bump version in VS Code extension
+        run: |
+          FILE="packages/vscode-docsforge/package.json"
+          node -e "
+            const pkg = require('./$FILE');
+            pkg.version = '${{ github.event.inputs.version }}';
+            require('fs').writeFileSync('$FILE', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Updated $FILE: version=$(node -e "console.log(require('./$FILE').version)")"
+
+      - name: Commit and tag
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          git config user.name "docsforge-bot"
+          git config user.email "bot@docsforge.dev"
+          git add packages/docsforge/docsforge/__init__.py packages/vscode-docsforge/package.json
+          git commit -m "chore: bump version to $VERSION"
+          git tag "v$VERSION"
+          git push origin main --tags
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --generate-notes \
+            --target main
+
+      # ── PyPI publish ──
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python build deps
+        run: pip install build
+
+      - name: Build Python package
+        run: cd packages/docsforge && python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+          verify-metadata: false
+          packages-dir: packages/docsforge/dist/
+
+      # ── VSIX bundle ──
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install extension dependencies
+        run: cd packages/vscode-docsforge && npm install
+
+      - name: Compile extension
+        run: cd packages/vscode-docsforge && npm run compile
+
+      - name: Lint extension
+        run: cd packages/vscode-docsforge && npm run lint || true
+
+      - name: Package extension
+        run: |
+          cd packages/vscode-docsforge
+          npm install -g @vscode/vsce
+          vsce package --out "docsforge-vscode-${{ github.event.inputs.version }}.vsix"
+
+      - name: Attach VSIX to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          gh release upload "v$VERSION" \
+            "packages/vscode-docsforge/docsforge-vscode-${VERSION}.vsix" \
+            --clobber
