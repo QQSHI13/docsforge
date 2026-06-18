@@ -201,7 +201,13 @@ export class ServerManager {
 
   openBrowser() {
     if (this._serverUrl) {
-      vscode.commands.executeCommand('simpleBrowser.show', vscode.Uri.parse(this._serverUrl));
+      const uri = vscode.Uri.parse(this._serverUrl);
+      const ext = vscode.extensions.getExtension('vscode.simple-browser');
+      if (ext?.exports?.api?.open) {
+        ext.exports.api.open(uri);
+      } else {
+        vscode.commands.executeCommand('simpleBrowser.show', uri);
+      }
     } else if (this.process) {
       vscode.window.showInformationMessage('DocsForge: waiting for server to output its URL...');
     } else {
