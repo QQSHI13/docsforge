@@ -18,14 +18,12 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/docsforge
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Need full history and token to push back
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -35,6 +33,10 @@ jobs:
             echo "ERROR: Version must be in format X.Y.Z (e.g. 10.10.0)"
             exit 1
           fi
+
+      - name: Set version output
+        id: set-version
+        run: echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Bump version in main code
         run: |
@@ -58,9 +60,17 @@ jobs:
           git config user.name "docsforge-bot"
           git config user.email "bot@docsforge.dev"
           git add packages/docsforge/docsforge/__init__.py packages/vscode-docsforge/package.json
-          git commit -m "chore: bump version to $VERSION"
-          git tag "v$VERSION"
-          git push origin main --tags
+
+          # Only commit and tag if there are actual changes
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bump version to $VERSION"
+            git tag "v$VERSION"
+            git push origin main --tags
+          else
+            echo "Version already at $VERSION — creating tag only"
+            git tag "v$VERSION" 2>/dev/null || echo "Tag v$VERSION already exists"
+            git push origin --tags
+          fi
 
       - name: Create GitHub release
         env:
@@ -70,28 +80,7 @@ jobs:
           gh release create "v$VERSION" \
             --title "v$VERSION" \
             --generate-notes \
-            --target main
-
-      # ── PyPI publish ──
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Python build deps
-        run: pip install build
-
-      - name: Build Python package
-        run: cd packages/docsforge && python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true
-          verify-metadata: false
-          packages-dir: packages/docsforge/dist/
-
+            --target main 2>/dev/null || echo "Release v$VERSION already exists"
 
       # ── VSIX bundle ──
 
@@ -123,3 +112,31 @@ jobs:
           gh release upload "v$VERSION" \
             "packages/vscode-docsforge/docsforge-vscode-${VERSION}.vsix" \
             --clobber
+
+  publish-pypi:
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/docsforge
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python build deps
+        run: pip install build
+
+      - name: Build Python package
+        run: cd packages/docsforge && python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+          verify-metadata: false
+          packages-dir: packages/docsforge/dist/
