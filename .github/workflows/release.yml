@@ -18,6 +18,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/docsforge
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,6 +91,7 @@ jobs:
           skip-existing: true
           verify-metadata: false
           packages-dir: packages/docsforge/dist/
+
 
       # ── VSIX bundle ──
 
