@@ -27,6 +27,7 @@ Moving from MkDocs/Material to DocsForge is straightforward for most sites. This
 | **Insiders features** | ⚠️ Adapt | Many are included in DocsForge; check [feature parity](#feature-parity-material-vs-docsforge) |
 | **Privacy plugin** | ⚠️ Built-in | DocsForge includes privacy features by default |
 | **Optimize plugin** | ⚠️ Built-in | Asset optimization runs automatically post-build |
+| **Tags layout** | ⚠️ Changed | Custom tag templates moved from `fragments/tags/{layout}/` to `fragments/tags/{layout}-tag.html` and `fragments/tags/{layout}-listing.html` (flattened directory structure) |
 
 ## Requires Significant Effort
 

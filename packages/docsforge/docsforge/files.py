@@ -420,7 +420,10 @@ class File:
 
     def url_relative_to(self, other: File | str) -> str:
         """Return url for file relative to other file."""
-        return utils.get_relative_url(self.url, other.url if isinstance(other, File) else other)
+        return utils.get_relative_url(
+            other.url if isinstance(other, File) else other,
+            self.url
+        )
 
     @property
     def content_bytes(self) -> bytes:

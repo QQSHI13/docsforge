@@ -1,5 +1,9 @@
 # DocsForge
 
+<p align="center">
+  <img src="assets/badge.svg" alt="DocsForge">
+</p>
+
 Write your documentation in Markdown. Build a professional static site in seconds. Deploy anywhere.
 
 
