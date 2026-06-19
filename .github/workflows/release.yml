@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'New version number (e.g. 10.10.0)'
+        description: 'New version number (e.g. 11.0.0 or 11.0.0b1)'
         required: true
         type: string
 
@@ -29,10 +29,11 @@ jobs:
 
       - name: Validate version format
         run: |
-          if ! echo "${{ github.event.inputs.version }}" | grep -Pq '^\d+\.\d+\.\d+$'; then
-            echo "ERROR: Version must be in format X.Y.Z (e.g. 10.10.0)"
+          if ! echo "${{ github.event.inputs.version }}" | grep -Pq '^\d+\.\d+\.\d+'; then
+            echo "ERROR: Version must start with X.Y.Z (e.g. 11.0.0 or 11.0.0b1)"
             exit 1
           fi
+          echo "Version format OK"
 
       - name: Set version output
         id: set-version
