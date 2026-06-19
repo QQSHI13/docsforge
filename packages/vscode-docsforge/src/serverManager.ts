@@ -40,9 +40,14 @@ export class ServerManager {
   }
 
   /** Watch .docsforge/server.json for create/delete events. */
-  private watchPidfile() {
+  private watchPidfile(retries = 3) {
     const root = this.workspaceRoot;
-    if (!root) { return; }
+    if (!root) {
+      if (retries > 0) {
+        setTimeout(() => this.watchPidfile(retries - 1), 1000);
+      }
+      return;
+    }
 
     const pidfile = path.join(root, '.docsforge', 'server.json');
     try {
@@ -65,9 +70,15 @@ export class ServerManager {
 
   /** Check if a docsforge serve process is already running via pidfile.
    *  If found, adopt its URL and show the server as running. */
-  private detectExistingServer() {
+  private detectExistingServer(retries = 3) {
     const root = this.workspaceRoot;
-    if (!root) { return; }
+    if (!root) {
+      // Workspace not ready yet — retry after a short delay
+      if (retries > 0) {
+        setTimeout(() => this.detectExistingServer(retries - 1), 1000);
+      }
+      return;
+    }
 
     const pidfile = path.join(root, '.docsforge', 'server.json');
     try {
