@@ -429,7 +429,15 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                 planner.update_cache(source_path, output_path, deps)
 
         # Generate PWA manifest and pre-cache all pages in the service worker
-        _generate_pwa_manifest_and_precache(config, files, nav)
+        # Skip during dev serve — service worker caches stale pages and causes
+        # reload loops when the SW hash changes on every rebuild.
+        if not serve_url:
+            _generate_pwa_manifest_and_precache(config, files, nav)
+        else:
+            # During serve, write a no-op SW that unregisters any previously
+            # installed SW (e.g. from a production build). This prevents stale
+            # caches from interfering with development.
+            _write_dev_sw(config)
 
         log_level = config.validation.links.anchors
         for file in doc_files:
@@ -468,6 +476,32 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 def site_directory_contains_stale_files(site_directory: str) -> bool:
     """Check if the site directory contains stale files from a previous build."""
     return bool(os.path.exists(site_directory) and os.listdir(site_directory))
+
+
+def _write_dev_sw(config: DocsForgeConfig) -> None:
+    """Write a self-unregistering service worker for dev serve.
+
+    During `docsforge serve`, the SW is not needed (caching interferes with
+    live reload). This no-op SW unregisters any previously installed SW
+    (e.g. from a production build at a different URL), preventing stale
+    caches from serving old content.
+    """
+    sw_path = os.path.join(config.site_dir, 'sw.js')
+    os.makedirs(os.path.dirname(sw_path), exist_ok=True)
+    with open(sw_path, 'w') as f:
+        f.write('''self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      // Unregister this SW and delete all caches
+      caches.keys().then(names => Promise.all(names.map(n => caches.delete(n)))),
+      self.registration.unregister(),
+    ])
+  );
+});
+self.addEventListener("fetch", (e) => e.respondWith(fetch(e.request)));
+''')
 
 
 def _generate_pwa_manifest_and_precache(
