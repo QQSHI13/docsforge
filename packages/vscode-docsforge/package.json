@@ -25,6 +25,7 @@
     "onCommand:docsforge.stop",
     "onCommand:docsforge.build",
     "onCommand:docsforge.openServer",
+    "onCommand:docsforge.openDocs",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
@@ -68,6 +69,12 @@
         "command": "docsforge.refreshSidebar",
         "title": "Refresh",
         "icon": "$(refresh)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.openDocs",
+        "title": "Open Docs",
+        "icon": "$(preview)",
         "category": "DocsForge"
       }
     ],

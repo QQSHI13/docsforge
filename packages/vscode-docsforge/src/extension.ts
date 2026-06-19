@@ -49,6 +49,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('docsforge.refreshSidebar', () => {
       sidebarProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('docsforge.openDocs', () => {
+      vscode.commands.executeCommand(
+        'simpleBrowser.api.open',
+        vscode.Uri.parse('https://qqshi13.github.io/docsforge/')
+      );
     })
   );
 

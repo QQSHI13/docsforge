@@ -44,6 +44,12 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     icon: 'new-folder',
     tooltip: 'Create a new DocsForge project',
   },
+  {
+    label: 'Open Docs',
+    command: 'docsforge.openDocs',
+    icon: 'preview',
+    tooltip: 'Open the DocsForge documentation site',
+  },
 ];
 
 /** Evaluate a simple sidebar `when` expression against the current state. */
