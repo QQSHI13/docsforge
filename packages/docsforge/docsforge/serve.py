@@ -156,9 +156,7 @@ def serve(
             for item in config.watch:
                 server.watch(item)
 
-        server.serve(open_in_browser=open_in_browser)
-
-        # Write pidfile so external tools (VSCode extension) can detect this server
+        # Write pidfile BEFORE serve() blocks — it must be visible immediately
         try:
             with open(pidfile_path, "w") as f:
                 json.dump({
@@ -168,6 +166,8 @@ def serve(
                 }, f)
         except Exception:
             pass
+
+        server.serve(open_in_browser=open_in_browser)
 
     except KeyboardInterrupt:
         log.info("Shutting down...")

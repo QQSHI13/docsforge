@@ -35,6 +35,32 @@ export class ServerManager {
 
     // Check for existing server via pidfile
     this.detectExistingServer();
+    // Watch for pidfile creation/deletion after VS Code is already open
+    this.watchPidfile();
+  }
+
+  /** Watch .docsforge-server.json for create/delete events. */
+  private watchPidfile() {
+    const root = this.workspaceRoot;
+    if (!root) { return; }
+
+    const pidfile = path.join(root, '.docsforge-server.json');
+    try {
+      fs.watchFile(pidfile, (curr, prev) => {
+        if (curr.size > 0 && prev.size === 0) {
+          // File was created — server started
+          this.detectExistingServer();
+        } else if (curr.size === 0 && prev.size > 0) {
+          // File was deleted — server stopped
+          this._serverUrl = null;
+          this.updateStatusBar();
+          vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
+          ServerManager.emitStateChange();
+        }
+      });
+    } catch {
+      // Ignore if watching fails
+    }
   }
 
   /** Check if a docsforge serve process is already running via pidfile.
