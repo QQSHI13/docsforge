@@ -509,8 +509,8 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                     f"Doc file '{self.file.src_uri}' contains a link '{url}', "
                     f"but the target{target} is not found among documentation files."
                 )
-            print(f"[DEBUG] target_file is None for url={url}, target_uri={target_uri}")
-            print(f"[DEBUG] warning={warning}")
+            log.debug(f"target_file is None for url={url}, target_uri={target_uri}")
+            log.debug(f"warning={warning}")
 
         if warning:
             if self.file.inclusion.is_excluded():

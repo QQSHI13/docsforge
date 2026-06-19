@@ -388,7 +388,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
 class _Handler(wsgiref.simple_server.WSGIRequestHandler):
     def log_request(self, code="-", size="-"):
-        level = logging.DEBUG if str(code) == "200" else logging.WARNING
+        level = logging.DEBUG if str(code) in ("200", "301", "302", "304") else logging.DEBUG
         log.log(level, f'"{self.requestline}" code {code}')
 
     def log_message(self, format, *args):

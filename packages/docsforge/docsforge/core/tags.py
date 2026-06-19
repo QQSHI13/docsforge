@@ -233,8 +233,59 @@ class TagsConfig(Config):
     filters = Optional(Type(FilterConfig))
     filter_on_serve = Type(bool, default = False)
     filter_on_build = Type(bool, default = True)
+    listings_layout = Type(str, default = "default")
+    listings_toc = Type(bool, default = True)
     sort_by = Deprecated(message = "Use 'listings_sort_by' instead")
     sort_reverse = Deprecated(message = "Use 'listings_sort_reverse' instead")
+
+
+#-----------------------------------------------------------------------------
+# ListingConfig class
+#-----------------------------------------------------------------------------
+
+class ListingConfig(Config):
+    """Configuration for a single listing instance."""
+    shadow = Type(bool, default = False)
+    layout = Type(str, default = "default")
+    toc = Type(bool, default = True)
+
+
+#-----------------------------------------------------------------------------
+# Listing class
+#-----------------------------------------------------------------------------
+
+@total_ordering
+class Listing:
+    """A listing - a collection of tags with pages."""
+
+    def __init__(self, page, id, config):
+        self.page = page
+        self.id = id
+        self.config = config
+        self.tags: dict = {}
+
+    def add(self, mapping, hidden=False):
+        """Add a mapping (tag + page) to this listing."""
+        for tag in mapping.tags:
+            if tag not in self.tags:
+                self.tags[tag] = []
+            self.tags[tag].append(mapping)
+
+    def __and__(self, mapping):
+        """Return tags that are in both this listing and the mapping."""
+        return [tag for tag in mapping.tags if tag in self.tags]
+
+    def __contains__(self, tag):
+        return tag in self.tags
+
+    def __lt__(self, other):
+        return self.id < other.id
+
+    def __eq__(self, other):
+        return isinstance(other, Listing) and self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
 
 
 #-----------------------------------------------------------------------------
