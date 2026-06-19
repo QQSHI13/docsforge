@@ -65,6 +65,7 @@ nav:
       - Usage Guide: publishing/usage.md
       - Migration Guide: publishing/migration.md
       - Deployment Guide: publishing/deployment-guide.md
+    - Visual Studio Code: vscode-extension.md
     - Features: features.md
     - Philosophy: philosophy.md
     - License: license.md
