@@ -120,7 +120,8 @@ def docsforge(ctx):
 
 @docsforge.command()
 @click.option('--strict', is_flag=True, help='Fail on warnings')
-def build(strict):
+@click.option('--pdf', is_flag=True, help='Also export to PDF (requires playwright)')
+def build(strict, pdf):
     """Build the DocsForge documentation for production."""
     _ = State()  # Initialize default logging
     _enable_warnings()
@@ -142,6 +143,24 @@ def build(strict):
 
     if result != 0:
         sys.exit(result)
+
+    # PDF export
+    if pdf:
+        from docsforge.pdf import export_pdf
+        from docsforge import cli_core
+        import yaml
+        config_file = cli_core.find_config_file()
+        if config_file:
+            site_dir = "site"
+            try:
+                with open(config_file) as f:
+                    cfg = yaml.safe_load(f) or {}
+                site_dir = cfg.get("site_dir", "site")
+            except Exception:
+                pass
+            result = export_pdf(site_dir)
+            if result != 0:
+                sys.exit(result)
 
     sys.exit(0)
 
