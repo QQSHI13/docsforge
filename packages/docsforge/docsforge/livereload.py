@@ -38,7 +38,7 @@ var livereload = function(epoch, requestId) {
             if (parseFloat(this.responseText) > epoch) {
                 location.reload();
             } else {
-                timeout = setTimeout(poll, this.status === 200 ? 0 : 3000);
+                timeout = setTimeout(poll, this.status === 200 ? 500 : 3000);
             }
         };
         req.open("GET", "/livereload/" + epoch + "/" + requestId);
@@ -193,16 +193,25 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         self._build_loop()
 
     def _build_loop(self):
+        import time as _time
+        _min_rebuild_interval = 1.0  # Don't rebuild more than once per second
+        _last_rebuild = 0.0
         while True:
             with self._rebuild_cond:
                 while not self._rebuild_cond.wait_for(
                     lambda: self._want_rebuild or self._shutdown, timeout=self.shutdown_delay
                 ):
-                    # We could have used just one wait instead of a loop + timeout, but we need
-                    # occasional breaks, otherwise on Windows we can't receive KeyboardInterrupt.
                     pass
                 if self._shutdown:
                     break
+
+                # Cooldown: skip rebuild if we just rebuilt
+                now = _time.time()
+                if now - _last_rebuild < _min_rebuild_interval:
+                    log.debug("Skipping rebuild: too soon after previous rebuild")
+                    self._want_rebuild = False
+                    continue
+
                 log.info("Detected file changes")
                 while self._rebuild_cond.wait(timeout=self.build_delay):
                     log.debug("Waiting for file changes to stop happening")
@@ -212,6 +221,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
             try:
                 self.builder()
+                _last_rebuild = _time.time()
             except Exception as e:
                 if isinstance(e, SystemExit):
                     print(e, file=sys.stderr)  # noqa: T201
