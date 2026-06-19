@@ -44,13 +44,13 @@
       },
       {
         "command": "docsforge.serve",
-        "title": "Start Dev Server",
+        "title": "Start Server",
         "icon": "$(play)",
         "category": "DocsForge"
       },
       {
         "command": "docsforge.stop",
-        "title": "Stop Dev Server",
+        "title": "Stop Server",
         "icon": "$(debug-stop)",
         "category": "DocsForge"
       },
@@ -62,7 +62,7 @@
       },
       {
         "command": "docsforge.openServer",
-        "title": "Open in VS Code Browser",
+        "title": "Open Preview",
         "icon": "$(globe)",
         "category": "DocsForge"
       },
