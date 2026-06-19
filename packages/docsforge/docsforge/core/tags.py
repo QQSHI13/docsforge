@@ -235,6 +235,7 @@ class TagsConfig(Config):
     filter_on_build = Type(bool, default = True)
     listings_layout = Type(str, default = "default")
     listings_toc = Type(bool, default = True)
+    listings_map = Type(dict, default = {})
     sort_by = Deprecated(message = "Use 'listings_sort_by' instead")
     sort_reverse = Deprecated(message = "Use 'listings_sort_reverse' instead")
 
