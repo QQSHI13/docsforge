@@ -4,6 +4,10 @@
 > One package. One command. Beautiful docs. Zero CDN calls.
 > ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v11.0.0.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/QQSHI13/docsforge/main/packages/docsforge/docsforge/templates/.icons/badge-compact.svg" alt="DocsForge">
+</p>
+
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
 [![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
