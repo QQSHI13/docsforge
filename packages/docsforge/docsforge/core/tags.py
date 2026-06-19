@@ -28,40 +28,6 @@ import re
 import yaml
 
 # ------------------------------------------------------------------------------
-# Classes
-# ------------------------------------------------------------------------------
-
-@total_ordering
-class Tag:
-    """A tag with name, parent, and hidden status."""
-    
-    def __init__(self, name: str, parent: Tag | None = None, hidden: bool = False):
-        self.name = name
-        self.parent = parent
-        self.hidden = hidden
-    
-    def __eq__(self, other):
-        if not isinstance(other, Tag):
-            return NotImplemented
-        return self.name == other.name and self.parent == other.parent
-    
-    def __lt__(self, other):
-        if not isinstance(other, Tag):
-            return NotImplemented
-        return (self.name, self.parent) < (other.name, other.parent)
-    
-    def __hash__(self):
-        return hash((self.name, self.parent))
-
-
-class TagReference:
-    """A reference to a tag and its items."""
-    
-    def __init__(self, tag: Tag, items: list = None):
-        self.tag = tag
-        self.items = items or []
-
-
 class Mapping:
     """A mapping between a page and its tags."""
     
