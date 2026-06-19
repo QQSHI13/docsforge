@@ -146,19 +146,19 @@ def build(strict, pdf):
 
     # PDF export
     if pdf:
-        from docsforge.pdf import export_pdf
+        from docsforge.pdf import build_pdf as export_pdf
         from docsforge import cli_core
         import yaml
         config_file = cli_core.find_config_file()
         if config_file:
-            site_dir = "site"
+            docs_dir = "docs"
             try:
                 with open(config_file) as f:
                     cfg = yaml.safe_load(f) or {}
-                site_dir = cfg.get("site_dir", "site")
+                docs_dir = cfg.get("docs_dir", "docs")
             except Exception:
                 pass
-            result = export_pdf(site_dir)
+            result = export_pdf(docs_dir)
             if result != 0:
                 sys.exit(result)
 
