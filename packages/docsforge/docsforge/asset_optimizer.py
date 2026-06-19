@@ -17,23 +17,24 @@ def _find_referenced_assets(site_dir: str) -> set[str]:
     site_path = Path(site_dir)
     
     # Patterns to match asset references in HTML/CSS
+    # Note: Material generates unquoted attribute values (href=path)
     patterns = [
-        # CSS links
-        r'<link[^>]+href=["\']([^"\']+)["\']',
+        # CSS links (quoted or unquoted)
+        r'<link[^>]+href=["\']?([^"\'\s>]+)["\']?',
         # JS scripts
-        r'<script[^>]+src=["\']([^"\']+)["\']',
+        r'<script[^>]+src=["\']?([^"\'\s>]+)["\']?',
         # Images
-        r'<img[^>]+src=["\']([^"\']+)["\']',
+        r'<img[^>]+src=["\']?([^"\'\s>]+)["\']?',
         # SVG images
-        r'<image[^>]+href=["\']([^"\']+)["\']',
+        r'<image[^>]+href=["\']?([^"\'\s>]+)["\']?',
         # CSS url() references
         r'url\(["\']?([^"\')\s]+)["\']?\)',
         # Video/audio sources
-        r'<(?:video|audio)[^>]+src=["\']([^"\']+)["\']',
+        r'<(?:video|audio)[^>]+src=["\']?([^"\'\s>]+)["\']?',
         # Source tags
-        r'<source[^>]+src=["\']([^"\']+)["\']',
+        r'<source[^>]+src=["\']?([^"\'\s>]+)["\']?',
         # Data attributes that might reference files
-        r'data-[a-z-]+=["\']([^"\']+\.(?:css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|otf))["\']',
+        r'data-[a-z-]+=["\']?([^"\'\s>]+\.(?:css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|otf))["\']?',
     ]
     
     # Scan all HTML and CSS files
