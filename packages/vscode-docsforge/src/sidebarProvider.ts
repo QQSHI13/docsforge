@@ -34,7 +34,7 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
   {
     label: 'Open Preview',
     command: 'docsforge.openServer',
-    icon: 'preview',
+    icon: 'globe',
     tooltip: 'Open the DocsForge site in VS Code\'s built-in browser',
     when: 'docsforge.serverRunning',
   },

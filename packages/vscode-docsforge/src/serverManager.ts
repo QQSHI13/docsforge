@@ -10,6 +10,7 @@ export class ServerManager {
   private outputChannel: vscode.OutputChannel;
   private statusBarItem: vscode.StatusBarItem;
   private _serverUrl: string | null = null;
+  private _startProgressResolve: (() => void) | null = null;
   private static stateChangeEmitter = new vscode.EventEmitter<void>();
   static instance: ServerManager | undefined;
 
@@ -133,6 +134,7 @@ export class ServerManager {
     this._serverUrl = null;
     this.updateStatusBar();
 
+    this._startProgressResolve = null;
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -140,17 +142,22 @@ export class ServerManager {
         cancellable: false,
       },
       () => new Promise<void>((resolve) => {
+        this._startProgressResolve = resolve;
         // Resolve when URL is detected (server is ready)
         const disposable = ServerManager.onStateChange(() => {
           if (this._serverUrl) {
+            this._startProgressResolve = null;
             disposable.dispose();
             resolve();
           }
         });
         // Safety timeout: resolve after 30s even if URL not yet detected
         setTimeout(() => {
-          disposable.dispose();
-          resolve();
+          if (this._startProgressResolve) {
+            this._startProgressResolve = null;
+            disposable.dispose();
+            resolve();
+          }
         }, 30000);
       })
     );
@@ -201,13 +208,7 @@ export class ServerManager {
 
   openBrowser() {
     if (this._serverUrl) {
-      const uri = vscode.Uri.parse(this._serverUrl);
-      const ext = vscode.extensions.getExtension('vscode.simple-browser');
-      if (ext?.exports?.api?.open) {
-        ext.exports.api.open(uri);
-      } else {
-        vscode.commands.executeCommand('simpleBrowser.show', uri);
-      }
+      vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse(this._serverUrl));
     } else if (this.process) {
       vscode.window.showInformationMessage('DocsForge: waiting for server to output its URL...');
     } else {
@@ -241,6 +242,10 @@ export class ServerManager {
   }
 
   private cleanupAfterStop() {
+    if (this._startProgressResolve) {
+      this._startProgressResolve();
+      this._startProgressResolve = null;
+    }
     this.process = null;
     this._serverUrl = null;
     vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
