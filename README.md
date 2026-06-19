@@ -2,7 +2,6 @@
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
 > One package. One command. Beautiful docs. Zero CDN calls.
-> ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v11.0.0.
 
 This is the monorepo containing all DocsForge projects:
 
