@@ -155,13 +155,11 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         def callback(event):
             if event.is_directory:
                 return
-            log.info(f"FS event: {event.event_type} {event.src_path}")
+            log.debug(str(event))
             with self._rebuild_cond:
                 if self._rebuilding:
-                    log.info(f"  -> queued (rebuilding)")
                     self._pending_rebuild = True
                     return
-                log.info(f"  -> rebuild triggered")
                 self._want_rebuild = True
                 self._rebuild_cond.notify_all()
 
