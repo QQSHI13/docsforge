@@ -1,129 +1,165 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 
-export interface DocsForgeTreeItem {
-  label: string;
-  command: string;
-  icon: string;
-  tooltip: string;
-  /** Context key expression, e.g. "!docsforge.serverRunning", "docsforge.buildRunning". */
-  when?: string;
+/** A simple doc page index entry. */
+interface DocEntry {
+  title: string;
+  path: string;
+  snippet: string;
 }
 
-const ROOT_ITEMS: DocsForgeTreeItem[] = [
-  {
-    label: 'Start Server',
-    command: 'docsforge.serve',
-    icon: 'play',
-    tooltip: 'Start the DocsForge development server',
-    when: '!docsforge.serverRunning',
-  },
-  {
-    label: 'Stop Server',
-    command: 'docsforge.stop',
-    icon: 'debug-stop',
-    tooltip: 'Stop the DocsForge development server',
-    when: 'docsforge.serverRunning',
-  },
-  {
-    label: 'Build',
-    command: 'docsforge.build',
-    icon: 'gear',
-    tooltip: 'Build the DocsForge documentation',
-    when: '!docsforge.buildRunning',
-  },
-  {
-    label: 'Stop Build',
-    command: 'docsforge.stopBuild',
-    icon: 'debug-stop',
-    tooltip: 'Cancel the running build',
-    when: 'docsforge.buildRunning',
-  },
-  {
-    label: 'Open Preview',
-    command: 'docsforge.openServer',
-    icon: 'globe',
-    tooltip: 'Open the DocsForge site in VS Code\'s built-in browser',
-    when: 'docsforge.serverRunning',
-  },
-  {
-    label: 'Initialize Project',
-    command: 'docsforge.init',
-    icon: 'new-folder',
-    tooltip: 'Create a new DocsForge project',
-  },
-  {
-    label: 'Open Docs',
-    command: 'docsforge.openDocs',
-    icon: 'preview',
-    tooltip: 'Open the DocsForge documentation site',
-  },
-  {
-    label: 'Search',
-    command: 'docsforge.search',
-    icon: 'search',
-    tooltip: 'Search documentation (requires running server)',
-  },
-];
+let _serverRunning = false;
+let _buildRunning = false;
 
-/** Evaluate a simple sidebar `when` expression against current context values. */
-function evalWhen(
-  expr: string | undefined,
-  ctx: { serverRunning: boolean; buildRunning: boolean }
-): boolean {
-  if (!expr) { return true; }
+export class DocsForgeSidebarProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'docsforge.sidebar';
 
-  const trimmed = expr.trim();
+  private _view?: vscode.WebviewView;
+  private _docIndex: DocEntry[] = [];
 
-  // Negation: "!docsforge.serverRunning"
-  if (trimmed.startsWith('!')) {
-    return !evalWhen(trimmed.slice(1), ctx);
+  constructor(private readonly _extensionUri: vscode.Uri) {}
+
+  get serverRunning(): boolean { return _serverRunning; }
+  set serverRunning(v: boolean) { _serverRunning = v; this._postState(); }
+
+  get buildRunning(): boolean { return _buildRunning; }
+  set buildRunning(v: boolean) { _buildRunning = v; this._postState(); }
+
+  refresh() {
+    this._buildDocIndex();
+    this._postState();
   }
 
-  // Resolve a bare context key
-  if (trimmed === 'docsforge.serverRunning') return ctx.serverRunning;
-  if (trimmed === 'docsforge.buildRunning') return ctx.buildRunning;
+  resolveWebviewView(webviewView: vscode.WebviewView) {
+    this._view = webviewView;
+    webviewView.webview.options = { enableScripts: true, localResourceRoots: [this._extensionUri] };
+    webviewView.webview.html = this._getHtml();
 
-  // Unknown expression — show the item
-  return true;
-}
-
-export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsForgeTreeItem> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<
-    DocsForgeTreeItem | undefined | null | void
-  >();
-
-  serverRunning = false;
-  buildRunning = false;
-
-  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
-
-  refresh(): void {
-    this._onDidChangeTreeData.fire();
+    webviewView.webview.onDidReceiveMessage((msg) => {
+      switch (msg.type) {
+        case 'ready':
+          this._buildDocIndex();
+          this._postState();
+          break;
+        case 'search':
+          this._handleSearch(msg.query);
+          break;
+        case 'openFile':
+          this._openFile(msg.path);
+          break;
+        case 'command':
+          vscode.commands.executeCommand(msg.command);
+          break;
+      }
+    });
   }
 
-  getTreeItem(element: DocsForgeTreeItem): vscode.TreeItem {
-    const item = new vscode.TreeItem(
-      element.label,
-      vscode.TreeItemCollapsibleState.None
-    );
-    item.command = {
-      command: element.command,
-      title: element.label,
-    };
-    item.iconPath = new vscode.ThemeIcon(element.icon);
-    item.tooltip = element.tooltip;
-    item.contextValue = element.command.slice('docsforge.'.length);
-    return item;
+  private _postState() {
+    this._view?.webview.postMessage({
+      type: 'state',
+      serverRunning: _serverRunning,
+      buildRunning: _buildRunning,
+    });
   }
 
-  getChildren(): Thenable<DocsForgeTreeItem[]> {
-    return Promise.resolve(
-      ROOT_ITEMS.filter((item) =>
-        evalWhen(item.when, {
-          serverRunning: this.serverRunning,
-          buildRunning: this.buildRunning,
-        })
-      )
-    );
+  // ── Search ──
+
+  private _buildDocIndex() {
+    this._docIndex = [];
+    const root = this._workspaceRoot;
+    if (!root) return;
+
+    const docsDir = this._getDocsDir(root);
+    if (!fs.existsSync(docsDir)) return;
+
+    try {
+      const files = this._findMdFiles(docsDir);
+      for (const file of files) {
+        try {
+          const content = fs.readFileSync(file, 'utf-8');
+          const title = this._extractTitle(content) || path.basename(file, '.md');
+          const rel = path.relative(docsDir, file).replace(/\\/g, '/');
+          const snippet = content
+            .replace(/---[\s\S]*?---/, '')
+            .replace(/^#+\s*.*$/m, '')
+            .replace(/[#*`\[\]()>|\\]/g, '')
+            .trim()
+            .slice(0, 150);
+          this._docIndex.push({ title, path: rel, snippet });
+        } catch {}
+      }
+    } catch {}
+  }
+
+  private _findMdFiles(dir: string): string[] {
+    const results: string[] = [];
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory() && !entry.name.startsWith('.')) {
+          results.push(...this._findMdFiles(full));
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          results.push(full);
+        }
+      }
+    } catch {}
+    return results;
+  }
+
+  private _extractTitle(content: string): string | null {
+    const fmTitle = content.match(/^\s*title\s*:\s*(.+)$/m);
+    if (fmTitle) return fmTitle[1].trim().replace(/["']/g, '');
+    const h1 = content.match(/^#\s+(.+)$/m);
+    if (h1) return h1[1].trim();
+    return null;
+  }
+
+  private _handleSearch(query: string) {
+    if (!query.trim()) {
+      this._view?.webview.postMessage({ type: 'searchResults', results: [] });
+      return;
+    }
+    const q = query.toLowerCase();
+    const results = this._docIndex
+      .filter(d => d.title.toLowerCase().includes(q) || d.snippet.toLowerCase().includes(q))
+      .slice(0, 30)
+      .map(d => ({ title: d.title, path: d.path, snippet: d.snippet }));
+    this._view?.webview.postMessage({ type: 'searchResults', results });
+  }
+
+  private async _openFile(relPath: string) {
+    const root = this._workspaceRoot;
+    if (!root) return;
+    const fullPath = path.join(this._getDocsDir(root), relPath);
+    if (fs.existsSync(fullPath)) {
+      const doc = await vscode.workspace.openTextDocument(fullPath);
+      vscode.window.showTextDocument(doc);
+    }
+  }
+
+  private get _workspaceRoot(): string | undefined {
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  }
+
+  private _getDocsDir(root: string): string {
+    const configPath = path.join(root, 'docsforge.yml');
+    try {
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf-8');
+        const m = content.match(/^\s*docs_dir\s*:\s*(.+)$/m);
+        if (m) return path.resolve(root, m[1].trim());
+      }
+    } catch {}
+    return path.join(root, 'docs');
+  }
+
+  private _getHtml(): string {
+    const filePath = path.join(this._extensionUri.fsPath, 'src', 'sidebar.html');
+    try {
+      return fs.readFileSync(filePath, 'utf-8');
+    } catch {
+      return '<body><p>Failed to load sidebar</p></body>';
+    }
   }
 }

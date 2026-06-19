@@ -2,24 +2,22 @@ import * as vscode from 'vscode';
 import { ServerManager } from './serverManager';
 import { InitWizard } from './initWizard';
 import { DocsForgeSidebarProvider } from './sidebarProvider';
-import { showSearch } from './search';
 
 let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
 
 export function activate(context: vscode.ExtensionContext) {
-  // Initialize server and build state context so conditional sidebar items render correctly
+  // Initialize server and build state context
   vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
   vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
 
   serverManager = new ServerManager();
-  sidebarProvider = new DocsForgeSidebarProvider();
+  sidebarProvider = new DocsForgeSidebarProvider(context.extensionUri);
 
-  // Register sidebar tree view
-  const treeView = vscode.window.createTreeView('docsforge.sidebar', {
-    treeDataProvider: sidebarProvider,
-  });
-  context.subscriptions.push(treeView);
+  // Register sidebar webview view
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(DocsForgeSidebarProvider.viewType, sidebarProvider)
+  );
 
   // Register commands
   context.subscriptions.push(
@@ -62,10 +60,6 @@ export function activate(context: vscode.ExtensionContext) {
         'simpleBrowser.api.open',
         vscode.Uri.parse('https://qqshi13.github.io/docsforge/')
       );
-    }),
-
-    vscode.commands.registerCommand('docsforge.search', () => {
-      showSearch();
     })
   );
 
@@ -76,7 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
     sidebarProvider.refresh();
   });
 
-  // Auto-start prompt if a config is found at startup
+  // Auto-start prompt if config found
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (workspaceRoot && ServerManager.hasConfig(workspaceRoot)) {
     vscode.window
