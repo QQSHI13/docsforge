@@ -27,7 +27,8 @@ export class DocsForgeSidebarProvider implements vscode.WebviewViewProvider {
   set buildRunning(v: boolean) { _buildRunning = v; this._postState(); }
 
   refresh() {
-    this._buildDocIndex();
+    // Defer index building so the webview can load immediately
+    setTimeout(() => this._buildDocIndexAsync(), 0);
     this._postState();
   }
 
@@ -36,10 +37,12 @@ export class DocsForgeSidebarProvider implements vscode.WebviewViewProvider {
     webviewView.webview.options = { enableScripts: true, localResourceRoots: [this._extensionUri] };
     webviewView.webview.html = this._getHtml();
 
+    // Build index in background after the webview is ready
+    setTimeout(() => this._buildDocIndexAsync(), 100);
+
     webviewView.webview.onDidReceiveMessage((msg) => {
       switch (msg.type) {
         case 'ready':
-          this._buildDocIndex();
           this._postState();
           break;
         case 'search':
@@ -65,7 +68,7 @@ export class DocsForgeSidebarProvider implements vscode.WebviewViewProvider {
 
   // ── Search ──
 
-  private _buildDocIndex() {
+  private _buildDocIndexAsync() {
     this._docIndex = [];
     const root = this._workspaceRoot;
     if (!root) return;
@@ -75,20 +78,31 @@ export class DocsForgeSidebarProvider implements vscode.WebviewViewProvider {
 
     try {
       const files = this._findMdFiles(docsDir);
-      for (const file of files) {
-        try {
-          const content = fs.readFileSync(file, 'utf-8');
-          const title = this._extractTitle(content) || path.basename(file, '.md');
-          const rel = path.relative(docsDir, file).replace(/\\/g, '/');
-          const snippet = content
-            .replace(/---[\s\S]*?---/, '')
-            .replace(/^#+\s*.*$/m, '')
-            .replace(/[#*`\[\]()>|\\]/g, '')
-            .trim()
-            .slice(0, 150);
-          this._docIndex.push({ title, path: rel, snippet });
-        } catch {}
-      }
+      if (files.length === 0) return;
+
+      // Process files in chunks to avoid blocking the UI
+      let idx = 0;
+      const processChunk = () => {
+        const chunkEnd = Math.min(idx + 20, files.length);
+        for (; idx < chunkEnd; idx++) {
+          try {
+            const content = fs.readFileSync(files[idx], 'utf-8');
+            const title = this._extractTitle(content) || path.basename(files[idx], '.md');
+            const rel = path.relative(docsDir, files[idx]).replace(/\\/g, '/');
+            const snippet = content
+              .replace(/---[\s\S]*?---/, '')
+              .replace(/^#+\s*.*$/m, '')
+              .replace(/[#*`\[\]()>|\\]/g, '')
+              .trim()
+              .slice(0, 150);
+            this._docIndex.push({ title, path: rel, snippet });
+          } catch {}
+        }
+        if (idx < files.length) {
+          setTimeout(processChunk, 0);
+        }
+      };
+      setTimeout(processChunk, 0);
     } catch {}
   }
 
