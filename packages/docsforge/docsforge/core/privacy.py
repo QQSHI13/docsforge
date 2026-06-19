@@ -357,7 +357,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if extension not in self.assets_expr_map:
             return []
 
-        if not initiator.abs_src_path:
+        if not initiator.abs_src_path or not os.path.isfile(initiator.abs_src_path):
             return []
 
         expr = re.compile(self.assets_expr_map[extension], flags=re.I | re.M)
@@ -544,6 +544,9 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         return True
 
     def _patch(self, initiator: File):
+        if not os.path.isfile(initiator.abs_src_path):
+            log.debug(f"Skipping patch for unavailable file: {initiator.src_uri}")
+            return
         with open(initiator.abs_src_path, encoding="utf-8-sig") as f:
             def replace(match: Match):
                 value = match.group("url")
@@ -552,17 +555,17 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
                 file = self.assets.get_file_from_path(full)
                 if not file:
-                    name = os.readlink(os.path.join(self.config.cache_dir, full))
-                    full = posixpath.join(posixpath.dirname(full), name)
-                    file = self.assets.get_file_from_path(full)
+                    try:
+                        name = os.readlink(os.path.join(self.config.cache_dir, full))
+                        full = posixpath.join(posixpath.dirname(full), name)
+                        file = self.assets.get_file_from_path(full)
+                    except (OSError, FileNotFoundError):
+                        log.warning(f"Skipping unavailable asset: {full}")
+                        return match.group()
 
                 if not file:
-                    log.error(
-                        "File not found. This is likely a bug in the built-in "
-                        "privacy plugin. Please create an issue with a minimal "
-                        "reproduction."
-                    )
-                    sys.exit(1)
+                    log.warning(f"Skipping unavailable asset (not in cache): {full}")
+                    return match.group()
 
                 if file.url.endswith(".js"):
                     url = posixpath.join(self.site.geturl(), file.url)
