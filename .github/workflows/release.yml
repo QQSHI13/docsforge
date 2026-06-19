@@ -97,13 +97,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.versions.outputs.tag }}"
-          PRE=${{ steps.versions.outputs.prerelease }}
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --generate-notes \
-            --target main \
-            --prerelease $PRE \
-            2>/dev/null || echo "Release $TAG already exists"
+          FLAGS=(
+            --title "$TAG"
+            --generate-notes
+            --target main
+          )
+          if [ "${{ steps.versions.outputs.prerelease }}" = "true" ]; then
+            FLAGS+=(--prerelease)
+          fi
+          gh release create "$TAG" "${FLAGS[@]}" 2>/dev/null || echo "Release $TAG already exists"
 
       # ── VSIX bundle ──
 
