@@ -7,9 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'New version number (e.g. 11.0.0 or 11.0.0b1)'
+        description: 'Base version (e.g. 11.0.0)'
         required: true
         type: string
+      prerelease:
+        description: 'Pre-release suffix: b1, rc1, etc. Leave empty for stable.'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -18,8 +23,6 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.set-version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,49 +30,65 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate version format
+      - name: Validate and derive versions
+        id: versions
         run: |
-          if ! echo "${{ github.event.inputs.version }}" | grep -Pq '^\d+\.\d+\.\d+'; then
-            echo "ERROR: Version must start with X.Y.Z (e.g. 11.0.0 or 11.0.0b1)"
+          BASE="${{ github.event.inputs.version }}"
+          PRE="${{ github.event.inputs.prerelease }}"
+
+          if ! echo "$BASE" | grep -Pq '^\d+\.\d+\.\d+$'; then
+            echo "ERROR: Base version must be X.Y.Z (e.g. 11.0.0)"
             exit 1
           fi
-          echo "Version format OK"
 
-      - name: Set version output
-        id: set-version
-        run: echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          if [ -z "$PRE" ]; then
+            echo "pypi=$BASE" >> $GITHUB_OUTPUT
+            echo "vsix=$BASE" >> $GITHUB_OUTPUT
+            echo "tag=v$BASE" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          else
+            # Python PEP 440: 11.0.0b1
+            # VSIX semver: 11.0.0-beta.1  (b → beta, rc → rc, a → alpha)
+            VSIX_SUFFIX=$(echo "$PRE" | sed 's/^b/-beta./' | sed 's/^rc/-rc./' | sed 's/^a/-alpha./')
+            echo "pypi=$BASE$PRE" >> $GITHUB_OUTPUT
+            echo "vsix=$BASE$VSIX_SUFFIX" >> $GITHUB_OUTPUT
+            echo "tag=v$BASE$PRE" >> $GITHUB_OUTPUT
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Bump version in main code
         run: |
+          VERSION="${{ steps.versions.outputs.pypi }}"
           FILE="packages/docsforge/docsforge/__init__.py"
-          sed -i "s/^__version__ = .*/__version__ = \"${{ github.event.inputs.version }}\"/" "$FILE"
+          sed -i "s/^__version__ = .*/__version__ = \"$VERSION\"/" "$FILE"
           echo "Updated $FILE: $(grep __version__ $FILE)"
 
       - name: Bump version in VS Code extension
         run: |
+          VERSION="${{ steps.versions.outputs.vsix }}"
           FILE="packages/vscode-docsforge/package.json"
           node -e "
             const pkg = require('./$FILE');
-            pkg.version = '${{ github.event.inputs.version }}';
+            pkg.version = '$VERSION';
             require('fs').writeFileSync('$FILE', JSON.stringify(pkg, null, 2) + '\n');
           "
           echo "Updated $FILE: version=$(node -e "console.log(require('./$FILE').version)")"
 
       - name: Commit and tag
         run: |
-          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${{ steps.versions.outputs.pypi }}"
+          TAG="${{ steps.versions.outputs.tag }}"
           git config user.name "docsforge-bot"
           git config user.email "bot@docsforge.dev"
           git add packages/docsforge/docsforge/__init__.py packages/vscode-docsforge/package.json
 
-          # Only commit and tag if there are actual changes
           if ! git diff --cached --quiet; then
             git commit -m "chore: bump version to $VERSION"
-            git tag "v$VERSION"
+            git tag "$TAG"
             git push origin main --tags
           else
             echo "Version already at $VERSION — creating tag only"
-            git tag "v$VERSION" 2>/dev/null || echo "Tag v$VERSION already exists"
+            git tag "$TAG" 2>/dev/null || echo "Tag $TAG already exists"
             git push origin --tags
           fi
 
@@ -77,11 +96,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          gh release create "v$VERSION" \
-            --title "v$VERSION" \
+          TAG="${{ steps.versions.outputs.tag }}"
+          PRE=${{ steps.versions.outputs.prerelease }}
+          gh release create "$TAG" \
+            --title "$TAG" \
             --generate-notes \
-            --target main 2>/dev/null || echo "Release v$VERSION already exists"
+            --target main \
+            --prerelease $PRE \
+            2>/dev/null || echo "Release $TAG already exists"
 
       # ── VSIX bundle ──
 
@@ -103,15 +125,17 @@ jobs:
         run: |
           cd packages/vscode-docsforge
           npm install -g @vscode/vsce
-          vsce package --out "docsforge-vscode-${{ github.event.inputs.version }}.vsix"
+          vsix_version="${{ steps.versions.outputs.vsix }}"
+          vsce package --out "docsforge-vscode-${vsix_version}.vsix"
 
       - name: Attach VSIX to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          gh release upload "v$VERSION" \
-            "packages/vscode-docsforge/docsforge-vscode-${VERSION}.vsix" \
+          VSIX_VERSION="${{ steps.versions.outputs.vsix }}"
+          TAG="${{ steps.versions.outputs.tag }}"
+          gh release upload "$TAG" \
+            "packages/vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix" \
             --clobber
 
   publish-pypi:
