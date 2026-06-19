@@ -75,7 +75,7 @@ Features:
 
 ### Documentation (`packages/docsforge-docs`)
 
-The documentation website at https://qqshi13.github.io/docsforge-docs/
+The documentation website at https://qqshi13.github.io/docsforge/
 
 ## Contributing
 
