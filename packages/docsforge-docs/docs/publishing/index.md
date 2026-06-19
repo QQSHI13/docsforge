@@ -10,13 +10,14 @@ The fastest ways to deploy:
 |----------|--------|------|
 | **GitHub Pages** | GitHub Actions | 5 min |
 | **Netlify** | Drag `site/` folder | 1 min |
+| **Render** | Git push | 2 min |
 | **Surge.sh** | `surge site/` | 30 sec |
 
 ## What's in This Section
 
 - [**Usage Guide**](usage.md) — Day-to-day DocsForge commands, configuration, and content features
 - [**Migration Guide**](migration.md) — Moving from MkDocs/Material to DocsForge, feature parity, step-by-step migration
-- [**Deployment Guide**](deployment-guide.md) — Detailed instructions for 10+ platforms: GitHub Pages, Netlify, Vercel, Cloudflare, AWS, Firebase, Docker, and more
+- [**Deployment Guide**](deployment-guide.md) — Detailed instructions for 12+ platforms: GitHub Pages, Netlify, Vercel, Cloudflare, Render, DigitalOcean, AWS, Firebase, Docker, and more
 
 ## Build Output
 

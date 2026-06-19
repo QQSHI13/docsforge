@@ -230,7 +230,7 @@ extra_javascript:
 
 ## Theme settings
 
-Theme settings live under the `theme:` block, just like MkDocs Material.
+Theme settings live under the `theme:` block, just like DocsForge Material.
 
 ```yaml
 theme:

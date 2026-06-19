@@ -336,7 +336,7 @@ Use a small build script to output each language to a separate subdirectory.
 
 ### Option 2: Use a third-party i18n plugin
 
-Install a MkDocs-compatible i18n plugin and declare it under `plugins:`:
+Install an MkDocs-compatible i18n plugin and declare it under `plugins:`:
 
 ```yaml
 plugins:

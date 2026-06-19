@@ -14,6 +14,8 @@ DocsForge builds static HTML that can be deployed to any static hosting platform
 | **AWS S3 + CloudFront** | Pay per use | ✅ | ✅ | GitHub Actions | Enterprise, scale |
 | **Firebase Hosting** | Free tier | ✅ | ✅ | GitHub Actions | Google ecosystem |
 | **Surge.sh** | Free | ✅ | ✅ | CLI | Quick deploys |
+| **Render** | Free tier | ✅ | ✅ | Git push | Static sites, fast CDN |
+| **DigitalOcean App Platform** | Pay per use | ✅ | ✅ | GitHub Actions | Full control, scalable |
 | **Docker + Nginx** | Server cost | ✅ | ✅ | Any | Self-hosted |
 | **Caddy** | Server cost | ✅ | Auto | Any | Self-hosted, easy TLS |
 
@@ -25,7 +27,7 @@ The simplest option for open-source projects. Free, reliable, integrated with Gi
 
 ### GitHub Actions (Recommended)
 
-Create `.github/workflows/docs.yml`:
+Create `.github/workflows/docsforge-pages.yml`:
 
 ```yaml
 name: Deploy Docs
@@ -33,7 +35,51 @@ name: Deploy Docs
 on:
   push:
     branches: [main]
-  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install docsforge
+      - run: docsforge build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
+```
+
+### Alternative: peaceiris/actions-gh-pages
+
+A simpler single-job workflow that pushes to the `gh-pages` branch:
+
+```yaml
+name: Deploy Docs
+
+on:
+  push:
     branches: [main]
 
 jobs:
@@ -41,21 +87,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
-      - name: Install DocsForge
-        run: pip install docsforge
-
-      - name: Build docs
-        run: docsforge build
-
-      - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v4
+          python-version: '3.12'
+      - run: pip install docsforge
+      - run: docsforge build
+      - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
@@ -306,6 +343,62 @@ surge site/ docs.example.com
 
 ---
 
+## Render
+
+[Render](https://render.com) offers a generous free tier for static sites with global CDN, automatic HTTPS, and git-based deploys.
+
+### Git-based (Recommended)
+
+1. Push your repo to GitHub/GitLab
+2. Log in to [Render Dashboard](https://dashboard.render.com)
+3. **New + → Static Site**
+4. Connect your repository
+5. Build settings:
+   - Build command: `pip install docsforge && docsforge build`
+   - Publish directory: `site`
+6. **Create Static Site**
+
+Render auto-deploys on every push to the main branch.
+
+### Custom Domain
+
+1. Go to your static site's **Settings → Custom Domain**
+2. Add your domain
+3. Update DNS (Render provides the target CNAME)
+
+---
+
+## DigitalOcean App Platform
+
+[DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform) provides managed static hosting with automatic HTTPS, CDN, and git-based deployments.
+
+### Git-based (Recommended)
+
+1. Push your repo to GitHub
+2. Log in to [DigitalOcean](https://cloud.digitalocean.com)
+3. **Apps → Create App**
+4. Connect your repository
+5. Select the branch (`main`)
+6. Edit the plan (Static Site starts at $0 — free tier available)
+7. Build settings:
+   - Build command: `pip install docsforge && docsforge build`
+   - Output directory: `site`
+8. **Review and Create**
+
+### GitHub Actions + DigitalOcean
+
+For more control, build locally and deploy via the DigitalOcean CLI:
+
+```yaml
+- name: Deploy to DigitalOcean App Platform
+  uses: digitalocean/app_action@v1
+  with:
+    app_name: my-docs
+    token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+```
+
+---
+
 ## Docker + Nginx
 
 Self-hosted option. Full control over the server.
@@ -404,6 +497,16 @@ Caddy automatically provisions Let's Encrypt certificates. No manual SSL setup.
 - Enable versioning if you want rollback capability
 - Use `aws s3 sync --delete` to remove old files
 - Consider S3 Transfer Acceleration for global audiences
+
+### Render
+- Set `site_url` to your Render domain (e.g. `https://my-docs.onrender.com`)
+- Auto-deploys on every push to the connected branch
+- Free tier includes 100 GB bandwidth/month
+
+### DigitalOcean
+- Static Sites start free with 1 GB storage
+- Set `site_url` to your App Platform domain
+- Use the DigitalOcean API token in GitHub Actions for automated deploys
 
 ---
 

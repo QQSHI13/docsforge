@@ -216,8 +216,8 @@ Icon support is enabled by default. The configuration is:
 ``` yaml
 markdown_extensions:
   - pymdownx.emoji:
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
-      emoji_index: !!python.name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:docsforge.emoji.to_svg
+      emoji_index: !!python/name:docsforge.emoji.twemoji
 ```
 
 !!! warning "Don't change this"

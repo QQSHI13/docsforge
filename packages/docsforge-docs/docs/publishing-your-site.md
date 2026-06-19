@@ -122,6 +122,25 @@ Then configure your DNS provider with a CNAME record pointing to `username.githu
 4. Set build command: `docsforge build`
 5. Set build output directory: `site/`
 
+## Render
+
+1. Push your repo to GitHub
+2. Log in to [Render Dashboard](https://dashboard.render.com)
+3. Click **New + → Static Site**
+4. Connect your repository
+5. Set build command: `pip install docsforge && docsforge build`
+6. Set publish directory: `site/`
+
+## DigitalOcean App Platform
+
+1. Push your repo to GitHub
+2. Log in to [DigitalOcean](https://cloud.digitalocean.com)
+3. Click **Apps → Create App**
+4. Connect your repository
+5. Select **Static Site** plan
+6. Set build command: `pip install docsforge && docsforge build`
+7. Set output directory: `site/`
+
 ## Amazon S3 + CloudFront
 
 For enterprise deployments:
