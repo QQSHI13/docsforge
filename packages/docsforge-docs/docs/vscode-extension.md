@@ -158,6 +158,20 @@ All available commands (accessible via `Ctrl+Shift+P`):
 | `DocsForge: Open in VS Code Browser` | Open the preview |
 | `DocsForge: Refresh` | Refresh the sidebar |
 
+### Deploy Script
+
+The project includes a convenience script that builds the VSIX and deploys the docs site:
+
+```bash
+./scripts/deploy.sh            # Build VSIX + install + deploy docs
+./scripts/deploy.sh vsix       # Build the VSIX only
+./scripts/deploy.sh install    # Build + install extension via VS Code CLI
+./scripts/deploy.sh docs       # Build the docs site locally
+./scripts/deploy.sh deploy     # Build + deploy docs to GitHub Pages
+```
+
+Requires `npm`, `vsce`, `code` (VS Code CLI), and `gh` (GitHub CLI) for full functionality.
+
 ## Updates
 
 Check the [GitHub Releases](https://github.com/QQSHI13/docsforge/releases) for new versions. The release includes both the Python package and the `.vsix` file. Extension version matches the main package version.
