@@ -21,6 +21,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      commit_sha: ${{ steps.commit.outputs.commit_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -73,6 +75,7 @@ jobs:
           echo "Updated $FILE: version=$(node -e "console.log(require('./$FILE').version)")"
 
       - name: Commit and tag
+        id: commit
         run: |
           VERSION="${{ steps.versions.outputs.pypi }}"
           TAG="${{ steps.versions.outputs.tag }}"
@@ -89,6 +92,7 @@ jobs:
             git tag "$TAG" 2>/dev/null || echo "Tag $TAG already exists"
             git push origin --tags
           fi
+          echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Create GitHub release
         env:
@@ -147,6 +151,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.commit_sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v6
