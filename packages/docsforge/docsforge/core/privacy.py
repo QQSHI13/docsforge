@@ -484,17 +484,47 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
             mime = res.headers["content-type"].split(";")[0]
             extension = extensions.get(mime)
-            if extension and not path.endswith(extension):
-                path += extension
 
-            self._save_to_file(path, res.content)
-            if path != file.abs_src_path:
+            # Save with content-based hash for cache busting
+            download_base = file.abs_src_path
+            if extension and not download_base.endswith(extension):
+                download_base += extension
+
+            content_hash = sha1(res.content).hexdigest()[:12]
+            base, ext = os.path.splitext(download_base)
+            hashed_path = f"{base}.{content_hash}{ext}"
+
+            self._save_to_file(hashed_path, res.content)
+
+            # Symlink from file.abs_src_path to the content-hashed file
+            # so URL-based lookups resolve correctly.
+            link_target = os.path.basename(hashed_path)
+            if hashed_path != file.abs_src_path:
                 try:
-                    os.symlink(os.path.basename(path), file.abs_src_path)
+                    os.symlink(link_target, file.abs_src_path)
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         log.warning(f"Couldn't create symbolic link: {file.src_uri}")
-                    file.abs_src_path = path
+                    self._save_to_file(file.abs_src_path, res.content)
+                    hashed_path = file.abs_src_path
+
+            path = hashed_path
+
+            # Include content hash in dest URI so browser URL changes when
+            # content changes (cache busting). The symlink at file.abs_src_path
+            # still resolves for backward-compatible lookups.
+            content_tag = f".{content_hash}"
+            if content_tag not in file.dest_uri:
+                dest_base, dest_ext = os.path.splitext(file.dest_uri)
+                if not dest_ext:
+                    dest_ext = extension or ""
+                    dest_base = file.dest_uri
+                file.src_uri = f"{dest_base}{content_tag}{dest_ext}"
+                file.dest_uri = f"{dest_base}{content_tag}{dest_ext}"
+                file.abs_dest_path = os.path.join(
+                    os.path.dirname(file.abs_dest_path),
+                    f"{os.path.basename(dest_base)}{content_tag}{dest_ext}"
+                )
 
         _, extension = os.path.splitext(file.abs_src_path)
         if os.path.isfile(file.abs_src_path):
@@ -554,7 +584,9 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
     def _path_from_url(self, url: URL):
         path = posixpath.normpath(url.path)
-        path = re.sub(r"/\.", "/_", path)
+        # Only replace /. when followed by / (current dir .) or end-of-string,
+        # not /.icons or other valid dot-prefixed directories.
+        path = re.sub(r"/\.(?=/|$)", "/_", path)
 
         if url.query:
             name, extension = posixpath.splitext(path)
