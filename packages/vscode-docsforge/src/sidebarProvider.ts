@@ -57,6 +57,12 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     icon: 'preview',
     tooltip: 'Open the DocsForge documentation site',
   },
+  {
+    label: 'Search',
+    command: 'docsforge.search',
+    icon: 'search',
+    tooltip: 'Search documentation (requires running server)',
+  },
 ];
 
 /** Evaluate a simple sidebar `when` expression against current context values. */

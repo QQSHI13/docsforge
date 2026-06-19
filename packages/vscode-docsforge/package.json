@@ -31,7 +31,8 @@
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
     "workspaceContains:docsforge.yaml",
-    "workspaceContains:mkdocs.yaml"
+    "workspaceContains:mkdocs.yaml",
+    "onCommand:docsforge.search"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -83,6 +84,12 @@
         "title": "Stop Build",
         "icon": "$(debug-stop)",
         "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.search",
+        "title": "Search",
+        "icon": "$(search)",
+        "category": "DocsForge"
       }
     ],
     "viewsContainers": {
@@ -132,7 +139,34 @@
           "description": "Open the DocsForge site in VS Code's Simple Browser when the server detects its URL. The CLI always runs with --no-open so the extension manages browser access."
         }
       }
-    }
+    },
+    "keybindings": [
+      {
+        "key": "ctrl+shift+d",
+        "command": "docsforge.serve",
+        "when": "!docsforge.serverRunning"
+      },
+      {
+        "key": "ctrl+shift+x",
+        "command": "docsforge.stop",
+        "when": "docsforge.serverRunning"
+      },
+      {
+        "key": "ctrl+shift+b",
+        "command": "docsforge.build",
+        "when": "!docsforge.buildRunning"
+      },
+      {
+        "key": "ctrl+shift+p",
+        "command": "docsforge.openServer",
+        "when": "docsforge.serverRunning"
+      },
+      {
+        "key": "ctrl+shift+f",
+        "command": "docsforge.search",
+        "when": "docsforge.serverRunning"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
