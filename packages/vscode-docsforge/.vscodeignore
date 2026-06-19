@@ -1,5 +1,4 @@
-src/*.ts
-!src/*.html
+src
 node_modules
 .vscode
 .vscode-test
