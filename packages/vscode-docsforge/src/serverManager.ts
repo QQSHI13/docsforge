@@ -7,6 +7,7 @@ const CONFIG_FILES = ['docsforge.yml', 'docsforge.yaml'];
 
 export class ServerManager {
   private process: ChildProcess | null = null;
+  private buildProcess: ChildProcess | null = null;
   private outputChannel: vscode.OutputChannel;
   private statusBarItem: vscode.StatusBarItem;
   private _serverUrl: string | null = null;
@@ -309,27 +310,68 @@ export class ServerManager {
   }
 
   /** Stop the server. If `silent` is true, suppress toast messages
-   *  (used during extension deactivation). */
+   *  (used during extension deactivation).
+   *  Supports stopping internal, external (pidfile), and build processes. */
   stop(silent = false) {
-    if (!this.process) {
-      if (!silent) {
-        vscode.window.showWarningMessage('DocsForge server is not running');
-      }
+    // Stop a running build if one exists
+    if (this.buildProcess) {
+      const proc = this.buildProcess;
+      this.buildProcess = null;
+      proc.kill('SIGTERM');
+      setTimeout(() => { if (!proc.killed) proc.kill('SIGKILL'); }, 2000);
+      if (!silent) vscode.window.showInformationMessage('DocsForge build cancelled');
       return;
     }
 
-    const proc = this.process;
-    proc.kill('SIGTERM');
-    setTimeout(() => {
-      if (!proc.killed) {
-        proc.kill('SIGKILL');
-      }
-    }, 2000);
+    // Stop managed server process
+    if (this.process) {
+      const proc = this.process;
+      proc.kill('SIGTERM');
+      setTimeout(() => {
+        if (!proc.killed) proc.kill('SIGKILL');
+      }, 2000);
+      this.cleanupAfterStop();
+      if (!silent) vscode.window.showInformationMessage('DocsForge server stopped');
+      return;
+    }
 
-    this.cleanupAfterStop();
+    // Stop external server (from pidfile)
+    const root = this.workspaceRoot;
+    if (root) {
+      const pidfile = path.join(root, '.docsforge', 'server.json');
+      try {
+        if (fs.existsSync(pidfile)) {
+          const data = JSON.parse(fs.readFileSync(pidfile, 'utf-8'));
+          if (data.pid) {
+            try {
+              process.kill(data.pid, 'SIGTERM');
+              if (!silent) vscode.window.showInformationMessage('DocsForge server stopped');
+            } catch {
+              if (!silent) vscode.window.showWarningMessage('Could not stop external server (PID may have exited)');
+            }
+            this.cleanupAfterStop();
+            return;
+          }
+        }
+      } catch {
+        // Ignore pidfile errors
+      }
+    }
 
     if (!silent) {
-      vscode.window.showInformationMessage('DocsForge server stopped');
+      vscode.window.showWarningMessage('DocsForge server is not running');
+    }
+  }
+
+  stopBuild() {
+    if (this.buildProcess) {
+      this.buildProcess.kill('SIGTERM');
+      setTimeout(() => {
+        if (this.buildProcess && !this.buildProcess.killed) {
+          this.buildProcess.kill('SIGKILL');
+        }
+      }, 2000);
+      this.buildProcess = null;
     }
   }
 
@@ -346,7 +388,11 @@ export class ServerManager {
   }
 
   isRunning(): boolean {
-    return this.process !== null;
+    return this.process !== null || this._serverUrl !== null;
+  }
+
+  isBuilding(): boolean {
+    return this.buildProcess !== null;
   }
 
   build() {
@@ -380,6 +426,10 @@ export class ServerManager {
             env: { ...process.env, FORCE_COLOR: '1' },
           });
 
+          this.buildProcess = proc;
+          vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', true);
+          ServerManager.emitStateChange();
+
           proc.stdout?.on('data', (data: Buffer) => {
             this.outputChannel.append(data.toString());
           });
@@ -388,12 +438,17 @@ export class ServerManager {
           });
 
           proc.on('error', (err: Error) => {
+            this.buildProcess = null;
+            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
+            ServerManager.emitStateChange();
             this.showError(`Build failed to start: ${err.message}`);
             reject();
           });
 
           proc.on('close', (code: number | null) => {
-            this.outputChannel.appendLine(`Build finished with code ${code ?? 'unknown'}`);
+            this.buildProcess = null;
+            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
+            ServerManager.emitStateChange();
             if (code === 0) {
               vscode.window.showInformationMessage('DocsForge build successful');
               resolve();

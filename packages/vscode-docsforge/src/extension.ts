@@ -7,8 +7,9 @@ let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
 
 export function activate(context: vscode.ExtensionContext) {
-  // Initialize server state context so conditional sidebar items render correctly
+  // Initialize server and build state context so conditional sidebar items render correctly
   vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
+  vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
 
   serverManager = new ServerManager();
   sidebarProvider = new DocsForgeSidebarProvider();
@@ -39,6 +40,10 @@ export function activate(context: vscode.ExtensionContext) {
       serverManager.stop();
     }),
 
+    vscode.commands.registerCommand('docsforge.stopBuild', () => {
+      serverManager.stopBuild();
+    }),
+
     vscode.commands.registerCommand('docsforge.openServer', () => {
       serverManager.openBrowser();
     }),
@@ -59,9 +64,10 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Keep sidebar in sync with server state
+  // Keep sidebar in sync with server and build state
   ServerManager.onStateChange(() => {
     sidebarProvider.serverRunning = serverManager.isRunning();
+    sidebarProvider.buildRunning = serverManager.isBuilding();
     sidebarProvider.refresh();
   });
 

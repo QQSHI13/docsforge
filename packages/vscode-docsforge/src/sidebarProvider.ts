@@ -5,8 +5,7 @@ export interface DocsForgeTreeItem {
   command: string;
   icon: string;
   tooltip: string;
-  /** Context key expression: item is shown when this evaluates to true.
-   *  Currently supports: "docsforge.serverRunning" (true/false). */
+  /** Context key expression, e.g. "!docsforge.serverRunning", "docsforge.buildRunning". */
   when?: string;
 }
 
@@ -30,6 +29,14 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     command: 'docsforge.build',
     icon: 'gear',
     tooltip: 'Build the DocsForge documentation',
+    when: '!docsforge.buildRunning',
+  },
+  {
+    label: 'Stop Build',
+    command: 'docsforge.stopBuild',
+    icon: 'debug-stop',
+    tooltip: 'Cancel the running build',
+    when: 'docsforge.buildRunning',
   },
   {
     label: 'Open Preview',
@@ -52,29 +59,23 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
   },
 ];
 
-/** Evaluate a simple sidebar `when` expression against the current state. */
-function evalWhen(expr: string | undefined, serverRunning: boolean): boolean {
+/** Evaluate a simple sidebar `when` expression against current context values. */
+function evalWhen(
+  expr: string | undefined,
+  ctx: { serverRunning: boolean; buildRunning: boolean }
+): boolean {
   if (!expr) { return true; }
 
   const trimmed = expr.trim();
 
   // Negation: "!docsforge.serverRunning"
   if (trimmed.startsWith('!')) {
-    const inner = trimmed.slice(1).trim();
-    return !evalWhen(inner, serverRunning);
+    return !evalWhen(trimmed.slice(1), ctx);
   }
 
-  // Equality: "docsforge.serverRunning == true" / "docsforge.serverRunning == false"
-  const eqMatch = trimmed.match(/^docsforge\.serverRunning\s*==\s*(true|false)\s*$/);
-  if (eqMatch) {
-    const expected = eqMatch[1] === 'true';
-    return serverRunning === expected;
-  }
-
-  // Bare context key: "docsforge.serverRunning"
-  if (trimmed === 'docsforge.serverRunning') {
-    return serverRunning;
-  }
+  // Resolve a bare context key
+  if (trimmed === 'docsforge.serverRunning') return ctx.serverRunning;
+  if (trimmed === 'docsforge.buildRunning') return ctx.buildRunning;
 
   // Unknown expression — show the item
   return true;
@@ -86,6 +87,7 @@ export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsFor
   >();
 
   serverRunning = false;
+  buildRunning = false;
 
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -109,9 +111,13 @@ export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsFor
   }
 
   getChildren(): Thenable<DocsForgeTreeItem[]> {
-    const running = this.serverRunning;
     return Promise.resolve(
-      ROOT_ITEMS.filter((item) => evalWhen(item.when, running))
+      ROOT_ITEMS.filter((item) =>
+        evalWhen(item.when, {
+          serverRunning: this.serverRunning,
+          buildRunning: this.buildRunning,
+        })
+      )
     );
   }
 }
