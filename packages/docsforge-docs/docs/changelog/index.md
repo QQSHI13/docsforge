@@ -4,29 +4,118 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [10.9.1] — 2026-06-11
+## [11.0.0b1] — 2026-06-19
+
+### Added
+
+- **VSCode Extension: Open Preview** — Sidebar button opens the dev server in VS Code's Simple Browser via `simpleBrowser.api.open`.
+- **VSCode Extension: Open Docs** — Sidebar button opens the DocsForge documentation site.
+- **VSCode Extension: Stop Build** — Sidebar button to cancel a running build.
+- **VSCode Extension: Managed external server** — Detects `docsforge serve` started in a terminal via `.docsforge/server.json` pidfile.
+- **Pidfile** — `docsforge serve` writes `.docsforge/server.json` with PID and URL for external tools.
+- **Content-based cache busting** — Downloaded external assets include a content hash in the filename.
+- **Docs badge** — Compact and standard DocsForge badges.
+
+### Changed
+
+- **Service worker: bypass cache for localhost** — SW detects `localhost`/`127.0.0.1` and fetches from network. Prevents stale-cache reload loop during dev.
+- **Livereload: `_rebuilding` flag** — File changes during a build are queued, not acted on immediately. One final rebuild fires afterward.
+- **Tags template layout flattened** — `fragments/tags/{layout}/tag.html` → `fragments/tags/{layout}-tag.html`, `listing.html` → `{layout}-listing.html`.
 
 ### Fixed
 
-- **CLI `--strict` flag moved to `build` subcommand** — The `--strict` flag was previously defined on the base `docsforge` group command, which was confusing since it only applied to `build`. Now it's only on `docsforge build --strict` where it belongs.
+- **Asset optimizer: unquoted HTML attributes** — Made regex quotes optional to match Material's unquoted output.
+- **Privacy plugin: `url_relative_to` argument order** — Path was from file to page instead of page to file.
+- **Privacy plugin: path normalization** — Regex `/.` matched `.icons` → `_icons`. Fixed.
+- **Webserver: `.well-known` route** — Chrome DevTools probes returned 404.
+- **Infinite reload loop** — `_rebuilding` flag + SW localhost bypass.
 
-- **Streamlined `docsforge serve` CLI** — Removed unnecessary options:
-  - `--no-open` removed — browser auto-open is harmless, always enabled
-  - `--port` removed — automatically finds an available port starting from the configured one (e.g., 8000 → 8001 → 8002 if taken)
-  - `--host` removed — replaced with single `--lan` flag that binds to `0.0.0.0` for network access
-  - New usage: `docsforge serve --lan` to serve on all interfaces
+### VSCode Extension
+
+- Open Preview via `simpleBrowser.api.open`
+- Open Docs sidebar button
+- Progress notification dismisses on stop
+- Pidfile detection with 3s polling
+- Stop external server (kill by PID)
+- Stop Build button
+- Sidebar state sync for server and build status
+
+## [10.9.9] — 2026-06-18
+
+### Fixed
+
+- **Favicon 404** — Asset optimizer regex made quotes optional.
+- **Privacy font CSS path** — `url_relative_to()` argument order fixed.
+- **Privacy path normalization** — `/.` regex too broad.
+
+### Added
+
+- **Pidfile** — `.docsforge-server.json` for external server detection.
+- **VSCode Extension: Open Preview, Open Docs**.
+
+## [10.9.8] — 2026-06-18
+
+### Added
+
+- **Unified release workflow** — `release.yml` with version bump, commit, tag, release, PyPI, VSIX.
+- **DocsForge badges** — Compact (110×20) and standard SVG badges.
+- **Docs: Render, DigitalOcean deployment guides**.
+
+### Changed
+
+- **Tags template layout flattened** — Subdirectory → prefix naming.
+
+## [10.9.7] — 2026-06-18
+
+### Added
+
+- **Unified release workflow** — Replaces `publish.yml` + `bundle-extension.yml`.
+- **VSCode Extension: sidebar improvements** — 10+ bug fixes.
+
+## [10.9.6] — 2026-06-18
+
+### Fixed
+
+- **Privacy: nested URLs in downloaded CSS**.
+- **Font-display swap for Google Fonts**.
+
+### Added
+
+- **Hash-based cache manifest** for offline sync.
+- **`.well-known/` browser probes** — 200 + empty JSON.
+
+## [10.9.5] — 2026-06-17
+
+### Changed
+
+- **Simplify build** — Always complete output.
+
+### Fixed
+
+- **WSL port detection** — Socket timeout.
+- **SW only re-caches on content change**.
+
+## [10.9.4] — 2026-06-17
+
+### Fixed
+
+- **Python `__version__` sync with release.**
+
+## [10.9.3] — 2026-06-17
+
+### Fixed
+
+- **Hot-reload duplicate builds** — Race condition.
+
+## [10.9.2] — 2026-06-17
+
+### Fixed
+
+- **Export plugin directory handling.**
 
 ## [10.9.1] — 2026-06-11
 
 ### Fixed
-
-- **CLI `--strict` flag moved to `build` subcommand** — The `--strict` flag was previously defined on the base `docsforge` group command, which was confusing since it only applied to `build`. Now it's only on `docsforge build --strict` where it belongs.
-
-- **Streamlined `docsforge serve` CLI** — Removed unnecessary options:
-  - `--no-open` removed — browser auto-open is harmless, always enabled
-  - `--port` removed — automatically finds an available port starting from the configured one (e.g., 8000 → 8001 → 8002 if taken)
-  - `--host` removed — replaced with single `--lan` flag that binds to `0.0.0.0` for network access
-  - New usage: `docsforge serve --lan` to serve on all interfaces
 
 ## [10.9.0] — 2026-06-11
 

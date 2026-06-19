@@ -37,7 +37,121 @@ Moving from MkDocs/Material to DocsForge is straightforward for most sites. This
 | **Deep MkDocs internals** | 🔧 Custom | Plugins that monkey-patch MkDocs classes |
 | **Custom extensions** | 🔧 Custom | Python markdown extensions with MkDocs-specific logic |
 
-## OI Wiki Specific Migration Notes
+## MkDocs Plugin Migration Guide
+
+MkDocs plugins are not compatible with DocsForge. Below is a mapping of common MkDocs plugins to their DocsForge equivalents or workarounds.
+
+### Built-in (Zero Effort)
+
+These MkDocs plugins have direct built-in equivalents in DocsForge — remove from `plugins:` and they load automatically:
+
+| MkDocs Plugin | DocsForge | Notes |
+|---------------|-----------|-------|
+| `search` | ✅ Built-in | Lunr.js search, same behavior. Remove from config. |
+| `tags` | ✅ Built-in | Same `tags:` front matter, same tag pages. Remove from config. |
+| `blog` | ✅ Built-in | Blog with authors, categories, archives, RSS. Remove from config. |
+| `minify` | ✅ Built-in | HTML/CSS/JS minification runs automatically post-build. |
+| `meta` | ✅ Built-in | OpenGraph metadata, social previews. Included by default. |
+| `privacy` | ✅ Built-in | External asset downloading and inlining (Google Fonts, CDN resources). |
+
+### Config-Compatible (Copy Plugin Config)
+
+These MkDocs plugins are not supported, but their features can be replicated with DocsForge's built-in capabilities:
+
+| MkDocs Plugin | DocsForge Equivalent |
+|---------------|---------------------|
+| `git-revision-date-localized` | Built-in — every page shows git revision dates automatically |
+| `git-authors` | Built-in — author info extracted from git history |
+| `macros` | Use Jinja2 templates or `extra:` config variables |
+| `redirects` | Use web server redirects (Netlify `_redirects`, nginx config, etc.) |
+| `awesome-pages` | Use `nav:` in `docsforge.yml` — DocsForge doesn't auto-discover nav structure |
+| `section-index` | Built-in — section index pages work automatically |
+| `tooltipster-links` | Built-in — tooltips on reference links are included in the theme |
+| `embed-external` | Use standard Markdown links or `pymdownx.snippets` |
+| `include-markdown` | Built-in — `pymdownx.snippets` is enabled by default |
+| `mkdocstrings` | Not built-in; use `pymdownx.snippets` or a custom post-build script |
+
+### No Direct Equivalent (Requires Custom Work)
+
+| MkDocs Plugin | Workaround |
+|---------------|-----------|
+| `mkdocs-material/plugins/social` | Not built-in. Requires Pillow + CairoSVG. Install with `pip install docsforge[imaging]` and configure `social:` plugin manually. |
+| `mkdocs-redirects` | Use server-level redirects (Cloudflare `_redirects`, nginx, etc.) |
+| `mkdocs-awesome-pages` | Manually specify `nav:` structure |
+| `mkdocs-glightbox` | Image lightbox not built-in. Use theme's built-in image zoom if available. |
+| `mkdocs-pdf-export` | No built-in PDF export. Use Playwright or WeasyPrint post-build (see [docsforge pdf](#) — coming soon) |
+| `mkdocs-static-i18n` | No built-in multi-language support. Use separate docsforge.yml per language or a third-party tool. |
+| `mkdocs-video` | Use standard HTML `<video>` tags in Markdown |
+| `mkdocs-gallery` | Use standard Markdown image syntax |
+| `mkdocs-jupyter` | Not supported. Export notebooks to Markdown first. |
+| `mkdocs-swagger-ui-tag` | Not supported. Use a custom plugin or embed Swagger UI HTML directly. |
+
+### Custom MkDocs Plugins
+
+Plugins that extend MkDocs' `BasePlugin` class or hook into MkDocs events (`on_page_markdown`, `on_page_content`, etc.) need to be rewritten for DocsForge's plugin system:
+
+1. DocsForge uses the same event names (`on_page_markdown`, `on_post_build`, etc.) — many MkDocs plugins can be adapted by changing the import from `mkdocs.plugins` to `docsforge.core.plugin_base`.
+2. The config schema uses DocsForge's `Config` class instead of MkDocs' `BaseConfig`.
+3. See the [plugin development guide](../advanced/customization.md#custom-plugins) for details.
+
+### Markdown Extensions
+
+All MkDocs-compatible Markdown extensions work directly. DocsForge uses the same `python-markdown` package with `pymdown-extensions`. Copy your `markdown_extensions:` block as-is:
+
+```yaml
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  # ... all your existing extensions work unchanged
+```
+
+The 31 most common extensions are already pre-enabled — you only need to list them if you want custom configuration.
+
+### Config Key Migration
+
+| MkDocs / Material Key | DocsForge | Notes |
+|-----------------------|-----------|-------|
+| `mkdocs.yml` | `docsforge.yml` | Rename the file |
+| `theme.name: material` | `theme.name: material` | Same — DocsForge bundles Material |
+| `theme.features` | `theme.features` | Same — all Material features supported |
+| `theme.palette` | `theme.palette` | Same — color scheme configuration |
+| `theme.font` | `theme.font` | Same — font configuration |
+| `theme.favicon` | `theme.favicon` | Same — relative to `docs_dir` |
+| `theme.logo` | `theme.logo` | Same — relative to `docs_dir` |
+| `theme.icon.logo` | `theme.icon.logo` | Same — Material icon reference |
+| `markdown_extensions` | `markdown_extensions` | **Same** — fully compatible |
+| `plugins` | `plugins` | **Partial** — built-in plugins work; third-party need porting |
+| `extra_css` | `extra_css` | Same |
+| `extra_javascript` | `extra_javascript` | Same |
+| `extra` | `extra` | Same — custom template variables |
+| `site_dir` | `site_dir` | Same |
+| `docs_dir` | `docs_dir` | Same |
+| `hooks` | `hooks` | Same — but MkDocs hook format may differ |
+| `INHERIT` | ❌ Not supported | Use YAML anchors instead |
+| `validation` | `validation` | Same |
+| `watch` | `watch` | Same — extra paths to watch during serve |
+
+### Deprecated / Removed Keys
+
+| Key | Status | Replacement |
+|-----|--------|-------------|
+| `strict` | ✅ Moved to `build` subcommand | Use `docsforge build --strict` |
+| `config_file_path` | Internal | Not needed in user config |
+| `site_description` | ✅ Supported | Same key |
+| `site_author` | ✅ Supported | Same key |
+| `copyright` | ✅ Supported | Same key |
+| `repo_url` | ✅ Supported | Same key |
+| `repo_name` | ✅ Supported | Same key |
+| `edit_uri` | ✅ Supported | Same key |
+| `remote_branch` | ❌ Removed | Use GitHub Actions for deployment |
+| `remote_name` | ❌ Removed | Use GitHub Actions for deployment |
+| `use_directory_urls` | ✅ Supported | Same key (default: true) |
+| `dev_addr` | ✅ Supported | Same key (default: `127.0.0.1:8000`) |
+| `site_url` | ✅ Required | Must be set for social cards, sitemap, RSS |
 
 OI Wiki uses several advanced features. Here's how each maps:
 
