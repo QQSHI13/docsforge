@@ -50,8 +50,7 @@ theme:
     text: Roboto
     code: Roboto Mono
   favicon: assets/images/favicon.png
-  icon:
-    logo: material/hammer-wrench
+  logo: assets/logo.svg
 
 nav:
   - Home: index.md
