@@ -31,8 +31,7 @@
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
     "workspaceContains:docsforge.yaml",
-    "workspaceContains:mkdocs.yaml",
-    "onCommand:docsforge.search"
+    "workspaceContains:mkdocs.yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -83,12 +82,6 @@
         "command": "docsforge.stopBuild",
         "title": "Stop Build",
         "icon": "$(debug-stop)",
-        "category": "DocsForge"
-      },
-      {
-        "command": "docsforge.search",
-        "title": "Search",
-        "icon": "$(search)",
         "category": "DocsForge"
       }
     ],
@@ -159,11 +152,6 @@
       {
         "key": "ctrl+shift+p",
         "command": "docsforge.openServer",
-        "when": "docsforge.serverRunning"
-      },
-      {
-        "key": "ctrl+shift+f",
-        "command": "docsforge.search",
         "when": "docsforge.serverRunning"
       }
     ]

@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { ServerManager } from './serverManager';
 import { InitWizard } from './initWizard';
 import { DocsForgeSidebarProvider } from './sidebarProvider';
-import { showSearch } from './search';
 
 let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
@@ -36,9 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('docsforge.refreshSidebar', () => sidebarProvider.refresh()),
     vscode.commands.registerCommand('docsforge.openDocs', () => {
       vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse('https://qqshi13.github.io/docsforge/'));
-    }),
-
-    vscode.commands.registerCommand('docsforge.search', () => showSearch())
+    })
   );
 
   ServerManager.onStateChange(() => {

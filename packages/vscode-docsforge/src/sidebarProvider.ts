@@ -45,12 +45,6 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     when: 'docsforge.serverRunning',
   },
   {
-    label: 'Search',
-    command: 'docsforge.search',
-    icon: 'search',
-    tooltip: 'Search documentation pages',
-  },
-  {
     label: 'Initialize Project',
     command: 'docsforge.init',
     icon: 'new-folder',
