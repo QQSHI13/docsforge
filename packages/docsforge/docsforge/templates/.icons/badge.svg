@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60">
+  <defs>
+    <clipPath id="b">
+      <rect width="240" height="60" rx="8"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#b)">
+    <!-- Left panel: brand color -->
+    <rect width="68" height="60" fill="#009688"/>
+    <!-- Right panel: dark -->
+    <rect x="68" width="172" height="60" fill="#37474f"/>
+  </g>
+  <!-- Flipped book icon (white) -->
+  <g transform="translate(10,10) scale(1.666)">
+    <g transform="translate(24,0) scale(-1,1)">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <!-- Text -->
+  <text x="82" y="37" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#fff" letter-spacing="0.5">DocsForge</text>
+</svg>
