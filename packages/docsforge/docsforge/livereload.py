@@ -36,9 +36,15 @@ var livereload = function(epoch, requestId) {
         req = new XMLHttpRequest();
         req.onloadend = function() {
             if (parseFloat(this.responseText) > epoch) {
-                location.reload();
+                // Wait a beat before reloading so any in-flight rebuild
+                // can finish. Prevents continuous reload when a rebuild
+                // triggers during page load.
+                clearTimeout(timeout);
+                timeout = setTimeout(function() {
+                    location.reload();
+                }, 500);
             } else {
-                timeout = setTimeout(poll, this.status === 200 ? 500 : 3000);
+                timeout = setTimeout(poll, this.status === 200 ? 2000 : 3000);
             }
         };
         req.open("GET", "/livereload/" + epoch + "/" + requestId);
@@ -57,12 +63,13 @@ var livereload = function(epoch, requestId) {
 
     window.addEventListener("load", function() {
         if (document.visibilityState === "visible") {
-            poll();
+            // Small delay before first poll to let any in-flight build finish
+            setTimeout(poll, 1000);
         }
     });
     window.addEventListener("visibilitychange", function() {
         if (document.visibilityState === "visible") {
-            poll();
+            setTimeout(poll, 1000);
         } else {
             stop();
         }
@@ -129,6 +136,8 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         self._epoch_cond = threading.Condition()  # Must be held when accessing _visible_epoch.
 
         self._want_rebuild: bool = False
+        self._rebuilding: bool = False
+        self._pending_rebuild: bool = False
         self._rebuild_cond = threading.Condition()  # Must be held when accessing _want_rebuild.
 
         self._shutdown = False
@@ -155,6 +164,9 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 return
             log.debug(str(event))
             with self._rebuild_cond:
+                if self._rebuilding:
+                    self._pending_rebuild = True
+                    return
                 self._want_rebuild = True
                 self._rebuild_cond.notify_all()
 
@@ -220,6 +232,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 self._want_rebuild = False
 
             try:
+                self._rebuilding = True
                 self.builder()
                 _last_rebuild = _time.time()
             except Exception as e:
@@ -231,6 +244,13 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                     "An error happened during the rebuild. The server will appear stuck until build errors are resolved."
                 )
                 continue
+            finally:
+                self._rebuilding = False
+                # If events were queued during rebuild, trigger a new rebuild
+                with self._rebuild_cond:
+                    if self._pending_rebuild:
+                        self._pending_rebuild = False
+                        self._want_rebuild = True
 
             with self._epoch_cond:
                 log.info("Reloading browsers")
