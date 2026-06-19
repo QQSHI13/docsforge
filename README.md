@@ -7,7 +7,7 @@ This is the monorepo containing all DocsForge projects:
 
 | Package | Language | Description |
 |---------|----------|-------------|
-| [`packages/docsforge`](packages/docsforge/) | Python | Core documentation engine |
+| [`packages/docsforge`](packages/docsforge/) | Python, HTML | Core documentation engine |
 | [`packages/docsforge-docs`](packages/docsforge-docs/) | Markdown | Documentation website |
 | [`packages/vscode-docsforge`](packages/vscode-docsforge/) | TypeScript | VS Code extension |
 
