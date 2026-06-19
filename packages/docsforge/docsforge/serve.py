@@ -129,7 +129,8 @@ def serve(
 
     # Path for the pidfile, used in both try and finally
     pidfile_dir = os.path.dirname(config.config_file_path) if config.config_file_path else os.getcwd()
-    pidfile_path = os.path.join(pidfile_dir, ".docsforge-server.json")
+    pidfile_path = os.path.join(pidfile_dir, ".docsforge", "server.json")
+    os.makedirs(os.path.join(pidfile_dir, ".docsforge"), exist_ok=True)
 
     try:
         # Perform the initial build

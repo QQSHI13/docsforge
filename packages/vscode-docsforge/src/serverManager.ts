@@ -39,12 +39,12 @@ export class ServerManager {
     this.watchPidfile();
   }
 
-  /** Watch .docsforge-server.json for create/delete events. */
+  /** Watch .docsforge/server.json for create/delete events. */
   private watchPidfile() {
     const root = this.workspaceRoot;
     if (!root) { return; }
 
-    const pidfile = path.join(root, '.docsforge-server.json');
+    const pidfile = path.join(root, '.docsforge', 'server.json');
     try {
       fs.watchFile(pidfile, (curr, prev) => {
         if (curr.size > 0 && prev.size === 0) {
@@ -69,7 +69,7 @@ export class ServerManager {
     const root = this.workspaceRoot;
     if (!root) { return; }
 
-    const pidfile = path.join(root, '.docsforge-server.json');
+    const pidfile = path.join(root, '.docsforge', 'server.json');
     try {
       if (fs.existsSync(pidfile)) {
         const data = JSON.parse(fs.readFileSync(pidfile, 'utf-8'));
