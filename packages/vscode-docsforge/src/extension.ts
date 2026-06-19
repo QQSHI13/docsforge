@@ -14,10 +14,10 @@ export function activate(context: vscode.ExtensionContext) {
   serverManager = new ServerManager();
   sidebarProvider = new DocsForgeSidebarProvider();
 
-  const treeView = vscode.window.createTreeView('docsforge.sidebar', {
-    treeDataProvider: sidebarProvider,
-  });
-  context.subscriptions.push(treeView);
+  // Register tree data provider for the sidebar view (declared in package.json)
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('docsforge.sidebar', sidebarProvider)
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('docsforge.init', () => {
