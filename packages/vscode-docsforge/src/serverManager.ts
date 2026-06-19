@@ -37,17 +37,47 @@ export class ServerManager {
     this.detectExistingServer();
     // Watch for pidfile creation/deletion after VS Code is already open
     this.watchPidfile();
+    // Periodic poll as a reliable backup for file watcher edge cases
+    this.startPidfilePoll();
+  }
+
+  /** Poll .docsforge/server.json every 3s as a reliable fallback. */
+  private startPidfilePoll() {
+    const poll = () => {
+      const root = this.workspaceRoot;
+      if (!root) { return; }
+
+      const pidfile = path.join(root, '.docsforge', 'server.json');
+      try {
+        const exists = fs.existsSync(pidfile);
+        const hasUrl = this._serverUrl !== null;
+
+        if (exists && !hasUrl) {
+          // Server appeared — adopt it
+          this.detectExistingServer();
+        } else if (!exists && hasUrl) {
+          // Server disappeared — reset
+          if (!this.process) {
+            this._serverUrl = null;
+            this.updateStatusBar();
+            vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
+            ServerManager.emitStateChange();
+          }
+          // If we have an internal process, ignore the missing pidfile
+          // (it will be re-created on the next build cycle)
+        }
+      } catch {
+        // Ignore
+      }
+    };
+    poll();
+    setInterval(poll, 3000);
   }
 
   /** Watch .docsforge/server.json for create/delete events. */
-  private watchPidfile(retries = 3) {
+  private watchPidfile() {
     const root = this.workspaceRoot;
-    if (!root) {
-      if (retries > 0) {
-        setTimeout(() => this.watchPidfile(retries - 1), 1000);
-      }
-      return;
-    }
+    if (!root) { return; }
 
     const pidfile = path.join(root, '.docsforge', 'server.json');
     try {
