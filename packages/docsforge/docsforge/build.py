@@ -484,10 +484,19 @@ def _write_dev_sw(config: DocsForgeConfig) -> None:
     During `docsforge serve`, the SW is not needed (caching interferes with
     live reload). This no-op SW unregisters any previously installed SW
     (e.g. from a production build at a different URL), preventing stale
-    caches from serving old content.
+    caches from serving old content. Also writes a minimal manifest.json
+    so the browser doesn't log 404 errors.
     """
-    sw_path = os.path.join(config.site_dir, 'sw.js')
-    os.makedirs(os.path.dirname(sw_path), exist_ok=True)
+    site_dir = config.site_dir
+    os.makedirs(site_dir, exist_ok=True)
+
+    # Minimal manifest to prevent 404 errors in console
+    manifest_path = os.path.join(site_dir, 'manifest.json')
+    with open(manifest_path, 'w') as f:
+        json.dump({"name": "DocsForge Dev", "start_url": "/", "display": "browse"}, f)
+
+    # Self-unregistering SW
+    sw_path = os.path.join(site_dir, 'sw.js')
     with open(sw_path, 'w') as f:
         f.write('''self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
