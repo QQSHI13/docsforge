@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
+import os
 import shutil
 import socket
 import sys
@@ -125,6 +127,10 @@ def serve(
 
     server.error_handler = error_handler
 
+    # Path for the pidfile, used in both try and finally
+    pidfile_dir = os.path.dirname(config.config_file_path) if config.config_file_path else os.getcwd()
+    pidfile_path = os.path.join(pidfile_dir, ".docsforge-server.json")
+
     try:
         # Perform the initial build
         log.info("Preparing initial build...")
@@ -151,6 +157,18 @@ def serve(
                 server.watch(item)
 
         server.serve(open_in_browser=open_in_browser)
+
+        # Write pidfile so external tools (VSCode extension) can detect this server
+        try:
+            with open(pidfile_path, "w") as f:
+                json.dump({
+                    "pid": os.getpid(),
+                    "url": serve_url,
+                    "project_dir": pidfile_dir,
+                }, f)
+        except Exception:
+            pass
+
     except KeyboardInterrupt:
         log.info("Shutting down...")
         sys.exit(0)
@@ -159,3 +177,9 @@ def serve(
         config.plugins.on_shutdown()
         if isdir(site_dir):
             shutil.rmtree(site_dir)
+        # Clean up pidfile
+        try:
+            if os.path.isfile(pidfile_path):
+                os.remove(pidfile_path)
+        except Exception:
+            pass

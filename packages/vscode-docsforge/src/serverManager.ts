@@ -32,6 +32,31 @@ export class ServerManager {
     this.statusBarItem.command = 'docsforge.openServer';
     this.updateStatusBar();
     this.statusBarItem.show();
+
+    // Check for existing server via pidfile
+    this.detectExistingServer();
+  }
+
+  /** Check if a docsforge serve process is already running via pidfile.
+   *  If found, adopt its URL and show the server as running. */
+  private detectExistingServer() {
+    const root = this.workspaceRoot;
+    if (!root) { return; }
+
+    const pidfile = path.join(root, '.docsforge-server.json');
+    try {
+      if (fs.existsSync(pidfile)) {
+        const data = JSON.parse(fs.readFileSync(pidfile, 'utf-8'));
+        if (data.url) {
+          this._serverUrl = data.url;
+          this.updateStatusBar();
+          vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', true);
+          ServerManager.emitStateChange();
+        }
+      }
+    } catch {
+      // Ignore malformed pidfile
+    }
   }
 
   get serverUrl(): string | null {
@@ -96,8 +121,8 @@ export class ServerManager {
   }
 
   start() {
-    // Prevent double-start: if already running, just open browser
-    if (this.process) {
+    // Prevent double-start: if already running (own process or pidfile), just open browser
+    if (this.process || this._serverUrl) {
       vscode.window.showWarningMessage('DocsForge server is already running');
       if (this._serverUrl) {
         this.openBrowser();
