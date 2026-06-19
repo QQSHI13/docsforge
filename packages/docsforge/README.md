@@ -224,19 +224,17 @@ LGPL v3-or-later
 
 *DocsForge is built by QQ and Nova ☄️ — because documentation tools should just work.*
 
-## Deploy Script
+## Install VSCode Extension
 
-A convenience script for building the VSIX, installing the extension, and deploying the docs site:
-
+**macOS / Linux:**
 ```bash
-./scripts/deploy.sh            # Build VSIX + install + deploy docs
-./scripts/deploy.sh vsix       # Build the VSIX only
-./scripts/deploy.sh install    # Build + install extension via VS Code CLI
-./scripts/deploy.sh docs       # Build the docs site locally
-./scripts/deploy.sh deploy     # Build + deploy docs to GitHub Pages
+curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.sh | bash
 ```
 
-Requires `npm`, `vsce`, `code` (VS Code CLI), and `gh` (GitHub CLI) for full functionality.
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.ps1 | iex
+```
 
 ## Star History
 

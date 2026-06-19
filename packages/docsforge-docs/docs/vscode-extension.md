@@ -158,21 +158,27 @@ All available commands (accessible via `Ctrl+Shift+P`):
 | `DocsForge: Open in VS Code Browser` | Open the preview |
 | `DocsForge: Refresh` | Refresh the sidebar |
 
-### Deploy Script
+### Quick Install
 
-The project includes a convenience script that builds the VSIX and deploys the docs site:
-
+**macOS / Linux:**
 ```bash
-./scripts/deploy.sh            # Build VSIX + install + deploy docs
-./scripts/deploy.sh vsix       # Build the VSIX only
-./scripts/deploy.sh install    # Build + install extension via VS Code CLI
-./scripts/deploy.sh docs       # Build the docs site locally
-./scripts/deploy.sh deploy     # Build + deploy docs to GitHub Pages
+curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.sh | bash
 ```
 
-Requires `npm`, `vsce`, `code` (VS Code CLI), and `gh` (GitHub CLI) for full functionality.
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.ps1 | iex
+```
 
-## Updates
+### From GitHub Releases
+
+Download the latest `.vsix` from the [GitHub Releases page](https://github.com/QQSHI13/docsforge/releases), then:
+
+```
+Extensions → … → Install from VSIX… → select the file
+```
+
+### Prerequisites
 
 Check the [GitHub Releases](https://github.com/QQSHI13/docsforge/releases) for new versions. The release includes both the Python package and the `.vsix` file. Extension version matches the main package version.
 
