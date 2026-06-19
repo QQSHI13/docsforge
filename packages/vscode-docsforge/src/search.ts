@@ -80,8 +80,16 @@ export async function showSearch() {
     const results = idx.search(value);
     qp.items = results.slice(0, 30).map(r => {
       const p = pages.find(x => x.path === r.ref)!;
-      // Build snippet showing match context
-      const snippet = p.body.slice(0, 150).replace(/\n/g, ' ');
+      // Find first match position and show surrounding context
+      const idx = p.body.toLowerCase().indexOf(value.toLowerCase());
+      let snippet: string;
+      if (idx >= 0) {
+        const start = Math.max(0, idx - 60);
+        const end = Math.min(p.body.length, idx + value.length + 100);
+        snippet = (start > 0 ? '...' : '') + p.body.slice(start, end).replace(/\n/g, ' ') + (end < p.body.length ? '...' : '');
+      } else {
+        snippet = p.body.slice(0, 150).replace(/\n/g, ' ');
+      }
       return {
         label: p.title,
         description: p.path,
