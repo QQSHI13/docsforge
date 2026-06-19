@@ -1,5 +1,7 @@
 src
 node_modules
+!node_modules/lunr
+!node_modules/lunr/**
 .vscode
 .vscode-test
 out/**/*.map
