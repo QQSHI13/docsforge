@@ -2,7 +2,7 @@
   "name": "vscode-docsforge",
   "displayName": "DocsForge",
   "description": "Write and preview DocsForge documentation inside VS Code",
-  "version": "10.9.8",
+  "version": "10.9.9",
   "publisher": "QQSHI",
   "license": "LGPL-3.0-or-later",
   "engines": {
