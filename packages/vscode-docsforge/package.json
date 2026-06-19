@@ -104,8 +104,9 @@
     "views": {
       "docsforge": [
         {
+          "type": "webview",
           "id": "docsforge.sidebar",
-          "name": "Actions",
+          "name": "DocsForge",
           "when": "workspaceFolderCount >= 1"
         }
       ]
