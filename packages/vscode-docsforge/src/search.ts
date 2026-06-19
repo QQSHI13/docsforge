@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import lunr from 'lunr';
 
-/** Open a QuickPick to search documentation pages (works offline, no server needed). */
+/** Open a QuickPick to search documentation pages using Lunr.js full-text search. */
 export async function showSearch() {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!root) {
@@ -26,49 +27,75 @@ export async function showSearch() {
     return;
   }
 
-  // Build index
-  interface Entry { title: string; path: string; snippet: string; }
-  const entries: Entry[] = [];
+  interface Page { title: string; path: string; body: string; }
 
+  // Read all .md files
+  const pages: Page[] = [];
   try {
-    const mdFiles: string[] = [];
     const walk = (dir: string) => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, entry.name);
         if (entry.isDirectory() && !entry.name.startsWith('.')) walk(full);
-        else if (entry.isFile() && entry.name.endsWith('.md')) mdFiles.push(full);
+        else if (entry.isFile() && entry.name.endsWith('.md')) {
+          try {
+            const content = fs.readFileSync(full, 'utf-8');
+            const body = content.replace(/---[\s\S]*?---/, '').trim();
+            const title = (content.match(/^\s*title\s*:\s*(.+)$/m)?.[1] || content.match(/^#\s+(.+)$/m)?.[1] || path.basename(full, '.md')).trim().replace(/["']/g, '');
+            const rel = path.relative(docsDir, full).replace(/\\/g, '/');
+            pages.push({ title, path: rel, body });
+          } catch {}
+        }
       }
     };
     walk(docsDir);
-
-    for (const file of mdFiles) {
-      try {
-        const content = fs.readFileSync(file, 'utf-8');
-        const title = (content.match(/^\s*title\s*:\s*(.+)$/m)?.[1] || content.match(/^#\s+(.+)$/m)?.[1] || path.basename(file, '.md')).trim().replace(/["']/g, '');
-        const rel = path.relative(docsDir, file).replace(/\\/g, '/');
-        const snippet = content.replace(/---[\s\S]*?---/, '').replace(/^#+\s*.*$/m, '').replace(/[#*`\[\]()>|\\]/g, '').trim().slice(0, 120);
-        entries.push({ title, path: rel, snippet });
-      } catch {}
-    }
   } catch {}
 
-  if (entries.length === 0) {
+  if (pages.length === 0) {
     vscode.window.showInformationMessage('DocsForge: no documentation pages found.');
     return;
   }
 
+  // Build Lunr index (runs synchronously, fast for <1000 pages)
+  const idx = lunr(function() {
+    this.ref('path');
+    this.field('title', { boost: 3 });
+    this.field('body');
+
+    for (const page of pages) {
+      this.add(page);
+    }
+  });
+
+  // QuickPick
   const qp = vscode.window.createQuickPick();
-  qp.placeholder = `Search ${entries.length} documentation pages...`;
-  qp.matchOnDescription = true;
-  qp.items = entries.map(e => ({ label: e.title, description: e.path, detail: e.snippet }));
+  qp.placeholder = `Search ${pages.length} pages (Lunr full-text)...`;
+  qp.matchOnDescription = false;
+  qp.matchOnDetail = false;
+
+  qp.onDidChangeValue(value => {
+    if (!value.trim()) {
+      qp.items = [];
+      return;
+    }
+    const results = idx.search(value);
+    qp.items = results.slice(0, 30).map(r => {
+      const p = pages.find(x => x.path === r.ref)!;
+      // Build snippet showing match context
+      const snippet = p.body.slice(0, 150).replace(/\n/g, ' ');
+      return {
+        label: p.title,
+        description: p.path,
+        detail: snippet,
+        // Store path for opening
+        _path: path.join(docsDir, p.path),
+      };
+    });
+  });
 
   qp.onDidAccept(() => {
-    const sel = qp.selectedItems[0];
-    if (sel) {
-      const fullPath = path.join(docsDir, sel.description || '');
-      if (fs.existsSync(fullPath)) {
-        vscode.workspace.openTextDocument(fullPath).then(doc => vscode.window.showTextDocument(doc));
-      }
+    const sel = qp.selectedItems[0] as any;
+    if (sel?._path && fs.existsSync(sel._path)) {
+      vscode.workspace.openTextDocument(sel._path).then(doc => vscode.window.showTextDocument(doc));
     }
     qp.hide();
   });
