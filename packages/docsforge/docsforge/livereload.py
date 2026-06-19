@@ -36,15 +36,9 @@ var livereload = function(epoch, requestId) {
         req = new XMLHttpRequest();
         req.onloadend = function() {
             if (parseFloat(this.responseText) > epoch) {
-                // Wait a beat before reloading so any in-flight rebuild
-                // can finish. Prevents continuous reload when a rebuild
-                // triggers during page load.
-                clearTimeout(timeout);
-                timeout = setTimeout(function() {
-                    location.reload();
-                }, 500);
+                location.reload();
             } else {
-                timeout = setTimeout(poll, this.status === 200 ? 2000 : 3000);
+                timeout = setTimeout(poll, this.status === 200 ? 500 : 3000);
             }
         };
         req.open("GET", "/livereload/" + epoch + "/" + requestId);
@@ -63,13 +57,12 @@ var livereload = function(epoch, requestId) {
 
     window.addEventListener("load", function() {
         if (document.visibilityState === "visible") {
-            // Small delay before first poll to let any in-flight build finish
-            setTimeout(poll, 1000);
+            poll();
         }
     });
     window.addEventListener("visibilitychange", function() {
         if (document.visibilityState === "visible") {
-            setTimeout(poll, 1000);
+            poll();
         } else {
             stop();
         }
@@ -162,11 +155,13 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         def callback(event):
             if event.is_directory:
                 return
-            log.debug(str(event))
+            log.info(f"FS event: {event.event_type} {event.src_path}")
             with self._rebuild_cond:
                 if self._rebuilding:
+                    log.info(f"  -> queued (rebuilding)")
                     self._pending_rebuild = True
                     return
+                log.info(f"  -> rebuild triggered")
                 self._want_rebuild = True
                 self._rebuild_cond.notify_all()
 
@@ -205,25 +200,16 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         self._build_loop()
 
     def _build_loop(self):
-        import time as _time
-        _min_rebuild_interval = 1.0  # Don't rebuild more than once per second
-        _last_rebuild = 0.0
         while True:
             with self._rebuild_cond:
                 while not self._rebuild_cond.wait_for(
                     lambda: self._want_rebuild or self._shutdown, timeout=self.shutdown_delay
                 ):
+                    # We could have used just one wait instead of a loop + timeout, but we need
+                    # occasional breaks, otherwise on Windows we can't receive KeyboardInterrupt.
                     pass
                 if self._shutdown:
                     break
-
-                # Cooldown: skip rebuild if we just rebuilt
-                now = _time.time()
-                if now - _last_rebuild < _min_rebuild_interval:
-                    log.debug("Skipping rebuild: too soon after previous rebuild")
-                    self._want_rebuild = False
-                    continue
-
                 log.info("Detected file changes")
                 while self._rebuild_cond.wait(timeout=self.build_delay):
                     log.debug("Waiting for file changes to stop happening")
@@ -234,7 +220,6 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             try:
                 self._rebuilding = True
                 self.builder()
-                _last_rebuild = _time.time()
             except Exception as e:
                 if isinstance(e, SystemExit):
                     print(e, file=sys.stderr)  # noqa: T201
