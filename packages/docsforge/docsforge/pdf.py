@@ -69,7 +69,8 @@ def build_pdf(docs_dir: str, output_dir: str = "pdf", **kwargs) -> int:
 
     log.info("Rendering PDFs via Playwright...")
     try:
-        asyncio.run(_render(site_path, Path(output_dir)))
+        concurrency = kwargs.get("concurrency", 4)
+        asyncio.run(_render(site_path, Path(output_dir), concurrency))
     except Exception as e:
         log.error(f"PDF export failed: {e}")
         return 1
