@@ -129,7 +129,9 @@ self.addEventListener("fetch", (e) => {
   // During local dev, always fetch from network — the SW cache interferes
   // with livereload by serving stale pages, causing continuous reload loops.
   if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    e.respondWith(fetch(request));
+    e.respondWith(
+      fetch(request).catch(() => caches.match(request))
+    );
     return;
   }
 
