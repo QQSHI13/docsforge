@@ -7,8 +7,8 @@ const BUILD_HASH = "__DOCSFORGE_BUILD_HASH__";
 const PRE_CACHE_PAGES = __PRE_CACHE_PAGES__;
 const CACHE_NAME = `docsforge-${BUILD_HASH}`;
 
-// Compute base URL from SW location (SW is now at <site>/sw.js)
-const BASE_URL = self.location.pathname.replace(/sw\.js$/, '');
+// Compute base URL from SW location (SW is always at <site>/assets/javascripts/sw.js)
+const BASE_URL = self.location.pathname.replace(/assets\/javascripts\/sw\.js$/, '');
 
 // Assets to cache aggressively (fonts, styles, scripts, images)
 const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
