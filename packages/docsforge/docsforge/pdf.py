@@ -9,7 +9,9 @@ During `docsforge build --pdf`, this:
 
 Requires:
     pip install playwright
-    playwright install chromium
+    # Then either: playwright install chromium
+    # Or set PLAYWRIGHT_CHROMIUM_EXECUTABLE to your browser path
+    # (e.g. /usr/bin/thorium-browser, /usr/bin/chromium-browser)
 """
 
 from __future__ import annotations
@@ -22,6 +24,18 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
+# Common system browser paths checked when Playwright's bundled browser
+# is not available and PLAYWRIGHT_CHROMIUM_EXECUTABLE is not set.
+_DEFAULT_BROWSER_PATHS = [
+    "/usr/bin/thorium-browser",
+    "/usr/bin/thorium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/brave-browser",
+]
+
 try:
     from playwright.async_api import async_playwright
     HAS_PLAYWRIGHT = True
@@ -29,20 +43,19 @@ except ImportError:
     HAS_PLAYWRIGHT = False
 
 
-def build_pdf(docs_dir: str, output_dir: str = "pdf") -> int:
-    """Build the site and export as print-ready PDF.
+def _find_browser() -> str | None:
+    """Find a Chromium-based browser executable."""
+    env = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+    if env and os.path.isfile(env):
+        return env
+    for path in _DEFAULT_BROWSER_PATHS:
+        if os.path.isfile(path):
+            return path
+    return None
 
-    Steps:
-    1. Full `docsforge build` (all plugins, extensions, diagrams, math)
-    2. Render each page via Playwright Chromium in print mode
 
-    Args:
-        docs_dir: Path to the docs/ directory.
-        output_dir: Output directory for PDF files.
-
-    Returns:
-        0 on success, 1 on failure.
-    """
+def build_pdf(docs_dir: str, output_dir: str = "pdf", browser_path: str | None = None) -> int:
+    """Build the site and export as print-ready PDF."""
     if not HAS_PLAYWRIGHT:
         log.error("Playwright required. Install: pip install playwright && playwright install chromium")
         return 1
@@ -75,14 +88,16 @@ def build_pdf(docs_dir: str, output_dir: str = "pdf") -> int:
     log.info("Rendering PDFs (print mode)...")
     import asyncio
     try:
-        asyncio.run(_render_print(site_path, Path(output_dir)))
+        asyncio.run(_render_print(site_path, Path(output_dir), browser_path))
     except Exception as e:
         log.error(f"PDF export failed: {e}")
         return 1
     return 0
 
 
-async def _render_print(site_path: Path, output_path: Path) -> None:
+async def _render_print(
+    site_path: Path, output_path: Path, browser_path: str | None = None
+) -> None:
     """Render HTML pages to PDF using @media print CSS (no UI chrome)."""
     html_files = sorted(site_path.rglob("*.html"))
     if not html_files:
@@ -91,8 +106,14 @@ async def _render_print(site_path: Path, output_path: Path) -> None:
 
     output_path.mkdir(parents=True, exist_ok=True)
 
+    browser_exe = browser_path or _find_browser()
+    launch_opts = {}
+    if browser_exe:
+        log.info(f"Using browser: {browser_exe}")
+        launch_opts["executable_path"] = browser_exe
+
     async with async_playwright() as p:
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(**launch_opts)
         page = await browser.new_page()
 
         total = len(html_files)
