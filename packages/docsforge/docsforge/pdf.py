@@ -152,7 +152,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
             title = html_file.stem.replace("-", " ").replace("index", "").strip().title()
             if not title:
                 title = rel.parent.as_posix() if rel.parent != Path(".") else "Home"
-            pdf_link = rel.with_suffix(".pdf").as_posix()
+            pdf_link = (output_path / rel.with_suffix(".pdf")).resolve().as_uri()
             nav_items.append((title, pdf_link, rel))
 
         # Group by top-level section
