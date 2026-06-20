@@ -126,19 +126,12 @@ async def _render_print(
         total = len(html_files)
         for i, html_file in enumerate(html_files, 1):
             rel = html_file.relative_to(site_path)
-            # Derive a meaningful PDF name:
-            #   index.html          -> index.pdf
-            #   features/index.html -> features.pdf
-            #   blog/2026/05/10/post/index.html -> blog--2026--05--10--post.pdf
-            parts = list(rel.parts)
-            if parts[-1] == "index.html":
-                parts = parts[:-1]
-            pdf_name = "--".join(parts) if parts else "index"
-            pdf_name = pdf_name.removesuffix(".html") + ".pdf"
-            pdf_path = output_path / pdf_name
+            pdf_path = output_path / rel.with_suffix(".pdf")
+            pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_url = html_file.resolve().as_uri()
-            log.info(f"[{i}/{total}] {pdf_path.name}")
+            # Show the full page path, not just the filename
+            log.info(f"[{i}/{total}] {rel.with_suffix('')}")
 
             try:
                 await page.goto(file_url, wait_until="networkidle", timeout=30000)
