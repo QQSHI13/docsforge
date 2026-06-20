@@ -99,10 +99,6 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
         tabs = await asyncio.gather(*[browser.new_page() for _ in range(concurrency)])
         for tab in tabs:
             await tab.emulate_media(media="print")
-            # Block external requests — only load local assets
-            await tab.route("**/*", lambda route: route.continue_()
-                if route.request.url.startswith("file://")
-                else route.abort())
 
         async def render_one(tab, html_file, idx):
             rel = html_file.relative_to(site_path)
@@ -112,14 +108,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
             try:
                 # "load" is enough — external requests are blocked, local assets
                 # load instantly from the file system.
-                await tab.goto(url, wait_until="load", timeout=30000)
-                # Wait indefinitely for Mermaid to render all diagrams
-                try:
-                    await tab.wait_for_function(
-                        "() => document.querySelectorAll('.mermaid').length === 0 || Array.from(document.querySelectorAll('.mermaid')).every(el => el.querySelector('svg'))",
-                    )
-                except Exception:
-                    pass
+                await tab.goto(url, wait_until="networkidle", timeout=60000)
                 # Expand tooltips for PDF (show hover content inline)
                 await tab.evaluate("""() => {
                     document.querySelectorAll("[data-md-tooltip], [title]").forEach(el => {
