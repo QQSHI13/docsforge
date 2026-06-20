@@ -108,7 +108,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
             try:
                 # "load" is enough — external requests are blocked, local assets
                 # load instantly from the file system.
-                await tab.goto(url, wait_until="networkidle", timeout=60000)
+                await tab.goto(url, wait_until="networkidle")
                 # Expand tooltips for PDF (show hover content inline)
                 await tab.evaluate("""() => {
                     document.querySelectorAll("[data-md-tooltip], [title]").forEach(el => {
