@@ -158,7 +158,7 @@ def build(strict, pdf):
                 docs_dir = cfg.get("docs_dir", "docs")
             except Exception:
                 pass
-            sys.exit(export_pdf(docs_dir))
+            sys.exit(export_pdf(docs_dir, skip_build=True))
 
     sys.exit(0)
 

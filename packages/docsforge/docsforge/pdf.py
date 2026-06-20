@@ -54,21 +54,19 @@ def _find_browser() -> str | None:
     return None
 
 
-def build_pdf(docs_dir: str, output_dir: str = "pdf", browser_path: str | None = None) -> int:
-    """Build the site and export as print-ready PDF."""
+def build_pdf(docs_dir: str, output_dir: str = "pdf", browser_path: str | None = None, *, skip_build: bool = False) -> int:
+    """Build the site and export as print-ready PDF.
+
+    When called from `docsforge build --pdf`, the build already ran —
+    pass skip_build=True to avoid rebuilding.
+    """
     if not HAS_PLAYWRIGHT:
         log.error("Playwright required. Install: pip install playwright && playwright install chromium")
         return 1
 
     project_dir = Path(docs_dir).parent if Path(docs_dir).name == "docs" else Path(docs_dir)
 
-    # Step 1: Full build
-    log.info("Building site (full pipeline)...")
-    r = subprocess.run([sys.executable, "-m", "docsforge", "build"], cwd=str(project_dir))
-    if r.returncode != 0:
-        return 1
-
-    # Find site_dir
+    # Find site_dir from config
     config_path = project_dir / "docsforge.yml"
     site_dir = "site"
     if config_path.exists():
@@ -78,10 +76,19 @@ def build_pdf(docs_dir: str, output_dir: str = "pdf", browser_path: str | None =
             site_dir = cfg.get("site_dir", "site")
         except Exception:
             pass
-
     site_path = project_dir / site_dir
+
+    # Step 1: Build site (skip if already built by CLI)
+    if not skip_build:
+        log.info("Building site (full pipeline)...")
+        r = subprocess.run([sys.executable, "-m", "docsforge", "build"], cwd=str(project_dir))
+        if r.returncode != 0:
+            return 1
+    else:
+        log.info(f"Using existing build at {site_path}")
+
     if not site_path.is_dir():
-        log.error(f"Site directory not found: {site_path}")
+        log.error(f"Site directory not found: {site_path}. Run 'docsforge build' first.")
         return 1
 
     # Step 2: PDF render with print CSS
@@ -119,7 +126,16 @@ async def _render_print(
         total = len(html_files)
         for i, html_file in enumerate(html_files, 1):
             rel = html_file.relative_to(site_path)
-            pdf_path = output_path / rel.with_suffix(".pdf")
+            # Derive a meaningful PDF name:
+            #   index.html          -> index.pdf
+            #   features/index.html -> features.pdf
+            #   blog/2026/05/10/post/index.html -> blog--2026--05--10--post.pdf
+            parts = list(rel.parts)
+            if parts[-1] == "index.html":
+                parts = parts[:-1]
+            pdf_name = "--".join(parts) if parts else "index"
+            pdf_name = pdf_name.removesuffix(".html") + ".pdf"
+            pdf_path = output_path / pdf_name
             pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_url = html_file.resolve().as_uri()
