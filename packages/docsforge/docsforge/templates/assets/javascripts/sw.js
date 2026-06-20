@@ -126,22 +126,7 @@ self.addEventListener("fetch", (e) => {
   // Skip live reload
   if (url.pathname.includes('/livereload/')) return;
 
-  // During local dev: network-first, cache fallback.
-  // This gives fresh content when the server is running (no stale-cache
-  // reload loop) and serves cached pages when the server is stopped.
-  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    e.respondWith(
-      fetch(request).then(resp => {
-        // Cache all responses for offline use
-        const cacheResp = resp.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, cacheResp));
-        return resp;
-      }).catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  // Production: cache-first + trigger manifest sync
+  // HTML pages: cache-first + trigger manifest sync
   if (request.destination === "document" || request.mode === "navigate") {
     e.respondWith(cacheFirst(request));
     e.waitUntil(syncCacheFromManifest()); // Background: sync all pages
