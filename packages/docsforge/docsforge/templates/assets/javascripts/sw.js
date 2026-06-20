@@ -16,70 +16,22 @@ const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME)
-      .then(async cache => {
-        let cached = 0;
-        let failed = 0;
-        
-        // First cache critical assets (CSS, JS, favicon, logo) - needed for basic functionality
-        console.log('[SW] Pre-caching critical assets...');
-        const criticalAssets = [
-          'images/favicon.png',
-          'assets/stylesheets/main.484c7ddc.min.css',
-          'assets/javascripts/bundle.79ae519e.min.js',
-          'assets/katex/katex.min.css',
-          'assets/katex/katex.min.js',
-          'assets/external/unpkg.com/mermaid@11.15.0/dist/mermaid.min.js'
-        ];
-        await Promise.all(
-          criticalAssets.map(url => {
-            return fetch(url)
-              .then(response => {
-                if (response.ok) {
-                  console.log('[SW] Cached asset:', url);
-                  cached++;
-                  return cache.put(url, response.clone());
-                } else {
-                  console.log('[SW] Failed to cache asset (status', response.status, '):', url);
-                  failed++;
-                }
-              })
-              .catch(err => {
-                console.log('[SW] Failed to cache asset (error):', url, err.message);
-                failed++;
-              });
-          })
-        );
-        console.log('[SW] Critical assets cached:', cached, 'cached,', failed, 'failed');
-        
-        // Then cache all pages
+      .then(cache => {
         console.log('[SW] Pre-caching', PRE_CACHE_PAGES.length, 'pages...');
-        let pageCached = 0;
-        let pageFailed = 0;
-        
-        await Promise.all(
+        return Promise.all(
           PRE_CACHE_PAGES.map(url => {
             return fetch(url)
               .then(response => {
-                if (response.ok) {
-                  console.log('[SW] Cached page:', url);
-                  pageCached++;
-                  return cache.put(url, response.clone());
-                } else {
-                  console.log('[SW] Failed to cache page (status', response.status, '):', url);
-                  pageFailed++;
-                }
+                if (response.ok) return cache.put(url, response.clone());
               })
-              .catch(err => {
-                console.log('[SW] Failed to cache page (error):', url, err.message);
-                pageFailed++;
-              });
+              .catch(() => {});
           })
         );
-        
-        console.log('[SW] Pages cached:', pageCached, 'cached,', pageFailed, 'failed');
-        console.log('[SW] Pre-caching complete:', (cached + pageCached), 'total cached,', (failed + pageFailed), 'total failed');
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[SW] Pre-caching complete');
+        return self.skipWaiting();
+      })
   );
 });
 
@@ -113,9 +65,6 @@ self.addEventListener("fetch", (e) => {
   // Same-origin only
   if (url.origin !== self.location.origin) return;
 
-  // Skip livereload requests
-  if (url.pathname.includes('/livereload/')) return;
-
   // HTML pages: cache-first with network fallback
   if (request.destination === "document" || request.mode === "navigate") {
     e.respondWith(cacheFirstWithNetworkFallback(request));
@@ -138,9 +87,15 @@ async function cacheFirstWithNetworkFallback(request) {
 
   if (cached) {
     // Update cache in background (stale-while-revalidate)
+    console.log('[SW] Background update started:', request.url);
     fetch(request).then((networkResponse) => {
-      if (networkResponse.ok) cache.put(request, networkResponse.clone());
-    }).catch(() => {});
+      if (networkResponse.ok) {
+        cache.put(request, networkResponse.clone());
+        console.log('[SW] Background update complete:', request.url);
+      }
+    }).catch((err) => {
+      console.log('[SW] Background update failed:', request.url, err);
+    });
     return cached;
   }
 
@@ -169,19 +124,13 @@ async function staleWhileRevalidate(request) {
   const networkPromise = fetch(request).then((networkResponse) => {
     if (networkResponse.ok) {
       cache.put(request, networkResponse.clone());
+      console.log('[SW] Stale-while-revalidate updated:', request.url);
     }
     return networkResponse;
   }).catch((err) => {
-    console.log('[SW] Offline:', request.url);
-    return cached || new Response(
-      "Offline - resource not cached",
-      { status: 503, headers: { "Content-Type": "text/plain" } }
-    );
+    console.log('[SW] Stale-while-revalidate failed:', request.url, err);
+    return cached;
   });
 
-  // If we have cached content, return it immediately while network updates in background
-  if (cached) return cached;
-  
-  // No cache, wait for network
-  return networkPromise;
+  return cached || networkPromise;
 }
