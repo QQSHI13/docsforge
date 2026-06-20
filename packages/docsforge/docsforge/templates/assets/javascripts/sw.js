@@ -13,16 +13,6 @@ const BASE_URL = self.location.pathname.replace(/sw\.js$/, '');
 // Assets to cache aggressively (fonts, styles, scripts, images)
 const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 
-// Fast byte-level comparison to avoid re-caching identical content
-function _buffersEqual(a, b) {
-  if (a.byteLength !== b.byteLength) return false;
-  const ua = new Uint8Array(a), ub = new Uint8Array(b);
-  for (let i = 0; i < ua.length; i++) {
-    if (ua[i] !== ub[i]) return false;
-  }
-  return true;
-}
-
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME)
@@ -147,17 +137,9 @@ async function cacheFirstWithNetworkFallback(request) {
   const cached = await cache.match(request);
 
   if (cached) {
-    // Background update — only rewrite cache if content changed
-    fetch(request).then(async (networkResponse) => {
-      if (!networkResponse.ok) return;
-      const netClone = networkResponse.clone();
-      const cachedBody = await cached.clone().arrayBuffer();
-      const networkBody = await netClone.arrayBuffer();
-      if (cachedBody.byteLength !== networkBody.byteLength ||
-          !_buffersEqual(cachedBody, networkBody)) {
-        cache.put(request, networkResponse);
-        console.log('[SW] Updated:', request.url);
-      }
+    // Update cache in background (stale-while-revalidate)
+    fetch(request).then((networkResponse) => {
+      if (networkResponse.ok) cache.put(request, networkResponse.clone());
     }).catch(() => {});
     return cached;
   }
@@ -165,10 +147,7 @@ async function cacheFirstWithNetworkFallback(request) {
   // Not in cache, fetch from network
   try {
     const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      console.log('[SW] Cached new:', request.url);
-      cache.put(request, networkResponse.clone());
-    }
+    if (networkResponse.ok) cache.put(request, networkResponse.clone());
     return networkResponse;
   } catch (err) {
     // Offline and not cached — return offline page for HTML
@@ -187,21 +166,9 @@ async function staleWhileRevalidate(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
 
-  const networkPromise = fetch(request).then(async (networkResponse) => {
+  const networkPromise = fetch(request).then((networkResponse) => {
     if (networkResponse.ok) {
-      const netClone = networkResponse.clone();
-      if (cached) {
-        const cachedBody = await cached.clone().arrayBuffer();
-        const newBody = await netClone.arrayBuffer();
-        if (newBody.byteLength !== cachedBody.byteLength ||
-            !_buffersEqual(newBody, cachedBody)) {
-          cache.put(request, networkResponse);
-          console.log('[SW] Updated:', request.url);
-        }
-      } else {
-        cache.put(request, networkResponse);
-        console.log('[SW] Cached new:', request.url);
-      }
+      cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   }).catch((err) => {
