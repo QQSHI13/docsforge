@@ -113,6 +113,14 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                 # "load" is enough — external requests are blocked, local assets
                 # load instantly from the file system.
                 await tab.goto(url, wait_until="load", timeout=30000)
+                # Wait for Mermaid diagrams to render
+                try:
+                    await tab.wait_for_function(
+                        "() => document.querySelectorAll('.mermaid svg').length === document.querySelectorAll('.mermaid').length",
+                        timeout=8000
+                    )
+                except Exception:
+                    pass
                 # Expand tooltips for PDF (show hover content inline)
                 await tab.evaluate("""() => {
                     document.querySelectorAll("[data-md-tooltip], [title]").forEach(el => {
@@ -152,7 +160,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
             title = html_file.stem.replace("-", " ").replace("index", "").strip().title()
             if not title:
                 title = rel.parent.as_posix() if rel.parent != Path(".") else "Home"
-            pdf_link = (output_path / rel.with_suffix(".pdf")).resolve().as_uri()
+            pdf_link = rel.with_suffix(".pdf").as_posix()
             nav_items.append((title, pdf_link, rel))
 
         # Group by top-level section
