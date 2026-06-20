@@ -121,8 +121,8 @@ def docsforge(ctx):
 @docsforge.command()
 @click.option('--strict', is_flag=True, help='Fail on warnings')
 @click.option('--pdf', is_flag=True, help='Also export to PDF (requires playwright)')
-@click.option('--pdf-workers', type=int, default=None, help='Number of parallel tabs for PDF rendering (default: 4)')
-def build(strict, pdf, pdf_workers):
+@click.option('--jobs', type=int, default=None, help='Number of parallel tabs for PDF rendering (default: 4)')
+def build(strict, pdf, jobs):
     """Build the DocsForge documentation for production."""
     _ = State()  # Initialize default logging
     _enable_warnings()
@@ -160,8 +160,8 @@ def build(strict, pdf, pdf_workers):
             except Exception:
                 pass
             pdf_kwargs = {"skip_build": True}
-            if pdf_workers is not None:
-                pdf_kwargs["concurrency"] = pdf_workers
+            if jobs is not None:
+                pdf_kwargs["concurrency"] = jobs
             sys.exit(export_pdf(docs_dir, **pdf_kwargs))
 
     sys.exit(0)
