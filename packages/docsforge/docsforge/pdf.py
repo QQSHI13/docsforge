@@ -145,20 +145,14 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
             except Exception as e:
                 log.warning(f"  [{idx}/{total}] FAILED {rel} — {e}")
 
-        # Process files with a work queue: next file starts as soon as a tab frees up
-        sem = asyncio.Semaphore(concurrency)
-        idx_counter = 0
-
+        # Work queue: each tab picks the next file as soon as it finishes
+        idx = 0
         async def worker(tab):
-            nonlocal idx_counter
-            while True:
-                async with sem:
-                    if idx_counter >= total:
-                        return
-                    idx = idx_counter
-                    idx_counter += 1
-                    html_file = html_files[idx]
-                    await render_one(tab, html_file, idx + 1)
+            nonlocal idx
+            while idx < total:
+                file_idx = idx
+                idx += 1
+                await render_one(tab, html_files[file_idx], file_idx + 1)
 
         await asyncio.gather(*[worker(tabs[i % concurrency]) for i in range(concurrency)])
 
