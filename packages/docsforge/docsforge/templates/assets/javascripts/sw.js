@@ -1,40 +1,22 @@
 /**
- * DocsForge Service Worker - Visit once, use for a lifetime
- * Pre-caches all pages during install so everything works offline immediately.
+ * DocsForge Service Worker - Full offline support with pre-caching
+ * Pre-caches all pages during install, cache-first with network fallback
  */
 
 const BUILD_HASH = "__DOCSFORGE_BUILD_HASH__";
 const PRE_CACHE_PAGES = __PRE_CACHE_PAGES__;
 const CACHE_NAME = `docsforge-${BUILD_HASH}`;
 
-// Compute base URL from SW location (SW is always at <site>/assets/javascripts/sw.js)
-const BASE_URL = self.location.pathname.replace(/assets\/javascripts\/sw\.js$/, '');
-
 // Assets to cache aggressively (fonts, styles, scripts, images)
 const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        // Pre-cache all pages - each page is cached independently so one failure
-        // doesn't stop the rest
-        return Promise.all(
-          PRE_CACHE_PAGES.map(url => {
-            return fetch(url)
-              .then(response => {
-                if (response.ok) {
-                  return cache.put(url, response.clone());
-                }
-                console.warn('[SW] Pre-cache skipped (not OK):', url, response.status);
-              })
-              .catch(err => {
-                console.warn('[SW] Pre-cache failed for:', url, err);
-              });
-          })
-        );
-      })
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRE_CACHE_PAGES).catch((err) => {
+        console.warn("[SW] Pre-cache failed for some pages:", err);
+      });
+    }).then(() => self.skipWaiting())
   );
 });
 
@@ -46,18 +28,7 @@ self.addEventListener("activate", (e) => {
           .filter((key) => key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       )
-    ).then(() => {
-      // Notify all clients that a new version is ready
-      self.clients.matchAll({ type: 'window' }).then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'DOCSFORGE_UPDATE_READY',
-            hash: BUILD_HASH
-          });
-        });
-      });
-      return self.clients.claim();
-    })
+    ).then(() => self.clients.claim())
   );
 });
 
@@ -98,22 +69,17 @@ async function cacheFirstWithNetworkFallback(request) {
     return cached;
   }
 
-  // Not in cache - notify clients we're fetching from network
-  broadcastFetchStatus('network', request.url, 'start');
-
   // Not in cache, fetch from network
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
       cache.put(request, networkResponse.clone());
     }
-    broadcastFetchStatus('network', request.url, 'done');
     return networkResponse;
   } catch (err) {
-    broadcastFetchStatus('network', request.url, 'error');
     // Offline and not cached — return offline page for HTML
     if (request.mode === "navigate" || request.destination === "document") {
-      const offlinePage = await cache.match(BASE_URL + '404.html').catch(() => null);
+      const offlinePage = await cache.match("/404.html").catch(() => null);
       if (offlinePage) return offlinePage;
     }
     return new Response(
@@ -135,19 +101,4 @@ async function staleWhileRevalidate(request) {
   }).catch(() => cached);
 
   return cached || networkPromise;
-}
-
-// Helper to broadcast fetch status to all clients
-async function broadcastFetchStatus(type, url, status) {
-  try {
-    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'DOCSFORGE_FETCH_STATUS',
-        fetchType: type,
-        url: url,
-        status: status
-      });
-    });
-  } catch (e) {}
 }
