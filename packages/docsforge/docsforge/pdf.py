@@ -149,4 +149,35 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
             await tab.close()
         await browser.close()
 
+    # ── Merge + add navigation outline ──
+    try:
+        from pypdf import PdfWriter, PdfReader
+        writer = PdfWriter()
+
+        toc_items = []
+        for html_file in html_files:
+            rel = html_file.relative_to(site_path)
+            pdf_path = output_path / rel.with_suffix(".pdf")
+            if not pdf_path.exists():
+                continue
+            title = html_file.stem.replace("-", " ").replace("index", "").strip().title()
+            if not title:
+                title = rel.parent.as_posix() if rel.parent != Path(".") else "Home"
+            toc_items.append((title, str(pdf_path)))
+
+        output_merged = output_path / "docsforge.pdf"
+        for title, pdf_path in toc_items:
+            with open(pdf_path, "rb") as f:
+                reader = PdfReader(f)
+                writer.add_page(reader.pages[0])
+                writer.add_outline_item(title, len(writer.pages) - 1)
+
+        with open(output_merged, "wb") as f:
+            writer.write(f)
+        log.info(f"  Merged: {output_merged.name} ({len(toc_items)} pages with outline)")
+    except ImportError:
+        log.info("  (install 'pypdf' for merged PDF with navigation outline: pip install pypdf)")
+    except Exception as e:
+        log.warning(f"  Merge skipped: {e}")
+
     log.info(f"\nPDF export complete: {output_path.resolve()} ({total} pages)")
