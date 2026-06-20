@@ -113,14 +113,12 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                 # "load" is enough — external requests are blocked, local assets
                 # load instantly from the file system.
                 await tab.goto(url, wait_until="load", timeout=30000)
-                # Pre-render Mermaid: evaluate JS to render all diagrams immediately
+                # Quick wait for Mermaid JS to render diagrams (typically <100ms after load)
                 try:
-                    await tab.evaluate("""() => {
-                        return Promise.all(Array.from(document.querySelectorAll('.mermaid')).map(el => {
-                            if (el.querySelector('svg')) return Promise.resolve();
-                            return window.mermaid && window.mermaid.run ? window.mermaid.run({ nodes: [el] }) : Promise.resolve();
-                        }));
-                    }""")
+                    await tab.wait_for_function(
+                        "() => document.querySelectorAll('.mermaid').length === 0 || document.querySelectorAll('.mermaid svg').length > 0",
+                        timeout=2000
+                    )
                 except Exception:
                     pass
                 # Expand tooltips for PDF (show hover content inline)
@@ -147,13 +145,22 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
             except Exception as e:
                 log.warning(f"  [{idx}/{total}] FAILED {rel} — {e}")
 
-        for batch_start in range(0, total, concurrency):
-            batch = html_files[batch_start:batch_start + concurrency]
-            tasks = [
-                render_one(tabs[i % concurrency], file, batch_start + i + 1)
-                for i, file in enumerate(batch)
-            ]
-            await asyncio.gather(*tasks)
+        # Process files with a work queue: next file starts as soon as a tab frees up
+        sem = asyncio.Semaphore(concurrency)
+        idx_counter = 0
+
+        async def worker(tab):
+            nonlocal idx_counter
+            while True:
+                async with sem:
+                    if idx_counter >= total:
+                        return
+                    idx = idx_counter
+                    idx_counter += 1
+                    html_file = html_files[idx]
+                    await render_one(tab, html_file, idx + 1)
+
+        await asyncio.gather(*[worker(tabs[i % concurrency]) for i in range(concurrency)])
 
         # ── Render navigation contents PDF ──
         nav_items = []
