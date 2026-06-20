@@ -113,13 +113,11 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                 # "load" is enough — external requests are blocked, local assets
                 # load instantly from the file system.
                 await tab.goto(url, wait_until="load", timeout=30000)
-                # Check once if Mermaid rendered (no wait if not ready)
+                # Wait indefinitely for Mermaid to render all diagrams
                 try:
-                    await tab.evaluate('''() => {
-                        document.querySelectorAll(".mermaid").forEach(el => {
-                            if (!el.querySelector("svg")) el.innerHTML = "[Mermaid diagram]";
-                        });
-                    }''')
+                    await tab.wait_for_function(
+                        "() => document.querySelectorAll('.mermaid').length === 0 || Array.from(document.querySelectorAll('.mermaid')).every(el => el.querySelector('svg'))",
+                    )
                 except Exception:
                     pass
                 # Expand tooltips for PDF (show hover content inline)
