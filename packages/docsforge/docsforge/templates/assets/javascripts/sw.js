@@ -65,17 +65,11 @@ self.addEventListener("fetch", (e) => {
   const { request } = e;
   const url = new URL(request.url);
 
-  console.log('[SW] Fetch event:', request.url, 'destination:', request.destination, 'mode:', request.mode);
-
   // Same-origin only
-  if (url.origin !== self.location.origin) {
-    console.log('[SW] Skipping - different origin');
-    return;
-  }
+  if (url.origin !== self.location.origin) return;
 
   // HTML pages: cache-first with network fallback
   if (request.destination === "document" || request.mode === "navigate") {
-    console.log('[SW] Intercepting page:', request.url);
     e.respondWith(cacheFirstWithNetworkFallback(request));
     return;
   }
@@ -93,7 +87,6 @@ self.addEventListener("fetch", (e) => {
 async function cacheFirstWithNetworkFallback(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
-  console.log('[SW] Cache check for:', request.url, 'found:', !!cached);
 
   if (cached) {
     // Update cache in background (stale-while-revalidate)
@@ -106,7 +99,6 @@ async function cacheFirstWithNetworkFallback(request) {
   }
 
   // Not in cache - notify clients we're fetching from network
-  console.log('[SW] Cache miss - fetching from network:', request.url);
   broadcastFetchStatus('network', request.url, 'start');
 
   // Not in cache, fetch from network
@@ -147,12 +139,9 @@ async function staleWhileRevalidate(request) {
 
 // Helper to broadcast fetch status to all clients
 async function broadcastFetchStatus(type, url, status) {
-  console.log('[SW] Broadcasting status:', status, 'for', url);
   try {
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    console.log('[SW] Found', clients.length, 'clients');
     clients.forEach(client => {
-      console.log('[SW] Posting to client:', client.id);
       client.postMessage({
         type: 'DOCSFORGE_FETCH_STATUS',
         fetchType: type,
@@ -160,7 +149,5 @@ async function broadcastFetchStatus(type, url, status) {
         status: status
       });
     });
-  } catch (e) {
-    console.error('[SW] Broadcast error:', e);
-  }
+  } catch (e) {}
 }
