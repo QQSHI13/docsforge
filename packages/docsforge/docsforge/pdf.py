@@ -106,6 +106,7 @@ async def _render_print(
     launch_opts = {}
     if browser_exe:
         log.info(f"Browser: {browser_exe}  Tabs: {concurrency}  Pages: {total}")
+        launch_opts["executable_path"] = browser_exe
     else:
         log.info(f"Tabs: {concurrency}  Pages: {total}")
 
