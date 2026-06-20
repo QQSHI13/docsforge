@@ -55,8 +55,8 @@ dependencies = [
 [project.optional-dependencies]
 imaging = ["pillow>=10.2", "cairosvg>=2.6"]
 chinese = ["jieba>=0.42"]
-all = ["pillow>=10.2", "cairosvg>=2.6", "jieba>=0.42", "weasyprint>=3.0"]
-pdf = ["weasyprint>=3.0"]
+all = ["pillow>=10.2", "cairosvg>=2.6", "jieba>=0.42", "weasyprint>=3.0", "pypdf>=5.0"]
+pdf = ["playwright>=1.50", "pypdf>=5.0"]
 
 [project.urls]
 Documentation = "https://qqshi13.github.io/docsforge"
