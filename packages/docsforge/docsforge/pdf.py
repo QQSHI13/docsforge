@@ -112,6 +112,22 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                 # "load" is enough — external requests are blocked, local assets
                 # load instantly from the file system.
                 await tab.goto(url, wait_until="load", timeout=30000)
+                # Expand tooltips for PDF (show hover content inline)
+                await tab.evaluate("""() => {
+                    document.querySelectorAll("[data-md-tooltip], [title]").forEach(el => {
+                        const tip = el.getAttribute("data-md-tooltip") || el.getAttribute("title") || "";
+                        if (tip) {
+                            const s = document.createElement("span");
+                            s.textContent = " (" + tip + ")";
+                            s.style.cssText = "display:inline;font-size:inherit;color:inherit;";
+                            el.appendChild(s);
+                            el.removeAttribute("title");
+                        }
+                    });
+                    document.querySelectorAll('.md-tooltip__content, [class*="tooltip"]').forEach(el => {
+                        el.style.cssText = "display:inline !important;visibility:visible !important;position:static !important;";
+                    });
+                }""")
                 await tab.pdf(
                     path=str(pdf_path), format="A4", print_background=True,
                     margin={"top": "15mm", "bottom": "15mm", "left": "15mm", "right": "15mm"},
