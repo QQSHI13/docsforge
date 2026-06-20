@@ -170,7 +170,7 @@ class DocsForgeConfig(base.Config):
             'pymdownx.snippets',
             'pymdownx.striphtml',
             'pymdownx.superfences',
-            'pymdownx.tabbed',
+            {'pymdownx.tabbed': {'alternate_style': True}},
             'pymdownx.tasklist',
             'pymdownx.tilde',
         ],
