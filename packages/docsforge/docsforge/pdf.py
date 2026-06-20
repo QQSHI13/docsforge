@@ -204,6 +204,21 @@ a {{ color: #1a56db; text-decoration: none; }}
 .admonition-title {{ font-weight: bold; margin-bottom: 0.3em; }}
 .mermaid svg {{ max-width: 100%; height: auto; page-break-inside: avoid; }}
 
+/* Content tabs: show all tabs in print */
+.tabbed-set {{ display: block; }}
+.tabbed-set input {{ display: none; }}
+.tabbed-set > .tabbed-content {{ display: block !important; }}
+.tabbed-set .tabbed-block {{ display: block !important; visibility: visible !important; }}
+.tabbed-set label {{
+    display: inline-block;
+    font-weight: bold;
+    margin-right: 1em;
+    padding: 0.2em 0.5em;
+    background: #eee;
+    border-radius: 3px;
+    font-size: 10pt;
+}}
+
 /* Hide UI chrome */
 .md-header, .md-tabs, .md-footer, .md-sidebar,
 .md-search, .md-top, .md-source, .md-annotation,
