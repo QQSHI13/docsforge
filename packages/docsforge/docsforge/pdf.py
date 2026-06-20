@@ -124,6 +124,14 @@ async def _render_print(
             url = html_file.resolve().as_uri()
             try:
                 await tab.goto(url, wait_until="load", timeout=30000)
+                # Wait for Mermaid diagrams to render (JS-rendered after page load)
+                try:
+                    await tab.wait_for_function(
+                        "() => document.querySelectorAll('.mermaid svg').length === document.querySelectorAll('.mermaid').length",
+                        timeout=10000
+                    )
+                except Exception:
+                    pass  # No mermaid diagrams on this page, or timeout is fine
                 await tab.pdf(
                     path=str(pdf_path), format="A4", print_background=True,
                     margin={"top": "15mm", "bottom": "15mm", "left": "15mm", "right": "15mm"},
