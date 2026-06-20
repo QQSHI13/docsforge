@@ -126,6 +126,13 @@ self.addEventListener("fetch", (e) => {
   // Skip live reload
   if (url.pathname.includes('/livereload/')) return;
 
+  // During local dev, always fetch from network — the SW cache interferes
+  // with livereload by serving stale pages, causing continuous reload loops.
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    e.respondWith(fetch(request));
+    return;
+  }
+
   // HTML pages: cache-first + trigger manifest sync
   if (request.destination === "document" || request.mode === "navigate") {
     e.respondWith(cacheFirst(request));
