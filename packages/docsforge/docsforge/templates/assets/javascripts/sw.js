@@ -130,7 +130,12 @@ self.addEventListener("fetch", (e) => {
   // with livereload by serving stale pages, causing continuous reload loops.
   if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
     e.respondWith(
-      fetch(request).catch(() => caches.match(request))
+      fetch(request).then(resp => {
+        // Cache localhost responses for offline fallback
+        const cacheResp = resp.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, cacheResp));
+        return resp;
+      }).catch(() => caches.match(request))
     );
     return;
   }
