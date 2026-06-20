@@ -122,6 +122,8 @@ async def _render_print(
     async with async_playwright() as p:
         browser = await p.chromium.launch(**launch_opts)
         page = await browser.new_page()
+        # Print mode is a one-time page setting, not per-page
+        await page.emulate_media(media="print")
 
         total = len(html_files)
         for i, html_file in enumerate(html_files, 1):
@@ -134,8 +136,7 @@ async def _render_print(
             log.info(f"[{i}/{total}] {rel.with_suffix('')}")
 
             try:
-                await page.goto(file_url, wait_until="networkidle", timeout=30000)
-                await page.emulate_media(media="print")
+                await page.goto(file_url, wait_until="load", timeout=30000)
                 await page.pdf(
                     path=str(pdf_path),
                     format="A4",
