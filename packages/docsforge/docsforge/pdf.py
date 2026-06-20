@@ -136,7 +136,6 @@ async def _render_print(
             pdf_name = "--".join(parts) if parts else "index"
             pdf_name = pdf_name.removesuffix(".html") + ".pdf"
             pdf_path = output_path / pdf_name
-            pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_url = html_file.resolve().as_uri()
             log.info(f"[{i}/{total}] {pdf_path.name}")
