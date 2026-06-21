@@ -128,8 +128,14 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                 # "load" is enough — external requests are blocked, local assets
                 # load instantly from the file system.
                 await tab.goto(url, wait_until="networkidle")
-                # Wait for Mermaid to render (replaces .mermaid elements with SVGs)
+                # Force Mermaid to render (doesn't auto-init from file://)
                 try:
+                    await tab.evaluate("""() => {
+                        const els = document.querySelectorAll('.mermaid');
+                        if (els.length > 0 && typeof mermaid !== 'undefined') {
+                            mermaid.run({ nodes: Array.from(els) }).catch(() => {});
+                        }
+                    }""")
                     await tab.wait_for_function(
                         "() => document.querySelectorAll('.mermaid').length === 0",
                     )
