@@ -184,7 +184,65 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     return 1 if issues else 0
 
 
-def _find_config(config_file) -> str | None:
+def fix_config(config_file=None) -> int:
+    """Auto-fix common configuration issues."""
+    config_path = _find_config(config_file)
+    if not config_path:
+        log.error("No docsforge.yml found.")
+        return 1
+
+    with open(config_path, 'r', encoding='utf-8') as f:
+        raw = yaml.safe_load(f) or {}
+
+    changed = False
+
+    # Fix 1: Add trailing slash to site_url
+    site_url = raw.get('site_url', '')
+    if site_url and isinstance(site_url, str) and not site_url.endswith('/'):
+        raw['site_url'] = site_url + '/'
+        print(f"  ✓ Added trailing slash to site_url: {raw['site_url']}")
+        changed = True
+
+    # Fix 2: Add edit_uri if repo_url is set
+    if raw.get('repo_url') and 'edit_uri' not in raw:
+        raw['edit_uri'] = 'edit/main/docs/'
+        print("  ✓ Added edit_uri: edit/main/docs/")
+        changed = True
+
+    # Fix 3: Remove built-in plugins from explicit list
+    plugins = raw.get('plugins', [])
+    if isinstance(plugins, list):
+        new_plugins = []
+        for p in plugins:
+            name = p if isinstance(p, str) else (list(p.keys())[0] if isinstance(p, dict) else '')
+            clean = name.split('/')[-1] if '/' in name else name
+            if clean not in KNOWN_PLUGINS and name not in KNOWN_PLUGINS:
+                new_plugins.append(p)
+            else:
+                print(f"  ✓ Removed built-in plugin: {name}")
+                changed = True
+        raw['plugins'] = new_plugins
+
+    # Fix 4: Move misplaced theme keys under theme:
+    theme = raw.get('theme', {})
+    if not isinstance(theme, dict):
+        theme = {}
+    top_level_theme_keys = {'palette', 'features', 'logo', 'favicon', 'icon', 'font', 'language', 'direction', 'custom_dir'}
+    for key in list(raw.keys()):
+        if key in top_level_theme_keys:
+            theme[key] = raw.pop(key)
+            print(f"  ✓ Moved '{key}' under 'theme:'")
+            changed = True
+    raw['theme'] = theme
+
+    if not changed:
+        print("  No issues found. Configuration is clean.")
+        return 0
+
+    with open(config_path, 'w', encoding='utf-8') as f:
+        yaml.dump(raw, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    print(f"  \nConfiguration updated: {config_path}")
+    return 0
     """Find configuration file."""
     if config_file:
         if isinstance(config_file, str):

@@ -168,6 +168,18 @@ def build(strict, pdf, jobs):
 
 
 @docsforge.command()
+@click.option('--fix', is_flag=True, help='Auto-fix common configuration issues')
+def check(fix):
+    """Validate configuration without building."""
+    _ = State()
+    if fix:
+        from docsforge.check import fix_config
+        sys.exit(fix_config())
+    from docsforge.cli_core import Validator
+    sys.exit(Validator.check())
+
+
+@docsforge.command()
 @click.option('--lan', is_flag=True, help='Serve on all interfaces (0.0.0.0) instead of localhost')
 @click.option('--no-open', is_flag=True, help='Do not open a browser tab automatically')
 def serve(lan, no_open):
