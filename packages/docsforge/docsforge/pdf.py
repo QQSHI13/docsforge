@@ -12,10 +12,12 @@ Requires:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import subprocess
 import sys
+import urllib.parse
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -97,8 +99,24 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
     async with async_playwright() as p:
         browser = await p.chromium.launch(**launch_opts)
         tabs = await asyncio.gather(*[browser.new_page() for _ in range(concurrency)])
+
+        async def _route(route):
+            url = route.request.url
+            if url.startswith("file://"):
+                return await route.continue_()
+            # Rewrite HTTPS requests to local filesystem
+            parsed = urllib.parse.urlparse(url)
+            if parsed.scheme in ("http", "https"):
+                # Try serving from local site directory
+                rel = parsed.path.lstrip("/")
+                local = site_path / rel
+                if local.exists():
+                    return await route.fulfill(path=str(local))
+            await route.abort()
+
         for tab in tabs:
             await tab.emulate_media(media="print")
+            await tab.route("**/*", _route)
 
         async def render_one(tab, html_file, idx):
             rel = html_file.relative_to(site_path)
