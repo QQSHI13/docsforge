@@ -101,17 +101,18 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
         tabs = await asyncio.gather(*[browser.new_page() for _ in range(concurrency)])
 
         async def _route(route):
-            url = route.request.url
-            if url.startswith("file://"):
-                return await route.continue_()
-            # Rewrite HTTPS requests to local filesystem
-            parsed = urllib.parse.urlparse(url)
-            if parsed.scheme in ("http", "https"):
-                # Try serving from local site directory
-                rel = parsed.path.lstrip("/")
-                local = site_path / rel
-                if local.exists():
-                    return await route.fulfill(path=str(local))
+            try:
+                url = route.request.url
+                if url.startswith("file://"):
+                    return await route.continue_()
+                parsed = urllib.parse.urlparse(url)
+                if parsed.scheme in ("http", "https"):
+                    rel = parsed.path.lstrip("/")
+                    local = site_path / rel
+                    if local.exists():
+                        return await route.fulfill(path=str(local))
+            except Exception:
+                pass
             await route.abort()
 
         for tab in tabs:
