@@ -72,6 +72,7 @@ nav:
       - changelog/index.md
   - Setup:
     - setup/index.md
+    - PDF Export: setup/pdf-export.md
     - Changing the colors: setup/changing-the-colors.md
     - Changing the fonts: setup/changing-the-fonts.md
     - Changing the language: setup/changing-the-language.md
@@ -98,4 +99,6 @@ nav:
     - Tooltips: reference/tooltips.md
   - Advanced:
     - Customization: advanced/customization.md
+    - Custom Plugins: advanced/plugins.md
+    - Docker: advanced/docker.md
   - Troubleshooting: troubleshooting.md

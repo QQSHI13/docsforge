@@ -243,6 +243,9 @@ def fix_config(config_file=None) -> int:
         yaml.dump(raw, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
     print(f"  \nConfiguration updated: {config_path}")
     return 0
+
+
+def _find_config(config_file) -> str | None:
     """Find configuration file."""
     if config_file:
         if isinstance(config_file, str):
