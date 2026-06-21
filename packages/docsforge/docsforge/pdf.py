@@ -88,7 +88,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
     total = len(html_files)
 
     browser_exe = _find_browser()
-    launch_opts = {"args": ["--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage"]}
+    launch_opts = {"args": ["--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--allow-file-access-from-files"]}
     if browser_exe:
         launch_opts["executable_path"] = browser_exe
         log.info(f"Browser: {browser_exe}")
