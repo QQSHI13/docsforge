@@ -112,7 +112,14 @@ self.addEventListener("install", (e) => {
 // === Activate: sync cache from manifest ===
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    self.clients.claim().then(() => syncCacheFromManifest())
+    Promise.all([
+      self.clients.claim(),
+      syncCacheFromManifest(),
+      // Delete old caches from previous builds
+      caches.keys().then(names => Promise.all(
+        names.filter(n => n !== CACHE_NAME && n !== 'docsforge-meta').map(n => caches.delete(n))
+      )),
+    ])
   );
 });
 
