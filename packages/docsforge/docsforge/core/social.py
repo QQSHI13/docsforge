@@ -1,8 +1,6 @@
-"""Social cards plugin — generates OpenGraph preview images for each page.
+"""Social plugin - generates OpenGraph preview images for each page.
 
 Requires: pip install docsforge[imaging]
-
-Hooks into on_post_build to render social preview images using Pillow.
 Adapted from Material for MkDocs social plugin.
 """
 
@@ -10,160 +8,157 @@ from __future__ import annotations
 
 import logging
 import os
-import textwrap
+import re
+from concurrent.futures import ThreadPoolExecutor
+from copy import copy
+from fnmatch import fnmatch
+from hashlib import sha1
 from pathlib import Path
 
-from docsforge.core.plugin_base import BasePlugin
+from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.config_base import Config
-from docsforge.config_options import Type, Optional
+from docsforge.config_options import (
+    Choice, Deprecated, DictOfItems, ListOfItems, Optional, SubConfig, Type
+)
+
+try:
+    from PIL import Image as _Image
+    HAS_IMAGE = True
+except ImportError:
+    HAS_IMAGE = False
 
 log = logging.getLogger(__name__)
 
-try:
-    from PIL import Image, ImageDraw, ImageFont
-    HAS_PIL = True
-except ImportError:
-    HAS_PIL = False
-
-
-# Card dimensions (standard OpenGraph: 1200x630)
-CARD_W = 1200
-CARD_H = 630
-MARGIN = 60
-TITLE_MAX_W = CARD_W - MARGIN * 2 - 200  # Leave space for logo
-
+# ── Config ──
 
 class SocialConfig(Config):
     enabled = Type(bool, default=True)
-    cache_dir = Type(str, default="assets/images/social")
-    background_color = Type(str, default="#009688")  # Teal
-    font_color = Type(str, default="#ffffff")
-    cards_color = Type(str, default="#00796B")
+    concurrency = Type(int, default=max(1, os.cpu_count() - 1))
+    cache = Type(bool, default=True)
+    cache_dir = Type(str, default=".cache/plugin/social")
+    cards = Type(bool, default=True)
+    cards_dir = Type(str, default="assets/images/social")
+    cards_layout = Type(str, default="default")
+    cards_layout_options = Type(dict, default={})
+    cards_include = ListOfItems(Type(str), default=[])
+    cards_exclude = ListOfItems(Type(str), default=[])
+    debug = Type(bool, default=False)
+    log = Type(bool, default=True)
 
+# ── Plugin ──
 
 class SocialPlugin(BasePlugin[SocialConfig]):
+    supports_multiple_instances = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pages = []
+        self._executor = None
+
+    def on_config(self, config):
+        if not HAS_IMAGE:
+            log.warning("pillow not installed. Install: pip install docsforge[imaging]")
+            return
+        self._executor = ThreadPoolExecutor(max_workers=self.config.concurrency)
+
+    def on_page_content(self, html, *, page, config, files):
+        if not HAS_IMAGE:
+            return html
+        if not _is_included(page, self.config):
+            return html
+
+        self._pages.append(page)
+        image_path = _image_path(page, self.config)
+
+        meta = (
+            f'<meta property="og:image" content="{image_path}" />\n'
+            f'<meta name="twitter:image" content="{image_path}" />\n'
+            f'<meta name="twitter:card" content="summary_large_image" />\n'
+            f'<meta property="og:image:width" content="1200" />\n'
+            f'<meta property="og:image:height" content="630" />'
+        )
+        return html.replace("</head>", f"{meta}\n</head>")
+
     def on_post_build(self, config):
-        if not HAS_PIL:
-            log.warning("Pillow not installed. Install: pip install docsforge[imaging]")
+        if not HAS_IMAGE or not self._pages:
             return
 
         site_dir = Path(config.site_dir)
-        images_dir = site_dir / self.config.cache_dir
+        images_dir = site_dir / self.config.cards_dir
         images_dir.mkdir(parents=True, exist_ok=True)
 
-        # Collect all HTML pages
-        html_files = sorted(site_dir.rglob("*.html"))
-        if not html_files:
-            return
-
-        # Try to load fonts
-        try:
-            font_bold = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48
+        tasks = []
+        for page in self._pages:
+            image_path = images_dir / (
+                Path(page.file.src_uri).with_suffix(".png")
             )
-            font_regular = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28
+            image_path.parent.mkdir(parents=True, exist_ok=True)
+            tasks.append(
+                self._executor.submit(_render_card, page, image_path, config)
             )
-        except (IOError, OSError):
-            font_bold = ImageFont.load_default()
-            font_regular = ImageFont.load_default()
 
-        site_name = config.site_name or "DocsForge"
+        for task in tasks:
+            task.result()
 
-        for html_file in html_files:
-            rel = html_file.relative_to(site_dir)
-            # Skip 404.html and non-page HTML files
-            if html_file.name == "404.html":
-                continue
+        log.info(f"Generated {len(tasks)} social cards")
 
-            # Extract title and description from HTML
-            title, description = self._extract_meta(html_file, site_name)
 
-            # Generate social card image
-            img = self._render_card(title, description, site_name, font_bold, font_regular)
+def _is_included(page, config):
+    if not config.cards:
+        return False
+    src = page.file.src_uri if page.file else ""
+    if src == "404.html":
+        return False
+    for pattern in config.cards_include:
+        if not fnmatch(src, pattern):
+            return False
+    for pattern in config.cards_exclude:
+        if fnmatch(src, pattern):
+            return False
+    return True
 
-            # Save as PNG next to the HTML file (for OpenGraph)
-            social_path = images_dir / rel.with_suffix(".png")
-            social_path.parent.mkdir(parents=True, exist_ok=True)
-            img.save(social_path, "PNG")
 
-            # Inject og:image meta tag into the HTML
-            self._inject_meta(html_file, rel.with_suffix(".png"))
+def _image_path(page, config):
+    src = Path(page.file.src_uri if page.file else "index.md")
+    return str(Path(config.cards_dir) / src.with_suffix(".png"))
 
-        log.info(f"Social cards generated: {len(html_files)} pages")
 
-    def _extract_meta(self, html_file: Path, site_name: str) -> tuple[str, str]:
-        """Extract title and description from HTML."""
-        try:
-            content = html_file.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
-            return site_name, ""
+def _render_card(page, image_path, config):
+    """Render a social card image for a page."""
+    from PIL import Image, ImageDraw, ImageFont
 
-        title = site_name
-        desc = ""
-
-        # Extract <title>
-        import re
-        m = re.search(r"<title[^>]*>([^<]+)</title>", content)
-        if m:
-            title = m.group(1).strip()
-
-        # Extract meta description
-        m = re.search(
-            r'<meta\s+name="description"\s+content="([^"]+)"',
-            content, re.IGNORECASE
+    try:
+        font_bold = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48
         )
-        if m:
-            desc = m.group(1).strip()
+        font_reg = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28
+        )
+    except (IOError, OSError):
+        font_bold = ImageFont.load_default()
+        font_reg = ImageFont.load_default()
 
-        return title, desc
+    title = page.title or config.site_name or "DocsForge"
+    desc = page.meta.get("description", "") if page.meta else ""
+    site = config.site_name or "DocsForge"
+    bg = "#009688"
 
-    def _render_card(
-        self, title: str, description: str, site_name: str,
-        font_bold, font_regular
-    ) -> Image.Image:
-        """Render a social card image."""
-        img = Image.new("RGB", (CARD_W, CARD_H), self.config.background_color)
-        draw = ImageDraw.Draw(img)
+    img = Image.new("RGB", (1200, 630), bg)
+    draw = ImageDraw.Draw(img)
 
-        # Draw a darker bottom strip
-        draw.rectangle([0, CARD_H - 100, CARD_W, CARD_H], fill=self.config.cards_color)
+    # Bottom strip
+    draw.rectangle([0, 530, 1200, 630], fill="#00796B")
+    draw.text((60, 555), site, fill="white", font=font_reg)
 
-        # Site name at bottom
-        draw.text((MARGIN, CARD_H - 75), site_name, fill=self.config.font_color, font=font_regular)
+    # Title
+    import textwrap
+    draw.text((60, 60), textwrap.fill(title, width=25), fill="white", font=font_bold)
 
-        # Title — wrap if too long
-        wrapped = textwrap.fill(title, width=25)
-        draw.text((MARGIN, MARGIN), wrapped, fill=self.config.font_color, font=font_bold)
-
-        # Description
-        if description:
-            desc_wrapped = textwrap.fill(description, width=40)
-            draw.text((MARGIN, MARGIN + 180), desc_wrapped, fill=self.config.font_color, font=font_regular)
-
-        return img
-
-    def _inject_meta(self, html_file: Path, image_rel: Path):
-        """Inject og:image and twitter:image meta tags into HTML."""
-        try:
-            content = html_file.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
-            return
-
-        # Only inject if not already present
-        if 'property="og:image"' in content:
-            return
-
-        # Use relative path for the image
-        image_url = str(image_rel).replace("\\", "/")
-
-        meta_tags = (
-            f'<meta property="og:image" content="{image_url}" />\n'
-            f'<meta name="twitter:image" content="{image_url}" />\n'
-            f'<meta name="twitter:card" content="summary_large_image" />'
+    # Description
+    if desc:
+        draw.text(
+            (60, 240), textwrap.fill(desc, width=40),
+            fill="white", font=font_reg
         )
 
-        # Inject before </head>
-        content = content.replace("</head>", f"{meta_tags}\n</head>")
-
-        html_file.write_text(content, encoding="utf-8")
+    img.save(image_path, "PNG")
