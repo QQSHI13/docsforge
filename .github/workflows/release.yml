@@ -24,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       commit_sha: ${{ steps.commit.outputs.commit_sha }}
+      vsix_version: ${{ steps.versions.outputs.vsix }}
+      tag: ${{ steps.versions.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -110,7 +112,14 @@ jobs:
           fi
           gh release create "$TAG" "${FLAGS[@]}" || echo "Release $TAG already exists"
 
-      # ── VSIX bundle ──
+  build-vsix:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.commit_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -123,27 +132,28 @@ jobs:
       - name: Compile extension
         run: cd packages/vscode-docsforge && npm run compile
 
-      - name: Lint extension
-        run: cd packages/vscode-docsforge && npm run lint || true
-
       - name: Package extension
         run: |
           cd packages/vscode-docsforge
           npm install -g @vscode/vsce
-          vsix_version="${{ steps.versions.outputs.vsix }}"
-          vsce package --out "docsforge-vscode-${vsix_version}.vsix"
+          vsce package --out "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix"
 
       - name: Attach VSIX to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VSIX_VERSION="${{ steps.versions.outputs.vsix }}"
-          TAG="${{ steps.versions.outputs.tag }}"
+          VSIX_VERSION="${{ needs.release.outputs.vsix_version }}"
+          TAG="${{ needs.release.outputs.tag }}"
           gh release upload "$TAG" \
             "packages/vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix" \
             --clobber
 
-      # ── Docker image ──
+  build-docker:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Docker metadata
         id: meta
