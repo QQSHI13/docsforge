@@ -16,8 +16,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  packages: write
 
 jobs:
   release:
@@ -133,7 +131,7 @@ jobs:
         run: cd packages/vscode-docsforge && npm run compile
 
       - name: Lint extension
-        run: cd packages/vscode-docsforge && npm run lint || true
+        run: cd packages/vscode-docsforge && npm run lint
 
       - name: Package extension
         run: |
@@ -154,9 +152,14 @@ jobs:
   build-docker:
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.commit_sha }}
 
       - name: Docker metadata
         id: meta
@@ -167,6 +170,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
+          flavor: |
+            latest=true
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
@@ -186,6 +191,9 @@ jobs:
   publish-pypi:
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     environment:
       name: pypi
       url: https://pypi.org/p/docsforge
@@ -210,5 +218,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
-          verify-metadata: false
           packages-dir: packages/docsforge/dist/
