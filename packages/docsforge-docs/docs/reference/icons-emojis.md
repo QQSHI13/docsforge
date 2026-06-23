@@ -41,10 +41,10 @@ Browse the full [Material Design Icons](https://materialdesignicons.com/) librar
 #### In text
 
 ``` markdown
-Click the :material-settings: settings icon to configure.
+Click the :material-cog: settings icon to configure.
 ```
 
-Click the :material-settings: settings icon to configure.
+Click the :material-cog: settings icon to configure.
 
 #### In buttons and links
 
