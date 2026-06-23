@@ -114,7 +114,7 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(
     Promise.all([
       self.clients.claim(),
-      syncCacheFromManifest(),
+      syncCacheFromManifest().catch(() => {}),
       // Delete old caches from previous builds
       caches.keys().then(names => Promise.all(
         names.filter(n => n !== CACHE_NAME && n !== 'docsforge-meta').map(n => caches.delete(n))

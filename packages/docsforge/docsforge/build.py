@@ -628,30 +628,43 @@ def _generate_pwa_manifest_and_precache(
         log.warning(f"Failed to generate PWA manifest: {e}")
 
     # Generate cache-manifest.json with page hashes for SW hash-based invalidation
-    _generate_cache_manifest(site_dir, sw_relative_urls)
+    _generate_cache_manifest(site_dir, sw_relative_urls, files)
 
 
-def _generate_cache_manifest(site_dir: str, page_urls: list[str]) -> None:
-    """Generate cache-manifest.json listing every page URL + SHA-256 content hash.
+def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files | None = None) -> None:
+    """Generate cache-manifest.json listing every page URL + source content hash.
+
+    Hashes are computed from Markdown SOURCE files, not built HTML, so the
+    manifest version only changes when the source actually changes — not when
+    the build cache produces different output.
 
     The service worker fetches this on activation and compares hashes with
-    cached versions. Only pages with changed hashes are re-fetched.
+    cached responses. Only pages with changed hashes are re-fetched.
     """
     hasher = hashlib.sha256()
-    files = {}
+    manifest_files = {}
 
     for url in page_urls:
-        file_path = os.path.join(site_dir, url, 'index.html') if not url.endswith('.html') else os.path.join(site_dir, url)
-        if os.path.isfile(file_path):
-            with open(file_path, 'rb') as f:
+        # Try to hash the source .md file for deterministic results
+        src_path = None
+        if files:
+            # Find the source file for this URL
+            for f in files.documentation_pages():
+                if f.url == url or f.url.rstrip("/") == url.rstrip("/"):
+                    src_path = f.abs_src_path
+                    break
+
+        if src_path and os.path.isfile(src_path):
+            with open(src_path, 'rb') as f:
                 h = hashlib.sha256(f.read()).hexdigest()[:16]
-            files[url] = h
-        elif url.endswith('.html'):
-            alt_path = os.path.join(site_dir, url)
-            if os.path.isfile(alt_path):
-                with open(alt_path, 'rb') as f:
+            manifest_files[url] = h
+        else:
+            # Fallback: hash the built HTML file (for non-MD files like 404.html)
+            file_path = os.path.join(site_dir, url, 'index.html') if not url.endswith('.html') else os.path.join(site_dir, url)
+            if os.path.isfile(file_path):
+                with open(file_path, 'rb') as f:
                     h = hashlib.sha256(f.read()).hexdigest()[:16]
-                files[url] = h
+                manifest_files[url] = h
 
     manifest = {
         "version": hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()[:12],
