@@ -52,9 +52,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-imaging = ["pillow>=10.2", "cairosvg>=2.6"]
 chinese = ["jieba>=0.42"]
-all = ["pillow>=10.2", "cairosvg>=2.6", "jieba>=0.42", "docsforge[pdf]"]
+all = ["playwright>=1.50", "jieba>=0.42", "docsforge[pdf]"]
 pdf = ["playwright>=1.50", "pypdf>=5.0"]
 
 [project.urls]
