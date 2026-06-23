@@ -73,7 +73,6 @@ docsforge = "docsforge.__main__:cli"
 "material/privacy" = "docsforge.core.privacy:PrivacyPlugin"
 "material/search" = "docsforge.core.search:SearchPlugin"
 "material/tags" = "docsforge.core.tags:TagsPlugin"
-"material/social" = "docsforge.core.social:SocialPlugin"
 "material/minify" = "docsforge.core.minify:MinifyPlugin"
 
 [project.entry-points."docsforge.themes"]

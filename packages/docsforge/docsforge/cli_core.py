@@ -299,14 +299,6 @@ def _check_optional_deps(config_file=None):
 
     # Map: plugin name -> (import to try, install command)
     _OPTIONAL_PLUGINS = {
-        'material/social': [
-            ('PIL', 'pip install docsforge[imaging]'),
-            ('cairosvg', 'pip install docsforge[imaging]'),
-        ],
-        'social': [
-            ('PIL', 'pip install docsforge[imaging]'),
-            ('cairosvg', 'pip install docsforge[imaging]'),
-        ],
     }
     
     try:
