@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { ServerManager } from './serverManager';
 
 const THEME_COLORS = [
   'teal',
@@ -28,7 +27,7 @@ export class InitWizard {
   /** Run the interactive project initialization wizard, matching the CLI
    *  `docsforge init` flow. Accepts a ServerManager so the user can
    *  immediately start the server after creation. */
-  static async run(serverManager?: ServerManager) {
+  static async run(_serverManager?: unknown) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
       vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
@@ -153,11 +152,10 @@ export class InitWizard {
     outputChannel.appendLine(`$ ${pythonPath} -c "<init script>"`);
     outputChannel.appendLine('');
 
-    try {
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Creating DocsForge project...',
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: 'Creating DocsForge project...',
           cancellable: false,
         },
         () => new Promise<void>((resolve, reject) => {
@@ -193,10 +191,6 @@ export class InitWizard {
           });
         })
       );
-    } catch (err) {
-      // Error already shown via showErrorMessage by the caller (extension.ts)
-      throw err;
-    }
 
     const choice = await vscode.window.showInformationMessage(
       'DocsForge project created!',

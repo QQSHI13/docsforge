@@ -350,7 +350,7 @@ export class ServerManager {
               if (!silent) vscode.window.showWarningMessage('Could not stop external server (PID may have exited)');
             }
             // Delete stale pidfile since the killed process can't clean up itself
-            try { fs.unlinkSync(pidfile); } catch {}
+            try { fs.unlinkSync(pidfile); } catch { /* Ignore */ }
             this.cleanupAfterStop();
             return;
           }
@@ -389,7 +389,7 @@ export class ServerManager {
     const root = this.workspaceRoot;
     if (root) {
       const pidfile = path.join(root, '.docsforge', 'server.json');
-      try { if (fs.existsSync(pidfile)) fs.unlinkSync(pidfile); } catch {}
+      try { if (fs.existsSync(pidfile)) fs.unlinkSync(pidfile); } catch { /* Ignore */ }
     }
 
     vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
