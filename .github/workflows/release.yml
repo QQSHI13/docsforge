@@ -132,6 +132,9 @@ jobs:
       - name: Compile extension
         run: cd packages/vscode-docsforge && npm run compile
 
+      - name: Lint extension
+        run: cd packages/vscode-docsforge && npm run lint || true
+
       - name: Package extension
         run: |
           cd packages/vscode-docsforge
