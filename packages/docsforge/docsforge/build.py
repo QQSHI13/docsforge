@@ -641,7 +641,6 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
     The service worker fetches this on activation and compares hashes with
     cached responses. Only pages with changed hashes are re-fetched.
     """
-    hasher = hashlib.sha256()
     manifest_files = {}
 
     for url in page_urls:
@@ -667,11 +666,11 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
                 manifest_files[url] = h
 
     manifest = {
-        "version": hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()[:12],
-        "files": files,
+        "version": hashlib.sha256(json.dumps(manifest_files, sort_keys=True).encode()).hexdigest()[:12],
+        "files": manifest_files,
     }
 
     manifest_path = os.path.join(site_dir, 'cache-manifest.json')
     with open(manifest_path, 'w', encoding='utf-8') as f:
         json.dump(manifest, f, indent=2)
-    log.debug(f"Generated cache manifest with {len(files)} entries at {manifest_path}")
+    log.debug(f"Generated cache manifest with {len(manifest_files)} entries at {manifest_path}")
