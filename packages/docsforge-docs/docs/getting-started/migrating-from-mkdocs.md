@@ -178,11 +178,11 @@ These MkDocs plugins are **built into DocsForge** and should be removed from you
 
 | MkDocs Plugin | DocsForge Status | Notes |
 |--------------|------------------|-------|
-| `search` | ✅ Built-in | Full-text search with no config needed |
-| `minify` | ✅ Built-in | HTML/CSS/JS minification always enabled in production |
-| `offline` | ✅ Built-in | Service worker generated automatically |
-| `tags` | ✅ Built-in | Tag support enabled by default |
-| `blog` | ✅ Built-in | Blog plugin available |
+| `search` | :material-check-bold: Built-in | Full-text search with no config needed |
+| `minify` | :material-check-bold: Built-in | HTML/CSS/JS minification always enabled in production |
+| `offline` | :material-check-bold: Built-in | Service worker generated automatically |
+| `tags` | :material-check-bold: Built-in | Tag support enabled by default |
+| `blog` | :material-check-bold: Built-in | Blog plugin available |
 | `social` | ❌ Not built-in | Requires Pillow + CairoSVG; use custom images if needed |
 | `i18n` | ❌ Not built-in | Multi-language support not yet available |
 
@@ -223,25 +223,25 @@ These Markdown extensions are **enabled by default** in DocsForge:
 
 | Extension | MkDocs Name | DocsForge Status |
 |-----------|-------------|------------------|
-| Admonitions | `admonition` | ✅ Built-in |
-| Code fences | `codehilite` or `pymdownx.highlight` | ✅ Built-in (with line numbers) |
-| Inline code highlighting | `pymdownx.inlinehilite` | ✅ Built-in |
-| Tables | `tables` | ✅ Built-in |
-| Meta blocks | `meta` | ✅ Built-in |
-| Table of contents | `toc` | ✅ Built-in (with permalink support) |
-| Details/summary | `pymdownx.details` | ✅ Built-in |
-| Superfences | `pymdownx.superfences` | ✅ Built-in |
-| Task lists | `pymdownx.tasklist` | ✅ Built-in |
-| Snippets | `pymdownx.snippets` | ✅ Built-in |
-| Tabbed content | `pymdownx.tabbed` | ✅ Built-in |
-| Emoji | `pymdownx.emoji` | ✅ Built-in (with Material icon set) |
-| Arithmatex | `pymdownx.arithmatex` | ✅ Built-in (using KaTeX) |
-| Mermaid diagrams | `pymdownx.superfences` + custom fence | ✅ Built-in (Mermaid supported) |
-| Keys | `pymdownx.keys` | ✅ Built-in |
-| Mark | `pymdownx.mark` | ✅ Built-in |
-| Critic | `pymdownx.critic` | ✅ Built-in |
-| Caret | `pymdownx.caret` | ✅ Built-in |
-| Tilde | `pymdownx.tilde` | ✅ Built-in |
+| Admonitions | `admonition` | :material-check-bold: Built-in |
+| Code fences | `codehilite` or `pymdownx.highlight` | :material-check-bold: Built-in (with line numbers) |
+| Inline code highlighting | `pymdownx.inlinehilite` | :material-check-bold: Built-in |
+| Tables | `tables` | :material-check-bold: Built-in |
+| Meta blocks | `meta` | :material-check-bold: Built-in |
+| Table of contents | `toc` | :material-check-bold: Built-in (with permalink support) |
+| Details/summary | `pymdownx.details` | :material-check-bold: Built-in |
+| Superfences | `pymdownx.superfences` | :material-check-bold: Built-in |
+| Task lists | `pymdownx.tasklist` | :material-check-bold: Built-in |
+| Snippets | `pymdownx.snippets` | :material-check-bold: Built-in |
+| Tabbed content | `pymdownx.tabbed` | :material-check-bold: Built-in |
+| Emoji | `pymdownx.emoji` | :material-check-bold: Built-in (with Material icon set) |
+| Arithmatex | `pymdownx.arithmatex` | :material-check-bold: Built-in (using KaTeX) |
+| Mermaid diagrams | `pymdownx.superfences` + custom fence | :material-check-bold: Built-in (Mermaid supported) |
+| Keys | `pymdownx.keys` | :material-check-bold: Built-in |
+| Mark | `pymdownx.mark` | :material-check-bold: Built-in |
+| Critic | `pymdownx.critic` | :material-check-bold: Built-in |
+| Caret | `pymdownx.caret` | :material-check-bold: Built-in |
+| Tilde | `pymdownx.tilde` | :material-check-bold: Built-in |
 
 ### Extensions to Remove
 
@@ -842,4 +842,4 @@ After migration, explore DocsForge features that go beyond MkDocs:
 - **Faster builds:** Incremental builds and hot reload
 - **Built-in preview:** `docsforge serve` with live reload
 
-Welcome to DocsForge! 🚀
+Welcome to DocsForge! :material-rocket-launch:

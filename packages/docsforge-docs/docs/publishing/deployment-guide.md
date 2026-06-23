@@ -6,18 +6,18 @@ DocsForge builds static HTML that can be deployed to any static hosting platform
 
 | Platform | Cost | Custom Domain | HTTPS | CI/CD | Best For |
 |----------|------|--------------|-------|-------|----------|
-| **GitHub Pages** | Free | ✅ | ✅ | GitHub Actions | Open source projects |
-| **Netlify** | Free tier | ✅ | ✅ | Git push | Prototyping, JAMstack |
-| **Vercel** | Free tier | ✅ | ✅ | Git push | Next.js, fast deploys |
-| **Cloudflare Pages** | Free | ✅ | ✅ | Git push | Speed, CDN |
-| **GitLab Pages** | Free | ✅ | ✅ | GitLab CI | GitLab users |
-| **AWS S3 + CloudFront** | Pay per use | ✅ | ✅ | GitHub Actions | Enterprise, scale |
-| **Firebase Hosting** | Free tier | ✅ | ✅ | GitHub Actions | Google ecosystem |
-| **Surge.sh** | Free | ✅ | ✅ | CLI | Quick deploys |
-| **Render** | Free tier | ✅ | ✅ | Git push | Static sites, fast CDN |
-| **DigitalOcean App Platform** | Pay per use | ✅ | ✅ | GitHub Actions | Full control, scalable |
-| **Docker + Nginx** | Server cost | ✅ | ✅ | Any | Self-hosted |
-| **Caddy** | Server cost | ✅ | Auto | Any | Self-hosted, easy TLS |
+| **GitHub Pages** | Free | :material-check-bold: | :material-check-bold: | GitHub Actions | Open source projects |
+| **Netlify** | Free tier | :material-check-bold: | :material-check-bold: | Git push | Prototyping, JAMstack |
+| **Vercel** | Free tier | :material-check-bold: | :material-check-bold: | Git push | Next.js, fast deploys |
+| **Cloudflare Pages** | Free | :material-check-bold: | :material-check-bold: | Git push | Speed, CDN |
+| **GitLab Pages** | Free | :material-check-bold: | :material-check-bold: | GitLab CI | GitLab users |
+| **AWS S3 + CloudFront** | Pay per use | :material-check-bold: | :material-check-bold: | GitHub Actions | Enterprise, scale |
+| **Firebase Hosting** | Free tier | :material-check-bold: | :material-check-bold: | GitHub Actions | Google ecosystem |
+| **Surge.sh** | Free | :material-check-bold: | :material-check-bold: | CLI | Quick deploys |
+| **Render** | Free tier | :material-check-bold: | :material-check-bold: | Git push | Static sites, fast CDN |
+| **DigitalOcean App Platform** | Pay per use | :material-check-bold: | :material-check-bold: | GitHub Actions | Full control, scalable |
+| **Docker + Nginx** | Server cost | :material-check-bold: | :material-check-bold: | Any | Self-hosted |
+| **Caddy** | Server cost | :material-check-bold: | Auto | Any | Self-hosted, easy TLS |
 
 ---
 

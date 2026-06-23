@@ -138,7 +138,7 @@ Create `docs/overrides/main.html` to extend the base template:
 
 {% block announce %}
   <div class="announcement">
-    🎉 New version released! <a href="/changelog">See what's new</a>
+    :material-party-popper: New version released! <a href="/changelog">See what's new</a>
   </div>
 {% endblock %}
 ```

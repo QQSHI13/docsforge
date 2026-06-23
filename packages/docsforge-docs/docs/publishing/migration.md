@@ -6,36 +6,36 @@ Moving from MkDocs/Material to DocsForge is straightforward for most sites. This
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **Markdown content** | ✅ Direct | All `.md` files work as-is |
-| **Navigation (`nav`)** | ✅ Direct | `nav:` section copies over directly |
-| **Theme settings** | ✅ Direct | Colors, fonts, logos, favicons |
-| **Extra CSS/JS** | ✅ Direct | `extra_css`, `extra_javascript` |
-| **Markdown extensions** | ✅ Direct | admonition, pymdownx, etc. |
-| **Search** | ✅ Direct | Built-in, no config needed |
-| **Tags** | ✅ Direct | `tags:` plugin built-in |
-| **Git revision info** | ✅ Direct | Git dates displayed automatically |
-| **PWA / Service Worker** | ✅ Direct | Built-in, auto-generated |
-| **Sitemap** | ✅ Direct | Auto-generated |
+| **Markdown content** | :material-check-bold: Direct | All `.md` files work as-is |
+| **Navigation (`nav`)** | :material-check-bold: Direct | `nav:` section copies over directly |
+| **Theme settings** | :material-check-bold: Direct | Colors, fonts, logos, favicons |
+| **Extra CSS/JS** | :material-check-bold: Direct | `extra_css`, `extra_javascript` |
+| **Markdown extensions** | :material-check-bold: Direct | admonition, pymdownx, etc. |
+| **Search** | :material-check-bold: Direct | Built-in, no config needed |
+| **Tags** | :material-check-bold: Direct | `tags:` plugin built-in |
+| **Git revision info** | :material-check-bold: Direct | Git dates displayed automatically |
+| **PWA / Service Worker** | :material-check-bold: Direct | Built-in, auto-generated |
+| **Sitemap** | :material-check-bold: Direct | Auto-generated |
 
 ## Requires Some Effort
 
 | Feature | Status | Migration Path |
 |---------|--------|---------------|
-| **Custom hooks** | ⚠️ Adapt | Rewrite as DocsForge plugins or use `hooks:` if compatible |
-| **Custom plugins** | ⚠️ Adapt | Check if DocsForge has equivalent; otherwise rewrite |
-| **Custom templates** | ⚠️ Adapt | Template paths differ; check `docsforge/templates/` |
-| **Insiders features** | ⚠️ Adapt | Many are included in DocsForge; check [feature parity](#feature-parity-material-vs-docsforge) |
-| **Privacy plugin** | ⚠️ Built-in | DocsForge includes privacy features by default |
-| **Optimize plugin** | ⚠️ Built-in | Asset optimization runs automatically post-build |
-| **Tags layout** | ⚠️ Changed | Custom tag templates moved from `fragments/tags/{layout}/` to `fragments/tags/{layout}-tag.html` and `fragments/tags/{layout}-listing.html` (flattened directory structure) |
+| **Custom hooks** | :material-alert: Adapt | Rewrite as DocsForge plugins or use `hooks:` if compatible |
+| **Custom plugins** | :material-alert: Adapt | Check if DocsForge has equivalent; otherwise rewrite |
+| **Custom templates** | :material-alert: Adapt | Template paths differ; check `docsforge/templates/` |
+| **Insiders features** | :material-alert: Adapt | Many are included in DocsForge; check [feature parity](#feature-parity-material-vs-docsforge) |
+| **Privacy plugin** | :material-alert: Built-in | DocsForge includes privacy features by default |
+| **Optimize plugin** | :material-alert: Built-in | Asset optimization runs automatically post-build |
+| **Tags layout** | :material-alert: Changed | Custom tag templates moved from `fragments/tags/{layout}/` to `fragments/tags/{layout}-tag.html` and `fragments/tags/{layout}-listing.html` (flattened directory structure) |
 
 ## Requires Significant Effort
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **Post-build scripts** | 🔧 Custom | Node.js/Python scripts that modify built HTML need porting |
-| **Deep MkDocs internals** | 🔧 Custom | Plugins that monkey-patch MkDocs classes |
-| **Custom extensions** | 🔧 Custom | Python markdown extensions with MkDocs-specific logic |
+| **Post-build scripts** | :material-wrench: Custom | Node.js/Python scripts that modify built HTML need porting |
+| **Deep MkDocs internals** | :material-wrench: Custom | Plugins that monkey-patch MkDocs classes |
+| **Custom extensions** | :material-wrench: Custom | Python markdown extensions with MkDocs-specific logic |
 
 ## MkDocs Plugin Migration Guide
 
@@ -47,12 +47,12 @@ These MkDocs plugins have direct built-in equivalents in DocsForge — remove fr
 
 | MkDocs Plugin | DocsForge | Notes |
 |---------------|-----------|-------|
-| `search` | ✅ Built-in | Lunr.js search, same behavior. Remove from config. |
-| `tags` | ✅ Built-in | Same `tags:` front matter, same tag pages. Remove from config. |
-| `blog` | ✅ Built-in | Blog with authors, categories, archives, RSS. Remove from config. |
-| `minify` | ✅ Built-in | HTML/CSS/JS minification runs automatically post-build. |
-| `meta` | ✅ Built-in | OpenGraph metadata, social previews. Included by default. |
-| `privacy` | ✅ Built-in | External asset downloading and inlining (Google Fonts, CDN resources). |
+| `search` | :material-check-bold: Built-in | Lunr.js search, same behavior. Remove from config. |
+| `tags` | :material-check-bold: Built-in | Same `tags:` front matter, same tag pages. Remove from config. |
+| `blog` | :material-check-bold: Built-in | Blog with authors, categories, archives, RSS. Remove from config. |
+| `minify` | :material-check-bold: Built-in | HTML/CSS/JS minification runs automatically post-build. |
+| `meta` | :material-check-bold: Built-in | OpenGraph metadata, social previews. Included by default. |
+| `privacy` | :material-check-bold: Built-in | External asset downloading and inlining (Google Fonts, CDN resources). |
 
 ### Config-Compatible (Copy Plugin Config)
 
@@ -139,19 +139,19 @@ The 31 most common extensions are already pre-enabled — you only need to list 
 
 | Key | Status | Replacement |
 |-----|--------|-------------|
-| `strict` | ✅ Moved to `build` subcommand | Use `docsforge build --strict` |
+| `strict` | :material-check-bold: Moved to `build` subcommand | Use `docsforge build --strict` |
 | `config_file_path` | Internal | Not needed in user config |
-| `site_description` | ✅ Supported | Same key |
-| `site_author` | ✅ Supported | Same key |
-| `copyright` | ✅ Supported | Same key |
-| `repo_url` | ✅ Supported | Same key |
-| `repo_name` | ✅ Supported | Same key |
-| `edit_uri` | ✅ Supported | Same key |
+| `site_description` | :material-check-bold: Supported | Same key |
+| `site_author` | :material-check-bold: Supported | Same key |
+| `copyright` | :material-check-bold: Supported | Same key |
+| `repo_url` | :material-check-bold: Supported | Same key |
+| `repo_name` | :material-check-bold: Supported | Same key |
+| `edit_uri` | :material-check-bold: Supported | Same key |
 | `remote_branch` | ❌ Removed | Use GitHub Actions for deployment |
 | `remote_name` | ❌ Removed | Use GitHub Actions for deployment |
-| `use_directory_urls` | ✅ Supported | Same key (default: true) |
-| `dev_addr` | ✅ Supported | Same key (default: `127.0.0.1:8000`) |
-| `site_url` | ✅ Required | Must be set for social cards, sitemap, RSS |
+| `use_directory_urls` | :material-check-bold: Supported | Same key (default: true) |
+| `dev_addr` | :material-check-bold: Supported | Same key (default: `127.0.0.1:8000`) |
+| `site_url` | :material-check-bold: Required | Must be set for social cards, sitemap, RSS |
 
 OI Wiki uses several advanced features. Here's how each maps:
 
@@ -178,24 +178,24 @@ OI Wiki uses several advanced features. Here's how each maps:
 
 | Feature | Material | DocsForge |
 |---------|----------|-----------|
-| Material theme | ✅ | ✅ (included) |
-| Search | ✅ | ✅ (built-in) |
-| Tags | ✅ | ✅ (built-in) |
-| Social cards | ✅ (Insiders) | ❌ Not built-in |
-| Blog | ✅ (Insiders) | ✅ (built-in) |
-| Privacy plugin | ✅ (Insiders) | ✅ (built-in) |
-| Optimize plugin | ✅ (Insiders) | ✅ (auto post-build) |
-| PWA / Offline | ✅ (Insiders) | ✅ (built-in) |
-| Git revision dates | ✅ (plugin) | ✅ (built-in) |
-| Minification | ✅ (Insiders) | ✅ (auto) |
-| Built-in icons | ✅ | ✅ (58MB bundled) |
-| Instant navigation | ✅ | ✅ |
-| Custom admonitions | ✅ | ✅ |
-| Mermaid diagrams | ✅ (plugin) | ✅ (built-in) |
-| Code annotations | ✅ (Insiders) | ✅ (built-in) |
-| Content tabs | ✅ | ✅ |
-| Data tables | ✅ | ✅ |
-| Tooltips | ✅ | ✅ |
+| Material theme | :material-check-bold: | :material-check-bold: (included) |
+| Search | :material-check-bold: | :material-check-bold: (built-in) |
+| Tags | :material-check-bold: | :material-check-bold: (built-in) |
+| Social cards | :material-check-bold: (Insiders) | ❌ Not built-in |
+| Blog | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
+| Privacy plugin | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
+| Optimize plugin | :material-check-bold: (Insiders) | :material-check-bold: (auto post-build) |
+| PWA / Offline | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
+| Git revision dates | :material-check-bold: (plugin) | :material-check-bold: (built-in) |
+| Minification | :material-check-bold: (Insiders) | :material-check-bold: (auto) |
+| Built-in icons | :material-check-bold: | :material-check-bold: (58MB bundled) |
+| Instant navigation | :material-check-bold: | :material-check-bold: |
+| Custom admonitions | :material-check-bold: | :material-check-bold: |
+| Mermaid diagrams | :material-check-bold: (plugin) | :material-check-bold: (built-in) |
+| Code annotations | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
+| Content tabs | :material-check-bold: | :material-check-bold: |
+| Data tables | :material-check-bold: | :material-check-bold: |
+| Tooltips | :material-check-bold: | :material-check-bold: |
 
 ## Step-by-Step Migration
 

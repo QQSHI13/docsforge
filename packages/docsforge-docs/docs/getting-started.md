@@ -62,32 +62,32 @@ That's it. All plugins, extensions, and theme settings use sensible defaults. Ad
 
 ## What's built in
 
-### 📝 Documentation
+### :material-file-document-edit: Documentation
 - Write Markdown with 31 extensions
 - Admonitions, tabs, task lists, footnotes
 - Mermaid and TikZ diagrams
 - KaTeX math rendering
 - Pygments code highlighting
 
-### 🔍 Discovery
+### :material-magnify: Discovery
 - Full-text search (Lunr.js)
 - Tags and tag pages
 - Navigation with sections and tabs
 - Table of contents
 
-### 🎨 Theming
+### :material-palette: Theming
 - Material theme with light/dark mode
 - Customizable colors and fonts
 - 14,000+ icons (Material, FontAwesome, Octicons)
 
-### 📝 Blogging
+### :material-file-document-edit: Blogging
 - Author profiles
 - Categories and tags
 - Archive pages
 - Pagination
 - RSS feeds
 
-### 🌐 Publishing
+### :material-web: Publishing
 - Static HTML output
 - GitHub Pages ready
 - PWA with offline support

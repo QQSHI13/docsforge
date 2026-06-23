@@ -66,8 +66,8 @@ Front matter:
 
 | Property | Required | Description |
 |----------|----------|-------------|
-| `date` | ✅ | Post date (`YYYY-MM-DD`) |
-| `authors` | ✅ | List of author keys from `.authors.yml` |
+| `date` | :material-check-bold: | Post date (`YYYY-MM-DD`) |
+| `authors` | :material-check-bold: | List of author keys from `.authors.yml` |
 | `tags` | ❌ | List of tags |
 | `categories` | ❌ | List of categories |
 | `draft` | ❌ | Set `true` to hide from listings |

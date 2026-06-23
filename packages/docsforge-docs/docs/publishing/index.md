@@ -73,11 +73,11 @@ docker run -v $(pwd)/site:/usr/share/nginx/html:ro -p 8080:80 nginx:alpine
 
 ### SEO Essentials
 DocsForge handles these automatically:
-- ✅ Sitemap (`sitemap.xml.gz`)
-- ✅ PWA manifest (`manifest.json`)
-- ✅ OpenGraph tags (automatic)
-- ✅ Semantic HTML
-- ✅ Fast loading (optimized assets)
+- :material-check-bold: Sitemap (`sitemap.xml.gz`)
+- :material-check-bold: PWA manifest (`manifest.json`)
+- :material-check-bold: OpenGraph tags (automatic)
+- :material-check-bold: Semantic HTML
+- :material-check-bold: Fast loading (optimized assets)
 
 ## Need Help?
 

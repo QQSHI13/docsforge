@@ -92,23 +92,23 @@ That's it. Your documentation site is now running at [localhost:8000](http://loc
 
 | Feature | Status |
 |---------|--------|
-| Admonitions (`!!! note`) | ✅ Zero config |
-| Math (`$$...$$`) | ✅ Zero config |
-| Code highlighting | ✅ Zero config |
-| Tables | ✅ Zero config |
-| Task lists (`- [x]`) | ✅ Zero config |
-| Footnotes (`[^1]`) | ✅ Zero config |
-| Definition lists | ✅ Zero config |
-| Abbreviations | ✅ Zero config |
-| Content tabs | ✅ Zero config |
-| Diagrams (Mermaid, TikZ) | ✅ Zero config |
-| Emojis | ✅ Zero config |
-| Blog | ✅ Zero config |
-| Tags | ✅ Zero config |
-| Search | ✅ Zero config |
-| Privacy (self-host assets) | ✅ Zero config |
-| Minify (HTML/CSS/JS) | ✅ Zero config |
-| Offline/PWA | ✅ Zero config |
+| Admonitions (`!!! note`) | :material-check-bold: Zero config |
+| Math (`$$...$$`) | :material-check-bold: Zero config |
+| Code highlighting | :material-check-bold: Zero config |
+| Tables | :material-check-bold: Zero config |
+| Task lists (`- [x]`) | :material-check-bold: Zero config |
+| Footnotes (`[^1]`) | :material-check-bold: Zero config |
+| Definition lists | :material-check-bold: Zero config |
+| Abbreviations | :material-check-bold: Zero config |
+| Content tabs | :material-check-bold: Zero config |
+| Diagrams (Mermaid, TikZ) | :material-check-bold: Zero config |
+| Emojis | :material-check-bold: Zero config |
+| Blog | :material-check-bold: Zero config |
+| Tags | :material-check-bold: Zero config |
+| Search | :material-check-bold: Zero config |
+| Privacy (self-host assets) | :material-check-bold: Zero config |
+| Minify (HTML/CSS/JS) | :material-check-bold: Zero config |
+| Offline/PWA | :material-check-bold: Zero config |
 
 ## Next steps
 
