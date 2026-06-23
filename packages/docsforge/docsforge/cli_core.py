@@ -290,49 +290,31 @@ class ProjectManager:
 
 def _check_optional_deps(config_file=None):
     """Best-effort detection of missing optional dependencies based on config.
-    
+
     Checks configured plugins against importable packages and logs warnings
     with the exact install command needed.
     """
     import yaml
     from docsforge.config_base import _open_config_file
 
-    # Map: plugin name -> (import to try, install command)
-    _OPTIONAL_PLUGINS = {
-    }
-    
     try:
         with _open_config_file(config_file) as f:
             cfg = yaml.safe_load(f) or {}
     except Exception:
         return  # Best-effort, don't fail build because dep check failed
-    
+
     plugins = cfg.get('plugins', [])
     if not isinstance(plugins, list):
         return
-    
-    # Flatten plugin names from list of strings/dicts
-    plugin_names = set()
+
+    # Flatten plugin configs from the list of strings/dicts
     plugin_configs = {}
     for p in plugins:
-        if isinstance(p, str):
-            plugin_names.add(p)
-        elif isinstance(p, dict):
-            for k, v in p.items():
-                plugin_names.add(k)
-                plugin_configs[k] = v
-    
+        if isinstance(p, dict):
+            plugin_configs.update(p)
+
     missing = set()
-    
-    # Check plugin-specific optional deps
-    for name in plugin_names:
-        if name in _OPTIONAL_PLUGINS:
-            for import_name, install_cmd in _OPTIONAL_PLUGINS[name]:
-                try:
-                    __import__(import_name)
-                except ImportError:
-                    missing.add(install_cmd)
-    
+
     # Check jieba: enabled if search plugin has jieba_dict configured
     search_cfg = plugin_configs.get('material/search') or plugin_configs.get('search')
     if isinstance(search_cfg, dict) and search_cfg.get('jieba_dict'):
@@ -340,7 +322,7 @@ def _check_optional_deps(config_file=None):
             __import__('jieba')
         except ImportError:
             missing.add('pip install docsforge[chinese]')
-    
+
     if missing:
         log.warning("Optional dependencies missing for configured plugins.")
         for cmd in sorted(missing):

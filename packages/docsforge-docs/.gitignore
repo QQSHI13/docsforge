@@ -8,3 +8,6 @@ venv/
 dist/
 build/
 .docsforge/
+
+# Blog plugin auto-generates this index at build time
+docs/blog/index.md

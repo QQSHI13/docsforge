@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,14 @@ log = logging.getLogger(__name__)
 
 CACHE_DIR = Path(".docsforge/cache")
 CACHE_VERSION = 1
+
+# Match pymdownx.snippets include lines: `--8<-- "path"` and `-8<-- 'path'`.
+# The "tear here" marker may be one or two leading dashes; the path may be
+# quoted or bare, and may carry a trailing line range (e.g. `file:5,10`).
+_SNIPPET_INCLUDE_RE = re.compile(
+    r'^[ \t]*-{1,2}8<--[ \t]*["\']?(?P<path>[^"\'\n:#]+)(?:[:#][^"\'\n]*)?["\']?[ \t]*$',
+    re.MULTILINE,
+)
 
 
 class FileHasher:
@@ -119,13 +128,25 @@ class DependencyTracker:
     @staticmethod
     def get_file_deps(source_path: Path, content: str) -> list[str]:
         """Extract dependencies from markdown content.
-        
-        Currently tracks:
-        - Template includes (not yet implemented)
-        - Will be extended for admonition, macros, etc.
+
+        Resolved paths are relative to the source file's directory (the
+        default for pymdownx.snippets when no `base_path` is configured).
+        Only existing files are returned.
         """
-        deps = []
-        # TODO: Parse template references, includes, etc.
+        deps: list[str] = []
+        base_dir = source_path.parent
+        seen: set[str] = set()
+        for match in _SNIPPET_INCLUDE_RE.finditer(content):
+            target = match.group('path').strip()
+            if not target:
+                continue
+            resolved = (base_dir / target).resolve()
+            key = str(resolved)
+            if key in seen:
+                continue
+            if resolved.is_file():
+                seen.add(key)
+                deps.append(key)
         return deps
 
     @staticmethod
@@ -235,6 +256,13 @@ class BuildPlanner:
         self.hashes[str(source)] = self.hasher.hash_file(source)
         if deps:
             self.deps[str(source)] = deps
+            # Record dependency hashes so `should_rebuild` can detect when an
+            # included file changes. Without this the dep check always saw a
+            # missing cached hash and rebuilt every time.
+            for dep in deps:
+                dep_path = Path(dep)
+                if dep_path.exists():
+                    self.hashes[dep] = self.hasher.hash_file(dep_path)
 
     def save(self, config_hash: str | None = None) -> None:
         """Save all cache state."""

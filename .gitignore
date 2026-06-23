@@ -23,4 +23,6 @@ venv/
 
 # Runtime artifacts
 .cache/
-docs/blog/index.md
+
+# Build output (also remove tracked pdf/ artifacts)
+packages/docsforge-docs/pdf/
