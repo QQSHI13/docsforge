@@ -18,7 +18,22 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install DocsForge (editable) + test deps
+        run: pip install -e packages/docsforge && pip install pytest pytest-mock
+      - name: Run tests
+        run: cd packages/docsforge && python -m pytest -q
+
   release:
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       commit_sha: ${{ steps.commit.outputs.commit_sha }}
