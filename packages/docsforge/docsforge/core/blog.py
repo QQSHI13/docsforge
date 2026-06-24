@@ -1050,7 +1050,11 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Remove temporary directory on shutdown
     def on_shutdown(self):
-        rmtree(self.temp_dir)
+        # Idempotent: the temp dir may already be gone (e.g. repeated
+        # builds in one process, or a crashed earlier run). Cleanup must
+        # never raise and take down the whole build.
+        if getattr(self, "temp_dir", None):
+            rmtree(self.temp_dir, ignore_errors=True)
 
     # -------------------------------------------------------------------------
 

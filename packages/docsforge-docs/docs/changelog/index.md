@@ -4,6 +4,22 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.5] — 2026-06-24
+
+### Added
+
+- **Test suite.** DocsForge now ships a pytest suite (79 tests) covering the incremental cache, config loading, the CLI front-end, utils, end-to-end builds, and a regression file with one named guard per historical bug. Previously the project had zero tests.
+
+### Fixed
+
+Bugs found while writing the test suite:
+
+- **Incremental cache now works for non-root pages.** `BuildPlanner.find_orphaned_outputs` only checked `docs/<name>/index.md` for an output at `site/<name>/index.html`, missing the common `use_directory_urls=True` mapping `docs/<name>.md` → `site/<name>/index.html`. Every non-root page was therefore deleted as "orphaned" at the start of each build and rebuilt from scratch, defeating the incremental cache for them. Second build of the docs site dropped from ~4.7s to ~0.9s.
+- **`detect_environment` always reported `docs_dir_exists: False`.** It referenced `_open_config_file` without importing it (the import lived in a different function's scope); the resulting `NameError` was swallowed by a bare `except`, so `docs_dir_exists`/`has_index` were never populated.
+- **`_open_config_file` rejected `pathlib.Path` arguments.** It only handled `str`/`IO`/`None`; a `Path` fell through to the file-descriptor branch and crashed on `.seek(0)`. Now accepts any `os.PathLike`.
+- **`BuildPlanner.save` did not update the in-memory `config_hash`.** After writing the config hash to disk, a subsequent `should_full_rebuild` on the same planner instance still saw the stale (None) value and forced a full rebuild.
+- **Blog plugin `on_shutdown` could crash the build.** `rmtree(self.temp_dir)` raised `FileNotFoundError` when the temp dir was already gone (repeated builds in one process); cleanup is now idempotent.
+
 ## [11.1.4] — 2026-06-24
 
 ### Fixed

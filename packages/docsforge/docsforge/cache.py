@@ -268,11 +268,24 @@ class BuildPlanner:
             rel_path = output_file.relative_to(output_dir)
             source_file = source_dir / rel_path
 
-            # Handle .html outputs from .md sources
+            # Handle .html outputs from .md sources. With the default
+            # `use_directory_urls=True`, docs/foo.md builds to site/foo/index.html
+            # and docs/foo/index.md builds to site/foo/index.html, so we must
+            # check several candidate source paths before declaring orphaned.
             if output_file.suffix == ".html":
-                source_md = source_file.with_suffix(".md")
-                if source_md.exists():
+                # Non-directory style: site/foo.html <- docs/foo.md
+                if source_file.with_suffix(".md").exists():
                     continue
+                # Directory style: site/<name>/index.html <- docs/<name>.md
+                if output_file.name == "index.html":
+                    rel_parent = output_file.parent.relative_to(output_dir)
+                    if str(rel_parent) not in (".", ""):
+                        # docs/<rel_parent>.md  (e.g. docs/foo.md)
+                        if (source_dir / rel_parent).with_suffix(".md").exists():
+                            continue
+                        # docs/<rel_parent>/index.md
+                        if (source_dir / rel_parent / "index.md").exists():
+                            continue
 
             if not source_file.exists():
                 orphaned.append(output_file)
@@ -298,4 +311,7 @@ class BuildPlanner:
         self.cache.set_deps(self.deps)
         if config_hash:
             self.cache.set_config_hash(config_hash)
+            # Keep in-memory state consistent with disk so a subsequent
+            # should_full_rebuild() on the same planner instance is correct.
+            self.config_hash = config_hash
         self.cache.set_version(CACHE_VERSION)

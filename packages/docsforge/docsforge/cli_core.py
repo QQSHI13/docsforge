@@ -30,8 +30,6 @@ def find_config_file(config_file: str | BinaryIO | None = None) -> Path | None:
     
     Returns the path if found, None otherwise.
     """
-    from docsforge.config_base import _open_config_file
-    
     if config_file is not None:
         if isinstance(config_file, str):
             path = Path(config_file)
@@ -70,6 +68,7 @@ def detect_environment() -> dict:
         
         # Check if docs/ directory exists
         try:
+            from docsforge.config_base import _open_config_file
             with _open_config_file(config_path) as f:
                 import yaml
                 cfg = yaml.safe_load(f) or {}

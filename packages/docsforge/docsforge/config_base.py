@@ -307,9 +307,9 @@ def _open_config_file(config_file: str | IO | None) -> Iterator[IO]:
     # Default to the standard config filename.
     if config_file is None:
         paths_to_try = ['docsforge.yml', 'docsforge.yaml']
-    # If it is a string, we can assume it is a path and attempt to open it.
-    elif isinstance(config_file, str):
-        paths_to_try = [config_file]
+    # If it is a string or path-like, attempt to open it as a file path.
+    elif isinstance(config_file, (str, os.PathLike)):
+        paths_to_try = [os.fspath(config_file)]
     else:
         result_config_file = config_file
         paths_to_try = None
