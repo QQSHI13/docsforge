@@ -126,27 +126,55 @@ class DependencyTracker:
     ]
 
     @staticmethod
-    def get_file_deps(source_path: Path, content: str) -> list[str]:
-        """Extract dependencies from markdown content.
+    def get_file_deps(
+        source_path: Path,
+        content: str | None = None,
+        base_paths: list[Path] | None = None,
+    ) -> list[str]:
+        """Extract snippet-include dependencies from markdown source.
 
-        Resolved paths are relative to the source file's directory (the
-        default for pymdownx.snippets when no `base_path` is configured).
-        Only existing files are returned.
+        Tracks ``pymdownx.snippets`` includes (``--8<-- "path"``). The
+        rendered HTML (``page.content``) cannot be used because the markers
+        are consumed during ``md.convert()``; callers must pass the raw
+        markdown (``page.markdown``) or leave ``content`` None to read the
+        source file from disk.
+
+        Include paths are resolved against a list of candidate base
+        directories, because ``pymdownx.snippets`` resolves relative to its
+        configured ``base_path`` (docsforge does not set one, so the default
+        is the current working directory, i.e. the project root). We also try
+        the docs_dir and the source file's own directory as a fallback. Only
+        existing files are returned, so a non-matching resolution is a safe
+        no-op (the page simply isn't tracked for that include).
         """
+        if content is None:
+            try:
+                content = source_path.read_text(encoding="utf-8")
+            except OSError:
+                return []
+
+        # Candidate base directories, in priority order.
+        bases: list[Path] = []
+        if base_paths:
+            bases.extend(base_paths)
+        bases.append(source_path.parent)  # source file's own directory
+        bases.append(Path.cwd())           # pymdownx.snippets default base_path is ["."]
+
         deps: list[str] = []
-        base_dir = source_path.parent
         seen: set[str] = set()
         for match in _SNIPPET_INCLUDE_RE.finditer(content):
             target = match.group('path').strip()
             if not target:
                 continue
-            resolved = (base_dir / target).resolve()
-            key = str(resolved)
-            if key in seen:
-                continue
-            if resolved.is_file():
-                seen.add(key)
-                deps.append(key)
+            for base in bases:
+                resolved = (base / target).resolve()
+                key = str(resolved)
+                if key in seen:
+                    break
+                if resolved.is_file():
+                    seen.add(key)
+                    deps.append(key)
+                    break
         return deps
 
     @staticmethod

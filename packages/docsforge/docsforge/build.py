@@ -421,11 +421,21 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                 try:
                     future.result()
                 except Exception:
-                    # Error already logged in _build_page; continue with other pages
-                    pass
+                    # Error already logged in _build_page; continue with other pages.
+                    # Do NOT update the cache for a failed build — otherwise the
+                    # next run would consider the page up-to-date and silently keep
+                    # the broken output.
+                    continue
 
-                # Update cache after successful build
-                deps = DependencyTracker.get_file_deps(source_path, page.content or "")
+                # Update cache after successful build. Use page.markdown (the
+                # raw source) not page.content (rendered HTML): the snippet
+                # include markers are consumed during md.convert(), so only
+                # the raw markdown still contains them.
+                deps = DependencyTracker.get_file_deps(
+                    source_path,
+                    page.markdown or "",
+                    base_paths=[Path(config.docs_dir)],
+                )
                 planner.update_cache(source_path, output_path, deps)
 
         # Generate PWA manifest and pre-cache all pages in the service worker

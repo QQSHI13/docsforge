@@ -4,6 +4,15 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.4] — 2026-06-24
+
+### Fixed
+
+- **Incremental cache dependency tracking actually works now.** The v11.1.3 implementation had two defects that made it a silent no-op:
+  - `build.py` passed `page.content` (rendered HTML) to `DependencyTracker.get_file_deps`, but the `pymdownx.snippets` `--8<--` include markers are consumed during `md.convert()`. It now passes `page.markdown` (the raw source, which retains the markers).
+  - Include paths were resolved only relative to the source file's directory, but `pymdownx.snippets` resolves relative to its configured `base_path` (docsforge doesn't set one, so the default is the current working directory / project root). Includes are now resolved against `docs_dir`, the source file's directory, and the cwd.
+- **Failed builds are no longer cached.** In strict mode, `_build_page` re-raises, but the build loop still called `planner.update_cache` afterward — marking a broken page as up-to-date so the next run silently skipped it. The cache is now only updated for pages that built successfully.
+
 ## [11.1.3] — 2026-06-23
 
 ### Fixed
