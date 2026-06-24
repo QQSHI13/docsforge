@@ -208,3 +208,18 @@ def test_regression_open_config_file_accepts_path(tmp_path: Path):
 
         data = yaml.safe_load(f)
     assert data["site_name"] == "T"
+
+
+def test_regression_invalid_yaml_does_not_nameerror(tmp_path: Path, monkeypatch):
+    """load_config's `except yaml.YAMLError` referenced an unimported `yaml`,
+    so a YAML syntax error crashed with NameError instead of a friendly
+    DocsForgeException. (Found while writing test_config.py.)"""
+    from docsforge.exceptions import DocsForgeException
+    from docsforge.config_base import load_config
+
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "index.md").write_text("# x")
+    (tmp_path / "docsforge.yml").write_text("site_name: : : bad\n")
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(DocsForgeException):
+        load_config()

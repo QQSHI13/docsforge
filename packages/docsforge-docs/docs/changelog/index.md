@@ -4,6 +4,16 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.6] — 2026-06-24
+
+### Added
+
+- **75 more tests** (154 total): `test_files.py` (File model, dest_uri/url mapping, `get_files` walk), `test_config.py` (load_config, defaults, env-tag substitution, validation), `test_init.py` (project scaffolding), `test_search.py` (SearchIndex entries/tags/jieba gating), `test_tags.py` (Tag model), `test_privacy.py` (FragmentParser, mime map), `test_minify.py` (JS/CSS/HTML minification), `test_meta.py` (meta-file merge).
+
+### Fixed
+
+- **`load_config` crashed with `NameError` on invalid YAML.** The `except yaml.YAMLError` handler referenced an unimported `yaml`, so a syntax error in `docsforge.yml` produced a raw `NameError: name 'yaml' is not defined` instead of a friendly error. (Found by `test_config.py::test_invalid_yaml_raises`.)
+
 ## [11.1.5] — 2026-06-24
 
 ### Added

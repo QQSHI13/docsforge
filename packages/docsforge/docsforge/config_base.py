@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import warnings
+import yaml
 from collections import UserDict
 from collections.abc import Iterator, Mapping, Sequence
 from typing import IO, TYPE_CHECKING, Any, Generic, TypeVar, overload
