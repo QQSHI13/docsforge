@@ -97,3 +97,36 @@ class TestAutoRouter:
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr("sys.stdin.isatty", lambda: False)
         assert cli_core.AutoRouter.route() == 1
+
+
+class TestServeStrictFlag:
+    """The --strict flag on `docsforge serve` must propagate through
+    DevServer.serve -> serve_module.serve -> load_config(strict=True)."""
+
+    def test_strict_propagates_to_load_config(self, tmp_path, monkeypatch):
+        from docsforge.config_base import load_config
+
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "index.md").write_text("# h\n")
+        (tmp_path / "docsforge.yml").write_text(
+            "site_name: T\ntheme: {name: material, palette: [{scheme: default, primary: teal, accent: teal}]}\nprivacy: false\n"
+        )
+        # load_config accepts strict as a kwarg (the path serve takes)
+        cfg = load_config(strict=True)
+        assert cfg.strict is True
+        cfg2 = load_config(strict=False)
+        assert cfg2.strict is False
+
+    def test_devserver_passes_strict_to_serve_module(self, mocker):
+        """DevServer.serve(strict=...) must forward strict to serve_module.serve."""
+        mocked = mocker.patch("docsforge.serve.serve")
+        cli_core.DevServer.serve(strict=True, open_in_browser=False)
+        assert mocked.called
+        assert mocked.call_args.kwargs.get("strict") is True
+
+    def test_devserver_omits_strict_when_false(self, mocker):
+        mocked = mocker.patch("docsforge.serve.serve")
+        cli_core.DevServer.serve(strict=False, open_in_browser=False)
+        # strict=False is still forwarded; load_config drops None but keeps False
+        assert mocked.call_args.kwargs.get("strict") is False

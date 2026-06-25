@@ -182,7 +182,8 @@ def check(fix):
 @docsforge.command()
 @click.option('--lan', is_flag=True, help='Serve on all interfaces (0.0.0.0) instead of localhost')
 @click.option('--no-open', is_flag=True, help='Do not open a browser tab automatically')
-def serve(lan, no_open):
+@click.option('--strict', is_flag=True, help='Treat warnings as errors during rebuilds')
+def serve(lan, no_open, strict):
     """Start the live-reloading docs server."""
     _ = State()  # Initialize default logging
 
@@ -196,13 +197,15 @@ def serve(lan, no_open):
 
     _check_optional_deps()
 
-    # Serve with live reload, auto-increment port if taken, auto-open browser
+    # Serve with live reload, auto-increment port if taken, auto-open browser.
+    # `strict` flows through to load_config() so rebuilds count warnings and
+    # raise Abort (caught by the server's builder, which keeps serving).
     kwargs = {}
     if lan:
         kwargs['host'] = '0.0.0.0'
     if no_open:
         kwargs['open_in_browser'] = False
-    DevServer.serve(**kwargs)
+    DevServer.serve(strict=strict, **kwargs)
 
 
 if __name__ == '__main__':

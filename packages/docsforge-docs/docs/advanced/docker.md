@@ -105,4 +105,39 @@ jobs:
 
 | Variable | Description |
 |----------|-------------|
-| `PLAYWRIGHT_CHROMIUM_EXECUTABLE` | Path to Chromium binary (default: `/usr/bin/chromium`) |
+| `PLAYWRIGHT_CHROMIUM_EXECUTABLE` | Path to a Chromium/Chrome binary for PDF export. If unset, DocsForge probes common Linux paths (`/usr/bin/chromium`, `/usr/bin/google-chrome`, …) and finally falls back to Playwright's bundled browser. |
+
+## Customizing the PDF Browser
+
+PDF export (`docsforge build --pdf`) launches a headless Chromium via Playwright.
+The image ships Chromium at `/usr/bin/chromium` and points `PLAYWRIGHT_CHROMIUM_EXECUTABLE`
+at it. To use a different browser:
+
+**Override the path** (the file must exist *inside* the container):
+```bash
+docker run --rm -v "$PWD:/docs" \
+  -e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable \
+  ghcr.io/qqshi13/docsforge:latest build --pdf
+```
+
+**Use Playwright's own bundled browser** (uninstall the env override so it falls
+back through the default probe list to Playwright's managed download — already
+installed in the image via `playwright install chromium`):
+```bash
+docker run --rm -v "$PWD:/docs" \
+  -e PLAYWRIGHT_CHROMIUM_EXECUTABLE= \
+  ghcr.io/qqshi13/docsforge:latest build --pdf
+```
+
+**Mount a host browser binary** read-only and point at it:
+```bash
+docker run --rm -v "$PWD:/docs" \
+  -v /usr/bin/google-chrome:/usr/bin/host-chrome:ro \
+  -e PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/host-chrome \
+  ghcr.io/qqshi13/docsforge:latest build --pdf
+```
+
+Tune parallelism with `--jobs`:
+```bash
+docker run --rm -v "$PWD:/docs" ghcr.io/qqshi13/docsforge:latest build --pdf --jobs 2
+```

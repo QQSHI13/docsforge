@@ -4,6 +4,17 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.7] — 2026-06-24
+
+### Added
+
+- **`docsforge serve --strict`** — the dev server now accepts `--strict` (matching `docsforge build`). Rebuilds treat warnings as errors; the server stays alive and logs the abort so you can fix issues without restarting. The flag propagates `strict=True` through `DevServer.serve` → `serve_module.serve` → `load_config`.
+- **Docker: customizable PDF browser.** Documented how to point PDF export at a different Chromium/Chrome via `PLAYWRIGHT_CHROMIUM_EXECUTABLE` (override the path, fall back to Playwright's bundled browser, or mount a host binary). See `docs/advanced/docker.md`.
+
+### Changed
+
+- The Docker guide now lists all `--strict` / PDF-browser / `--jobs` options with copy-pasteable `docker run` examples.
+
 ## [11.1.6] — 2026-06-24
 
 ### Added
