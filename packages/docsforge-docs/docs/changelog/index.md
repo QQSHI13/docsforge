@@ -4,6 +4,16 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.5] — 2026-06-26
+
+### Added
+
+- **Hover/focus link prefetch.** Internal links are now prefetched on `mouseover`/`focusin` (fire-and-forget through the service worker's `serveCurrentPage`), so the destination page is already cached when the user clicks — page switches become instant. Same-origin only, deduped, skips same-page/anchor links.
+
+### Fixed
+
+- **SW update message aligned with the client.** The SW now posts `DOCSFORGE_UPDATE_READY` (the message name `base.html` already listens for) instead of the unused `docsforge-updated`.
+
 ## [11.3.4] — 2026-06-26
 
 ### Changed

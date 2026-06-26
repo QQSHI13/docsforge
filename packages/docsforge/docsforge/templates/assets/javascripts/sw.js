@@ -191,7 +191,7 @@ async function syncCacheFromManifest(manifest) {
 
     if (updated > 0) {
       self.clients.matchAll({ includeUncontrolled: true }).then(cls =>
-        cls.forEach(c => c.postMessage({ type: 'docsforge-updated', count: updated }))
+        cls.forEach(c => c.postMessage({ type: 'DOCSFORGE_UPDATE_READY', count: updated }))
       ).catch(() => {});
     }
   } catch (e) {

@@ -451,6 +451,31 @@
           document$.subscribe(renderKaTeX);
         }
 
+        // Prefetch internal links on hover/focus so the service worker caches
+        // the destination page before the click — instant page switches.
+        (function() {
+          if (!('fetch' in window)) return;
+          var prefetched = new Set();
+          function prefetch(url) {
+            if (prefetched.has(url)) return;
+            prefetched.add(url);
+            // Fire-and-forget: the SW's serveCurrentPage() fetches+caches it.
+            fetch(url, { headers: { 'Accept': 'text/html' } }).catch(function() {});
+          }
+          function handler(e) {
+            var a = e.target.closest && e.target.closest('a[href]');
+            if (!a) return;
+            var u;
+            try { u = new URL(a.href, location.href); } catch (err) { return; }
+            if (u.origin !== location.origin) return;
+            if (u.hash && u.pathname === location.pathname && u.search === location.search) return;
+            if (u.pathname === location.pathname && u.search === location.search) return;
+            prefetch(u.href);
+          }
+          document.addEventListener('mouseover', handler, { passive: true });
+          document.addEventListener('focusin', handler, { passive: true });
+        })();
+
         // Register service worker for offline support
         if ('serviceWorker' in navigator) {
           var swUrl = "{{ 'sw.js' | url }}";
