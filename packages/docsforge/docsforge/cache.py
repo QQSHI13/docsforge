@@ -52,6 +52,7 @@ class CacheManager:
         self.config_hash_file = cache_dir / "config_hash"
         self.version_file = cache_dir / "version"
         self.sources_file = cache_dir / "sources.json"
+        self.meta_file = cache_dir / "meta.json"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -117,6 +118,14 @@ class CacheManager:
     def set_sources(self, sources: list[str]) -> None:
         """Save the set of source URIs for this build."""
         self._write_json(self.sources_file, {"sources": sorted(sources)})
+
+    def get_meta(self) -> dict[str, dict]:
+        """Get the {path: {mtime, size, hash}} cache for fast re-hashing."""
+        return self._read_json(self.meta_file)
+
+    def set_meta(self, meta: dict[str, dict]) -> None:
+        """Save the mtime/size/hash metadata."""
+        self._write_json(self.meta_file, meta)
 
     def invalidate(self) -> None:
         """Clear all cache files."""
@@ -201,13 +210,32 @@ class BuildPlanner:
         self.hashes = cache.get_hashes()
         self.deps = cache.get_deps()
         self.config_hash = cache.get_config_hash()
+        # {path: {mtime, size, hash}} — lets us skip re-reading+hashing a file
+        # whose mtime+size are unchanged since last build.
+        self.meta = cache.get_meta()
 
-    def _get_current_hash(self, path: Path) -> str:
-        """Get hash of a file, reading from cache if unchanged."""
-        str_path = str(path)
-        if str_path not in self.hashes or not path.exists():
-            return self.hasher.hash_file(path) if path.exists() else ""
-        return self.hashes[str_path]
+    def _current_hash(self, path: Path) -> str:
+        """Hash a file, reusing the cached hash if mtime+size are unchanged.
+
+        This avoids re-reading the file on every build when it hasn't changed
+        — a stat() is enough. mtime+size collision is astronomically unlikely
+        for a real edit.
+        """
+        try:
+            st = path.stat()
+        except OSError:
+            return ""
+        key = str(path)
+        cached = self.meta.get(key)
+        if (
+            cached
+            and cached.get("mtime") == st.st_mtime_ns
+            and cached.get("size") == st.st_size
+        ):
+            return cached["hash"]
+        h = self.hasher.hash_file(path)
+        self.meta[key] = {"mtime": st.st_mtime_ns, "size": st.st_size, "hash": h}
+        return h
 
     def should_rebuild(self, source: Path, output: Path) -> bool:
         """Check if a source file needs rebuilding.
@@ -226,7 +254,7 @@ class BuildPlanner:
         if not source.exists():
             return True
 
-        current_source_hash = self.hasher.hash_file(source)
+        current_source_hash = self._current_hash(source)
         cached_source_hash = self.hashes.get(str(source))
         if cached_source_hash != current_source_hash:
             return True
@@ -237,7 +265,7 @@ class BuildPlanner:
             dep_path = Path(dep)
             if not dep_path.exists():
                 continue
-            current_dep_hash = self.hasher.hash_file(dep_path)
+            current_dep_hash = self._current_hash(dep_path)
             cached_dep_hash = self.hashes.get(dep)
             if cached_dep_hash != current_dep_hash:
                 return True
@@ -303,7 +331,7 @@ class BuildPlanner:
 
     def update_cache(self, source: Path, output: Path, deps: list[str] | None = None) -> None:
         """Update cache after successful rebuild."""
-        self.hashes[str(source)] = self.hasher.hash_file(source)
+        self.hashes[str(source)] = self._current_hash(source)
         if deps:
             self.deps[str(source)] = deps
             # Record dependency hashes so `should_rebuild` can detect when an
@@ -312,7 +340,7 @@ class BuildPlanner:
             for dep in deps:
                 dep_path = Path(dep)
                 if dep_path.exists():
-                    self.hashes[dep] = self.hasher.hash_file(dep_path)
+                    self.hashes[dep] = self._current_hash(dep_path)
 
     def should_scan_orphans(self, current_sources: set[str]) -> bool:
         """Return True only if a source file was removed since the last build.
@@ -334,6 +362,7 @@ class BuildPlanner:
         """Save all cache state."""
         self.cache.set_hashes(self.hashes)
         self.cache.set_deps(self.deps)
+        self.cache.set_meta(self.meta)
         if config_hash:
             self.cache.set_config_hash(config_hash)
             # Keep in-memory state consistent with disk so a subsequent

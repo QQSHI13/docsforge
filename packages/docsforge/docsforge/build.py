@@ -449,7 +449,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
             built_any = bool(futures)
 
         # Generate PWA manifest and pre-cache all pages in the service worker
-        _generate_pwa_manifest_and_precache(config, files, nav)
+        _generate_pwa_manifest_and_precache(config, files, nav, planner)
 
         log_level = config.validation.links.anchors
         for file in doc_files:
@@ -496,7 +496,7 @@ def site_directory_contains_stale_files(site_directory: str) -> bool:
 
 
 def _generate_pwa_manifest_and_precache(
-    config: DocsForgeConfig, files: Files, nav: Navigation
+    config: DocsForgeConfig, files: Files, nav: Navigation, planner: BuildPlanner | None = None
 ) -> None:
     """Generate PWA manifest and inject pre-cache list into the service worker.
 
@@ -653,10 +653,10 @@ def _generate_pwa_manifest_and_precache(
         log.warning(f"Failed to generate PWA manifest: {e}")
 
     # Generate cache-manifest.json with page hashes for SW hash-based invalidation
-    _generate_cache_manifest(site_dir, sw_relative_urls, files)
+    _generate_cache_manifest(site_dir, sw_relative_urls, files, planner)
 
 
-def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files | None = None) -> None:
+def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files | None = None, planner: BuildPlanner | None = None) -> None:
     """Generate cache-manifest.json listing every page URL + source content hash.
 
     Hashes are computed from Markdown SOURCE files, not built HTML, so the
@@ -679,15 +679,21 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
                     break
 
         if src_path and os.path.isfile(src_path):
-            with open(src_path, 'rb') as f:
-                h = hashlib.sha256(f.read()).hexdigest()[:16]
+            if planner is not None:
+                h = planner._current_hash(Path(src_path))[:16]
+            else:
+                with open(src_path, 'rb') as f:
+                    h = hashlib.sha256(f.read()).hexdigest()[:16]
             manifest_files[url] = h
         else:
             # Fallback: hash the built HTML file (for non-MD files like 404.html)
             file_path = os.path.join(site_dir, url, 'index.html') if not url.endswith('.html') else os.path.join(site_dir, url)
             if os.path.isfile(file_path):
-                with open(file_path, 'rb') as f:
-                    h = hashlib.sha256(f.read()).hexdigest()[:16]
+                if planner is not None:
+                    h = planner._current_hash(Path(file_path))[:16]
+                else:
+                    with open(file_path, 'rb') as f:
+                        h = hashlib.sha256(f.read()).hexdigest()[:16]
                 manifest_files[url] = h
 
     manifest = {

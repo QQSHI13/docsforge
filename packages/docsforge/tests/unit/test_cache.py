@@ -307,6 +307,27 @@ class TestBuildPlanner:
         # Removed a file -> scan.
         assert p.should_scan_orphans({"a.md"}) is True
 
+    def test_current_hash_uses_mtime_size_cache(self, tmp_path: Path):
+        """_current_hash must not re-read a file whose mtime+size are unchanged."""
+        p = self._planner(tmp_path)
+        f = tmp_path / "p.md"
+        f.write_text("hello")
+        calls = {"n": 0}
+        real_hash = p.hasher.hash_file
+        def counting(path):
+            calls["n"] += 1
+            return real_hash(path)
+        p.hasher.hash_file = counting  # type: ignore
+        h1 = p._current_hash(f)
+        h2 = p._current_hash(f)        # second call: mtime+size unchanged -> cache hit, no re-read
+        assert h1 == h2
+        assert calls["n"] == 1, f"expected 1 read, got {calls['n']}"
+        # Edit the file (size changes) -> re-read.
+        f.write_text("hello world")
+        h3 = p._current_hash(f)
+        assert calls["n"] == 2
+        assert h3 != h1
+
     def test_failed_build_not_cached(self, tmp_path: Path, monkeypatch):
         """Regression for v11.1.4 bug 3: build.py must skip update_cache when a
         page build raises. Here we assert the helper contract the build loop

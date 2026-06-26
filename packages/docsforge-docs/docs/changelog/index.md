@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.4] — 2026-06-26
+
+### Changed
+
+- **Build: mtime+size pre-filter for file hashing.** `should_rebuild` and `cache-manifest.json` generation re-read and SHA-256'd every source `.md` on every build. They now consult a `{path: {mtime, size, hash}}` cache (`meta.json`) and reuse the cached hash when `stat()` reports the same mtime and size — a stat instead of a full read+hash. On a no-op build this makes the hashing phase stat-only (docs site: 0.87s → 0.66s; bigger gains on large sites).
+
 ## [11.3.3] — 2026-06-26
 
 ### Changed
