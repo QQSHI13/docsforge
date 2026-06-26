@@ -4,6 +4,16 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.2.1] — 2026-06-26
+
+### Changed
+
+- **Service worker: far more efficient cache syncing.** Previously `syncCacheFromManifest` ran on *every* navigation — a network fetch of `cache-manifest.json` plus a re-hash (SHA-256 of the full body) of *every* cached page on each navigation after a deploy. Now:
+  - **Throttled** to at most once per 10 minutes (and deduped so concurrent navigations share one sync).
+  - **Diff-based** — the previous manifest's per-file hashes are stored, so sync only re-fetches pages whose hash actually changed. Cached bodies are no longer re-hashed on every sync (only a one-time hash check the first time a URL is seen).
+  - On the docs site (44 pages) this removes ~44 SHA-256 ops + a manifest fetch per navigation, replaced by a single throttled fetch that touches only changed pages.
+  - The SW now posts a `docsforge-updated` message to open tabs when content changes (forward-compatible hook; harmless if no client listener is wired).
+
 ## [11.2.0] — 2026-06-26
 
 ### Changed
