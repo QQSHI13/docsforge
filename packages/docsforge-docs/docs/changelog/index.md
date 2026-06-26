@@ -4,6 +4,21 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.0] — 2026-06-26
+
+### Changed
+
+- **Service worker redesigned around "current page first".** The SW now treats `docsforge serve` and a deployed site identically and prioritizes the page you're actually viewing:
+  - **Install is non-blocking** — just `skipWaiting()`, no more pre-cache-all that held the SW inactive until every page was fetched.
+  - **`serveCurrentPage(request, manifest)`** runs on every navigation/page-switch: it fetches the manifest once, serves the current page from cache instantly if its hash is current, otherwise fetches+caches the fresh page and displays it (falling back to the stale cache offline). This is a *separate function* from the background sync.
+  - **`syncCacheFromManifest(manifest)`** runs in the background (throttled ≥10 min, deduped) using the *same* fetched manifest, caching every other page that is missing or whose hash changed.
+  - **`activate` primes the visible page first** (the tab the user is on), then background-syncs the rest — so "first install caches the current page first" is literally true.
+  - Applies to **page switches too**: programmatic HTML fetches (Material instant navigation) are detected via `Accept: text/html` and routed through `serveCurrentPage`, not just hard navigations.
+
+### Fixed
+
+- **Manifest sync no longer re-hashes every cached HTML body.** `cache-manifest.json` stores source-`.md` hashes but the SW caches built HTML, so the old body-hash comparison never matched and every page was re-fetched on every sync. The SW now diffs the manifest against the previously-synced per-file hashes **plus checks cache existence** — a page is re-fetched only when missing or actually changed. No body hashing.
+
 ## [11.2.1] — 2026-06-26
 
 ### Changed

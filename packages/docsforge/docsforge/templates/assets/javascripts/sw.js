@@ -1,23 +1,42 @@
 /**
- * DocsForge Service Worker — Load once, use for a lifetime
+ * DocsForge Service Worker
  *
- * Strategy:
- *   1. Install: pre-cache all pages from PRE_CACHE_PAGES
- *   2. Activate: fetch cache-manifest.json, update any stale pages
- *   3. Runtime: serve cached, then sync manifest in background
+ * Model: the SW treats `docsforge serve` and a deployed site identically —
+ * no localhost special-casing. The current page is always served/updated
+ * first; everything else is synced in the background.
+ *
+ *   install    : minimal (skipWaiting) — non-blocking, no pre-cache-all.
+ *   activate   : claim + clean old caches + prime the visible page, then sync.
+ *   fetch      : page request -> fetch manifest once, serveCurrentPage()
+ *                (check + update the current page, return it), and in the
+ *                background syncCacheFromManifest(manifest) for the rest.
+ *
+ * Manifest keys in cache-manifest.json are source-.md hashes; the SW never
+ * hashes cached HTML bodies. It diffs the manifest against the previously
+ * synced per-file hashes (prevFiles) and re-fetches a page only when it is
+ * missing from the cache OR its hash changed.
  */
 const BUILD_HASH = "__DOCSFORGE_BUILD_HASH__";
-const PRE_CACHE_PAGES = __PRE_CACHE_PAGES__;
 const CACHE_NAME = `docsforge-${BUILD_HASH}`;
 const MANIFEST_URL = "cache-manifest.json";
-const HASH_KEY = "docsforge-manifest-version";
+const VERSION_KEY = "docsforge-manifest-version";
 const FILES_KEY = "docsforge-manifest-files";
+const SYNC_MIN_INTERVAL_MS = 10 * 60 * 1000; // throttle background sync only
 
-// Compute base URL from SW location
+// Compute base URL from SW location (handles subpath deploys).
 const BASE_URL = self.location.pathname.replace(/sw\.js$/, '');
+const ORIGIN_BASE = self.location.origin + BASE_URL;
 const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 
-// === Byte comparison helper ===
+// Throttle / dedupe state for background sync.
+let _syncPromise = null;
+let _lastSyncAt = 0;
+// Lookup cache (pathname -> {key, hash}), rebuilt only when the manifest
+// version changes.
+let _lookupVersion = null;
+let _lookupMap = null;
+
+// === Byte comparison helper (used by staleWhileRevalidate) ===
 function _buffersEqual(a, b) {
   if (a.byteLength !== b.byteLength) return false;
   const ua = new Uint8Array(a), ub = new Uint8Array(b);
@@ -25,77 +44,148 @@ function _buffersEqual(a, b) {
   return true;
 }
 
-// === Manifest-based cache sync (throttled + deduped + diff-based) ===
-//
-// Runs at most once per SYNC_MIN_INTERVAL_MS; concurrent callers share one
-// sync. Instead of re-hashing every cached body on each sync, it diffs the
-// new manifest's per-file hashes against the previously-synced manifest and
-// only re-fetches pages whose hash actually changed. The first time a URL is
-// seen, its cached body is hashed once to avoid a redundant re-fetch.
-const SYNC_MIN_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-let _syncPromise = null;
-let _lastSyncAt = 0;
+// === Manifest fetch (shared per navigation) ===
+async function fetchManifest() {
+  try {
+    const resp = await fetch(`${MANIFEST_URL}?v=${Date.now()}`);
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    console.log('[SW] Manifest fetch failed:', e.message);
+    return null;
+  }
+}
 
-async function maybeSyncCache() {
-  if (_syncPromise) return _syncPromise;                 // dedupe concurrent calls
+// Build a Map: request pathname+search -> { key (relative manifest key), hash }.
+function _buildLookup(manifest) {
+  const map = new Map();
+  const files = (manifest && manifest.files) || {};
+  for (const [key, hash] of Object.entries(files)) {
+    try {
+      const u = new URL(key, ORIGIN_BASE);
+      map.set(u.pathname + u.search, { key, hash });
+    } catch (e) { /* skip malformed entry */ }
+  }
+  return map;
+}
+
+function getLookup(manifest) {
+  const v = manifest ? manifest.version : null;
+  if (v === _lookupVersion && _lookupMap) return _lookupMap;
+  _lookupMap = _buildLookup(manifest);
+  _lookupVersion = v;
+  return _lookupMap;
+}
+
+// === prevFiles store (per-URL hashes recorded as pages are cached) ===
+async function _readPrevFiles() {
+  const cache = await caches.open('docsforge-meta');
+  const resp = await cache.match(FILES_KEY);
+  if (!resp) return {};
+  try { return await resp.json() || {}; } catch { return {}; }
+}
+async function _writePrevFiles(files) {
+  const cache = await caches.open('docsforge-meta');
+  await cache.put(FILES_KEY, new Response(JSON.stringify(files)));
+}
+async function _readStoredVersion() {
+  const cache = await caches.open('docsforge-meta');
+  const resp = await cache.match(VERSION_KEY);
+  return resp ? await resp.text() : null;
+}
+async function _writeStoredVersion(version) {
+  const cache = await caches.open('docsforge-meta');
+  await cache.put(VERSION_KEY, new Response(version));
+}
+
+// === Current page: check + update if needed, return the Response to display ===
+async function serveCurrentPage(request, manifest) {
+  const cache = await caches.open(CACHE_NAME);
+  const lookup = getLookup(manifest);
+  const reqUrl = new URL(request.url);
+  const entry = lookup.get(reqUrl.pathname + reqUrl.search);
+  const newHash = entry ? entry.hash : undefined;
+  const relKey = entry ? entry.key : undefined;
+
+  const prevFiles = await _readPrevFiles();
+  const prevHash = relKey ? prevFiles[relKey] : undefined;
+  const cached = await cache.match(request);
+
+  // Cached AND its manifest hash is unchanged since last sync -> serve now,
+  // no network fetch of the page.
+  if (cached && newHash && prevHash === newHash) {
+    return cached;
+  }
+
+  // Missing or outdated -> fetch fresh, cache, display.
+  try {
+    const netResp = await fetch(request);
+    if (netResp && netResp.ok) {
+      await cache.put(request, netResp.clone());
+      if (relKey && newHash) {
+        prevFiles[relKey] = newHash;
+        await _writePrevFiles(prevFiles);
+      }
+      return netResp;
+    }
+    if (cached) return cached; // network returned non-ok, serve stale
+  } catch (e) {
+    if (cached) return cached; // offline, serve stale
+  }
+
+  // Nothing available -> offline fallback.
+  const offline = await cache.match(BASE_URL + '404.html').catch(() => null);
+  if (offline) return offline;
+  return new Response("<h1>Offline</h1><p>This page is not available offline.</p>",
+    { status: 503, headers: { "Content-Type": "text/html" } });
+}
+
+// === Background sync: cache every page that is missing or outdated ===
+async function maybeSyncCache(manifest) {
+  if (_syncPromise) return _syncPromise;                    // dedupe concurrent
   if (Date.now() - _lastSyncAt < SYNC_MIN_INTERVAL_MS) return; // throttle
-  _syncPromise = syncCacheFromManifest().finally(() => {
+  _syncPromise = syncCacheFromManifest(manifest).finally(() => {
     _syncPromise = null;
     _lastSyncAt = Date.now();
   });
   return _syncPromise;
 }
 
-async function syncCacheFromManifest() {
+async function syncCacheFromManifest(manifest) {
   try {
-    // Always fetch fresh manifest (bypass SW cache for this request)
-    const resp = await fetch(`${MANIFEST_URL}?v=${Date.now()}`);
-    if (!resp.ok) return;
-    const manifest = await resp.json();
+    if (!manifest) manifest = await fetchManifest();
+    if (!manifest) return;
     const newVersion = manifest.version;
     const storedVersion = await _readStoredVersion();
-
-    if (newVersion === storedVersion) return; // No changes
+    if (newVersion === storedVersion) return; // no changes
 
     console.log(`[SW] Cache manifest changed (${storedVersion || 'none'} → ${newVersion})`);
-
-    const prevFiles = await _readStoredFiles();
+    const prevFiles = await _readPrevFiles();
     const newFiles = manifest.files || {};
     const cache = await caches.open(CACHE_NAME);
     let updated = 0, skipped = 0;
 
-    for (const [url, newHash] of Object.entries(newFiles)) {
+    for (const [relKey, newHash] of Object.entries(newFiles)) {
       try {
-        const prevHash = prevFiles ? prevFiles[url] : undefined;
-        if (prevHash === newHash) { skipped++; continue; } // unchanged since last sync
-
-        // First time we see this URL: if it's already cached (e.g. visited
-        // at runtime), verify the body matches before re-fetching.
-        if (prevHash === undefined) {
-          const cached = await cache.match(url);
-          if (cached) {
-            const body = await cached.clone().arrayBuffer();
-            if ((await _sha256(body)) === newHash) { skipped++; continue; }
-          }
-        }
-
-        // Hash changed (or not yet cached): re-fetch.
-        const netResp = await fetch(url);
-        if (netResp.ok) {
-          await cache.put(url, netResp.clone());
+        const prevHash = prevFiles[relKey];
+        const fullUrl = new URL(relKey, ORIGIN_BASE);
+        const inCache = await cache.match(fullUrl);
+        // Skip only if cached AND hash unchanged since last sync.
+        if (inCache && prevHash === newHash) { skipped++; continue; }
+        const netResp = await fetch(fullUrl);
+        if (netResp && netResp.ok) {
+          await cache.put(fullUrl, netResp.clone());
+          prevFiles[relKey] = newHash;
           updated++;
-          console.log(`[SW] Updated: ${url}`);
         }
-      } catch (e) { /* skip inaccessible pages */ }
+      } catch (e) { /* skip inaccessible page */ }
     }
 
-    await _writeStoredFiles(newFiles);
+    await _writePrevFiles(prevFiles);
     await _writeStoredVersion(newVersion);
     console.log(`[SW] Sync complete: ${updated} updated, ${skipped} unchanged`);
 
     if (updated > 0) {
-      // Notify open tabs so they *can* prompt a refresh. Posting is harmless
-      // if no client listener is wired up.
       self.clients.matchAll({ includeUncontrolled: true }).then(cls =>
         cls.forEach(c => c.postMessage({ type: 'docsforge-updated', count: updated }))
       ).catch(() => {});
@@ -105,126 +195,99 @@ async function syncCacheFromManifest() {
   }
 }
 
-async function _readStoredVersion() {
-  const cache = await caches.open('docsforge-meta');
-  const resp = await cache.match(HASH_KEY);
-  return resp ? resp.text() : null;
-}
-
-async function _writeStoredVersion(version) {
-  const cache = await caches.open('docsforge-meta');
-  await cache.put(HASH_KEY, new Response(version));
-}
-
-async function _readStoredFiles() {
-  const cache = await caches.open('docsforge-meta');
-  const resp = await cache.match(FILES_KEY);
-  if (!resp) return null;
-  try { return await resp.json(); } catch { return null; }
-}
-
-async function _writeStoredFiles(files) {
-  const cache = await caches.open('docsforge-meta');
-  await cache.put(FILES_KEY, new Response(JSON.stringify(files)));
-}
-
-async function _sha256(buffer) {
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
-}
-
-// === Install: pre-cache everything ===
+// === Install: minimal, non-blocking ===
 self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(async cache => {
-      let cached = 0, failed = 0;
-
-      console.log(`[SW] Pre-caching ${PRE_CACHE_PAGES.length} pages...`);
-      await Promise.all(PRE_CACHE_PAGES.map(url =>
-        fetch(url).then(resp => {
-          if (resp.ok) {
-            console.log(`[SW] Cached: ${url}`);
-            cached++;
-            return cache.put(url, resp.clone());
-          } else { failed++; }
-        }).catch(err => {
-          console.log(`[SW] Failed: ${url} (${err.message})`);
-          failed++;
-        })
-      ));
-
-      console.log(`[SW] Pre-cache done: ${cached} cached, ${failed} failed`);
-    }).then(() => self.skipWaiting())
-  );
+  e.waitUntil(self.skipWaiting());
 });
 
-// === Activate: sync cache from manifest ===
+// === Activate: claim, clean old caches, prime the visible page, then sync ===
 self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      maybeSyncCache().catch(() => {}),
-      // Delete old caches from previous builds
-      caches.keys().then(names => Promise.all(
-        names.filter(n => n !== CACHE_NAME && n !== 'docsforge-meta').map(n => caches.delete(n))
-      )),
-    ])
-  );
+  e.waitUntil((async () => {
+    await self.clients.claim();
+    await caches.keys().then(names => Promise.all(
+      names.filter(n => n !== CACHE_NAME && n !== 'docsforge-meta').map(n => caches.delete(n))
+    ));
+
+    const manifest = await fetchManifest();
+
+    // Prime the page the user is currently viewing first.
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+    const visible = clients.find(c => c.visibilityState === 'visible') || clients[0];
+    if (visible && manifest) {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const lookup = getLookup(manifest);
+        const u = new URL(visible.url);
+        const entry = lookup.get(u.pathname + u.search);
+        const cached = await cache.match(visible.url);
+        const prevFiles = await _readPrevFiles();
+        const prevHash = entry ? prevFiles[entry.key] : undefined;
+        if (!(cached && entry && prevHash === entry.hash)) {
+          const resp = await fetch(visible.url);
+          if (resp && resp.ok) {
+            await cache.put(visible.url, resp.clone());
+            if (entry) { prevFiles[entry.key] = entry.hash; await _writePrevFiles(prevFiles); }
+            console.log('[SW] Primed current page:', visible.url);
+          }
+        }
+      } catch (e) { /* non-fatal */ }
+    }
+
+    await maybeSyncCache(manifest).catch(() => {});
+  })());
 });
 
-// === Fetch: cache-first with manifest sync in background ===
+// === Fetch ===
 self.addEventListener("fetch", (e) => {
   const { request } = e;
   const url = new URL(request.url);
 
-  // Same-origin only
   if (url.origin !== self.location.origin) return;
-  // Skip live reload
   if (url.pathname.includes('/livereload/')) return;
 
-  // No localhost special-casing: `docsforge serve` uses the IDENTICAL caching
-  // strategy as a deployed site (cache-first for HTML/assets, SWR for the
-  // rest). This keeps dev behavior faithful to production, including offline
-  // support. Livereload reloads may serve cached content until the SW's
-  // background manifest-sync catches up — exactly the deployed-site UX.
-
-  // HTML pages: cache-first + trigger (throttled) manifest sync
-  if (request.destination === "document" || request.mode === "navigate") {
-    e.respondWith(cacheFirst(request));
-    e.waitUntil(maybeSyncCache()); // Background: sync changed pages only
+  // Page request: hard navigation OR programmatic HTML fetch (Material
+  // instant navigation). Always handle the current page first.
+  if (isPageRequest(request)) {
+    const manifestP = fetchManifest(); // fetched once, shared
+    e.respondWith((async () => {
+      const manifest = await manifestP;
+      return serveCurrentPage(request, manifest);
+    })());
+    e.waitUntil((async () => {
+      const manifest = await manifestP;
+      return maybeSyncCache(manifest);
+    })());
     return;
   }
 
-  // Assets: cache-first with network fallback
+  // Assets: cache-first with network fallback.
   if (ASSET_DESTINATIONS.includes(request.destination)) {
     e.respondWith(cacheFirst(request));
     return;
   }
 
-  // Everything else: stale-while-revalidate
+  // Everything else: stale-while-revalidate.
   e.respondWith(staleWhileRevalidate(request));
 });
+
+function isPageRequest(request) {
+  if (request.destination === 'document' || request.mode === 'navigate') return true;
+  // Programmatic HTML fetch (e.g. Material "instant navigation").
+  if (request.method !== 'GET') return false;
+  const accept = request.headers.get('accept') || '';
+  return accept.includes('text/html');
+}
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
   if (cached) return cached;
-
   try {
     const netResp = await fetch(request);
-    if (netResp.ok) {
-      console.log(`[SW] Cached new: ${request.url}`);
-      cache.put(request, netResp.clone());
-    }
+    if (netResp.ok) cache.put(request, netResp.clone());
     return netResp;
   } catch (err) {
-    if (request.mode === "navigate" || request.destination === "document") {
-      const offlinePage = await cache.match(BASE_URL + '404.html').catch(() => null);
-      if (offlinePage) return offlinePage;
-    }
-    return new Response("<h1>Offline</h1><p>This page is not available offline.</p>",
-      { status: 503, headers: { "Content-Type": "text/html" } });
+    return new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
   }
 }
 
@@ -240,17 +303,14 @@ async function staleWhileRevalidate(request) {
         const nBody = await netClone.arrayBuffer();
         if (nBody.byteLength !== cBody.byteLength || !_buffersEqual(nBody, cBody)) {
           cache.put(request, netResp);
-          console.log(`[SW] Updated: ${request.url}`);
         }
       } else {
         cache.put(request, netResp);
       }
     }
     return netResp;
-  }).catch(() => {
-    return cached || new Response("Offline",
-      { status: 503, headers: { "Content-Type": "text/plain" } });
-  });
+  }).catch(() => cached || new Response("Offline",
+    { status: 503, headers: { "Content-Type": "text/plain" } }));
 
   if (cached) return cached;
   return networkPromise;
