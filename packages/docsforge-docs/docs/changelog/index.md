@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.1] — 2026-06-26
+
+### Changed
+
+- **SW: conditional manifest fetch.** `fetchManifest` now uses `fetch(cache-manifest.json, { cache: 'no-cache' })` instead of cache-busting with `?v=Date.now()`. The static host returns **304** when the manifest is unchanged, so rapid navigations no longer re-download the full manifest each time — same freshness, less bandwidth.
+
 ## [11.3.0] — 2026-06-26
 
 ### Changed

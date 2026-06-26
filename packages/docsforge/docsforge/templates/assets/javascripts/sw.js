@@ -45,9 +45,13 @@ function _buffersEqual(a, b) {
 }
 
 // === Manifest fetch (shared per navigation) ===
+// `cache: 'no-cache'` sends a conditional request — the static host returns
+// 304 when the manifest is unchanged, instead of a full 200 every navigation.
+// (SW-initiated fetches are not intercepted by this SW, so this bypasses the
+// runtime cache correctly.)
 async function fetchManifest() {
   try {
-    const resp = await fetch(`${MANIFEST_URL}?v=${Date.now()}`);
+    const resp = await fetch(MANIFEST_URL, { cache: 'no-cache' });
     if (!resp.ok) return null;
     return await resp.json();
   } catch (e) {
