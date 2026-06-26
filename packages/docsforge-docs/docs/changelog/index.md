@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.2.0] — 2026-06-26
+
+### Changed
+
+- **`docsforge serve` now uses the exact same service-worker caching strategy as a deployed site — no localhost special-casing.** The previous versions special-cased `localhost`/`127.0.0.1` (first a hard network-only bypass, then a network-first variant) to keep livereload fresh. That made dev behave differently from production and broke offline dev. The SW now treats localhost identically to any other host: cache-first for HTML/assets, stale-while-revalidate for the rest, with background manifest-sync. Consequence: livereload auto-reloads may serve cached content until the SW's background sync catches up — the same freshness model as the deployed site. Dev is now faithful to production, including offline support after the server stops.
+
 ## [11.1.9] — 2026-06-26
 
 ### Added

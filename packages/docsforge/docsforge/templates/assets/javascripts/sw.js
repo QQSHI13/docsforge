@@ -133,15 +133,11 @@ self.addEventListener("fetch", (e) => {
   // Skip live reload
   if (url.pathname.includes('/livereload/')) return;
 
-  // During local dev, use network-first so livereload always gets fresh
-  // content (avoiding the stale-cache reload loop), but still cache
-  // successful responses so the page keeps working offline after the dev
-  // server is stopped. Network-first (not cache-first) is what prevents the
-  // loop: the SW never serves stale HTML during a reload.
-  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    e.respondWith(networkFirstLocal(request));
-    return;
-  }
+  // No localhost special-casing: `docsforge serve` uses the IDENTICAL caching
+  // strategy as a deployed site (cache-first for HTML/assets, SWR for the
+  // rest). This keeps dev behavior faithful to production, including offline
+  // support. Livereload reloads may serve cached content until the SW's
+  // background manifest-sync catches up — exactly the deployed-site UX.
 
   // HTML pages: cache-first + trigger manifest sync
   if (request.destination === "document" || request.mode === "navigate") {
@@ -178,32 +174,6 @@ async function cacheFirst(request) {
       if (offlinePage) return offlinePage;
     }
     return new Response("<h1>Offline</h1><p>This page is not available offline.</p>",
-      { status: 503, headers: { "Content-Type": "text/html" } });
-  }
-}
-
-async function networkFirstLocal(request) {
-  // Network-first for localhost: fresh content while the dev server runs,
-  // with a cache fallback so visited pages survive after the server stops.
-  const cache = await caches.open(CACHE_NAME);
-  try {
-    const netResp = await fetch(request);
-    // Cache successful GET responses for offline use. Livereload/WebSocket
-    // and non-GET requests are left untouched.
-    if (netResp && netResp.ok && request.method === 'GET' &&
-        (request.mode === 'navigate' || request.destination === 'document' ||
-         ASSET_DESTINATIONS.includes(request.destination))) {
-      cache.put(request, netResp.clone());
-    }
-    return netResp;
-  } catch (err) {
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    if (request.mode === 'navigate' || request.destination === 'document') {
-      const offlinePage = await cache.match(BASE_URL + '404.html').catch(() => null);
-      if (offlinePage) return offlinePage;
-    }
-    return new Response("<h1>Offline</h1><p>DocsForge dev server is not running and this page wasn't cached.</p>",
       { status: 503, headers: { "Content-Type": "text/html" } });
   }
 }
