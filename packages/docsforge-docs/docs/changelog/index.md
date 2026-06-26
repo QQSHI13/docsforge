@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.8] — 2026-06-25
+
+### Fixed
+
+- **Config-check summary now appears at the start of `build`/`serve` output, not the end.** `check()` prints to stdout via `print()`, while the build logs to stderr via `logging` (unbuffered). When the two streams are merged and piped — i.e. CI, `docker run`, or any `| grep`/`| tail` — stdout is block-buffered and doesn't flush until process exit, so the check block landed after the build logs even though it ran first. `check()` now flushes stdout before returning. (Regression guard added: `test_regression_config_check_appears_before_build_logs`.)
+
 ## [11.1.7] — 2026-06-24
 
 ### Added

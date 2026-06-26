@@ -223,3 +223,34 @@ def test_regression_invalid_yaml_does_not_nameerror(tmp_path: Path, monkeypatch)
     monkeypatch.chdir(tmp_path)
     with pytest.raises(DocsForgeException):
         load_config()
+
+
+def test_regression_config_check_appears_before_build_logs(tmp_path: Path):
+    """When stdout+stderr are merged and piped (CI / docker / `| grep`), the
+    config-check summary must appear BEFORE the build logs. check() prints to
+    stdout (block-buffered when piped) while build() logs to stderr
+    (unbuffered); without a stdout flush the check block was held until
+    process exit and appeared at the END."""
+    import subprocess
+    import sys
+
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text("# Home\n")
+    (tmp_path / "docsforge.yml").write_text(
+        "site_name: T\ntheme: {name: material, palette: [{scheme: default, primary: teal, accent: teal}]}\nprivacy: false\n"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "docsforge", "build"],
+        cwd=tmp_path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, timeout=120,
+    )
+    merged = proc.stdout
+    check_idx = merged.find("Config check:")
+    build_idx = merged.find("Building documentation")
+    assert check_idx != -1, "config check output missing"
+    assert build_idx != -1, "build log missing"
+    assert check_idx < build_idx, (
+        f"config check (offset {check_idx}) appeared AFTER build log (offset {build_idx}) "
+        f"— stdout flush regression"
+    )

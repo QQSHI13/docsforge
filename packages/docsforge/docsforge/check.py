@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from pathlib import Path
 
 import yaml
@@ -180,6 +181,14 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
         print(f"  WARNINGS ({len(warnings_list)}):")
         for warning in warnings_list:
             print(f"    ⚠ {warning}")
+
+    # Flush stdout so the whole check summary appears BEFORE the build/serve
+    # logs that follow. build/serve log to stderr (logging.StreamHandler
+    # defaults to sys.stderr, unbuffered); check() prints to stdout, which is
+    # block-buffered when piped or run without a TTY (CI, `docker run`,
+    # `| grep`). Without this flush the check block would be held in the stdout
+    # buffer until process exit and appear at the END of the merged output.
+    sys.stdout.flush()
 
     return 1 if issues else 0
 
