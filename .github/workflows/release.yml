@@ -125,9 +125,11 @@ jobs:
           VERSION="${{ steps.versions.outputs.version }}"
           CHANGELOG="packages/docsforge-docs/docs/changelog/index.md"
           # Extract the "## [VERSION] ..." section up to the next "## [" header.
+          # Use index() (string search) instead of a regex so bracket escaping
+          # can't differ between awk implementations (mawk vs gawk).
           awk -v v="$VERSION" '
-            $0 ~ "^## \[" v "\]" {p=1; print; next}
-            /^## \[/ {if(p) exit}
+            index($0, "## [" v "]") == 1 {p=1; print; next}
+            p && index($0, "## [") == 1 {exit}
             p {print}
           ' "$CHANGELOG" > body.md
 
