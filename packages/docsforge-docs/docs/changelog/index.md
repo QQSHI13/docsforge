@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.7] — 2026-06-26
+
+### Changed
+
+- **Parallel Markdown rendering.** `_populate_page` (read source + `markdown.convert`, the CPU-heavy part of the build) now runs across a `ThreadPoolExecutor` (up to 32 workers). The per-thread `Markdown` instance makes `render()` thread-safe, so only the plugin event calls and `config._current_page` are serialized via a lock. Template rendering (`_build_page`) stays serial to avoid the sidebar-active race. Cold build of the docs site: ~10s → ~7s; output is byte-identical across builds (verified over 5 runs).
+
 ## [11.3.6] — 2026-06-26
 
 ### Fixed

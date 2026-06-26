@@ -170,28 +170,44 @@ def _build_extra_template(
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
 
-def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: bool = True) -> None:
-    """Read page content from docs_dir and render Markdown."""
-    config._current_page = page
+def _populate_page(
+    page: Page,
+    config: DocsForgeConfig,
+    files: Files,
+    dirty: bool = True,
+    plugin_lock: threading.RLock | None = None,
+) -> None:
+    """Read page content from docs_dir and render Markdown.
+
+    The heavy work — `read_source` (file I/O) and `render` (markdown.convert,
+    which uses a per-thread Markdown instance) — is thread-safe and runs
+    without the lock. The plugin event calls and `config._current_page` are
+    guarded by `plugin_lock` because plugin handlers may mutate shared state.
+    """
+    lock = plugin_lock or threading.RLock()
     try:
-        # Run the `pre_page` plugin event
-        page = config.plugins.on_pre_page(page, config=config, files=files)
+        with lock:
+            config._current_page = page
+            # Run the `pre_page` plugin event
+            page = config.plugins.on_pre_page(page, config=config, files=files)
 
         page.read_source(config)
         assert page.markdown is not None
 
-        # Run `page_markdown` plugin events.
-        page.markdown = config.plugins.on_page_markdown(
-            page.markdown, page=page, config=config, files=files
-        )
+        with lock:
+            # Run `page_markdown` plugin events.
+            page.markdown = config.plugins.on_page_markdown(
+                page.markdown, page=page, config=config, files=files
+            )
 
         page.render(config, files)
         assert page.content is not None
 
-        # Run `page_content` plugin events.
-        page.content = config.plugins.on_page_content(
-            page.content, page=page, config=config, files=files
-        )
+        with lock:
+            # Run `page_content` plugin events.
+            page.content = config.plugins.on_page_content(
+                page.content, page=page, config=config, files=files
+            )
     except Exception as e:
         message = f"Error reading page '{page.file.src_uri}':"
         # Prevent duplicated the error message because it will be printed immediately afterwards.
@@ -200,7 +216,8 @@ def _populate_page(page: Page, config: DocsForgeConfig, files: Files, dirty: boo
         log.error(message)
         raise
     finally:
-        config._current_page = None
+        with lock:
+            config._current_page = None
 
 
 def _build_page(
@@ -360,6 +377,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         # Cache the documentation pages list to avoid repeated iteration
         all_doc_files = list(files.documentation_pages(inclusion=inclusion))
         excluded = []
+        to_populate: list[Page] = []
         for file in all_doc_files:
             log.debug(f"Reading: {file.src_uri}")
             if file.page is None and file.inclusion.is_not_in_nav():
@@ -367,15 +385,30 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                     excluded.append(urljoin(serve_url, file.url))
                 Page(None, file, config)
             assert file.page is not None
-            
+
             # Check if page needs rebuilding
             source_path = Path(file.abs_src_path)
             output_path = Path(file.abs_dest_path)
+
             if not planner.should_rebuild(source_path, output_path):
                 log.debug(f"Skipping unchanged page: {file.src_uri}")
                 continue
-            
-            _populate_page(file.page, config, files, True)
+
+            to_populate.append(file.page)
+
+        # Render Markdown for all changed pages in parallel. The heavy work
+        # (read_source + render/markdown.convert) is thread-safe (per-thread
+        # Markdown instance); only plugin events are serialized via plugin_lock.
+        plugin_lock = threading.RLock()
+        max_workers = min(32, os.cpu_count() or 1)
+        if to_populate:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+                futures = [
+                    ex.submit(_populate_page, p, config, files, True, plugin_lock)
+                    for p in to_populate
+                ]
+                for f in futures:
+                    f.result()  # propagate exceptions
         if excluded:
             log.info(
                 "The following pages are being built only for the preview "
