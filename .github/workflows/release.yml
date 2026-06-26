@@ -70,7 +70,7 @@ jobs:
             echo "prerelease=false" >> $GITHUB_OUTPUT
           else
             # Python PEP 440: 11.0.0b1
-            # VSIX semver: 11.0.0-beta.1  (b → beta, rc → rc, a → alpha)
+            # VSIX semver: 11.0.0-beta.1  (b -> beta, rc -> rc, a -> alpha)
             VSIX_SUFFIX=$(echo "$PRE" | sed 's/^b/-beta./' | sed 's/^rc/-rc./' | sed 's/^a/-alpha./')
             echo "pypi=$BASE$PRE" >> $GITHUB_OUTPUT
             echo "vsix=$BASE$VSIX_SUFFIX" >> $GITHUB_OUTPUT
@@ -123,7 +123,6 @@ jobs:
         id: notes
         run: |
           VERSION="${{ steps.versions.outputs.version }}"
-          TAG="${{ steps.versions.outputs.tag }}"
           CHANGELOG="packages/docsforge-docs/docs/changelog/index.md"
           # Extract the "## [VERSION] ..." section up to the next "## [" header.
           awk -v v="$VERSION" '
@@ -133,34 +132,23 @@ jobs:
           ' "$CHANGELOG" > body.md
 
           if [ -s body.md ]; then
+            # Use printf with single-quoted formats so backticks/code-fences
+            # are literal (no command substitution or escaping pitfalls).
             {
-              echo "## DocsForge $VERSION"
-              echo
-              echo "Drop-in replacement for MkDocs + Material for MkDocs. One package, one command, zero CDN calls."
-              echo
+              printf '## DocsForge %s\n\n' "$VERSION"
+              printf 'Drop-in replacement for MkDocs + Material for MkDocs. One package, one command, zero CDN calls.\n\n'
               cat body.md
-              echo
-              echo "---"
-              echo
-              echo "### Install / upgrade"
-              echo '```bash'
-              echo "pip install --upgrade docsforge==$VERSION"
-              echo '```'
-              echo
-              echo "### Docker"
-            	  echo '```bash'
-              echo "docker pull ghcr.io/qqshi13/docsforge:$VERSION"
-              echo 'docker run --rm -v "$(pwd):/docs" ghcr.io/qqshi13/docsforge:'"$VERSION"' build"
-              echo '```'
-              echo
-              echo "### VS Code extension"
-              echo "Download `docsforge-vscode-$VERSION.vsix` from the assets below."
-              echo
-              echo "📚 Docs: https://qqshi13.github.io/docsforge/  •  🐛 Issues: https://github.com/QQSHI13/docsforge/issues"
+              printf '\n---\n\n### Install / upgrade\n\n'
+              printf '```\npip install --upgrade docsforge==%s\n```\n\n' "$VERSION"
+              printf '### Docker\n\n'
+              printf '```\ndocker pull ghcr.io/qqshi13/docsforge:%s\n' "$VERSION"
+              printf 'docker run --rm -v "$(pwd):/docs" ghcr.io/qqshi13/docsforge:%s build\n```\n\n' "$VERSION"
+              printf '### VS Code extension\n\n'
+              printf 'Download the `docsforge-vscode-%s.vsix` asset attached below.\n\n' "$VERSION"
+              printf 'Docs: https://qqshi13.github.io/docsforge/  -  Issues: https://github.com/QQSHI13/docsforge/issues\n'
             } > release-notes.md
             echo "notes_file=release-notes.md" >> $GITHUB_OUTPUT
-            echo "Extracted changelog entry for $VERSION:"
-            cat body.md
+            echo "Extracted changelog entry for $VERSION."
           else
             echo "notes_file=" >> $GITHUB_OUTPUT
             echo "No changelog entry for $VERSION — will fall back to auto-generated notes"
