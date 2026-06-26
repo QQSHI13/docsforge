@@ -54,6 +54,7 @@ class CacheManager:
         self.sources_file = cache_dir / "sources.json"
         self.meta_file = cache_dir / "meta.json"
         self.pkg_version_file = cache_dir / "pkg_version"
+        self.theme_sig_file = cache_dir / "theme_sig"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -137,6 +138,16 @@ class CacheManager:
     def set_pkg_version(self, version: str) -> None:
         """Save the docsforge version for this cache."""
         self.pkg_version_file.write_text(version)
+
+    def get_theme_sig(self) -> str | None:
+        """Get the theme-template signature from the last build."""
+        if self.theme_sig_file.exists():
+            return self.theme_sig_file.read_text().strip() or None
+        return None
+
+    def set_theme_sig(self, sig: str) -> None:
+        """Save the theme-template signature for this build."""
+        self.theme_sig_file.write_text(sig)
 
     def invalidate(self) -> None:
         """Clear all cache files."""
@@ -222,9 +233,37 @@ class BuildPlanner:
         self.deps = cache.get_deps()
         self.config_hash = cache.get_config_hash()
         self.pkg_version = cache.get_pkg_version()
+        self.theme_sig = cache.get_theme_sig()
         # {path: {mtime, size, hash}} — lets us skip re-reading+hashing a file
         # whose mtime+size are unchanged since last build.
         self.meta = cache.get_meta()
+
+    def theme_signature(self, dirs) -> str:
+        """Stat-only signature of all .html/.xml templates in the theme dirs.
+
+        A change triggers a full rebuild so edits to base.html, a partial, or
+        a custom_dir template propagate to every page. Only .html/.xml are
+        tracked (rendering-affecting); the 14k+ .icons/ are excluded.
+        """
+        import hashlib
+        items = []
+        for d in dirs:
+            dpath = Path(d)
+            if not dpath.is_dir():
+                continue
+            for p in dpath.rglob('*'):
+                if not p.is_file() or p.suffix not in ('.html', '.xml'):
+                    continue
+                try:
+                    st = p.stat()
+                except OSError:
+                    continue
+                items.append((str(p), st.st_mtime_ns, st.st_size))
+        items.sort()
+        h = hashlib.sha256()
+        for path, mtime, size in items:
+            h.update(f"{path}|{mtime}|{size}".encode())
+        return h.hexdigest()[:16]
 
     def _current_hash(self, path: Path) -> str:
         """Hash a file, reusing the cached hash if mtime+size are unchanged.
@@ -284,14 +323,17 @@ class BuildPlanner:
 
         return False
 
-    def should_full_rebuild(self, config_path: Path, pkg_version: str | None = None) -> bool:
+    def should_full_rebuild(self, config_path: Path, pkg_version: str | None = None, theme_sig: str | None = None) -> bool:
         """Check if config/global changes require full rebuild.
         
-        Returns True if docsforge.yml hash changed OR the docsforge package
-        version changed (so theme/template/SW updates propagate on upgrade).
+        Returns True if docsforge.yml hash changed, the docsforge package
+        version changed, or the theme templates changed.
         """
         # Package version change -> full rebuild (theme/templates/SW updated).
         if pkg_version is not None and self.pkg_version != pkg_version:
+            return True
+        # Theme template change -> full rebuild (base.html/partials/custom_dir).
+        if theme_sig is not None and self.theme_sig != theme_sig:
             return True
 
         if not config_path.exists():
@@ -357,6 +399,7 @@ class BuildPlanner:
         self.deps = {}
         self.config_hash = None
         self.pkg_version = None
+        self.theme_sig = None
         self.cache.invalidate()
 
     def update_cache(self, source: Path, output: Path, deps: list[str] | None = None) -> None:
@@ -388,17 +431,18 @@ class BuildPlanner:
         """Record the source set for this build."""
         self.cache.set_sources(list(current_sources))
 
-    def save(self, config_hash: str | None = None, pkg_version: str | None = None) -> None:
+    def save(self, config_hash: str | None = None, pkg_version: str | None = None, theme_sig: str | None = None) -> None:
         """Save all cache state."""
         self.cache.set_hashes(self.hashes)
         self.cache.set_deps(self.deps)
         self.cache.set_meta(self.meta)
         if config_hash:
             self.cache.set_config_hash(config_hash)
-            # Keep in-memory state consistent with disk so a subsequent
-            # should_full_rebuild() on the same planner instance is correct.
             self.config_hash = config_hash
         if pkg_version:
             self.cache.set_pkg_version(pkg_version)
             self.pkg_version = pkg_version
+        if theme_sig:
+            self.cache.set_theme_sig(theme_sig)
+            self.theme_sig = theme_sig
         self.cache.set_version(CACHE_VERSION)

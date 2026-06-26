@@ -270,6 +270,26 @@ class TestBuildPlanner:
         # New version -> full rebuild.
         assert p.should_full_rebuild(cfg, pkg_version="11.3.6") is True
 
+    def test_full_rebuild_on_theme_template_change(self, tmp_path: Path):
+        """Editing base.html / a partial / a custom_dir template must trigger a
+        full rebuild so every page re-renders."""
+        from docsforge.cache import BuildPlanner, CacheManager, FileHasher
+        p = self._planner(tmp_path)
+        cfg = tmp_path / "docsforge.yml"
+        cfg.write_text("site_name: A\n")
+        tdir = tmp_path / "tpl"
+        tdir.mkdir()
+        (tdir / "base.html").write_text("v1")
+        sig1 = p.theme_signature([str(tdir)])
+        p.save(config_hash=FileHasher().hash_file(cfg), pkg_version="x", theme_sig=sig1)
+        assert p.should_full_rebuild(cfg, pkg_version="x", theme_sig=sig1) is False
+        # Edit a template -> signature changes -> stored sig mismatches -> rebuild.
+        (tdir / "base.html").write_text("v2")
+        sig2 = p.theme_signature([str(tdir)])
+        assert sig2 != sig1
+        p2 = BuildPlanner(CacheManager(cache_dir=tmp_path / "c"), FileHasher())
+        assert p2.should_full_rebuild(cfg, pkg_version="x", theme_sig=sig2) is True
+
     def test_invalidate_clears_in_memory_hashes(self, tmp_path: Path):
         """planner.invalidate() must clear in-memory hashes, not just disk files
         — otherwise unchanged pages would skip rebuild after a config/version change."""

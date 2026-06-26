@@ -295,7 +295,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
     # Check config hash for full rebuild decision
     config_path = Path(config.config_file_path) if config.config_file_path else Path("docsforge.yml")
-    needs_full_rebuild = planner.should_full_rebuild(config_path, docsforge.__version__)
+    theme_sig = planner.theme_signature(config.theme.dirs)
+    needs_full_rebuild = planner.should_full_rebuild(config_path, docsforge.__version__, theme_sig)
 
     if dirty and needs_full_rebuild:
         # Config or package version changed — invalidate cache for a fresh
@@ -504,7 +505,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
         # Save cache state
         config_hash = hasher.hash_file(config_path) if config_path.exists() else ""
-        planner.save(config_hash=config_hash, pkg_version=docsforge.__version__)
+        planner.save(config_hash=config_hash, pkg_version=docsforge.__version__, theme_sig=theme_sig)
 
         # Save cache after successful build (only if not in strict mode with errors)
         if counts := warning_counter.get_counts():

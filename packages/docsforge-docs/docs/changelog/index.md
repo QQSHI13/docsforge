@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.8] — 2026-06-26
+
+### Fixed
+
+- **Template edits now trigger a full rebuild.** The build cache only tracked source-`.md` hashes, the config hash, and the package version — so editing `base.html`, a partial, or a `theme.custom_dir` template did not rebuild unchanged pages (stale output). The build now records a stat-only signature of all `.html`/`.xml` templates in the theme dirs (the 14k+ `.icons/` excluded) and forces a full rebuild when it changes. Editing `base.html` etc. now rebuilds every page.
+
 ## [11.3.7] — 2026-06-26
 
 ### Changed
