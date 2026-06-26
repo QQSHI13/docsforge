@@ -258,6 +258,33 @@ class TestBuildPlanner:
         cfg.write_text("site_name: A\n")
         assert p.should_full_rebuild(cfg) is True
 
+    def test_full_rebuild_on_pkg_version_change(self, tmp_path: Path):
+        """A docsforge upgrade (version change) must trigger a full rebuild so
+        theme/template/SW updates propagate to the built site."""
+        p = self._planner(tmp_path)
+        cfg = tmp_path / "docsforge.yml"
+        cfg.write_text("site_name: A\n")
+        p.save(config_hash=FileHasher().hash_file(cfg), pkg_version="11.2.0")
+        # Same version -> no full rebuild.
+        assert p.should_full_rebuild(cfg, pkg_version="11.2.0") is False
+        # New version -> full rebuild.
+        assert p.should_full_rebuild(cfg, pkg_version="11.3.6") is True
+
+    def test_invalidate_clears_in_memory_hashes(self, tmp_path: Path):
+        """planner.invalidate() must clear in-memory hashes, not just disk files
+        — otherwise unchanged pages would skip rebuild after a config/version change."""
+        p = self._planner(tmp_path)
+        src = tmp_path / "p.md"
+        out = tmp_path / "out.html"
+        src.write_text("x"); out.write_text("built")
+        p.update_cache(src, out, deps=[])
+        assert p.hashes, "hashes populated"
+        p.invalidate()
+        assert p.hashes == {}, "in-memory hashes cleared"
+        assert p.config_hash is None
+        # meta is retained (source contents unchanged across a version bump)
+        assert isinstance(p.meta, dict)
+
     def test_update_cache_stores_dep_hashes(self, tmp_path: Path):
         """Regression for the latent bug: dep hashes were never stored, making
         the dep check a no-op (cached hash always missing -> always rebuild)."""

@@ -53,6 +53,7 @@ class CacheManager:
         self.version_file = cache_dir / "version"
         self.sources_file = cache_dir / "sources.json"
         self.meta_file = cache_dir / "meta.json"
+        self.pkg_version_file = cache_dir / "pkg_version"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -126,6 +127,16 @@ class CacheManager:
     def set_meta(self, meta: dict[str, dict]) -> None:
         """Save the mtime/size/hash metadata."""
         self._write_json(self.meta_file, meta)
+
+    def get_pkg_version(self) -> str | None:
+        """Get the docsforge version that produced this cache."""
+        if self.pkg_version_file.exists():
+            return self.pkg_version_file.read_text().strip() or None
+        return None
+
+    def set_pkg_version(self, version: str) -> None:
+        """Save the docsforge version for this cache."""
+        self.pkg_version_file.write_text(version)
 
     def invalidate(self) -> None:
         """Clear all cache files."""
@@ -210,6 +221,7 @@ class BuildPlanner:
         self.hashes = cache.get_hashes()
         self.deps = cache.get_deps()
         self.config_hash = cache.get_config_hash()
+        self.pkg_version = cache.get_pkg_version()
         # {path: {mtime, size, hash}} — lets us skip re-reading+hashing a file
         # whose mtime+size are unchanged since last build.
         self.meta = cache.get_meta()
@@ -272,11 +284,16 @@ class BuildPlanner:
 
         return False
 
-    def should_full_rebuild(self, config_path: Path) -> bool:
+    def should_full_rebuild(self, config_path: Path, pkg_version: str | None = None) -> bool:
         """Check if config/global changes require full rebuild.
         
-        Returns True if docsforge.yml hash changed.
+        Returns True if docsforge.yml hash changed OR the docsforge package
+        version changed (so theme/template/SW updates propagate on upgrade).
         """
+        # Package version change -> full rebuild (theme/templates/SW updated).
+        if pkg_version is not None and self.pkg_version != pkg_version:
+            return True
+
         if not config_path.exists():
             return True
 
@@ -329,6 +346,19 @@ class BuildPlanner:
 
         return orphaned
 
+    def invalidate(self) -> None:
+        """Clear cached hashes/deps (in-memory + disk) for a full rebuild.
+
+        Retains `meta` (the mtime/size hash cache) because source file
+        contents don't change just because the config or package version did —
+        so the rebuild still avoids re-reading unchanged sources.
+        """
+        self.hashes = {}
+        self.deps = {}
+        self.config_hash = None
+        self.pkg_version = None
+        self.cache.invalidate()
+
     def update_cache(self, source: Path, output: Path, deps: list[str] | None = None) -> None:
         """Update cache after successful rebuild."""
         self.hashes[str(source)] = self._current_hash(source)
@@ -358,7 +388,7 @@ class BuildPlanner:
         """Record the source set for this build."""
         self.cache.set_sources(list(current_sources))
 
-    def save(self, config_hash: str | None = None) -> None:
+    def save(self, config_hash: str | None = None, pkg_version: str | None = None) -> None:
         """Save all cache state."""
         self.cache.set_hashes(self.hashes)
         self.cache.set_deps(self.deps)
@@ -368,4 +398,7 @@ class BuildPlanner:
             # Keep in-memory state consistent with disk so a subsequent
             # should_full_rebuild() on the same planner instance is correct.
             self.config_hash = config_hash
+        if pkg_version:
+            self.cache.set_pkg_version(pkg_version)
+            self.pkg_version = pkg_version
         self.cache.set_version(CACHE_VERSION)

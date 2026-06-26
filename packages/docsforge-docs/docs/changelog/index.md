@@ -4,6 +4,13 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.6] — 2026-06-26
+
+### Fixed
+
+- **DocsForge upgrades now trigger a full rebuild.** The build cache only tracked source-`.md` hashes and the `docsforge.yml` hash, so upgrading DocsForge (new theme templates / service worker / build logic) did not rebuild unchanged pages — the new SW and templates wouldn't reach the built site until a source file was edited. The cache now records the package version and forces a full rebuild when it changes.
+- **Config changes now actually rebuild unchanged pages.** `cache.invalidate()` deleted disk files but left the planner's in-memory hashes intact, so a config/package change didn't rebuild pages whose source was unchanged (off-by-one: the change applied on the *next* build, not the current one). `planner.invalidate()` clears both in-memory and disk state. The `meta` (mtime/size hash cache) is retained across a version bump so the rebuild still skips re-reading unchanged sources.
+
 ## [11.3.5] — 2026-06-26
 
 ### Added
