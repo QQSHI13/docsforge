@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.3] — 2026-06-26
+
+### Changed
+
+- **Build: skip asset optimization when the site is unchanged.** `optimize_assets` re-scanned every HTML/CSS/JS on every build. It now runs only when a page was actually rebuilt or the source set changed; on a no-op incremental build it's skipped entirely (docs site: 1.61s → 0.87s).
+
 ## [11.3.2] — 2026-06-26
 
 ### Changed

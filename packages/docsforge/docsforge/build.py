@@ -340,6 +340,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         # only appear when a source is removed, so skip the site_dir walk when
         # the source set is unchanged or only grew since the last build.
         current_sources = {f.src_uri for f in files}
+        prev_sources = set(planner.cache.get_sources())
+        sources_changed = prev_sources != current_sources
         if planner.should_scan_orphans(current_sources):
             orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
             for f in orphaned:
@@ -444,6 +446,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
                 )
                 planner.update_cache(source_path, output_path, deps)
 
+            built_any = bool(futures)
+
         # Generate PWA manifest and pre-cache all pages in the service worker
         _generate_pwa_manifest_and_precache(config, files, nav)
 
@@ -455,8 +459,13 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         # Run `post_build` plugin events.
         config.plugins.on_post_build(config=config)
 
-        # Optimize static assets: remove unused files, source maps, old font formats
-        optimize_assets(config.site_dir)
+        # Optimize static assets: remove unused files, source maps, old font
+        # formats. Skip when the build wrote nothing and the source set is
+        # unchanged — the site is already optimized from the last build.
+        if built_any or sources_changed:
+            optimize_assets(config.site_dir)
+        else:
+            log.debug("Asset optimization skipped (site unchanged)")
 
         # Save cache state
         config_hash = hasher.hash_file(config_path) if config_path.exists() else ""
