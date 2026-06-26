@@ -4,6 +4,17 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.1.9] — 2026-06-26
+
+### Added
+
+- **Docker image now publishes version-numbered tags.** Previously only `latest` and `sha-*` were pushed (the `type=semver` metadata never fired because the build job checks out a commit SHA, not the tag). Each release now also publishes `ghcr.io/qqshi13/docsforge:<version>` (e.g. `:11.1.9`) and `:<major>.<minor>` (e.g. `:11.1`) for stable releases.
+- **Friendly, helpful GitHub release notes.** Release bodies are now generated from the matching CHANGELOG entry, with install/upgrade commands, Docker pull/run examples, and a VS Code extension download hint — instead of a bare "Full Changelog" link.
+
+### Fixed
+
+- **`docsforge serve` pages now work offline after the server stops.** The service worker had a hard localhost bypass: on `localhost`/`127.0.0.1` it fetched from the network with **no caching and no fallback**, so once you stopped the dev server (or went offline) every page was blank. It now uses **network-first** for localhost — fresh content while the server runs (so livereload stays loop-free, the original reason for the bypass) — and caches successful responses so visited pages survive after the server is closed. The stale-cache reload loop stays fixed because the SW never serves stale HTML during a reload.
+
 ## [11.1.8] — 2026-06-25
 
 ### Fixed

@@ -37,6 +37,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       commit_sha: ${{ steps.commit.outputs.commit_sha }}
+      version: ${{ steps.versions.outputs.version }}
+      major: ${{ steps.versions.outputs.major }}
+      major_minor: ${{ steps.versions.outputs.major_minor }}
       vsix_version: ${{ steps.versions.outputs.vsix }}
       tag: ${{ steps.versions.outputs.tag }}
     steps:
@@ -60,6 +63,9 @@ jobs:
           if [ -z "$PRE" ]; then
             echo "pypi=$BASE" >> $GITHUB_OUTPUT
             echo "vsix=$BASE" >> $GITHUB_OUTPUT
+            echo "version=$BASE" >> $GITHUB_OUTPUT
+            echo "major=$(echo $BASE | cut -d. -f1)" >> $GITHUB_OUTPUT
+            echo "major_minor=$(echo $BASE | cut -d. -f1-2)" >> $GITHUB_OUTPUT
             echo "tag=v$BASE" >> $GITHUB_OUTPUT
             echo "prerelease=false" >> $GITHUB_OUTPUT
           else
@@ -68,6 +74,9 @@ jobs:
             VSIX_SUFFIX=$(echo "$PRE" | sed 's/^b/-beta./' | sed 's/^rc/-rc./' | sed 's/^a/-alpha./')
             echo "pypi=$BASE$PRE" >> $GITHUB_OUTPUT
             echo "vsix=$BASE$VSIX_SUFFIX" >> $GITHUB_OUTPUT
+            echo "version=$BASE$PRE" >> $GITHUB_OUTPUT
+            echo "major=" >> $GITHUB_OUTPUT
+            echo "major_minor=" >> $GITHUB_OUTPUT
             echo "tag=v$BASE$PRE" >> $GITHUB_OUTPUT
             echo "prerelease=true" >> $GITHUB_OUTPUT
           fi
@@ -110,16 +119,65 @@ jobs:
           fi
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ steps.versions.outputs.version }}"
+          TAG="${{ steps.versions.outputs.tag }}"
+          CHANGELOG="packages/docsforge-docs/docs/changelog/index.md"
+          # Extract the "## [VERSION] ..." section up to the next "## [" header.
+          awk -v v="$VERSION" '
+            $0 ~ "^## \[" v "\]" {p=1; print; next}
+            /^## \[/ {if(p) exit}
+            p {print}
+          ' "$CHANGELOG" > body.md
+
+          if [ -s body.md ]; then
+            {
+              echo "## DocsForge $VERSION"
+              echo
+              echo "Drop-in replacement for MkDocs + Material for MkDocs. One package, one command, zero CDN calls."
+              echo
+              cat body.md
+              echo
+              echo "---"
+              echo
+              echo "### Install / upgrade"
+              echo '```bash'
+              echo "pip install --upgrade docsforge==$VERSION"
+              echo '```'
+              echo
+              echo "### Docker"
+            	  echo '```bash'
+              echo "docker pull ghcr.io/qqshi13/docsforge:$VERSION"
+              echo 'docker run --rm -v "$(pwd):/docs" ghcr.io/qqshi13/docsforge:'"$VERSION"' build"
+              echo '```'
+              echo
+              echo "### VS Code extension"
+              echo "Download `docsforge-vscode-$VERSION.vsix` from the assets below."
+              echo
+              echo "📚 Docs: https://qqshi13.github.io/docsforge/  •  🐛 Issues: https://github.com/QQSHI13/docsforge/issues"
+            } > release-notes.md
+            echo "notes_file=release-notes.md" >> $GITHUB_OUTPUT
+            echo "Extracted changelog entry for $VERSION:"
+            cat body.md
+          else
+            echo "notes_file=" >> $GITHUB_OUTPUT
+            echo "No changelog entry for $VERSION — will fall back to auto-generated notes"
+          fi
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.versions.outputs.tag }}"
-          FLAGS=(
-            --title "$TAG"
-            --generate-notes
-            --target main
-          )
+          NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
+          FLAGS=(--title "$TAG" --target main)
+          if [ -n "$NOTES_FILE" ]; then
+            FLAGS+=(--notes-file "$NOTES_FILE")
+          else
+            FLAGS+=(--generate-notes)
+          fi
           if [ "${{ steps.versions.outputs.prerelease }}" = "true" ]; then
             FLAGS+=(--prerelease)
           fi
@@ -181,9 +239,12 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
+          # The job checks out the commit SHA (not the tag), so `type=semver`
+          # never fires. Emit explicit version tags from the release outputs.
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ needs.release.outputs.version }}
+            type=raw,value=${{ needs.release.outputs.major_minor }},enable=${{ needs.release.outputs.major_minor != '' }}
+            type=raw,value=${{ needs.release.outputs.major }},enable=${{ needs.release.outputs.major != '' }}
             type=sha,format=short
           flavor: |
             latest=true
