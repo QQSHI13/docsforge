@@ -315,13 +315,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         # Run `pre_build` plugin events.
         config.plugins.on_pre_build(config=config)
 
-        # Remove orphaned output files (pages deleted from source)
         docs_dir = Path(config.docs_dir)
         site_dir = Path(config.site_dir)
-        orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
-        for f in orphaned:
-            log.debug(f"Removing orphaned output: {f}")
-            f.unlink()
 
         if not serve_url:
             log.info(f"Building documentation to directory: {config.site_dir}")
@@ -340,6 +335,17 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         files = config.plugins.on_files(files, config=config)
         # If plugins have added files but haven't set their inclusion level, calculate it again.
         set_exclusions(files, config)
+
+        # Remove orphaned output files (pages deleted from source). Orphans can
+        # only appear when a source is removed, so skip the site_dir walk when
+        # the source set is unchanged or only grew since the last build.
+        current_sources = {f.src_uri for f in files}
+        if planner.should_scan_orphans(current_sources):
+            orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
+            for f in orphaned:
+                log.debug(f"Removing orphaned output: {f}")
+                f.unlink()
+        planner.update_sources(current_sources)
 
         nav = get_navigation(files, config)
 

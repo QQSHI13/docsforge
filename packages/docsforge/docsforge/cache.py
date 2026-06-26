@@ -51,6 +51,7 @@ class CacheManager:
         self.deps_file = cache_dir / "deps.json"
         self.config_hash_file = cache_dir / "config_hash"
         self.version_file = cache_dir / "version"
+        self.sources_file = cache_dir / "sources.json"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -108,6 +109,14 @@ class CacheManager:
     def set_version(self, version: int) -> None:
         """Save cache format version."""
         self.version_file.write_text(str(version))
+
+    def get_sources(self) -> list[str]:
+        """Get the set of source URIs from the last build."""
+        return self._read_json(self.sources_file).get("sources", [])
+
+    def set_sources(self, sources: list[str]) -> None:
+        """Save the set of source URIs for this build."""
+        self._write_json(self.sources_file, {"sources": sorted(sources)})
 
     def invalidate(self) -> None:
         """Clear all cache files."""
@@ -304,6 +313,22 @@ class BuildPlanner:
                 dep_path = Path(dep)
                 if dep_path.exists():
                     self.hashes[dep] = self.hasher.hash_file(dep_path)
+
+    def should_scan_orphans(self, current_sources: set[str]) -> bool:
+        """Return True only if a source file was removed since the last build.
+
+        Orphaned outputs (a built page whose source .md was deleted) can only
+        appear when a source is removed, so when the source set is unchanged
+        or only grew we skip the full site_dir walk.
+        """
+        cached = set(self.cache.get_sources())
+        if not cached:
+            return True  # first build, or cache lost — scan to be safe
+        return bool(cached - current_sources)  # something was removed
+
+    def update_sources(self, current_sources: set[str]) -> None:
+        """Record the source set for this build."""
+        self.cache.set_sources(list(current_sources))
 
     def save(self, config_hash: str | None = None) -> None:
         """Save all cache state."""

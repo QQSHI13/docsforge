@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.2] — 2026-06-26
+
+### Changed
+
+- **Build: skip the orphan-output scan when no source files were deleted.** `find_orphaned_outputs` walked the entire `site_dir` on every build, but orphaned outputs can only appear when a source is *removed*. The build now records the source-URI set (`sources.json`) and skips the `site_dir` walk when the set is unchanged or only grew since the last build. On a cache hit (typical incremental build) this removes a full output-tree traversal.
+
 ## [11.3.1] — 2026-06-26
 
 ### Changed

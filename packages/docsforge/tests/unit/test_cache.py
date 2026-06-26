@@ -295,6 +295,18 @@ class TestBuildPlanner:
         p.save(config_hash="x")
         assert cm.get_version() == CACHE_VERSION
 
+    def test_should_scan_orphans_skips_when_no_removals(self, tmp_path: Path):
+        p = self._planner(tmp_path)
+        # First build (no cached set) -> scan.
+        assert p.should_scan_orphans({"a.md", "b.md"}) is True
+        p.update_sources({"a.md", "b.md"})
+        # Same set -> skip.
+        assert p.should_scan_orphans({"a.md", "b.md"}) is False
+        # Added a file (set grew) -> skip.
+        assert p.should_scan_orphans({"a.md", "b.md", "c.md"}) is False
+        # Removed a file -> scan.
+        assert p.should_scan_orphans({"a.md"}) is True
+
     def test_failed_build_not_cached(self, tmp_path: Path, monkeypatch):
         """Regression for v11.1.4 bug 3: build.py must skip update_cache when a
         page build raises. Here we assert the helper contract the build loop
