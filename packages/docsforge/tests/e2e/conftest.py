@@ -43,8 +43,8 @@ def has_browser() -> bool:
     return _HAS_BROWSER
 
 
-def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True) -> Path:
-    """Build a small docsforge site and return its site_dir."""
+def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True, language: str | None = None) -> tuple[Path, Path]:
+    """Build a small docsforge site and return (root, site_dir)."""
     from docsforge.config_base import load_config
     from docsforge.build import build
 
@@ -64,6 +64,7 @@ def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True
         "docs_dir: docs\nsite_dir: site\nprivacy: false\n"
         + nav_block +
         "theme:\n  name: material\n"
+        + (f"  language: {language}\n" if language else "") +
         "  palette:\n    - {scheme: default, primary: teal, accent: teal}\n"
     )
     import os
@@ -101,6 +102,21 @@ def served_site(tmp_path_factory) -> Iterator[tuple[str, Path]]:
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
     yield (f"http://127.0.0.1:{port}/", site_dir)
+    httpd.shutdown()
+
+
+@pytest.fixture(scope="module")
+def served_site_i18n(tmp_path_factory):
+    """A fixture site built with theme.language='fr' for i18n checks."""
+    if not has_browser():
+        pytest.skip("Playwright/Chromium unavailable — E2E tests skipped")
+    _, site_dir = _build_fixture(tmp_path_factory.mktemp("e2e-i18n"), language="fr")
+    port = _free_port()
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), lambda *a: _Handler(*a, directory=str(site_dir)))
+    httpd.daemon_threads = True
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    yield f"http://127.0.0.1:{port}/"
     httpd.shutdown()
 
 

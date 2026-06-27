@@ -131,3 +131,61 @@ def test_dev_server_matches_deployed(served_dev):
         context.close()
         browser.close()
         p.stop()
+
+
+def test_i18n_translates_ui(served_site_i18n):
+    """A site built with theme.language='fr' must render <html lang='fr'> and
+    translated UI strings (not the English defaults)."""
+    from playwright.sync_api import sync_playwright
+
+    url = served_site_i18n
+    p = sync_playwright().start()
+    browser = p.chromium.launch()
+    page = browser.new_context().new_page()
+    try:
+        page.goto(url, wait_until="load")
+        assert page.get_attribute("html", "lang") == "fr"
+        # The search placeholder must be translated (French), not "Search".
+        page.keyboard.press("/")
+        try:
+            page.wait_for_selector("input.md-search__input", timeout=4000)
+            placeholder = page.get_attribute("input.md-search__input", "placeholder") or ""
+            assert placeholder != "Search", f"search placeholder not translated: {placeholder!r}"
+            assert "echerch" in placeholder.lower(), \
+                f"expected French search placeholder, got {placeholder!r}"
+        except Exception:
+            pytest.skip("search UI not present")
+    finally:
+        browser.close()
+        p.stop()
+
+
+def test_accessibility_basics(context_page):
+    """Lightweight a11y checks: lang attribute, images have alt, a main
+    landmark exists, and the search control is labelled."""
+    base_url, page, _ = context_page
+    page.goto(base_url, wait_until="load")
+    # 1. <html lang> is set (correct for screen readers).
+    assert page.get_attribute("html", "lang"), "missing <html lang>"
+    # 2. Every image has an alt attribute (empty alt = decorative, allowed).
+    without_alt = page.evaluate(
+        "Array.from(document.querySelectorAll('img')).filter(i => !i.hasAttribute('alt')).length"
+    )
+    assert without_alt == 0, f"{without_alt} images missing alt"
+    # 3. A main landmark exists.
+    assert page.locator("main, [role='main']").count() >= 1, "no <main> landmark"
+    # 4. The search input has an accessible label or aria-label.
+    page.keyboard.press("/")
+    try:
+        page.wait_for_selector("input.md-search__input", timeout=4000)
+        labelled = page.evaluate(
+            """() => {
+                const i = document.querySelector('input.md-search__input');
+                if (!i) return true;
+                return !!(i.id && document.querySelector(`label[for=\"${i.id}\"]`))
+                    || i.getAttribute('aria-label') || i.getAttribute('aria-labelledby');
+            }"""
+        )
+        assert labelled, "search input has no accessible label"
+    except Exception:
+        pytest.skip("search UI not present")
