@@ -49,14 +49,12 @@ def test_offline_reload_serves_cached_page(context_page):
 def test_search_index_is_served(context_page):
     base_url, page, _ = context_page
     page.goto(base_url, wait_until="networkidle")
-    # The search index must be available (the SW serves it cache-first).
-    resp = page.evaluate(
-        """async () => {
-            const r = await fetch('search/search_index.json');
-            return r.ok ? (await r.json()).docs.length : -1;
-        }"""
-    )
-    assert resp > 0, "search_index.json missing or empty"
+    # The search index must be built and served. Use Playwright's request API
+    # (bypasses SW-startup timing races in the page's own fetch()).
+    resp = page.request.get(base_url + "search/search_index.json")
+    assert resp.ok, f"search_index.json not served: {resp.status}"
+    data = resp.json()
+    assert len(data["docs"]) > 0, "search_index.json has no docs"
 
 
 def test_link_hover_prefetches_destination(context_page):
