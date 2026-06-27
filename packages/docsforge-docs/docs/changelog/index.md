@@ -4,6 +4,16 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.10] — 2026-06-27
+
+### Added
+
+- **Serve / live-reload unit tests (15).** Covers `_find_available_port` (free, in-use increment, all-in-use, firewall-dropped-SYN with the short-timeout WSL fix), `_serve_url`/`_normalize_mount_path`/`_try_relativize_path`, and the rebuild-queueing logic that guards against the infinite reload loop (events during a build are queued via `_pending_rebuild`, not signaled).
+
+### Changed
+
+- Extracted the live-reload file-watch callback to a testable `LiveReloadServer._on_file_event` method (behavior-preserving).
+
 ## [11.3.9] — 2026-06-26
 
 ### Added

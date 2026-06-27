@@ -152,21 +152,27 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             return
         self._watched_paths[path] = 1
 
-        def callback(event):
-            if event.is_directory:
-                return
-            log.debug(str(event))
-            with self._rebuild_cond:
-                if self._rebuilding:
-                    self._pending_rebuild = True
-                    return
-                self._want_rebuild = True
-                self._rebuild_cond.notify_all()
-
         handler = watchdog.events.FileSystemEventHandler()
-        handler.on_any_event = callback  # type: ignore[method-assign]
+        handler.on_any_event = self._on_file_event  # type: ignore[method-assign]
         log.debug(f"Watching '{path}'")
         self._watch_refs[path] = self.observer.schedule(handler, path, recursive=recursive)
+
+    def _on_file_event(self, event) -> None:
+        """Handle a file-change event from the watcher.
+
+        If a build is in progress, queue the change (``_pending_rebuild``) so it
+        fires once afterward instead of racing the current build. Otherwise
+        signal the build loop to rebuild.
+        """
+        if event.is_directory:
+            return
+        log.debug(str(event))
+        with self._rebuild_cond:
+            if self._rebuilding:
+                self._pending_rebuild = True
+                return
+            self._want_rebuild = True
+            self._rebuild_cond.notify_all()
 
     def unwatch(self, path: str) -> None:
         """Stop watching file changes for path. Raises if there was no corresponding `watch` call."""
