@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.12] — 2026-06-27
+
+### Added
+
+- **Browser E2E tests (Playwright).** A 5-test Chromium suite (`tests/e2e/`) covering the service-worker behavior that can't be unit-tested: SW installs and caches the visible page, offline reload serves the cached page, `search_index.json` is served, and hover-prefetch caches the destination so it loads offline. The tests skip gracefully when no browser is available (so the default `pytest` run is unaffected); a dedicated non-blocking `e2e` CI job on `ubuntu-latest` installs Chromium and runs `pytest -m e2e`.
+
 ## [11.3.11] — 2026-06-27
 
 ### Added

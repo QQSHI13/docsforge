@@ -32,6 +32,29 @@ jobs:
       - name: Run tests
         run: cd packages/docsforge && python -m pytest -q
 
+  e2e:
+    # Browser E2E (Playwright/Chromium). Runs on ubuntu-latest where
+    # Playwright is supported. Non-blocking for now (browser tests can be
+    # flaky); promote to a release gate once it's proven stable.
+    runs-on: ubuntu-latest
+    needs: test
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install DocsForge + Playwright + test deps
+        run: |
+          pip install -e packages/docsforge
+          pip install playwright pytest pytest-mock
+      - name: Install Chromium for Playwright
+        run: python -m playwright install --with-deps chromium
+      - name: Run E2E tests
+        run: cd packages/docsforge && python -m pytest -m e2e -v
+
   release:
     needs: test
     runs-on: ubuntu-latest
