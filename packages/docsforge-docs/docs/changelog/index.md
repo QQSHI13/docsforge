@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.11] — 2026-06-27
+
+### Added
+
+- **VS Code extension tests (10).** Added a mocha + ts-node suite for the extension's pure helpers: config-file discovery (`findConfig`/`hasConfig`, `.yml` preferred over `.yaml`) and server-URL extraction from stdout. Extracted the helpers into a vscode-free `src/pure.ts` (behavior-preserving) so they're testable without launching VS Code. CI now runs `npm test` in the `build-vsix` job; `test/` is excluded from the VSIX.
+
 ## [11.3.10] — 2026-06-27
 
 ### Added

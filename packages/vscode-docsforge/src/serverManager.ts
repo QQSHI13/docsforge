@@ -2,8 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
-
-const CONFIG_FILES = ['docsforge.yml', 'docsforge.yaml'];
+import { findConfig as findConfigPure, hasConfig as hasConfigPure, extractServerUrl } from './pure';
 
 export class ServerManager {
   private process: ChildProcess | null = null;
@@ -163,26 +162,21 @@ export class ServerManager {
 
   /** Find the docsforge config file in the workspace root. */
   static findConfig(workspaceRoot: string): string | null {
-    for (const name of CONFIG_FILES) {
-      if (fs.existsSync(path.join(workspaceRoot, name))) {
-        return name;
-      }
-    }
-    return null;
+    return findConfigPure(workspaceRoot);
   }
 
   /** Check whether a config file exists (for activation). */
   static hasConfig(workspaceRoot: string): boolean {
-    return ServerManager.findConfig(workspaceRoot) !== null;
+    return hasConfigPure(workspaceRoot);
   }
 
   /** Detect docsforge server URLs from output lines.
    *  Matches: "Serving on http://host:port/path" */
   private detectServerUrl(text: string) {
     if (this._serverUrl) { return; }
-    const match = text.match(/Serving on\s+(https?:\/\/[^\s]+)/i);
-    if (match) {
-      this._serverUrl = match[1];
+    const url = extractServerUrl(text);
+    if (url) {
+      this._serverUrl = url;
       this.updateStatusBar();
       ServerManager.emitStateChange();
     }
