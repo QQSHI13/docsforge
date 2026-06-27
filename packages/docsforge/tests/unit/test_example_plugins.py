@@ -1,0 +1,65 @@
+"""Verify the example plugins (examples/plugins/) load and behave correctly.
+
+These guard the plugin authoring contract: the examples double as
+documentation, so a broken example would mislead users.
+"""
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "plugins"
+
+
+def _load_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module
+
+
+def test_reading_time_plugin():
+    mod = _load_module("reading_time_ex", EXAMPLES / "reading-time" / "reading_time" / "__init__.py")
+    p = mod.ReadingTimePlugin()
+    p.load_config({"wpm": 100})
+    ctx: dict = {}
+    page = SimpleNamespace(markdown="one two three four five")
+    p.on_page_context(ctx, page=page, config=None, nav=None)
+    assert ctx["reading_time"] == 1  # 5 words / 100 wpm
+
+    # Long page rounds up.
+    page2 = SimpleNamespace(markdown=" ".join("word" for _ in range(250)))
+    ctx2: dict = {}
+    p.on_page_context(ctx2, page=page2, config=None, nav=None)
+    assert ctx2["reading_time"] >= 2
+
+
+def test_last_modified_plugin(tmp_path: Path):
+    mod = _load_module("last_modified_ex", EXAMPLES / "last-modified" / "last_modified" / "__init__.py")
+    p = mod.LastModifiedPlugin()
+    p.load_config({"date_format": "%Y-%m-%d"})
+    src = tmp_path / "page.md"
+    src.write_text("# hi")
+    page = SimpleNamespace(file=SimpleNamespace(abs_src_path=str(src)), meta={})
+    out = p.on_page_markdown("body", page=page, config=None, files=None)
+    assert out == "body"  # markdown unchanged
+    assert page.meta["last_modified"]  # a date string was set
+    # Missing source path -> no crash, markdown unchanged.
+    page2 = SimpleNamespace(file=SimpleNamespace(abs_src_path="/nope/missing.md"), meta={})
+    assert p.on_page_markdown("x", page=page2, config=None, files=None) == "x"
+
+
+def test_hook_draft_banner():
+    mod = _load_module("draft_banner_ex", EXAMPLES / "hook_draft_banner.py")
+    # Draft path -> banner prepended.
+    page_draft = SimpleNamespace(file=SimpleNamespace(src_uri="drafts/wip.md"))
+    out = mod.on_page_markdown("body", page=page_draft, config=None, files=None)
+    assert "DRAFT" in out and out.endswith("body")
+    # Non-draft path -> unchanged.
+    page_final = SimpleNamespace(file=SimpleNamespace(src_uri="guide/intro.md"))
+    assert mod.on_page_markdown("body", page=page_final, config=None, files=None) == "body"

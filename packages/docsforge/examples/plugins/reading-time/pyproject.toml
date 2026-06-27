@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "docsforge-reading-time"
+version = "0.1.0"
+description = "Example DocsForge plugin: estimate reading time per page."
+requires-python = ">=3.10"
+dependencies = ["docsforge >= 11.0"]
+
+[project.entry-points."docsforge.plugins"]
+"reading-time" = "reading_time:ReadingTimePlugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["reading_time"]

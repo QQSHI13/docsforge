@@ -144,17 +144,12 @@ class AnalyticsPlugin(BasePlugin):
         return html.replace('</head>', f'{tag}\n</head>')
 ```
 
-## Testing Plugins
+## Loading a plugin
 
-To test your plugin locally:
+There are two ways to make a custom plugin available — see [Plugin Development](plugin-development.md) for the full walkthrough:
 
-1. Create a Python file in your project root
-2. Add it to `docsforge.yml`:
-   ```yaml
-   plugins:
-     - my_plugin.MyPlugin
-   ```
-3. Run `docsforge build` or `docsforge serve`
+- **Hooks** (local, no packaging): list a Python file under `hooks:`. The module's `on_*` functions act as event handlers.
+- **Packaged** (distributable): register an entry point in the `docsforge.plugins` group and reference it by name under `plugins:`.
 
 ## Full API Reference
 

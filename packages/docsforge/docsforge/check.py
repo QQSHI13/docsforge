@@ -147,7 +147,7 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
                         f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
                     )
             else:
-                print(f"                   ⚠ {name} (unknown plugin)")
+                print(f"                   • {name} (third-party plugin)")
     else:
         print("  Plugins:       default set (search, meta, etc.)")
 

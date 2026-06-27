@@ -100,5 +100,6 @@ nav:
   - Advanced:
     - Customization: advanced/customization.md
     - Custom Plugins: advanced/plugins.md
+    - Plugin Development: advanced/plugin-development.md
     - Docker: advanced/docker.md
   - Troubleshooting: troubleshooting.md
