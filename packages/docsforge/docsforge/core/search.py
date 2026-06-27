@@ -241,6 +241,11 @@ class SearchIndex:
         if prev and not self.entries:
             self.entries = prev.entries
 
+        # Deterministic output order (the build loop can populate entries in
+        # non-deterministic order under parallel rendering). Sort by location
+        # so the index is byte-reproducible across builds.
+        self.entries.sort(key=lambda e: e.get("location", ""))
+
         data = {"config": config, "docs": self.entries}
         return json.dumps(data, separators=(",", ":"), default=str)
 

@@ -106,7 +106,20 @@ def get_build_timestamp(*, pages: Collection[Page] | None = None) -> int:
 
 
 def get_build_datetime() -> datetime:
-    """Returns the current datetime in UTC."""
+    """Returns the build datetime in UTC.
+
+    Honors ``SOURCE_DATE_EPOCH`` for reproducible builds
+    (https://reproducible-builds.org/specs/source-date-epoch/). When set,
+    the build date, page update_date, sitemap <lastmod>, and sitemap.xml.gz
+    mtime are all derived from that timestamp instead of the wall clock —
+    so two builds of the same source produce byte-identical output.
+    """
+    sde = os.environ.get("SOURCE_DATE_EPOCH")
+    if sde:
+        try:
+            return datetime.fromtimestamp(int(sde), tz=timezone.utc)
+        except (ValueError, OSError):
+            pass
     return datetime.now(tz=timezone.utc)
 
 

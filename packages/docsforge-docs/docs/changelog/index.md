@@ -4,6 +4,16 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.9] — 2026-06-26
+
+### Added
+
+- **Reproducible builds via `SOURCE_DATE_EPOCH`.** `get_build_datetime()` now honors the standard `SOURCE_DATE_EPOCH` environment variable (reproducible-builds.org). When set, the build date, page `update_date`, sitemap `<lastmod>`, and `sitemap.xml.gz` mtime are all derived from that timestamp instead of the wall clock — so two builds of the same source produce byte-identical output (verified: identical content hash across clean builds). Defaults to the current time when unset.
+
+### Changed
+
+- **Search index entries are now sorted by location** before serialization, guaranteeing byte-reproducible `search_index.json` even if the build loop populates entries in non-deterministic order.
+
 ## [11.3.8] — 2026-06-26
 
 ### Fixed

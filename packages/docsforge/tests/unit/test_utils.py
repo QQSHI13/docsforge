@@ -59,6 +59,25 @@ class TestGetMarkdownTitle:
         assert utils.get_markdown_title("just text") is None
 
 
+class TestBuildDatetime:
+    def test_defaults_to_now(self, monkeypatch):
+        monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+        from datetime import timezone
+        dt = utils.get_build_datetime()
+        assert dt.tzinfo == timezone.utc
+
+    def test_honors_source_date_epoch(self, monkeypatch):
+        monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
+        dt = utils.get_build_datetime()
+        assert int(dt.timestamp()) == 1700000000
+
+    def test_invalid_source_date_epoch_falls_back_to_now(self, monkeypatch):
+        monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
+        from datetime import timezone
+        dt = utils.get_build_datetime()
+        assert dt.tzinfo == timezone.utc  # didn't crash, fell back
+
+
 class TestNestPaths:
     def test_flat(self):
         result = utils.nest_paths(["a.md"])
