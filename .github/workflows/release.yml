@@ -33,12 +33,11 @@ jobs:
         run: cd packages/docsforge && python -m pytest -q
 
   e2e:
-    # Browser E2E (Playwright/Chromium). Runs on ubuntu-latest where
-    # Playwright is supported. Non-blocking for now (browser tests can be
-    # flaky); promote to a release gate once it's proven stable.
+    # Browser E2E (Playwright/Chromium) on ubuntu-latest. Blocks releases —
+    # guards the service worker / nav / dev-server behavior that can't be
+    # unit-tested.
     runs-on: ubuntu-latest
     needs: test
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -56,7 +55,7 @@ jobs:
         run: cd packages/docsforge && python -m pytest -m e2e -v
 
   release:
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     outputs:
       commit_sha: ${{ steps.commit.outputs.commit_sha }}

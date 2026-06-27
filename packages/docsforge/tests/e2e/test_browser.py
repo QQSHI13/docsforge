@@ -78,3 +78,54 @@ def test_link_hover_prefetches_destination(context_page):
     page.context.set_offline(True)
     page.goto(base_url + "second/", wait_until="networkidle")
     assert "Another page" in page.inner_text("body")
+
+
+def test_instant_navigation(context_page):
+    """Material 'instant' nav swaps page content without a full reload; the
+    destination is fetched through the SW's serveCurrentPage."""
+    base_url, page, _ = context_page
+    page.goto(base_url, wait_until="networkidle")
+    _sw_ready(page)
+    page.click("a[href$='second/'], a[href$='second.md']")
+    page.wait_for_function("document.body.innerText.includes('UniqueTokenSecond')", timeout=8000)
+    assert page.url.rstrip("/").endswith("second") or "second" in page.url
+
+
+def test_search_typeahead(context_page):
+    """Typing in the search box yields suggestions from the prebuilt index."""
+    base_url, page, _ = context_page
+    page.goto(base_url, wait_until="networkidle")
+    _sw_ready(page)
+    # Open the search modal and type a distinctive token.
+    try:
+        page.click(".md-search__icon[for='__search'], .md-search__icon, label.md-search__icon", timeout=4000)
+    except Exception:
+        page.keyboard.press("/")
+    page.wait_for_selector(".md-search__input, input.md-search__input", timeout=4000)
+    page.fill(".md-search__input, input.md-search__input", "UniqueTokenSecond")
+    page.wait_for_selector(".md-search-result__item, .md-search-result__list", timeout=8000)
+    results = page.inner_text(".md-search-result")
+    assert "Second" in results or "UniqueTokenSecond" in results
+
+
+def test_dev_server_matches_deployed(served_dev):
+    """`docsforge serve` must install the SW and serve pages offline just like a
+    deployed site (the serve == build parity promise)."""
+    from playwright.sync_api import sync_playwright
+
+    url = served_dev
+    p = sync_playwright().start()
+    browser = p.chromium.launch()
+    context = browser.new_context()
+    page = context.new_page()
+    try:
+        page.goto(url, wait_until="networkidle")
+        _sw_ready(page)
+        # Offline reload must serve the cached page.
+        context.set_offline(True)
+        page.reload(wait_until="networkidle")
+        assert "Welcome" in page.inner_text("body")
+    finally:
+        context.close()
+        browser.close()
+        p.stop()

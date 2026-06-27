@@ -43,7 +43,7 @@ def has_browser() -> bool:
     return _HAS_BROWSER
 
 
-def _build_fixture(tmp_path: Path) -> Path:
+def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True) -> Path:
     """Build a small docsforge site and return its site_dir."""
     from docsforge.config_base import load_config
     from docsforge.build import build
@@ -51,11 +51,18 @@ def _build_fixture(tmp_path: Path) -> Path:
     root = tmp_path / "proj"
     docs = root / "docs"
     docs.mkdir(parents=True)
-    (docs / "index.md").write_text("# Home\n\nWelcome to the [second](second.md) page.\n")
-    (docs / "second.md").write_text("# Second\n\nAnother page.\n")
+    (docs / "index.md").write_text("# Home\n\nWelcome to the [second](second.md) page.\n\nUniqueTokenHome\n")
+    (docs / "second.md").write_text("# Second\n\nAnother page with searchable content.\n\nUniqueTokenSecond\n")
+    (docs / "guide").mkdir()
+    (docs / "guide" / "intro.md").write_text("# Introduction\n\nIntro material.\n")
+    nav_block = (
+        "nav:\n  - Home: index.md\n  - Second: second.md\n  - Guide:\n      - guide/intro.md\n"
+        if with_nav else ""
+    )
     (root / "docsforge.yml").write_text(
-        "site_name: E2E\n"
+        "site_name: " + site_name + "\n"
         "docs_dir: docs\nsite_dir: site\nprivacy: false\n"
+        + nav_block +
         "theme:\n  name: material\n"
         "  palette:\n    - {scheme: default, primary: teal, accent: teal}\n"
     )
@@ -71,7 +78,7 @@ def _build_fixture(tmp_path: Path) -> Path:
             cfg.plugins.on_shutdown()
     finally:
         os.chdir(cwd)
-    return root / "site"
+    return root, root / "site"
 
 
 class _Handler(http.server.SimpleHTTPRequestHandler):
@@ -87,7 +94,7 @@ def served_site(tmp_path_factory) -> Iterator[tuple[str, Path]]:
     """Build a fixture site and serve it over HTTP for the module."""
     if not has_browser():
         pytest.skip("Playwright/Chromium unavailable — E2E tests skipped")
-    site_dir = _build_fixture(tmp_path_factory.mktemp("e2e"))
+    _, site_dir = _build_fixture(tmp_path_factory.mktemp("e2e"))
     port = _free_port()
     httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), lambda *a: _Handler(*a, directory=str(site_dir)))
     httpd.daemon_threads = True
@@ -120,3 +127,50 @@ def context_page(served_site):
         context.close()
         browser.close()
         p.stop()
+
+
+@pytest.fixture
+def served_dev(tmp_path_factory):
+    """Run `docsforge serve` in a fixture project and yield its URL.
+
+    Tests the dev-server path (the one with the most historical bugs) and
+    verifies it behaves like a deployed site (SW installs, offline works).
+    """
+    import os
+    import re
+    import subprocess
+    import sys
+    import time
+
+    if not has_browser():
+        pytest.skip("Playwright/Chromium unavailable — E2E tests skipped")
+    root, _ = _build_fixture(tmp_path_factory.mktemp("e2e-serve"))
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "docsforge", "serve", "--no-open"],
+        cwd=str(root),
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, bufsize=1,
+    )
+    url = None
+    deadline = time.time() + 40
+    try:
+        while time.time() < deadline:
+            line = proc.stdout.readline()
+            if not line:
+                if proc.poll() is not None:
+                    break
+                continue
+            m = re.search(r"Serving on\s+(https?://\S+)", line)
+            if m:
+                url = m.group(1)
+                break
+        if not url:
+            out = "".join(proc.stdout.readlines() or [])
+            pytest.fail(f"docsforge serve did not start: {out[:500]}")
+        yield url
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
