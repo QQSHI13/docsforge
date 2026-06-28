@@ -316,6 +316,33 @@
 
         // Fix: Ensure palette toggle is visible and clickable even if bundle.js crashes
         (function() {
+          // First visit: detect system theme preference, then never auto-change again
+          var scope = (typeof __md_scope !== 'undefined') ? __md_scope : new URL('.', location);
+          var key = scope.pathname + '.__palette';
+          var hasVisited = false;
+          try { hasVisited = !!localStorage.getItem(key); } catch(e) {}
+          
+          if (!hasVisited) {
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var scheme = prefersDark ? 'slate' : 'default';
+            var palette = document.querySelector('[data-md-component="palette"]');
+            if (palette) {
+              var input = palette.querySelector('input[data-md-color-scheme="' + scheme + '"]');
+              if (input) {
+                input.checked = true;
+                document.body.setAttribute('data-md-color-scheme', scheme);
+                var primary = input.getAttribute('data-md-color-primary') || 'indigo';
+                var accent = input.getAttribute('data-md-color-accent') || 'indigo';
+                document.body.setAttribute('data-md-color-primary', primary);
+                document.body.setAttribute('data-md-color-accent', accent);
+                // Store WITHOUT media property — prevents system override
+                localStorage.setItem(key, JSON.stringify({
+                  color: { scheme: scheme, primary: primary, accent: accent }
+                }));
+              }
+            }
+          }
+          
           function fixPaletteVisibility() {
             var scheme = document.body.getAttribute('data-md-color-scheme') || 'default';
             var palette = document.querySelector('[data-md-component="palette"]');
@@ -362,7 +389,6 @@
                 try { palette = JSON.parse(localStorage.getItem(key)); } catch(e) {}
                 if (!palette) palette = {};
                 palette.color = {
-                  media: '(prefers-color-scheme: ' + (newScheme === 'slate' ? 'dark' : 'light') + ')',
                   scheme: newScheme,
                   primary: newPrimary,
                   accent: newAccent
