@@ -304,11 +304,20 @@
         (function() {
           var scope = (typeof __md_scope !== 'undefined') ? __md_scope : new URL('.', location);
           var key = scope.pathname + '.__palette';
+          var chosenKey = scope.pathname + '.__palette_chosen';
           var paletteEl = document.querySelector('[data-md-component="palette"]');
           var inputs = paletteEl ? Array.prototype.slice.call(paletteEl.querySelectorAll('input[name="__palette"]')) : [];
 
           function getStoredPalette() {
             try { return JSON.parse(localStorage.getItem(key)) || null; } catch(e) { return null; }
+          }
+
+          function isChosen() {
+            try { return localStorage.getItem(chosenKey) === '1'; } catch(e) { return false; }
+          }
+
+          function markChosen() {
+            try { localStorage.setItem(chosenKey, '1'); } catch(e) {}
           }
 
           function setStoredPalette(index, scheme, primary, accent) {
@@ -317,16 +326,19 @@
                 index: index,
                 color: { scheme: scheme, primary: primary, accent: accent }
               }));
+              markChosen();
             } catch(e) {}
           }
 
-          // On the first visit (or when an older palette still relies on a media
-          // query), resolve the palette to a concrete scheme and persist it.
+          // If the user (or this script) has already made a palette choice, let the
+          // stored palette drive the theme. Otherwise pick the device theme once and
+          // remember that choice.
           var stored = getStoredPalette();
-          var hasAutoMedia = stored && stored.color && typeof stored.color.media === 'string' &&
-                             stored.color.media.indexOf('prefers-color-scheme') !== -1;
+          if (stored) {
+            markChosen();
+          }
 
-          if (!stored || hasAutoMedia) {
+          if (!isChosen()) {
             var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             var scheme = prefersDark ? 'slate' : 'default';
             var input = null;
