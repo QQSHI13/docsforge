@@ -272,22 +272,6 @@
     {% endblock %}
     {% block scripts %}
       <script>
-        // DocsForge Service Worker — console logs only, no visual indicators
-        (function() {
-          // Listen for SW messages (console only)
-          if ('serviceWorker' in navigator) {
-            console.log('[DocsForge] Setting up SW message listener');
-            navigator.serviceWorker.addEventListener('message', function(event) {
-              console.log('[DocsForge] SW message:', event.data);
-            });
-            navigator.serviceWorker.addEventListener('controllerchange', function() {
-              console.log('[DocsForge] SW controller changed');
-            });
-          } else {
-            console.log('[DocsForge] ServiceWorker not supported');
-          }
-        })();
-
         // Fix: pymdownx.tabbed generates labels without .tabbed-labels wrapper,
         // but Material JS bundle expects it. Wrap them before bundle loads.
         (function() {
@@ -314,96 +298,107 @@
           observer.observe(document.documentElement, {childList: true, subtree: true});
         })();
 
-        // Fix: Ensure palette toggle is visible and clickable even if bundle.js crashes
+        // Fix: Ensure palette toggle is visible and clickable even if bundle.js crashes.
+        // Also initialize / migrate the stored palette without a media query so the
+        // theme never reverts to the device preference after a manual switch.
         (function() {
-          // First visit: detect system theme preference, then never auto-change again
           var scope = (typeof __md_scope !== 'undefined') ? __md_scope : new URL('.', location);
           var key = scope.pathname + '.__palette';
-          var hasVisited = false;
-          try { hasVisited = !!localStorage.getItem(key); } catch(e) {}
-          
-          if (!hasVisited) {
+          var paletteEl = document.querySelector('[data-md-component="palette"]');
+          var inputs = paletteEl ? Array.prototype.slice.call(paletteEl.querySelectorAll('input[name="__palette"]')) : [];
+
+          function getStoredPalette() {
+            try { return JSON.parse(localStorage.getItem(key)) || null; } catch(e) { return null; }
+          }
+
+          function setStoredPalette(index, scheme, primary, accent) {
+            try {
+              localStorage.setItem(key, JSON.stringify({
+                index: index,
+                color: { scheme: scheme, primary: primary, accent: accent }
+              }));
+            } catch(e) {}
+          }
+
+          // On the first visit (or when an older palette still relies on a media
+          // query), resolve the palette to a concrete scheme and persist it.
+          var stored = getStoredPalette();
+          var hasAutoMedia = stored && stored.color && typeof stored.color.media === 'string' &&
+                             stored.color.media.indexOf('prefers-color-scheme') !== -1;
+
+          if (!stored || hasAutoMedia) {
             var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             var scheme = prefersDark ? 'slate' : 'default';
-            var palette = document.querySelector('[data-md-component="palette"]');
-            if (palette) {
-              var input = palette.querySelector('input[data-md-color-scheme="' + scheme + '"]');
-              if (input) {
-                input.checked = true;
-                document.body.setAttribute('data-md-color-scheme', scheme);
-                var primary = input.getAttribute('data-md-color-primary') || 'indigo';
-                var accent = input.getAttribute('data-md-color-accent') || 'indigo';
-                document.body.setAttribute('data-md-color-primary', primary);
-                document.body.setAttribute('data-md-color-accent', accent);
-                // Store WITHOUT media property — prevents system override
-                localStorage.setItem(key, JSON.stringify({
-                  color: { scheme: scheme, primary: primary, accent: accent }
-                }));
+            var input = null;
+            for (var i = 0; i < inputs.length; i++) {
+              if (inputs[i].getAttribute('data-md-color-scheme') === scheme) {
+                input = inputs[i];
+                break;
               }
             }
+            // Fall back to the first palette option if no scheme matches.
+            if (!input && inputs.length) {
+              input = inputs[0];
+            }
+            if (input) {
+              var newScheme = input.getAttribute('data-md-color-scheme');
+              var newPrimary = input.getAttribute('data-md-color-primary') || 'indigo';
+              var newAccent = input.getAttribute('data-md-color-accent') || 'indigo';
+              input.checked = true;
+              document.body.setAttribute('data-md-color-scheme', newScheme);
+              document.body.setAttribute('data-md-color-primary', newPrimary);
+              document.body.setAttribute('data-md-color-accent', newAccent);
+              setStoredPalette(inputs.indexOf(input), newScheme, newPrimary, newAccent);
+            }
           }
-          
+
           function fixPaletteVisibility() {
             var scheme = document.body.getAttribute('data-md-color-scheme') || 'default';
-            var palette = document.querySelector('[data-md-component="palette"]');
-            if (!palette) return;
-            palette.querySelectorAll('label').forEach(function(label) {
+            if (!paletteEl) return;
+            paletteEl.querySelectorAll('label').forEach(function(label) {
               var target = document.getElementById(label.getAttribute('for'));
               if (target) {
-                var targetScheme = target.getAttribute('data-md-color-scheme');
-                label.hidden = (targetScheme === scheme);
+                label.hidden = (target.getAttribute('data-md-color-scheme') === scheme);
               }
             });
           }
-          
+
           function setupPaletteClickHandlers() {
-            var palette = document.querySelector('[data-md-component="palette"]');
-            if (!palette) return;
+            if (!paletteEl) return;
             // Only add if not already handled by bundle.js
-            if (palette.dataset.fixedPalette) return;
-            palette.dataset.fixedPalette = 'true';
-            
-            palette.querySelectorAll('label').forEach(function(label) {
+            if (paletteEl.dataset.fixedPalette) return;
+            paletteEl.dataset.fixedPalette = 'true';
+
+            paletteEl.querySelectorAll('label').forEach(function(label) {
               label.addEventListener('click', function(e) {
                 e.preventDefault();
-                var targetId = label.getAttribute('for');
-                var target = document.getElementById(targetId);
+                var target = document.getElementById(label.getAttribute('for'));
                 if (!target) return;
-                
+
                 var newScheme = target.getAttribute('data-md-color-scheme');
                 var newPrimary = target.getAttribute('data-md-color-primary');
                 var newAccent = target.getAttribute('data-md-color-accent');
-                
+
                 // Update body
                 document.body.setAttribute('data-md-color-scheme', newScheme);
                 document.body.setAttribute('data-md-color-primary', newPrimary);
                 document.body.setAttribute('data-md-color-accent', newAccent);
-                
+
                 // Check the radio
                 target.checked = true;
-                
-                // Save to localStorage (use Material's __md_scope if available)
-                var scope = (typeof __md_scope !== 'undefined') ? __md_scope : new URL('.', location);
-                var key = scope.pathname + '.__palette';
-                var palette = null;
-                try { palette = JSON.parse(localStorage.getItem(key)); } catch(e) {}
-                if (!palette) palette = {};
-                palette.color = {
-                  scheme: newScheme,
-                  primary: newPrimary,
-                  accent: newAccent
-                };
-                localStorage.setItem(key, JSON.stringify(palette));
-                
+
+                // Persist without media query so the device theme cannot override it.
+                setStoredPalette(inputs.indexOf(target), newScheme, newPrimary, newAccent);
+
                 // Update label visibility
                 fixPaletteVisibility();
               });
             });
           }
-          
+
           fixPaletteVisibility();
           setupPaletteClickHandlers();
-          
+
           if (typeof document$ !== 'undefined' && document$.subscribe) {
             document$.subscribe(function() {
               fixPaletteVisibility();
@@ -509,17 +504,25 @@
             console.warn('SW registration failed:', e.message);
           });
 
-          // Listen for update notifications from service worker (console only)
+          // Log SW notifications once per page session to avoid console spam.
+          var swMessagesLogged = {};
+          function logSwOnce(type, msg) {
+            if (!swMessagesLogged[type]) {
+              swMessagesLogged[type] = true;
+              console.log(msg);
+            }
+          }
+
           navigator.serviceWorker.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'DOCSFORGE_UPDATE_READY') {
-              console.log('[DocsForge] Update available, will refresh on next navigation');
+              logSwOnce('update', '[DocsForge] Update available, will refresh on next navigation');
               // Silently refresh on next page navigation (no banner)
               window.addEventListener('beforeunload', function() {
                 // Let browser handle normal navigation; SW will serve new version
               });
             }
             if (event.data && event.data.type === 'DOCSFORGE_CACHE_COMPLETE') {
-              console.log('[DocsForge] All pages cached for offline use');
+              logSwOnce('cache-complete', '[DocsForge] All pages cached for offline use');
             }
           });
 
