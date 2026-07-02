@@ -2,7 +2,7 @@
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
 > One package. One command. Beautiful docs. Zero CDN calls.
-> ⚠️ **Development Mode**: DocsForge is under active development. Expect breaking changes and large updates until v11.0.0.
+> ⚠️ **Development Mode**: DocsForge is under active development. Expect frequent updates while it reaches a stable 1.0 release.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/QQSHI13/docsforge/main/packages/docsforge/docsforge/templates/.icons/badge-compact.svg" alt="DocsForge">

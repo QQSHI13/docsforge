@@ -8,7 +8,7 @@ import logging
 import os
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlsplit
@@ -284,27 +284,18 @@ def _build_page(
             config._current_page = None
 
 
-def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = True, progress: bool | None = None) -> None:
-    """Perform a site build — always incremental, always complete."""
-    logger = logging.getLogger("docsforge")
-
-    # Initialize cache for dirty builds
-    cache = CacheManager()
-    hasher = FileHasher()
-    planner = BuildPlanner(cache, hasher)
-
-    # Check config hash for full rebuild decision
-    config_path = Path(config.config_file_path) if config.config_file_path else Path("docsforge.yml")
-    theme_sig = planner.theme_signature(config.theme.dirs)
+def _prepare_build(
+    config: DocsForgeConfig,
+    planner: BuildPlanner,
+    config_path: Path,
+    theme_sig: str,
+    serve_url: str | None,
+) -> tuple[DocsForgeConfig, utils.CountHandler, Callable[[InclusionLevel], bool]]:
+    """Initialize cache and run pre-build plugin events."""
     needs_full_rebuild = planner.should_full_rebuild(config_path, docsforge.__version__, theme_sig)
-
-    if dirty and needs_full_rebuild:
-        # Config or package version changed — invalidate cache for a fresh
-        # baseline. planner.invalidate() clears in-memory hashes too (not just
-        # disk files), so unchanged pages actually rebuild.
+    if needs_full_rebuild:
         planner.invalidate()
 
-    # Add CountHandler for strict mode
     warning_counter = utils.CountHandler()
     warning_counter.setLevel(logging.WARNING)
     if config.strict:
@@ -312,207 +303,274 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 
     inclusion = InclusionLevel.is_in_serve if serve_url else InclusionLevel.is_included
 
-    try:
-        start = time.monotonic()
+    # Run `config` plugin events.
+    config = config.plugins.on_config(config)
 
-        # Run `config` plugin events.
-        config = config.plugins.on_config(config)
+    # Ensure mermaid fence config is present in markdown extensions.
+    # This is done once per build instead of per-page for efficiency.
+    if 'pymdownx.superfences' in config['markdown_extensions']:
+        import pymdownx.superfences as superfences_mod
+        mdx_configs = config.setdefault('mdx_configs', {})
+        sf_cfg = mdx_configs.setdefault('pymdownx.superfences', {})
+        custom_fences = sf_cfg.setdefault('custom_fences', [])
+        if not any(f.get('name') == 'mermaid' for f in custom_fences):
+            custom_fences.append({
+                'name': 'mermaid',
+                'class': 'mermaid',
+                'format': superfences_mod.fence_code_format,
+            })
 
-        # Ensure mermaid fence config is present in markdown extensions.
-        # This is done once per build instead of per-page for efficiency.
-        if 'pymdownx.superfences' in config['markdown_extensions']:
-            import pymdownx.superfences as superfences_mod
-            mdx_configs = config.setdefault('mdx_configs', {})
-            sf_cfg = mdx_configs.setdefault('pymdownx.superfences', {})
-            custom_fences = sf_cfg.setdefault('custom_fences', [])
-            if not any(f.get('name') == 'mermaid' for f in custom_fences):
-                custom_fences.append({
-                    'name': 'mermaid',
-                    'class': 'mermaid',
-                    'format': superfences_mod.fence_code_format,
-                })
+    # Run `pre_build` plugin events.
+    config.plugins.on_pre_build(config=config)
 
-        # Run `pre_build` plugin events.
-        config.plugins.on_pre_build(config=config)
+    if not serve_url:
+        log.info(f"Building documentation to directory: {config.site_dir}")
 
-        docs_dir = Path(config.docs_dir)
-        site_dir = Path(config.site_dir)
+    return config, warning_counter, inclusion
 
-        if not serve_url:
-            log.info(f"Building documentation to directory: {config.site_dir}")
 
-        # Compile TikZ diagrams BEFORE scanning files so MkDocs discovers the SVGs.
-        from docsforge import tikz
-        tikz.compile_tikz_files(config, output_to_docs=True)
+def _collect_files_and_nav(
+    config: DocsForgeConfig,
+    planner: BuildPlanner,
+    inclusion: Callable[[InclusionLevel], bool],
+) -> tuple[Files, jinja2.Environment, Navigation, list[File], bool]:
+    """Gather files from docs_dir and theme, cleanup orphans, build navigation."""
+    # Compile TikZ diagrams BEFORE scanning files so the build discovers the SVGs.
+    from docsforge import tikz
+    tikz.compile_tikz_files(config, output_to_docs=True)
 
-        # First gather all data from all files/pages to ensure all data is consistent across all pages.
+    files = get_files(config)
+    env = config.theme.get_env()
+    files.add_files_from_theme(env, config)
 
-        files = get_files(config)
-        env = config.theme.get_env()
-        files.add_files_from_theme(env, config)
+    # Run `files` plugin events.
+    files = config.plugins.on_files(files, config=config)
+    # If plugins have added files but haven't set their inclusion level, calculate it again.
+    set_exclusions(files, config)
 
-        # Run `files` plugin events.
-        files = config.plugins.on_files(files, config=config)
-        # If plugins have added files but haven't set their inclusion level, calculate it again.
-        set_exclusions(files, config)
+    # Remove orphaned output files (pages deleted from source). Orphans can
+    # only appear when a source is removed, so skip the site_dir walk when
+    # the source set is unchanged or only grew since the last build.
+    docs_dir = Path(config.docs_dir)
+    site_dir = Path(config.site_dir)
+    current_sources = {f.src_uri for f in files}
+    prev_sources = set(planner.cache.get_sources())
+    sources_changed = prev_sources != current_sources
+    if planner.should_scan_orphans(current_sources):
+        orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
+        for f in orphaned:
+            log.debug(f"Removing orphaned output: {f}")
+            f.unlink()
+    planner.update_sources(current_sources)
 
-        # Remove orphaned output files (pages deleted from source). Orphans can
-        # only appear when a source is removed, so skip the site_dir walk when
-        # the source set is unchanged or only grew since the last build.
-        current_sources = {f.src_uri for f in files}
-        prev_sources = set(planner.cache.get_sources())
-        sources_changed = prev_sources != current_sources
-        if planner.should_scan_orphans(current_sources):
-            orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
-            for f in orphaned:
-                log.debug(f"Removing orphaned output: {f}")
-                f.unlink()
-        planner.update_sources(current_sources)
+    nav = get_navigation(files, config)
 
-        nav = get_navigation(files, config)
+    # Run `nav` plugin events.
+    nav = config.plugins.on_nav(nav, config=config, files=files)
 
-        # Run `nav` plugin events.
-        nav = config.plugins.on_nav(nav, config=config, files=files)
+    log.debug("Reading markdown pages.")
+    all_doc_files = list(files.documentation_pages(inclusion=inclusion))
 
-        log.debug("Reading markdown pages.")
-        # Cache the documentation pages list to avoid repeated iteration
-        all_doc_files = list(files.documentation_pages(inclusion=inclusion))
-        excluded = []
-        to_populate: list[Page] = []
+    return files, env, nav, all_doc_files, sources_changed
+
+
+def _populate_changed_pages(
+    config: DocsForgeConfig,
+    files: Files,
+    planner: BuildPlanner,
+    all_doc_files: list[File],
+    inclusion: Callable[[InclusionLevel], bool],
+    serve_url: str | None,
+) -> list[Page]:
+    """Render Markdown for all changed pages in parallel."""
+    excluded: list[str] = []
+    to_populate: list[Page] = []
+    for file in all_doc_files:
+        log.debug(f"Reading: {file.src_uri}")
+        if file.page is None and file.inclusion.is_not_in_nav():
+            if serve_url and file.inclusion.is_excluded():
+                excluded.append(urljoin(serve_url, file.url))
+            Page(None, file, config)
+        assert file.page is not None
+
+        # Check if page needs rebuilding
+        source_path = Path(file.abs_src_path)
+        output_path = Path(file.abs_dest_path)
+
+        if not planner.should_rebuild(source_path, output_path):
+            log.debug(f"Skipping unchanged page: {file.src_uri}")
+            continue
+
+        to_populate.append(file.page)
+
+    # Render Markdown for all changed pages in parallel. The heavy work
+    # (read_source + render/markdown.convert) is thread-safe (per-thread
+    # Markdown instance); only plugin events are serialized via plugin_lock.
+    plugin_lock = threading.RLock()
+    max_workers = min(32, os.cpu_count() or 1)
+    if to_populate:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = [
+                ex.submit(_populate_page, p, config, files, True, plugin_lock)
+                for p in to_populate
+            ]
+            for f in futures:
+                f.result()  # propagate exceptions
+
+    if excluded:
+        log.info(
+            "The following pages are being built only for the preview "
+            "but will be excluded from `docsforge build` per `draft_docs` config:\n  - %s",
+            "\n  - ".join(excluded),
+        )
+
+    return to_populate
+
+
+def _write_outputs(
+    config: DocsForgeConfig,
+    files: Files,
+    nav: Navigation,
+    env: jinja2.Environment,
+    planner: BuildPlanner,
+    all_doc_files: list[File],
+    inclusion: Callable[[InclusionLevel], bool],
+) -> bool:
+    """Copy static assets and build all changed pages in parallel."""
+    # Run `env` plugin events.
+    env = config.plugins.on_env(env, config=config, files=files)
+
+    # Start writing files to site_dir now that all data is gathered. Note that order matters. Files
+    # with lower precedence get written first so that files with higher precedence can overwrite them.
+    log.debug("Copying static assets.")
+    files.copy_static_files(dirty=False, inclusion=inclusion)
+
+    for template in config.theme.static_templates:
+        _build_theme_template(template, env, files, config, nav)
+
+    for template in config.extra_templates:
+        _build_extra_template(template, files, config, nav)
+
+    log.debug("Building markdown pages.")
+    # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
+    page_lock = threading.RLock()
+    max_workers = min(32, os.cpu_count() or 1)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
         for file in all_doc_files:
-            log.debug(f"Reading: {file.src_uri}")
-            if file.page is None and file.inclusion.is_not_in_nav():
-                if serve_url and file.inclusion.is_excluded():
-                    excluded.append(urljoin(serve_url, file.url))
-                Page(None, file, config)
             assert file.page is not None
 
-            # Check if page needs rebuilding
             source_path = Path(file.abs_src_path)
             output_path = Path(file.abs_dest_path)
 
+            # Check if page needs rebuilding
             if not planner.should_rebuild(source_path, output_path):
-                log.debug(f"Skipping unchanged page: {file.src_uri}")
                 continue
 
-            to_populate.append(file.page)
-
-        # Render Markdown for all changed pages in parallel. The heavy work
-        # (read_source + render/markdown.convert) is thread-safe (per-thread
-        # Markdown instance); only plugin events are serialized via plugin_lock.
-        plugin_lock = threading.RLock()
-        max_workers = min(32, os.cpu_count() or 1)
-        if to_populate:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-                futures = [
-                    ex.submit(_populate_page, p, config, files, True, plugin_lock)
-                    for p in to_populate
-                ]
-                for f in futures:
-                    f.result()  # propagate exceptions
-        if excluded:
-            log.info(
-                "The following pages are being built only for the preview "
-                "but will be excluded from `docsforge build` per `draft_docs` config:\n  - %s",
-                "\n  - ".join(excluded),
+            future = executor.submit(
+                _build_page,
+                file.page, config, all_doc_files, nav, env, True,
+                file.inclusion.is_excluded(),
+                page_lock,
             )
+            futures.append((future, source_path, output_path, file.page))
 
-        # Run `env` plugin events.
-        env = config.plugins.on_env(env, config=config, files=files)
+        # Wait for all pages to complete
+        for future, source_path, output_path, page in futures:
+            try:
+                future.result()
+            except Exception:
+                # Error already logged in _build_page; continue with other pages.
+                # Do NOT update the cache for a failed build — otherwise the
+                # next run would consider the page up-to-date and silently keep
+                # the broken output.
+                continue
 
-        # Start writing files to site_dir now that all data is gathered. Note that order matters. Files
-        # with lower precedence get written first so that files with higher precedence can overwrite them.
+            # Update cache after successful build. Use page.markdown (the
+            # raw source) not page.content (rendered HTML): the snippet
+            # include markers are consumed during md.convert(), so only
+            # the raw markdown still contains them.
+            deps = DependencyTracker.get_file_deps(
+                source_path,
+                page.markdown or "",
+                base_paths=[Path(config.docs_dir)],
+            )
+            planner.update_cache(source_path, output_path, deps)
 
-        log.debug("Copying static assets.")
-        files.copy_static_files(dirty=False, inclusion=inclusion)
+        built_any = bool(futures)
 
-        for template in config.theme.static_templates:
-            _build_theme_template(template, env, files, config, nav)
+    return built_any
 
-        for template in config.extra_templates:
-            _build_extra_template(template, files, config, nav)
 
-        log.debug("Building markdown pages.")
-        # Reuse the cached doc_files list instead of calling documentation_pages() again
-        doc_files = all_doc_files
+def _finalize_build(
+    config: DocsForgeConfig,
+    files: Files,
+    nav: Navigation,
+    planner: BuildPlanner,
+    warning_counter: utils.CountHandler,
+    built_any: bool,
+    sources_changed: bool,
+    config_path: Path,
+    theme_sig: str,
+    start: float,
+) -> None:
+    """Generate PWA assets, validate links, run post-build events, and save cache."""
+    # Generate PWA manifest and pre-cache all pages in the service worker
+    _generate_pwa_manifest_and_precache(config, files, nav, planner)
 
-        # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
-        page_lock = threading.RLock()
-        max_workers = min(32, os.cpu_count() or 1)
+    log_level = config.validation.links.anchors
+    for file in files.documentation_pages():
+        assert file.page is not None
+        file.page.validate_anchor_links(files=files, log_level=log_level)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
-            for file in doc_files:
-                assert file.page is not None
+    # Run `post_build` plugin events.
+    config.plugins.on_post_build(config=config)
 
-                source_path = Path(file.abs_src_path)
-                output_path = Path(file.abs_dest_path)
+    # Optimize static assets: remove unused files, source maps, old font
+    # formats. Skip when the build wrote nothing and the source set is
+    # unchanged — the site is already optimized from the last build.
+    if built_any or sources_changed:
+        optimize_assets(config.site_dir)
+    else:
+        log.debug("Asset optimization skipped (site unchanged)")
 
-                # Check if page needs rebuilding
-                if not planner.should_rebuild(source_path, output_path):
-                    continue
+    # Save cache state
+    config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
+    planner.save(config_hash=config_hash, pkg_version=docsforge.__version__, theme_sig=theme_sig)
 
-                future = executor.submit(
-                    _build_page,
-                    file.page, config, doc_files, nav, env, True,
-                    file.inclusion.is_excluded(),
-                    page_lock,
-                )
-                futures.append((future, source_path, output_path, file.page))
+    # Save cache after successful build (only if not in strict mode with errors)
+    if counts := warning_counter.get_counts():
+        msg = ', '.join(f'{v} {k.lower()}s' for k, v in counts)
+        raise Abort(f'Aborted with {msg} in strict mode!')
 
-            # Wait for all pages to complete
-            for future, source_path, output_path, page in futures:
-                try:
-                    future.result()
-                except Exception:
-                    # Error already logged in _build_page; continue with other pages.
-                    # Do NOT update the cache for a failed build — otherwise the
-                    # next run would consider the page up-to-date and silently keep
-                    # the broken output.
-                    continue
+    log.info(f'Documentation built in {time.monotonic() - start:.2f} seconds')
 
-                # Update cache after successful build. Use page.markdown (the
-                # raw source) not page.content (rendered HTML): the snippet
-                # include markers are consumed during md.convert(), so only
-                # the raw markdown still contains them.
-                deps = DependencyTracker.get_file_deps(
-                    source_path,
-                    page.markdown or "",
-                    base_paths=[Path(config.docs_dir)],
-                )
-                planner.update_cache(source_path, output_path, deps)
 
-            built_any = bool(futures)
+def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = True, progress: bool | None = None) -> None:
+    """Perform a site build — always incremental, always complete."""
+    logger = logging.getLogger("docsforge")
 
-        # Generate PWA manifest and pre-cache all pages in the service worker
-        _generate_pwa_manifest_and_precache(config, files, nav, planner)
+    cache = CacheManager()
+    hasher = FileHasher()
+    planner = BuildPlanner(cache, hasher)
+    config_path = Path(config.config_file_path) if config.config_file_path else Path("docsforge.yml")
+    theme_sig = planner.theme_signature(config.theme.dirs)
 
-        log_level = config.validation.links.anchors
-        for file in doc_files:
-            assert file.page is not None
-            file.page.validate_anchor_links(files=files, log_level=log_level)
-
-        # Run `post_build` plugin events.
-        config.plugins.on_post_build(config=config)
-
-        # Optimize static assets: remove unused files, source maps, old font
-        # formats. Skip when the build wrote nothing and the source set is
-        # unchanged — the site is already optimized from the last build.
-        if built_any or sources_changed:
-            optimize_assets(config.site_dir)
-        else:
-            log.debug("Asset optimization skipped (site unchanged)")
-
-        # Save cache state
-        config_hash = hasher.hash_file(config_path) if config_path.exists() else ""
-        planner.save(config_hash=config_hash, pkg_version=docsforge.__version__, theme_sig=theme_sig)
-
-        # Save cache after successful build (only if not in strict mode with errors)
-        if counts := warning_counter.get_counts():
-            msg = ', '.join(f'{v} {k.lower()}s' for k, v in counts)
-            raise Abort(f'Aborted with {msg} in strict mode!')
-
-        log.info(f'Documentation built in {time.monotonic() - start:.2f} seconds')
+    try:
+        start = time.monotonic()
+        config, warning_counter, inclusion = _prepare_build(
+            config, planner, config_path, theme_sig, serve_url
+        )
+        files, env, nav, all_doc_files, sources_changed = _collect_files_and_nav(
+            config, planner, inclusion
+        )
+        _populate_changed_pages(config, files, planner, all_doc_files, inclusion, serve_url)
+        built_any = _write_outputs(config, files, nav, env, planner, all_doc_files, inclusion)
+        _finalize_build(
+            config, files, nav, planner, warning_counter,
+            built_any, sources_changed, config_path, theme_sig, start,
+        )
 
     except Exception as e:
         # Run `build_error` plugin events.
@@ -600,6 +658,16 @@ def _generate_pwa_manifest_and_precache(
                     '__PRE_CACHE_PAGES__',
                     json.dumps(sw_relative_urls)
                 )
+
+            if '__DOCSFORGE_BASE_URL__' in content:
+                # Inject the site base path so the SW works correctly when the
+                # documentation is deployed under a subpath (e.g. /docs/).
+                base_url_path = urlsplit(config.site_url or '/').path or '/'
+                base_url_path = '/' + base_url_path.strip('/')
+                if base_url_path != '/':
+                    base_url_path += '/'
+                content = content.replace('__DOCSFORGE_BASE_URL__', base_url_path)
+                log.debug(f"Injected service worker base URL {base_url_path}")
 
             if '__DOCSFORGE_BUILD_HASH__' in content:
                 # Deterministic hash: identical source + config + precache list

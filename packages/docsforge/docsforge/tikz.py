@@ -152,7 +152,7 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     """Find and compile all .tex files in docs_dir to SVGs.
 
     If output_to_docs is True, writes SVGs to docs_dir/assets/tikz/ so that
-    MkDocs can discover them during markdown processing, and also copies to
+    DocsForge can discover them during markdown processing, and also copies to
     site_dir/assets/tikz/. Otherwise writes only to site_dir/assets/tikz/.
 
     Returns list of generated SVG paths.

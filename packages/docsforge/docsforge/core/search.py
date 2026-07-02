@@ -71,6 +71,8 @@ class SearchConfig(Config):
 class SearchPlugin(BasePlugin[SearchConfig]):
     """Full-text search with Lunr.js backend."""
 
+    optional_dependencies = ['jieba']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_dirty = False

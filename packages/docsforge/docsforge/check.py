@@ -9,20 +9,23 @@ from pathlib import Path
 
 import yaml
 
+from docsforge.config_base import load_config
+from docsforge.exceptions import Abort, ConfigurationError
+
 log = logging.getLogger(__name__)
 
 
 KNOWN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy'}
 
 
-def check(config_file=None, strict=None, theme=None, use_directory_urls=None) -> int:
+def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *, full_validation: bool = False) -> int:
     """Validate DocsForge configuration without building.
 
-    This is intentionally a lightweight check: it parses the YAML, verifies
-    required keys, docs directory, theme and plugin names, then lets the real
-    ``load_config`` (called by ``build``/``serve``) do the full validation.
-    That avoids loading the config twice and keeps ``docsforge serve`` startup
-    fast.
+    By default this is a lightweight check: it parses the YAML, verifies
+    required keys, docs directory, theme and plugin names. When
+    ``full_validation=True`` (used by the ``docsforge check`` command), it also
+    calls ``load_config`` to catch errors the lightweight check misses,
+    especially third-party plugins that are configured but not installed.
 
     Returns exit code: 0 = valid, 1 = errors found.
     """
@@ -169,9 +172,28 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     if raw_config.get('extra_javascript'):
         print(f"  Extra JS:      {len(raw_config['extra_javascript'])} file(s)")
 
-    print("  Config check:  passed")
+    # 7. Full validation: load_config catches errors the lightweight check
+    # misses, especially third-party plugins that are configured but not
+    # installed (e.g. "plugins.backlinks"). This is skipped for the preflight
+    # check inside ``docsforge build``/``serve`` because those commands call
+    # ``load_config`` themselves right after.
+    full_validation_ok = True
+    if full_validation:
+        try:
+            load_config(config_path)
+        except (Abort, ConfigurationError):
+            # load_config already printed a detailed, friendly error block.
+            full_validation_ok = False
 
-    # 7. Print results
+    print()
+    if full_validation_ok and not issues:
+        print("  Config check:  passed")
+    elif not full_validation_ok:
+        print("  Config check:  failed")
+    else:
+        print("  Config check:  passed (with issues above)")
+
+    # 8. Print lightweight results
     if issues:
         print(f"  ERRORS ({len(issues)}):")
         for issue in issues:
@@ -190,7 +212,7 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None) ->
     # buffer until process exit and appear at the END of the merged output.
     sys.stdout.flush()
 
-    return 1 if issues else 0
+    return 0 if full_validation_ok and not issues else 1
 
 
 def fix_config(config_file=None) -> int:

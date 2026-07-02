@@ -219,7 +219,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             if not self._is_excluded(url, page.file):
                 self._queue(url, config, concurrent=True)
 
-    # Reconcile jobs and pass external assets to MkDocs (run earlier)
+    # Reconcile jobs and pass external assets to the build (run earlier)
     @event_priority(50)
     def on_env(self, env, *, config, files):
         if not self.config.enabled:

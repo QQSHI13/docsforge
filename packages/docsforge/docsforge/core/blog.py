@@ -431,13 +431,13 @@ class Post(Page):
         with open(file.abs_src_path, encoding = "utf-8-sig") as f:
             self.markdown = f.read()
 
-            # Sadly, MkDocs swallows any exceptions that occur during parsing.
+            # Exceptions during parsing are swallowed by the Markdown library.
             # Since we want to provide the best possible user experience, we
             # need to catch errors early and display them nicely. We decided to
-            # drop support for MkDocs' MultiMarkdown syntax, because it is not
-            # correctly implemented anyway. When using MultiMarkdown syntax, all
-            # date formats are returned as strings and list are not properly
-            # supported. Thus, we just use the relevants parts of `get_data`.
+            # drop support for MultiMarkdown syntax, because it is not correctly
+            # implemented anyway. When using MultiMarkdown syntax, all date
+            # formats are returned as strings and lists are not properly
+            # supported. Thus, we just use the relevant parts of `get_data`.
             match: Match = YAML_RE.match(self.markdown)
             if not match:
                 raise PluginError(
@@ -561,7 +561,7 @@ class Excerpt(Page):
         )
 
         # Register relative path tree processor - this processor resolves links
-        # to other pages and assets, and is used by MkDocs itself
+        # to other pages and assets, and is used by DocsForge itself
         self.md.treeprocessors.register(
             _RelativePathTreeprocessor(self.file, files, config),
             "relpath",
@@ -1398,10 +1398,10 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             if not url.fragment:
                 continue
 
-            # If we're running under dirty reload, MkDocs will reset all pages,
-            # so it's not possible to resolve anchor links. Thus, the only way
-            # to make this work is to skip the entire process of anchor link
-            # resolution in case of a dirty reload.
+            # If we're running under dirty reload, DocsForge will reset all
+            # pages, so it's not possible to resolve anchor links. Thus, the
+            # only way to make this work is to skip the entire process of anchor
+            # link resolution in case of a dirty reload.
             if self.is_dirty:
                 continue
 
@@ -1699,8 +1699,8 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
         # Hack: mark file as generated, so other plugins don't think it's part
         # of the file system. This is more or less a new quasi-standard that
-        # still needs to be adopted by MkDocs, and was introduced by the
-        # git-revision-date-localized-plugin - see https://bit.ly/3ZUmdBx
+        # was introduced by the git-revision-date-localized-plugin -
+        # see https://bit.ly/3ZUmdBx
         if temp:
             file.generated_by = "material/blog"
 

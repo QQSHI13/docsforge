@@ -74,13 +74,20 @@ class BasePlugin(Generic[SomeConfig]):
     supports_multiple_instances: bool = False
     """Set to true in subclasses to declare support for adding the same plugin multiple times."""
 
+    optional_dependencies: list[str] = []
+    """Names of optional Python packages this plugin may use at runtime.
+
+    DocsForge warns the user with the matching install command when a configured
+    plugin declares a dependency that is not importable.
+    """
+
     def __class_getitem__(cls, config_class: type[Config]):
         """Eliminates the need to write `config_class = FooConfig` when subclassing BasePlugin[FooConfig]."""
         name = f'{cls.__name__}[{config_class.__name__}]'
         return type(name, (cls,), dict(config_class=config_class))
 
     def __init_subclass__(cls):
-        # Accept both vendored properdocs Config and docsforge.config.base.Config
+        # Accept both vendored upstream Config and docsforge.config.base.Config
         from docsforge.config_base import Config as DocsforgeConfig
         if not issubclass(cls.config_class, Config) and not issubclass(cls.config_class, DocsforgeConfig):
             raise TypeError(
@@ -106,12 +113,10 @@ class BasePlugin(Generic[SomeConfig]):
 
     def on_startup(self, *, command: Literal['build', 'gh-deploy', 'serve'], dirty: bool) -> None:
         """
-        The `startup` event runs once at the very beginning of an `docsforge` invocation.
+        The `startup` event runs once at the very beginning of a DocsForge invocation.
 
-        New in MkDocs 1.4.
-
-        The presence of an `on_startup` method (even if empty) migrates the plugin to the new
-        system where the plugin object is kept across builds within one `docsforge serve`.
+        The presence of an `on_startup` method (even if empty) keeps the plugin object
+        across builds within one `docsforge serve` session.
 
         Note that for initializing variables, the `__init__` method is still preferred.
         For initializing per-build variables (and whenever in doubt), use the `on_config` event.
@@ -123,15 +128,13 @@ class BasePlugin(Generic[SomeConfig]):
 
     def on_shutdown(self) -> None:
         """
-        The `shutdown` event runs once at the very end of an `docsforge` invocation, before exiting.
+        The `shutdown` event runs once at the very end of a DocsForge invocation, before exiting.
 
-        This event is relevant only for support of `docsforge serve`, otherwise within a
-        single build it's undistinguishable from `on_post_build`.
+        This event is relevant only for support of `docsforge serve`; otherwise within a
+        single build it's indistinguishable from `on_post_build`.
 
-        New in MkDocs 1.4.
-
-        The presence of an `on_shutdown` method (even if empty) migrates the plugin to the new
-        system where the plugin object is kept across builds within one `docsforge serve`.
+        The presence of an `on_shutdown` method (even if empty) keeps the plugin object
+        across builds within one `docsforge serve` session.
 
         Note the `on_post_build` method is still preferred for cleanups, when possible, as it has
         a much higher chance of actually triggering. `on_shutdown` is "best effort" because it
@@ -446,7 +449,6 @@ def event_priority(priority: float) -> Callable[[T], T]:
         ...
     ```
 
-    New in MkDocs 1.4.
     Recommended shim for backwards compatibility:
 
     ```python

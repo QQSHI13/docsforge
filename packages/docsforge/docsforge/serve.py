@@ -50,7 +50,7 @@ def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> 
 
 def serve(
     config_file: str | BinaryIO | None = None,
-    livereload: bool = True,
+    livereload: bool = False,
     watch_theme: bool = False,
     watch: list[str] = [],
     *,
@@ -61,9 +61,10 @@ def serve(
     """
     Start the DocsForge development server.
 
-    By default it will serve the documentation on http://localhost:8000/ and
-    it will rebuild the documentation and refresh the page automatically
-    whenever a file is edited.
+    By default it will serve the documentation on http://localhost:8000/.
+    When ``livereload`` is enabled, it will rebuild the documentation
+    automatically whenever a file is edited (the page must be refreshed
+    manually).
     """
     # Create a temporary build directory, and set some options to serve it
     site_dir = tempfile.mkdtemp(prefix='docsforge_')

@@ -135,7 +135,7 @@ class Config(UserDict):
     It should be subclassed and have `ConfigOption`s defined as attributes.
     For examples, see docsforge/plugins/search/lang.py and docsforge/config/defaults.py.
 
-    Behavior as it was prior to MkDocs 1.4 is now handled by LegacyConfig.
+    Behavior as it was in the upstream project prior to version 1.4 is now handled by LegacyConfig.
     """
 
     _schema: PlainConfigSchema
@@ -264,7 +264,7 @@ class Config(UserDict):
     def load_file(self, config_file: IO) -> None:
         """Load config options from the open file descriptor of a YAML file."""
         warnings.warn(
-            "Config.load_file is not used since MkDocs 1.5 and will be removed soon. "
+            "Config.load_file is not used in DocsForge and will be removed soon. "
             "Use DocsForgeConfig.load_file instead",
             DeprecationWarning,
         )

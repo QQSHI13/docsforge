@@ -130,3 +130,36 @@ class TestServeStrictFlag:
         cli_core.DevServer.serve(strict=False, open_in_browser=False)
         # strict=False is still forwarded; load_config drops None but keeps False
         assert mocked.call_args.kwargs.get("strict") is False
+
+
+class TestValidatorCheckFullValidation:
+    def test_preflight_check_passes_missing_third_party_plugin(self, tmp_path, monkeypatch):
+        """The lightweight preflight check used by build/serve must not fail
+        on a missing third-party plugin; the real load_config validation runs
+        afterwards."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "index.md").write_text("# h\n")
+        (tmp_path / "docsforge.yml").write_text(
+            "site_name: T\n"
+            "plugins:\n"
+            "  - plugins.does_not_exist\n"
+        )
+        # Lightweight check returns 0 so build/serve can proceed to full validation.
+        assert cli_core.Validator.check(full_validation=False) == 0
+
+    def test_full_check_fails_missing_third_party_plugin(self, tmp_path, monkeypatch, capsys):
+        """docsforge check (full_validation=True) must surface the same
+        configuration error that build/serve surface via load_config."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "index.md").write_text("# h\n")
+        (tmp_path / "docsforge.yml").write_text(
+            "site_name: T\n"
+            "plugins:\n"
+            "  - plugins.does_not_exist\n"
+        )
+        assert cli_core.Validator.check(full_validation=True) == 1
+        captured = capsys.readouterr()
+        assert "CONFIGURATION ERROR" in captured.out
+        assert "plugins.does_not_exist" in captured.out

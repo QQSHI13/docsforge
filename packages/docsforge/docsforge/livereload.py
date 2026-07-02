@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import functools
-import io
 import ipaddress
 import logging
 import mimetypes
@@ -10,10 +9,8 @@ import os
 import os.path
 import pathlib
 import posixpath
-import re
 import socket
 import socketserver
-import string
 import sys
 import threading
 import time
@@ -27,54 +24,6 @@ from typing import Any, BinaryIO
 
 import watchdog.events
 import watchdog.observers.polling
-
-_SCRIPT_TEMPLATE_STR = """
-var livereload = function(epoch, requestId) {
-    var req, timeout;
-
-    var poll = function() {
-        req = new XMLHttpRequest();
-        req.onloadend = function() {
-            if (parseFloat(this.responseText) > epoch) {
-                location.reload();
-            } else {
-                timeout = setTimeout(poll, this.status === 200 ? 500 : 3000);
-            }
-        };
-        req.open("GET", "/livereload/" + epoch + "/" + requestId);
-        req.send();
-    }
-
-    var stop = function() {
-        if (req) {
-            req.abort();
-        }
-        if (timeout) {
-            clearTimeout(timeout);
-        }
-        req = timeout = undefined;
-    };
-
-    window.addEventListener("load", function() {
-        if (document.visibilityState === "visible") {
-            poll();
-        }
-    });
-    window.addEventListener("visibilitychange", function() {
-        if (document.visibilityState === "visible") {
-            poll();
-        } else {
-            stop();
-        }
-    });
-    window.addEventListener("beforeunload", stop);
-
-    console.log('Enabled live reload');
-}
-livereload(${epoch}, ${request_id});
-"""
-_SCRIPT_TEMPLATE = string.Template(_SCRIPT_TEMPLATE_STR)
-
 
 class _LoggerAdapter(logging.LoggerAdapter):
     def process(self, msg: str, kwargs: dict) -> tuple[str, dict]:  # type: ignore[override]
@@ -95,7 +44,6 @@ def _serve_url(host: str, port: int, path: str) -> str:
 
 class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGIServer):
     daemon_threads = True
-    poll_response_timeout = 60
 
     def __init__(
         self,
@@ -142,7 +90,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         self._watch_refs: dict[str, Any] = {}
 
     def watch(self, path: str, func: None = None, *, recursive: bool = True) -> None:
-        """Add the 'path' to watched paths, call the function and reload when any file changes under it."""
+        """Add the 'path' to watched paths and call the builder when any file changes under it."""
         path = os.path.abspath(path)
         if not (func is None or func is self.builder):  # type: ignore[unreachable]
             raise TypeError("Plugins can no longer pass a 'func' parameter to watch().")
@@ -242,7 +190,6 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                         self._want_rebuild = True
 
             with self._epoch_cond:
-                log.info("Reloading browsers")
                 self._visible_epoch = self._wanted_epoch
                 self._epoch_cond.notify_all()
 
@@ -294,22 +241,6 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         # https://github.com/bottlepy/bottle/blob/f9b1849db4/bottle.py#L984
         path = environ["PATH_INFO"].encode("latin-1").decode("utf-8", "ignore")
 
-        if path.startswith("/livereload/"):
-            if m := re.fullmatch(r"/livereload/([0-9]+)/[0-9]+", path):
-                epoch = int(m[1])
-                start_response("200 OK", [("Content-Type", "text/plain")])
-
-                def condition():
-                    return self._visible_epoch > epoch
-
-                with self._epoch_cond:
-                    if not condition():
-                        # Stall the browser, respond as soon as there's something new.
-                        # If there's not, respond anyway after a minute.
-                        self._log_poll_request(environ.get("HTTP_REFERER"), request_id=path)
-                        self._epoch_cond.wait_for(condition, timeout=self.poll_response_timeout)
-                    return [b"%d" % self._visible_epoch]
-
         # Handle browser probes before mount path routing
         if path.startswith("/.well-known/"):
             # Chrome DevTools, etc. — return empty JSON silently
@@ -333,7 +264,6 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         # Wait until the ongoing rebuild (if any) finishes, so we're not serving a half-built site.
         with self._epoch_cond:
             self._epoch_cond.wait_for(lambda: self._visible_epoch == self._wanted_epoch)
-            epoch = self._visible_epoch
 
         try:
             file: BinaryIO = open(file_path, "rb")
@@ -343,39 +273,13 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 return []
             return None  # Not found
 
-        if self._watched_paths and file_path.endswith(".html"):
-            with file:
-                content = file.read()
-            content = self._inject_js_into_html(content, epoch)
-            file = io.BytesIO(content)
-            content_length = len(content)
-        else:
-            content_length = os.path.getsize(file_path)
+        content_length = os.path.getsize(file_path)
 
         content_type = self._guess_type(file_path)
         start_response(
             "200 OK", [("Content-Type", content_type), ("Content-Length", str(content_length))]
         )
         return wsgiref.util.FileWrapper(file)
-
-    def _inject_js_into_html(self, content, epoch):
-        try:
-            body_end = content.rindex(b"</body>")
-        except ValueError:
-            body_end = len(content)
-        # The page will reload if the livereload poller returns a newer epoch than what it knows.
-        # The other timestamp becomes just a unique identifier for the initiating page.
-        script = _SCRIPT_TEMPLATE.substitute(epoch=epoch, request_id=_timestamp())
-        return b"%b<script>%b</script>%b" % (
-            content[:body_end],
-            script.encode(),
-            content[body_end:],
-        )
-
-    @classmethod
-    @functools.lru_cache  # "Cache" to not repeat the same message for the same browser tab.
-    def _log_poll_request(cls, url, request_id):
-        log.info(f"Browser connected: {url}")
 
     @classmethod
     def _guess_type(cls, path):

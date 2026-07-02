@@ -97,6 +97,21 @@ class TestBuildE2E:
         after = out.stat().st_mtime_ns
         assert after > before, "editing an include did not rebuild the including page"
 
+    def test_generates_service_worker_with_base_url(self, tmp_project, monkeypatch):
+        _build_once(monkeypatch, tmp_project)
+        sw = tmp_project / "site" / "sw.js"
+        assert sw.is_file()
+        content = sw.read_text()
+        assert 'const BASE_URL = "/"' in content
+        assert "__DOCSFORGE_BASE_URL__" not in content
+
+    def test_service_worker_base_url_respects_subpath(self, tmp_project, monkeypatch):
+        cfg = tmp_project / "docsforge.yml"
+        cfg.write_text(cfg.read_text() + "site_url: https://example.com/docs/\n")
+        _build_once(monkeypatch, tmp_project)
+        sw = tmp_project / "site" / "sw.js"
+        assert 'const BASE_URL = "/docs/"' in sw.read_text()
+
     def test_no_external_cdn_scripts_in_output(self, tmp_project, monkeypatch):
         """Hermetic check (privacy off): built HTML must not reference JS CDNs
         like unpkg/jsdelivr — those are vendored. Google Fonts <link>s are

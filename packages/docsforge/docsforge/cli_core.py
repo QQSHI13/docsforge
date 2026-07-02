@@ -287,6 +287,13 @@ class ProjectManager:
             return 1
 
 
+# Maps optional package names to the install extra that provides them.
+OPTIONAL_DEPS = {
+    'jieba': 'docsforge[chinese]',
+    'playwright': 'docsforge[pdf]',
+}
+
+
 def _check_optional_deps(config_file=None):
     """Best-effort detection of missing optional dependencies based on config.
 
@@ -302,25 +309,54 @@ def _check_optional_deps(config_file=None):
     except Exception:
         return  # Best-effort, don't fail build because dep check failed
 
-    plugins = cfg.get('plugins', [])
-    if not isinstance(plugins, list):
+    plugins_cfg = cfg.get('plugins', [])
+    if not isinstance(plugins_cfg, list):
         return
 
-    # Flatten plugin configs from the list of strings/dicts
+    # Collect configured plugin names and their config dicts.
+    configured: dict[str, dict] = {}
+    for p in plugins_cfg:
+        if isinstance(p, str):
+            configured[p] = {}
+        elif isinstance(p, dict):
+            for name, opts in p.items():
+                configured[name] = opts if isinstance(opts, dict) else {}
+
+    # Flatten plugin configs for legacy key-based checks.
     plugin_configs = {}
-    for p in plugins:
+    for p in plugins_cfg:
         if isinstance(p, dict):
             plugin_configs.update(p)
 
-    missing = set()
+    missing: set[str] = set()
 
-    # Check jieba: enabled if search plugin has jieba_dict configured
+    # Query plugins for declared optional dependencies.
+    from docsforge.core.plugin_base import get_plugins
+
+    available = get_plugins()
+    for name in configured:
+        ep = available.get(name)
+        if ep is None:
+            continue
+        try:
+            plugin_cls = ep.load()
+        except Exception:
+            continue
+        for dep in getattr(plugin_cls, 'optional_dependencies', []):
+            if dep not in OPTIONAL_DEPS:
+                continue
+            try:
+                __import__(dep)
+            except ImportError:
+                missing.add(f"pip install {OPTIONAL_DEPS[dep]}")
+
+    # Legacy key-based checks for configs not yet declaring optional deps.
     search_cfg = plugin_configs.get('material/search') or plugin_configs.get('search')
     if isinstance(search_cfg, dict) and search_cfg.get('jieba_dict'):
         try:
             __import__('jieba')
         except ImportError:
-            missing.add('pip install docsforge[chinese]')
+            missing.add(f"pip install {OPTIONAL_DEPS['jieba']}")
 
     if missing:
         log.warning("Optional dependencies missing for configured plugins.")
@@ -332,13 +368,18 @@ class Validator:
     """Configuration validation."""
     
     @staticmethod
-    def check(config_file: str | BinaryIO | None = None) -> int:
+    def check(config_file: str | BinaryIO | None = None, *, full_validation: bool = False) -> int:
         """Validate configuration without building.
-        
+
+        Args:
+            full_validation: When True, also run ``load_config`` to catch
+                errors the lightweight check misses (e.g. missing third-party
+                plugins). Used by ``docsforge check``.
+
         Returns exit code: 0 = valid, 1 = errors found.
         """
         from docsforge import check as check_module
-        return check_module.check(config_file=config_file)
+        return check_module.check(config_file=config_file, full_validation=full_validation)
 
 
 class AutoRouter:

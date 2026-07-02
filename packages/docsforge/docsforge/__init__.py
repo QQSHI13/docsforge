@@ -1,7 +1,7 @@
 """DocsForge - Unified documentation engine with Material theme.
 
-DocsForge combines the DocsForge build engine with the Material for MkDocs
-theme and plugins into a single, cohesive package.
+DocsForge combines a vendored documentation build engine with the Material
+for MkDocs theme and plugins into a single, cohesive package.
 """
 
 from __future__ import annotations

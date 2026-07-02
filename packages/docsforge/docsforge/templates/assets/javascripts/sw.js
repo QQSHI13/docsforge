@@ -23,8 +23,9 @@ const VERSION_KEY = "docsforge-manifest-version";
 const FILES_KEY = "docsforge-manifest-files";
 const SYNC_MIN_INTERVAL_MS = 10 * 60 * 1000; // throttle background sync only
 
-// Compute base URL from SW location (handles subpath deploys).
-const BASE_URL = self.location.pathname.replace(/sw\.js$/, '');
+// Base URL is injected at build time from site_url; falls back to the SW
+// location so the unprocessed template still loads when opened directly.
+const BASE_URL = "__DOCSFORGE_BASE_URL__".replace(/\/?$/, '/') || self.location.pathname.replace(/sw\.js$/, '');
 const ORIGIN_BASE = self.location.origin + BASE_URL;
 const ASSET_DESTINATIONS = ["style", "script", "font", "image", "worker"];
 

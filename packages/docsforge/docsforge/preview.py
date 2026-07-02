@@ -50,7 +50,7 @@ class PreviewProcessor(Treeprocessor):
     A Markdown treeprocessor to enable instant previews on links.
 
     Note that this treeprocessor is dependent on the `relpath` treeprocessor
-    registered programmatically by MkDocs before rendering a page.
+    registered programmatically by DocsForge before rendering a page.
     """
 
     def __init__(self, md: Markdown, config: dict):
@@ -77,9 +77,9 @@ class PreviewProcessor(Treeprocessor):
         # is being processed. This seems to be a deliberate design decision, as
         # it is not possible to access the file path of the current page, but
         # it might also be an oversight that is now impossible to fix. However,
-        # since this extension is only useful in the context of Material for
-        # MkDocs, we can assume that the _RelativePathTreeprocessor is always
-        # present, telling us the file path of the current page. If that ever
+        # since this extension is only useful in the context of DocsForge, we
+        # can assume that the _RelativePathTreeprocessor is always present,
+        # telling us the file path of the current page. If that ever
         # changes, we would need to wrap this extension in a plugin, but for
         # the time being we are sneaky and will probably get away with it.
         processor = self.md.treeprocessors[at]

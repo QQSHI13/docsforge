@@ -176,7 +176,7 @@ def check(fix):
         from docsforge.check import fix_config
         sys.exit(fix_config())
     from docsforge.cli_core import Validator
-    sys.exit(Validator.check())
+    sys.exit(Validator.check(full_validation=True))
 
 
 @docsforge.command()

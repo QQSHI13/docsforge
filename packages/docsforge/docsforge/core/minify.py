@@ -1,4 +1,4 @@
-"""An MkDocs plugin to minify HTML, JS or CSS files prior to being written to disk.
+"""A DocsForge plugin to minify HTML, JS or CSS files prior to being written to disk.
 
 Always enabled with no configuration options.
 """

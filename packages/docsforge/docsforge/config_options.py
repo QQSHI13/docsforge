@@ -41,7 +41,7 @@ class SubConfig(Generic[SomeConfig], BaseConfigOption[SomeConfig]):
     """
     Subconfig Config Option.
 
-    New: If targeting MkDocs 1.4+, please pass a subclass of Config to the
+    When targeting the modern DocsForge Config API, pass a subclass of Config to the
     constructor, instead of the old style of a sequence of ConfigOption instances.
     Validation is then enabled by default.
 
