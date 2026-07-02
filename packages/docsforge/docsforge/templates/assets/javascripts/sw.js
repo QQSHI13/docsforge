@@ -248,7 +248,6 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(request.url);
 
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.includes('/livereload/')) return;
 
   // Page request: hard navigation OR programmatic HTML fetch (Material
   // instant navigation). Always handle the current page first.
@@ -302,15 +301,14 @@ async function staleWhileRevalidate(request) {
 
   const networkPromise = fetch(request).then(async (netResp) => {
     if (netResp.ok) {
-      const netClone = netResp.clone();
       if (cached) {
         const cBody = await cached.clone().arrayBuffer();
-        const nBody = await netClone.arrayBuffer();
+        const nBody = await netResp.clone().arrayBuffer();
         if (nBody.byteLength !== cBody.byteLength || !_buffersEqual(nBody, cBody)) {
-          cache.put(request, netResp);
+          cache.put(request, netResp.clone());
         }
       } else {
-        cache.put(request, netResp);
+        cache.put(request, netResp.clone());
       }
     }
     return netResp;
