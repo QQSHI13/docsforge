@@ -123,6 +123,7 @@ async function syncCacheFromManifest(manifest) {
 
       try {
         const fullUrl = new URL(key, ORIGIN_BASE);
+        log('Caching:', key);
         const resp = await fetch(fullUrl);
         if (resp && resp.ok) {
           await cache.put(fullUrl, resp.clone());
