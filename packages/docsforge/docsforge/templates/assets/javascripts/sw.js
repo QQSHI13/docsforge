@@ -167,21 +167,45 @@ async function syncCacheFromManifest(manifest) {
     let updated = 0;
 
     log('Syncing', Object.keys(newFiles).length, 'pages from manifest...');
+
+    // First pass: fetch every changed page, collect its HTML (for asset
+    // discovery) and a cloned Response (for caching). Pages are NOT cached yet.
+    const pagesToCache = [];
+    const assetUrls = new Set();
     for (const [key, newHash] of Object.entries(newFiles)) {
       try {
         if (prevFiles[key] === newHash) continue;
         const fullUrl = new URL(key, ORIGIN_BASE);
         const resp = await fetch(fullUrl);
         if (resp && resp.ok) {
-          await cache.put(fullUrl, resp.clone());
-          prevFiles[key] = newHash;
-          updated++;
+          const respClone = resp.clone();
+          const html = await resp.text();
+          for (const url of extractAssetUrls(html)) {
+            assetUrls.add(url);
+          }
+          pagesToCache.push({ url: fullUrl, response: respClone, key, hash: newHash });
         }
       } catch (e) { /* skip inaccessible page */ }
     }
 
+    // Cache all discovered assets BEFORE caching pages, so every page that is
+    // stored already has its required CSS/JS/images available offline.
+    if (assetUrls.size > 0) {
+      log('Caching', assetUrls.size, 'unique assets from manifest pages before storing pages...');
+      await cacheAssets(cache, Array.from(assetUrls));
+    }
+
+    // Second pass: cache all page HTML now that assets are in place.
+    for (const page of pagesToCache) {
+      try {
+        await cache.put(page.url, page.response);
+        prevFiles[page.key] = page.hash;
+        updated++;
+      } catch (e) { /* skip inaccessible page */ }
+    }
+
     await writePrevFiles(prevFiles);
-    log('Sync complete:', updated, 'pages updated');
+    log('Sync complete:', updated, 'pages updated,', assetUrls.size, 'assets cached');
 
     if (updated > 0) {
       self.clients.matchAll({ includeUncontrolled: true }).then(cls =>
