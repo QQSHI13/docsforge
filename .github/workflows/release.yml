@@ -121,6 +121,24 @@ jobs:
           "
           echo "Updated $FILE: version=$(node -e "console.log(require('./$FILE').version)")"
 
+      - name: Bump version in VS Code extension lockfile
+        run: |
+          LOCK="packages/vscode-docsforge/package-lock.json"
+          if [ -f "$LOCK" ]; then
+            node -e "
+              const fs = require('fs');
+              const lock = JSON.parse(fs.readFileSync('$LOCK'));
+              lock.version = '${{ steps.versions.outputs.vsix }}';
+              if (lock.packages && lock.packages['']) {
+                lock.packages[''].version = '${{ steps.versions.outputs.vsix }}';
+              }
+              fs.writeFileSync('$LOCK', JSON.stringify(lock, null, 2) + '\n');
+            "
+            echo "Updated $LOCK: version=$(node -e "console.log(require('./$LOCK').version)")"
+          else
+            echo "$LOCK not present — npm install will regenerate it"
+          fi
+
       - name: Commit and tag
         id: commit
         run: |
@@ -129,6 +147,11 @@ jobs:
           git config user.name "docsforge-bot"
           git config user.email "bot@docsforge.dev"
           git add packages/docsforge/docsforge/__init__.py packages/vscode-docsforge/package.json
+          # package-lock.json is gitignored, but if it exists we want it committed
+          # so the lockfile version stays in sync with package.json.
+          if [ -f packages/vscode-docsforge/package-lock.json ]; then
+            git add -f packages/vscode-docsforge/package-lock.json
+          fi
 
           if ! git diff --cached --quiet; then
             git commit -m "chore: bump version to $VERSION"

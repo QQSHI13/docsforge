@@ -55,6 +55,35 @@ class TestBuildE2E:
         assert "files" in cm
         assert "Files" not in cm  # regression guard
 
+        files = cm["files"]
+        # Pages are present with directory-index URLs.
+        assert "./" in files, "homepage missing from cache manifest"
+        assert any(k.endswith("/") for k in files), (
+            "no directory-index pages in cache manifest"
+        )
+        assert "404.html" in files, "404 page missing from cache manifest"
+
+        # Theme assets and the search index are now included so the SW can
+        # cache everything without parsing HTML.
+        assert any(k.startswith("assets/javascripts/bundle") for k in files), (
+            "theme JS bundle missing from cache manifest"
+        )
+        assert any(k.startswith("assets/stylesheets/main") for k in files), (
+            "theme CSS missing from cache manifest"
+        )
+        assert "assets/images/favicon.png" in files, (
+            "favicon missing from cache manifest"
+        )
+        assert any(k.startswith("assets/javascripts/workers/search") for k in files), (
+            "search worker missing from cache manifest"
+        )
+
+        # The SW should not cache itself or its own manifest.
+        assert "sw.js" not in files, "sw.js must not be in cache manifest"
+        assert "cache-manifest.json" not in files, (
+            "cache-manifest.json must not be in cache manifest"
+        )
+
     def test_second_build_is_incremental(self, tmp_project, monkeypatch):
         """The second build must not rewrite an unchanged page's output."""
         _build_once(monkeypatch, tmp_project)
