@@ -6,7 +6,8 @@
  * site is cached, so going offline gives the same experience as online.
  *
  *   install    : skipWaiting, no pre-cache.
- *   activate   : claim, fetch manifest, sync every listed page into cache.
+ *   activate   : open cache, cache critical assets + current page, claim,
+ *                then fetch manifest and sync remaining pages.
  *   fetch      : cache-first for everything.
  *                - Hard refresh refreshes the manifest in the background.
  *                - Normal navigation and instant navigation use the cached
@@ -27,6 +28,10 @@ let _manifest = null;
 let _manifestRefresh = null;
 let _syncPromise = null;
 
+function log(...args) {
+  console.log('[SW]', ...args);
+}
+
 // === Manifest helpers ===
 
 async function loadManifestFromCache() {
@@ -36,6 +41,7 @@ async function loadManifestFromCache() {
     const resp = await cache.match(MANIFEST_URL);
     if (resp) {
       _manifest = await resp.json();
+      log('Manifest loaded from meta cache:', _manifest.version);
       return _manifest;
     }
   } catch (e) { /* ignore */ }
@@ -46,6 +52,7 @@ async function refreshManifest() {
   if (_manifestRefresh) return _manifestRefresh;
   _manifestRefresh = (async () => {
     try {
+      log('Fetching manifest...');
       const resp = await fetch(MANIFEST_URL, { cache: 'no-cache' });
       if (resp.ok) {
         const clone = resp.clone();
@@ -53,10 +60,13 @@ async function refreshManifest() {
         const cache = await caches.open(META_CACHE);
         await cache.put(MANIFEST_URL, clone);
         _manifest = data;
+        log('Manifest fetched:', data.version);
         await syncCacheFromManifest(data);
+      } else {
+        log('Manifest fetch returned non-ok status:', resp.status);
       }
     } catch (e) {
-      console.log('[SW] Manifest refresh failed:', e.message);
+      log('Manifest refresh failed:', e.message);
     }
     return _manifest;
   })().finally(() => { _manifestRefresh = null; });
@@ -105,6 +115,46 @@ async function writePrevFiles(files) {
   await cache.put(FILES_KEY, new Response(JSON.stringify(files)));
 }
 
+// === Asset discovery from HTML ===
+
+function extractAssetUrls(html) {
+  const urls = [];
+  const patterns = [
+    /<link[^>]+href=["']([^"']+)["'][^>]*>/gi,
+    /<script[^>]+src=["']([^"']+)["'][^>]*>/gi,
+    /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
+    /<source[^>]+src=["']([^"']+)["'][^>]*>/gi,
+  ];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const url = m[1];
+      if (url && !url.startsWith('http') && !url.startsWith('//') && !url.startsWith('data:') && !url.startsWith('#')) {
+        urls.push(url);
+      }
+    }
+  }
+  return urls;
+}
+
+async function cacheAssets(cache, urls) {
+  let cached = 0;
+  for (const url of urls) {
+    try {
+      const fullUrl = new URL(url, ORIGIN_BASE);
+      if (await cache.match(fullUrl)) continue;
+      const resp = await fetch(fullUrl);
+      if (resp && resp.ok) {
+        await cache.put(fullUrl, resp.clone());
+        cached++;
+      }
+    } catch (e) {
+      log('Failed to cache asset:', url, e.message);
+    }
+  }
+  log('Cached', cached, 'critical assets');
+}
+
 // === Cache sync ===
 
 async function syncCacheFromManifest(manifest) {
@@ -116,6 +166,7 @@ async function syncCacheFromManifest(manifest) {
     const cache = await caches.open(CACHE_NAME);
     let updated = 0;
 
+    log('Syncing', Object.keys(newFiles).length, 'pages from manifest...');
     for (const [key, newHash] of Object.entries(newFiles)) {
       try {
         if (prevFiles[key] === newHash) continue;
@@ -130,6 +181,7 @@ async function syncCacheFromManifest(manifest) {
     }
 
     await writePrevFiles(prevFiles);
+    log('Sync complete:', updated, 'pages updated');
 
     if (updated > 0) {
       self.clients.matchAll({ includeUncontrolled: true }).then(cls =>
@@ -157,8 +209,12 @@ async function respond404() {
 async function servePage(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
-  if (cached) return cached;
+  if (cached) {
+    log('Serving page from cache:', request.url);
+    return cached;
+  }
 
+  log('Page not in cache, fetching:', request.url);
   try {
     const resp = await fetch(request);
     if (resp && resp.ok) {
@@ -167,6 +223,7 @@ async function servePage(request) {
     }
   } catch (e) { /* network failed */ }
 
+  log('Page unavailable, returning 404:', request.url);
   return respond404();
 }
 
@@ -196,33 +253,60 @@ function isPageRequest(request) {
 // === Events ===
 
 self.addEventListener('install', (e) => {
+  log('Installing...');
   e.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (e) => {
+  log('Activating...');
   e.waitUntil((async () => {
-    await self.clients.claim();
-    await caches.keys().then(names => Promise.all(
-      names.filter(n => n !== CACHE_NAME && n !== META_CACHE).map(n => caches.delete(n))
-    ));
-
     // Open content cache first so it appears first in caches.keys().
     const cache = await caches.open(CACHE_NAME);
 
-    // Fetch manifest and sync all pages.
-    const manifest = await refreshManifest();
-
-    // Prime the visible page immediately.
+    // Cache the visible page FIRST, before claiming, so the next offline reload
+    // has something to serve immediately.
+    let visibleHtml = '';
     try {
       const clients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
       const visible = clients.find(c => c.visibilityState === 'visible') || clients[0];
       if (visible) {
+        log('Priming visible page:', visible.url);
         const resp = await fetch(visible.url);
         if (resp && resp.ok) {
-          await cache.put(visible.url, resp.clone());
+          const clone = resp.clone();
+          visibleHtml = await resp.text();
+          await cache.put(visible.url, clone);
+          log('Cached visible page:', visible.url);
+        } else {
+          log('Failed to prime visible page:', visible.url, resp.status);
         }
       }
-    } catch (e) { /* non-fatal */ }
+    } catch (e) {
+      log('Error priming visible page:', e.message);
+    }
+
+    // Cache assets referenced by the visible page so it renders fully offline.
+    if (visibleHtml) {
+      const assetUrls = extractAssetUrls(visibleHtml);
+      log('Discovered', assetUrls.length, 'critical assets on visible page');
+      await cacheAssets(cache, assetUrls);
+    }
+
+    // Now claim clients so the page sees the SW as controller.
+    await self.clients.claim();
+    log('Clients claimed');
+
+    // Delete old content caches (but keep meta cache).
+    await caches.keys().then(names => Promise.all(
+      names.filter(n => n !== CACHE_NAME && n !== META_CACHE).map(n => caches.delete(n))
+    ));
+
+    // Fetch manifest and sync remaining pages in the background.
+    log('Fetching manifest and syncing remaining pages...');
+    const manifest = await refreshManifest();
+    if (!manifest) {
+      log('No manifest available after activation');
+    }
   })());
 });
 
