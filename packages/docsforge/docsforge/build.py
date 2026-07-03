@@ -557,6 +557,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
     config_path = Path(config.config_file_path) if config.config_file_path else Path("docsforge.yml")
     theme_sig = planner.theme_signature(config.theme.dirs)
 
+    warning_counter: utils.CountHandler | None = None
     try:
         start = time.monotonic()
         config, warning_counter, inclusion = _prepare_build(
@@ -581,7 +582,8 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         raise
 
     finally:
-        logger.removeHandler(warning_counter)
+        if warning_counter is not None:
+            logger.removeHandler(warning_counter)
 
 
 def site_directory_contains_stale_files(site_directory: str) -> bool:
