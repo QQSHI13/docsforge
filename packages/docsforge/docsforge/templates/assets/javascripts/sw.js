@@ -45,57 +45,20 @@ function _buffersEqual(a, b) {
   return true;
 }
 
-// === Manifest fetch (non-blocking, stale-OK) ===
-// The manifest is cached in memory and in `docsforge-meta`.  Callers get the
-// cached manifest immediately; a background refresh updates it.  This keeps
-// navigations fast and offline navigation working.  If the manifest changed in
-// the background, the *next* navigation will see the new version — a single
-// extra refresh is enough for users who want the absolute latest content.
-let _cachedManifest = null;
-let _refreshPromise = null;
-
-async function _loadManifestFromCache() {
-  if (_cachedManifest) return _cachedManifest;
-  try {
-    const metaCache = await caches.open('docsforge-meta');
-    const cached = await metaCache.match(MANIFEST_URL);
-    if (cached) {
-      const data = await cached.json();
-      _cachedManifest = data;
-      return data;
-    }
-  } catch (e) { /* ignore parse/read errors */ }
-  return null;
-}
-
-async function _refreshManifest() {
-  if (_refreshPromise) return _refreshPromise;
-  _refreshPromise = (async () => {
-    try {
-      const resp = await fetch(MANIFEST_URL, { cache: 'no-cache' });
-      if (resp.ok) {
-        // Clone before reading the body so we can cache the original response.
-        const respClone = resp.clone();
-        const data = await resp.json();
-        const metaCache = await caches.open('docsforge-meta');
-        await metaCache.put(MANIFEST_URL, respClone);
-        _cachedManifest = data;
-        return data;
-      }
-    } catch (e) {
-      console.log('[SW] Manifest refresh failed:', e.message);
-    }
-    return _cachedManifest;
-  })().finally(() => { _refreshPromise = null; });
-  return _refreshPromise;
-}
-
+// === Manifest fetch (shared per navigation) ===
+// `cache: 'no-cache'` sends a conditional request — the static host returns
+// 304 when the manifest is unchanged, instead of a full 200 every navigation.
+// (SW-initiated fetches are not intercepted by this SW, so this bypasses the
+// runtime cache correctly.)
 async function fetchManifest() {
-  const cached = await _loadManifestFromCache();
-  // Always trigger a background refresh so the next navigation can pick up
-  // changes, but don't block the current request on it.
-  _refreshManifest().catch(() => {});
-  return cached;
+  try {
+    const resp = await fetch(MANIFEST_URL, { cache: 'no-cache' });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    console.log('[SW] Manifest fetch failed:', e.message);
+    return null;
+  }
 }
 
 // Build a Map: request pathname+search -> { key (relative manifest key), hash }.
@@ -195,6 +158,7 @@ async function maybeSyncCache(manifest) {
 
 async function syncCacheFromManifest(manifest) {
   try {
+    if (!manifest) manifest = await fetchManifest();
     if (!manifest) return;
     const newVersion = manifest.version;
     const storedVersion = await _readStoredVersion();
@@ -284,6 +248,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(request.url);
 
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.includes('/livereload/')) return;
 
   // Page request: hard navigation OR programmatic HTML fetch (Material
   // instant navigation). Always handle the current page first.
@@ -337,14 +302,15 @@ async function staleWhileRevalidate(request) {
 
   const networkPromise = fetch(request).then(async (netResp) => {
     if (netResp.ok) {
+      const netClone = netResp.clone();
       if (cached) {
         const cBody = await cached.clone().arrayBuffer();
-        const nBody = await netResp.clone().arrayBuffer();
+        const nBody = await netClone.arrayBuffer();
         if (nBody.byteLength !== cBody.byteLength || !_buffersEqual(nBody, cBody)) {
-          cache.put(request, netResp.clone());
+          cache.put(request, netResp);
         }
       } else {
-        cache.put(request, netResp.clone());
+        cache.put(request, netResp);
       }
     }
     return netResp;
