@@ -6,6 +6,7 @@ Always enabled with no configuration options.
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
@@ -28,6 +29,8 @@ MINIFIERS: Dict[str, Callable] = {
     "js": jsmin.jsmin,
     "css": csscompressor.compress,
 }
+
+log = logging.getLogger(__name__)
 
 if version.parse(csscompressor.__version__) <= version.parse("0.9.5"):
     # Monkey patch csscompressor 0.9.5
@@ -53,62 +56,71 @@ class MinifyPlugin(BasePlugin):
 
     config_scheme: Tuple = ()
 
-    def _minified_asset(self, file_name: str, file_type: str, file_hash: str) -> str:
-        """Add .hash.min. to the asset file name for cache busting."""
-        hash_part: str = f".{file_hash[:6]}" if file_hash else ""
-        return file_name.replace(f".{file_type}", f"{hash_part}.min.{file_type}")
-
-    def _minify(self, file_type: str, config: DocsForgeConfig) -> None:
-        """Minify all extra JS/CSS files and rename with hash."""
-        minify_func: Callable = MINIFIERS[file_type]
-        extra_key: str = EXTRAS[file_type]
-        extra_files = config.get(extra_key, [])
-        
-        if not extra_files:
-            return
-
-        site_dir = Path(config['site_dir'])
-
-        for extra_item in extra_files:
-            file_path = str(extra_item.path if hasattr(extra_item, 'path') else extra_item)
-            file_path = file_path.lstrip('/')
-            
-            full_path = site_dir / file_path
-            if not full_path.exists():
-                continue
-
-            with open(full_path, mode="r+", encoding="utf8") as file:
-                file_data = file.read()
-                minified = self._minify_file_data_with_func(file_data, minify_func)
-                file.seek(0)
-                file.write(minified)
-                file.truncate()
-
-            # Generate hash for cache busting
-            file_hash = hashlib.sha384(minified.encode("utf8")).hexdigest()
-            new_name = self._minified_asset(str(full_path), file_type, file_hash)
-            os.rename(str(full_path), new_name)
-
-            # Update the config to point to the new file name
-            rel_new = os.path.relpath(new_name, str(site_dir))
-            if hasattr(extra_item, 'path'):
-                extra_item.path = rel_new
-            else:
-                # Update config list in place
-                idx = config[extra_key].index(extra_item)
-                config[extra_key][idx] = rel_new
+    def __init__(self) -> None:
+        # original site-relative path -> minified content
+        self._pending_minified: dict[str, str] = {}
 
     @staticmethod
-    def _minify_file_data_with_func(file_data: str, minify_func: Callable) -> str:
+    def _item_path(item) -> str:
+        """Return the path string from an extra item (ExtraScriptValue or str)."""
+        return str(item.path if hasattr(item, 'path') else item).strip()
+
+    def _minify_file_data_with_func(self, file_data: str, minify_func: Callable) -> str:
         """Use the minify_func and return the minified data."""
         if minify_func.__name__ == "jsmin":
             return minify_func(file_data, quote_chars="'\"`")
         else:
             return minify_func(file_data)
 
+    def _process_extras(self, file_type: str, config: DocsForgeConfig) -> None:
+        """Minify extra JS/CSS files and update config before pages are rendered.
+
+        The minified content is written to disk in on_post_build, after static
+        files have been copied to the site directory.  Config paths are updated
+        here (before rendering) with a cache-busting query string so the HTML
+        references match the file that will exist on disk.
+        """
+        minify_func: Callable = MINIFIERS[file_type]
+        extra_key: str = EXTRAS[file_type]
+        extra_files = config.get(extra_key, [])
+        if not extra_files:
+            return
+
+        docs_dir = Path(config['docs_dir'])
+        extra_list = config[extra_key]
+
+        for idx, extra_item in enumerate(extra_files):
+            file_path = self._item_path(extra_item)
+            # Skip absolute/external URLs and empty paths.
+            if not file_path or file_path.startswith(('http://', 'https://', '//')):
+                continue
+            src_path = docs_dir / file_path.lstrip('/')
+            if not src_path.exists():
+                continue
+
+            try:
+                file_data = src_path.read_text(encoding='utf-8')
+                minified = self._minify_file_data_with_func(file_data, minify_func)
+                file_hash = hashlib.sha384(minified.encode('utf-8')).hexdigest()[:8]
+                site_rel_path = file_path.lstrip('/')
+                self._pending_minified[site_rel_path] = minified
+                new_path = f"{file_path}?v={file_hash}"
+                if hasattr(extra_item, 'path'):
+                    extra_item.path = new_path
+                else:
+                    extra_list[idx] = new_path
+            except Exception as e:
+                log.warning(f"Failed to minify extra {file_type} file {file_path}: {e}")
+
     def _minify_html_page(self, output: str) -> Optional[str]:
         """Minify HTML page content. Always enabled."""
         return minify_html.minify(output, minify_js=False, minify_css=False)
+
+    def on_pre_build(self, *, config: DocsForgeConfig) -> None:
+        """Prepare minified extra assets and update config before rendering."""
+        self._pending_minified.clear()
+        self._process_extras("js", config)
+        self._process_extras("css", config)
 
     def on_post_page(self, output: str, *, page: Page, config: DocsForgeConfig) -> Optional[str]:
         """Minify HTML page before saving to disk."""
@@ -123,6 +135,12 @@ class MinifyPlugin(BasePlugin):
         return output_content
 
     def on_post_build(self, *, config: DocsForgeConfig) -> None:
-        """Process extras before saving to disk."""
-        self._minify("js", config)
-        self._minify("css", config)
+        """Write minified extra JS/CSS files to the site directory."""
+        site_dir = Path(config['site_dir'])
+        for site_rel_path, minified in self._pending_minified.items():
+            dest_path = site_dir / site_rel_path
+            try:
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                dest_path.write_text(minified, encoding='utf-8')
+            except Exception as e:
+                log.warning(f"Failed to write minified file {site_rel_path}: {e}")

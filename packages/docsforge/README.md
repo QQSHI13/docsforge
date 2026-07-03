@@ -2,19 +2,19 @@
 
 > **The drop-in replacement for MkDocs + Material for MkDocs.**
 > One package. One command. Beautiful docs. Zero CDN calls.
-> ⚠️ **Development Mode**: DocsForge is under active development. Expect frequent updates while it reaches a stable 1.0 release.
+> ⚠️ **Development Mode**: DocsForge is under active development. Expect frequent updates and possible instability until **v12.0.0**; use with caution in production.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/QQSHI13/docsforge/main/packages/docsforge/docsforge/templates/.icons/badge-compact.svg" alt="DocsForge">
 </p>
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
-[![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge-docs/)
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge/)
 [![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
 
 **DocsForge** is a self-contained, actively-maintained documentation engine. If you use MkDocs, Material for MkDocs, or are looking for a modern alternative, you're in the right place.
 
-📖 **[Documentation](https://qqshi13.github.io/docsforge-docs/)** | 📦 **[PyPI](https://pypi.org/project/docsforge/)** | 🐙 **[GitHub](https://github.com/QQSHI13/docsforge)** | 🔄 **[Migrate from MkDocs](#migrating-from-mkdocs)**
+📖 **[Documentation](https://qqshi13.github.io/docsforge/)** | 📦 **[PyPI](https://pypi.org/project/docsforge/)** | 🐙 **[GitHub](https://github.com/QQSHI13/docsforge)** | 🔄 **[Migrate from MkDocs](#migrating-from-mkdocs)**
 
 ---
 
@@ -53,7 +53,7 @@ docsforge build          # builds your site
 docsforge serve          # live preview
 ```
 
-See the [migration guide](https://qqshi13.github.io/docsforge-docs/getting-started/migrating-from-mkdocs/) for a detailed walkthrough.
+See the [migration guide](https://qqshi13.github.io/docsforge/getting-started/migrating-from-mkdocs/) for a detailed walkthrough.
 
 ---
 
@@ -205,7 +205,7 @@ No configuration needed. Works offline after the first visit.
 
 ## Changelog
 
-See [full changelog](https://qqshi13.github.io/docsforge-docs/changelog/) in the documentation.
+See [full changelog](https://qqshi13.github.io/docsforge/changelog/) in the documentation.
 
 Recent highlights:
 

@@ -419,7 +419,7 @@ def load_config(
             print()
         print("  Common fixes:")
         print("    - Check docsforge.yml syntax (no tabs, proper indentation)")
-        print("    - See docs: https://qqshi13.github.io/docsforge-docs/")
+        print("    - See docs: https://qqshi13.github.io/docsforge/")
         print()
         raise exceptions.Abort("Configuration error — fix the issues above and try again.")
     elif cfg.strict and len(warnings) > 0:

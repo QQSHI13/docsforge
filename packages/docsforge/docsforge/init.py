@@ -171,7 +171,7 @@ def _generate_readme(site_name: str) -> str:
     """Generate README.md content."""
     return f'''# {site_name}
 
-Documentation built with [DocsForge](https://qqshi13.github.io/docsforge-docs/).
+Documentation built with [DocsForge](https://qqshi13.github.io/docsforge/).
 
 ## Quick Start
 
@@ -412,7 +412,7 @@ def _generate_index(site_name: str, author_name: str | None = None, repo_url: st
         lines.append(f'\n[:fontawesome-brands-github: Repository]({repo_url})')
     
     lines.append("""
-This documentation is built with [DocsForge](https://qqshi13.github.io/docsforge-docs/).
+This documentation is built with [DocsForge](https://qqshi13.github.io/docsforge/).
 
 ## Getting Started
 
@@ -632,5 +632,5 @@ def init(
     print(f"    cd {output_dir}")
     print("    docsforge serve")
     print()
-    print("  Documentation: https://qqshi13.github.io/docsforge-docs/")
+    print("  Documentation: https://qqshi13.github.io/docsforge/")
     print()

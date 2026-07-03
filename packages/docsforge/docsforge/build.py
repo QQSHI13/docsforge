@@ -619,9 +619,11 @@ def _generate_pwa_manifest_and_precache(
                 template_url = '/404.html'
             precache_urls.append(template_url)
 
-    # Also include the home page explicitly
+    # Also include the home page explicitly. Page.url returns '' for the
+    # homepage, but File.url uses './'; keep the explicit './' form so the
+    # root page survives deduplication and is written into cache-manifest.json.
     home_url = nav.homepage.url if nav.homepage else './'
-    if home_url not in precache_urls:
+    if home_url and home_url not in precache_urls:
         precache_urls.insert(0, home_url)
 
     # Convert all URLs to be relative to the SW script location
@@ -631,12 +633,11 @@ def _generate_pwa_manifest_and_precache(
     for url in precache_urls:
         if url.startswith('/'):
             sw_relative_urls.append(url.lstrip('/'))
+        elif url in ('', './'):
+            sw_relative_urls.append('./')
         else:
             # Already relative, keep as-is
             sw_relative_urls.append(url)
-
-    # Remove redundant ./ in the result
-    sw_relative_urls = [url.replace('./', '') for url in sw_relative_urls]
 
     # Always include cache manifest for hash-based syncing
     sw_relative_urls.append('cache-manifest.json')

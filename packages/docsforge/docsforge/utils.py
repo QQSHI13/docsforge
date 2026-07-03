@@ -165,6 +165,10 @@ def normalize_url(path, page=None, base=''):
         return path
     if page is not None:
         return _get_relative_url(path, base)
+    if base.startswith('/'):
+        if path.startswith('/'):
+            return path
+        return base.rstrip('/') + '/' + path.lstrip('/')
     return path
 
 
