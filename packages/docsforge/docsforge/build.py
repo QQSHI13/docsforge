@@ -762,44 +762,68 @@ def _generate_pwa_manifest_and_precache(
 
 
 def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files | None = None, planner: BuildPlanner | None = None) -> None:
-    """Generate cache-manifest.json listing every page URL + source content hash.
+    """Generate cache-manifest.json listing every build output + source hash.
 
-    Hashes are computed from Markdown SOURCE files, not built HTML, so the
-    manifest version only changes when the source actually changes — not when
-    the build cache produces different output.
-
-    The service worker fetches this on activation and compares hashes with
-    cached responses. Only pages with changed hashes are re-fetched.
+    Every file written to site_dir is included (pages, theme assets, search
+    index, sitemap, PWA manifest, fonts, etc.). Hashes are computed from the
+    Markdown SOURCE file when one exists, otherwise from the built file on disk.
+    The SW uses this manifest to cache everything directly, without parsing HTML.
     """
     manifest_files = {}
 
-    for url in page_urls:
-        # Try to hash the source .md file for deterministic results
-        src_path = None
-        if files:
-            # Find the source file for this URL
-            for f in files.documentation_pages():
-                if f.url == url or f.url.rstrip("/") == url.rstrip("/"):
-                    src_path = f.abs_src_path
-                    break
+    # Build a lookup from page URL to source Markdown path. Multiple URL forms
+    # can map to the same source (e.g. 'second/', 'second', 'second/index.html').
+    src_by_url: dict[str, str] = {}
+    if files:
+        for f in files.documentation_pages():
+            if not (f.inclusion.is_included() or f.inclusion.is_not_in_nav()):
+                continue
+            src_path = f.abs_src_path
+            if not src_path or not os.path.isfile(src_path):
+                continue
 
-        if src_path and os.path.isfile(src_path):
-            if planner is not None:
-                h = planner._current_hash(Path(src_path))[:16]
+            url = f.url
+            if url in ('', './'):
+                forms = ('./', 'index.html')
             else:
-                with open(src_path, 'rb') as f:
+                forms = (url, url.rstrip('/'), url.rstrip('/') + '/index.html')
+            for form in forms:
+                src_by_url[form] = src_path
+
+    # Walk the built site and hash every file.
+    for root, dirs, filenames in os.walk(site_dir):
+        dirs.sort()
+        for filename in sorted(filenames):
+            abs_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(abs_path, site_dir)
+            rel_unix = rel_path.replace(os.sep, '/')
+
+            # The SW should not cache itself or its manifest.
+            if rel_unix in ('cache-manifest.json', 'sw.js'):
+                continue
+
+            # Directory-index pages are addressed by their directory URL.
+            if filename == 'index.html':
+                dir_part = os.path.dirname(rel_unix)
+                url = './' if dir_part == '' else dir_part + '/'
+            else:
+                url = rel_unix
+
+            # Source-first hashing for Markdown-backed pages, built-file fallback
+            # for everything else (theme assets, 404.html, sitemap, etc.).
+            src_path = src_by_url.get(url)
+            if src_path and os.path.isfile(src_path):
+                hash_path = src_path
+            else:
+                hash_path = abs_path
+
+            if planner is not None:
+                h = planner._current_hash(Path(hash_path))[:16]
+            else:
+                with open(hash_path, 'rb') as f:
                     h = hashlib.sha256(f.read()).hexdigest()[:16]
+
             manifest_files[url] = h
-        else:
-            # Fallback: hash the built HTML file (for non-MD files like 404.html)
-            file_path = os.path.join(site_dir, url, 'index.html') if not url.endswith('.html') else os.path.join(site_dir, url)
-            if os.path.isfile(file_path):
-                if planner is not None:
-                    h = planner._current_hash(Path(file_path))[:16]
-                else:
-                    with open(file_path, 'rb') as f:
-                        h = hashlib.sha256(f.read()).hexdigest()[:16]
-                manifest_files[url] = h
 
     manifest = {
         "version": hashlib.sha256(json.dumps(manifest_files, sort_keys=True).encode()).hexdigest()[:12],

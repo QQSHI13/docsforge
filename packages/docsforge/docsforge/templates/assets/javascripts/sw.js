@@ -2,12 +2,12 @@
  * DocsForge Service Worker
  *
  * Strategy: cache-everything, manifest-driven delta updates, no localhost
- * special-casing. After the first install every page/asset needed to render the
- * site is cached, so going offline gives the same experience as online.
+ * special-casing. After the first install every build output is cached, so
+ * going offline gives the same experience as online.
  *
  *   install    : skipWaiting, no pre-cache.
- *   activate   : open cache, cache critical assets + current page, claim,
- *                then fetch manifest and sync remaining pages.
+ *   activate   : open cache, prime the visible page, claim, delete old caches,
+ *                then fetch cache-manifest.json and sync every changed file.
  *   fetch      : cache-first for everything.
  *                - Hard refresh refreshes the manifest in the background.
  *                - Normal navigation and instant navigation use the cached
@@ -89,18 +89,6 @@ async function getManifest(request) {
   return cached;
 }
 
-function buildLookup(manifest) {
-  const map = new Map();
-  const files = (manifest && manifest.files) || {};
-  for (const [key, hash] of Object.entries(files)) {
-    try {
-      const u = new URL(key, ORIGIN_BASE);
-      map.set(u.pathname + u.search, { key, hash });
-    } catch (e) { /* skip malformed */ }
-  }
-  return map;
-}
-
 // === Per-file hash store (cross-SW-version) ===
 
 async function readPrevFiles() {
@@ -115,46 +103,6 @@ async function writePrevFiles(files) {
   await cache.put(FILES_KEY, new Response(JSON.stringify(files)));
 }
 
-// === Asset discovery from HTML ===
-
-function extractAssetUrls(html) {
-  const urls = [];
-  const patterns = [
-    /<link[^>]+href=["']([^"']+)["'][^>]*>/gi,
-    /<script[^>]+src=["']([^"']+)["'][^>]*>/gi,
-    /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
-    /<source[^>]+src=["']([^"']+)["'][^>]*>/gi,
-  ];
-  for (const re of patterns) {
-    let m;
-    while ((m = re.exec(html)) !== null) {
-      const url = m[1];
-      if (url && !url.startsWith('http') && !url.startsWith('//') && !url.startsWith('data:') && !url.startsWith('#')) {
-        urls.push(url);
-      }
-    }
-  }
-  return urls;
-}
-
-async function cacheAssets(cache, urls) {
-  let cached = 0;
-  for (const url of urls) {
-    try {
-      const fullUrl = new URL(url, ORIGIN_BASE);
-      if (await cache.match(fullUrl)) continue;
-      const resp = await fetch(fullUrl);
-      if (resp && resp.ok) {
-        await cache.put(fullUrl, resp.clone());
-        cached++;
-      }
-    } catch (e) {
-      log('Failed to cache asset:', url, e.message);
-    }
-  }
-  log('Cached', cached, 'critical assets');
-}
-
 // === Cache sync ===
 
 async function syncCacheFromManifest(manifest) {
@@ -166,46 +114,28 @@ async function syncCacheFromManifest(manifest) {
     const cache = await caches.open(CACHE_NAME);
     let updated = 0;
 
-    log('Syncing', Object.keys(newFiles).length, 'pages from manifest...');
+    const entries = Object.keys(newFiles);
+    log('Syncing', entries.length, 'files from manifest...');
 
-    // First pass: fetch every changed page, collect its HTML (for asset
-    // discovery) and a cloned Response (for caching). Pages are NOT cached yet.
-    const pagesToCache = [];
-    const assetUrls = new Set();
-    for (const [key, newHash] of Object.entries(newFiles)) {
+    for (const key of entries) {
+      const newHash = newFiles[key];
+      if (prevFiles[key] === newHash) continue;
+
       try {
-        if (prevFiles[key] === newHash) continue;
         const fullUrl = new URL(key, ORIGIN_BASE);
         const resp = await fetch(fullUrl);
         if (resp && resp.ok) {
-          const respClone = resp.clone();
-          const html = await resp.text();
-          for (const url of extractAssetUrls(html)) {
-            assetUrls.add(url);
-          }
-          pagesToCache.push({ url: fullUrl, response: respClone, key, hash: newHash });
+          await cache.put(fullUrl, resp.clone());
+          prevFiles[key] = newHash;
+          updated++;
         }
-      } catch (e) { /* skip inaccessible page */ }
-    }
-
-    // Cache all discovered assets BEFORE caching pages, so every page that is
-    // stored already has its required CSS/JS/images available offline.
-    if (assetUrls.size > 0) {
-      log('Caching', assetUrls.size, 'unique assets from manifest pages before storing pages...');
-      await cacheAssets(cache, Array.from(assetUrls));
-    }
-
-    // Second pass: cache all page HTML now that assets are in place.
-    for (const page of pagesToCache) {
-      try {
-        await cache.put(page.url, page.response);
-        prevFiles[page.key] = page.hash;
-        updated++;
-      } catch (e) { /* skip inaccessible page */ }
+      } catch (e) {
+        log('Failed to cache:', key, e.message);
+      }
     }
 
     await writePrevFiles(prevFiles);
-    log('Sync complete:', updated, 'pages updated,', assetUrls.size, 'assets cached');
+    log('Sync complete:', updated, 'files updated');
 
     if (updated > 0) {
       self.clients.matchAll({ includeUncontrolled: true }).then(cls =>
@@ -287,9 +217,7 @@ self.addEventListener('activate', (e) => {
     // Open content cache first so it appears first in caches.keys().
     const cache = await caches.open(CACHE_NAME);
 
-    // Cache the visible page FIRST, before claiming, so the next offline reload
-    // has something to serve immediately.
-    let visibleHtml = '';
+    // Prime the visible page so the current tab is offline-ready immediately.
     try {
       const clients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
       const visible = clients.find(c => c.visibilityState === 'visible') || clients[0];
@@ -297,9 +225,7 @@ self.addEventListener('activate', (e) => {
         log('Priming visible page:', visible.url);
         const resp = await fetch(visible.url);
         if (resp && resp.ok) {
-          const clone = resp.clone();
-          visibleHtml = await resp.text();
-          await cache.put(visible.url, clone);
+          await cache.put(visible.url, resp.clone());
           log('Cached visible page:', visible.url);
         } else {
           log('Failed to prime visible page:', visible.url, resp.status);
@@ -309,14 +235,7 @@ self.addEventListener('activate', (e) => {
       log('Error priming visible page:', e.message);
     }
 
-    // Cache assets referenced by the visible page so it renders fully offline.
-    if (visibleHtml) {
-      const assetUrls = extractAssetUrls(visibleHtml);
-      log('Discovered', assetUrls.length, 'critical assets on visible page');
-      await cacheAssets(cache, assetUrls);
-    }
-
-    // Now claim clients so the page sees the SW as controller.
+    // Take control of existing clients.
     await self.clients.claim();
     log('Clients claimed');
 
@@ -325,8 +244,8 @@ self.addEventListener('activate', (e) => {
       names.filter(n => n !== CACHE_NAME && n !== META_CACHE).map(n => caches.delete(n))
     ));
 
-    // Fetch manifest and sync remaining pages in the background.
-    log('Fetching manifest and syncing remaining pages...');
+    // Fetch manifest and sync every build output in the background.
+    log('Fetching manifest and syncing all files...');
     const manifest = await refreshManifest();
     if (!manifest) {
       log('No manifest available after activation');
