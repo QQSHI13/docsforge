@@ -160,7 +160,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src",
     "test": "mocha"
   },
   "mocha": {
@@ -170,15 +170,20 @@
     "spec": "test/**/*.test.ts"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.0",
-    "@types/node": "^22.0.0",
-    "@types/vscode": "^1.99.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "eslint": "^8.57.0",
-    "mocha": "^10.0.0",
-    "ts-node": "^10.9.0",
-    "typescript": "^5.9.3"
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.20.0",
+    "@types/vscode": "^1.125.0",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
+    "mocha": "^11.7.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.62.1"
+  },
+  "overrides": {
+    "diff": "^9.0.0",
+    "glob": "^13.0.0",
+    "serialize-javascript": "^7.0.5"
   },
   "repository": {
     "type": "git",
