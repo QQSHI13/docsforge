@@ -42,6 +42,9 @@
     {% if not config.theme.palette is mapping %}
       {% include "partials/javascripts/palette.html" %}
     {% endif %}
+    {% if config.extra.i18n_languages %}
+      {% include "partials/i18n.html" %}
+    {% endif %}
     {% if config.extra.alternate %}
       {% include "partials/alternate.html" %}
     {% endif %}

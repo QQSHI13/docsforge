@@ -74,6 +74,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         self._file_lookup: dict[tuple[str, str], File] = {}
         self._base_key_lookup: dict[str, str] = {}
         self._locale_navs: dict[str, Navigation] = {}
+        self._locale_url_maps: dict[str, dict[str, str]] = {}
 
     def on_config(self, config: DocsForgeConfig) -> DocsForgeConfig:
         if not self.config.languages:
@@ -210,20 +211,25 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         # Build a per-language nav by cloning the default nav and replacing pages.
         for locale in non_default:
-            lang_items = self._clone_nav_items(nav, locale)
+            lang_config = self._get_language_config(locale)
+            lang_items = self._clone_nav_items(nav, locale, lang_config)
             lang_pages = self._collect_pages(lang_items)
             self._locale_navs[locale] = Navigation(lang_items, lang_pages)
+            self._locale_url_maps[locale] = self._build_url_map(nav, locale)
 
         # Attach nav lookup to config for templates.
         config["extra"]["i18n_navs"] = self._locale_navs
         return nav
 
-    def _clone_nav_items(self, items: list, locale: str) -> list:
+    def _clone_nav_items(self, items: list, locale: str, lang_config: I18nLanguageConfig | None) -> list:
         """Recursively clone nav items, replacing pages with locale-specific pages."""
         result = []
         for item in items:
             if isinstance(item, Section):
-                new_section = Section(item.title, self._clone_nav_items(item.children, locale))
+                title = item.title
+                if lang_config and lang_config.nav_translations and title in lang_config.nav_translations:
+                    title = lang_config.nav_translations[title]
+                new_section = Section(title, self._clone_nav_items(item.children, locale, lang_config))
                 new_section.active = item.active
                 result.append(new_section)
             elif isinstance(item, Link):
@@ -260,6 +266,33 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 pages.extend(self._collect_pages(item.children))
         return pages
 
+    def _build_url_map(self, default_nav: Navigation, locale: str) -> dict[str, str]:
+        """Map default-language page URLs to their counterparts in `locale`."""
+        mapping: dict[str, str] = {}
+        for page in default_nav.pages:
+            base_key = self._base_key_lookup.get(page.file.src_uri)
+            if base_key is None:
+                continue
+            lang_file = self._file_lookup.get((base_key, locale))
+            if lang_file is None or lang_file.page is None:
+                continue
+            mapping[page.url] = lang_file.page.url
+        return mapping
+
+    def on_page_context(self, context: templates.TemplateContext, *, page: Page, config: DocsForgeConfig, nav: Navigation) -> templates.TemplateContext:
+        if not self.config.languages:
+            return context
+
+        locale = getattr(page.file, "i18n_locale", self.default_locale)
+        config["extra"]["i18n_current_locale"] = locale
+
+        if locale and locale != self.default_locale:
+            locale_nav = self._locale_navs.get(locale)
+            if locale_nav is not None:
+                context["nav"] = locale_nav
+
+        return context
+
     def on_page_content(self, html: str, *, page: Page, config: DocsForgeConfig, files: Files) -> str:
         if not self.config.languages:
             return html
@@ -280,6 +313,10 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         if lang_config and lang_config.nav_translations:
             if page.title in lang_config.nav_translations:
                 page.title = lang_config.nav_translations[page.title]
+
+        # Rewrite internal links so a translated page points to other translated pages.
+        if locale and locale != self.default_locale:
+            html = self._rewrite_links(html, page, locale)
 
         return html
 
@@ -306,6 +343,56 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             if lang.locale == locale:
                 return lang
         return None
+
+    def _rewrite_links(self, html: str, page: Page, locale: str) -> str:
+        """Rewrite internal page links in `html` to point to the same locale."""
+        url_map = self._locale_url_maps.get(locale)
+        if not url_map:
+            return html
+
+        current_dir = page.url if page.url.endswith("/") else posixpath.dirname(page.url)
+
+        def replace(match: re.Match) -> str:
+            href = match.group(1)
+            new_href = self._rewrite_href(href, current_dir, url_map)
+            return match.group(0).replace(href, new_href, 1)
+
+        return re.sub(r'<a\s+[^>]*href="([^"]*)"', replace, html, flags=re.IGNORECASE)
+
+    def _rewrite_href(self, href: str, current_dir: str, url_map: dict[str, str]) -> str:
+        """Return the locale-aware replacement for a single href, or the original if not applicable."""
+        if not href or href.startswith(("#", "mailto:", "tel:")):
+            return href
+        if "://" in href or href.startswith("//"):
+            return href
+
+        anchor = ""
+        if "#" in href:
+            href, anchor = href.split("#", 1)
+
+        if href.startswith("/"):
+            target = href[1:]
+        else:
+            target = self._resolve_relative_url(href, current_dir)
+
+        locale_target = url_map.get(target)
+        if locale_target is None:
+            return href + (f"#{anchor}" if anchor else "")
+
+        if anchor:
+            locale_target += f"#{anchor}"
+        return utils.get_relative_url(current_dir, locale_target)
+
+    def _resolve_relative_url(self, href: str, current_dir: str) -> str:
+        """Resolve a relative href to a site-root-relative path."""
+        if current_dir and not current_dir.endswith("/"):
+            current_dir += "/"
+        path = posixpath.join(current_dir, href)
+        trailing = "/" if href.endswith("/") else ""
+        normalized = posixpath.normpath(path)
+        if normalized == ".":
+            return ""
+        return normalized + trailing
 
     def on_post_build(self, *, config: DocsForgeConfig) -> None:
         if not self.config.languages:

@@ -32,6 +32,11 @@
           <link rel="alternate" href="{{ alt.link | url }}" hreflang="{{ alt.lang | d(lang.t('language')) }}">
         {% endfor %}
       {% endif %}
+      {% if page.i18n_alternates is iterable %}
+        {% for alt in page.i18n_alternates %}
+          <link rel="alternate" href="{{ alt.url | url }}" hreflang="{{ alt.locale }}">
+        {% endfor %}
+      {% endif %}
       {% if "rss" in config.plugins %}
         <link rel="alternate" type="application/rss+xml" title="{{ lang.t('rss.created') }}" href="{{ 'feed_rss_created.xml' | url }}">
         <link rel="alternate" type="application/rss+xml" title="{{ lang.t('rss.updated') }}" href="{{ 'feed_rss_updated.xml' | url }}">
