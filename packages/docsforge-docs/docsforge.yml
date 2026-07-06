@@ -52,6 +52,21 @@ theme:
   favicon: assets/images/favicon.png
   logo: assets/logo.svg
 
+plugins:
+  - material/i18n:
+      languages:
+        - locale: en
+          name: English
+          default: true
+        - locale: zh
+          name: 中文
+          nav_translations:
+            Home: 首页
+            "Getting started": 入门
+            Setup: 设置
+            Reference: 参考
+            Troubleshooting: 故障排除
+
 nav:
   - Home: index.md
   - Getting started:
