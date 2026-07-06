@@ -1,7 +1,14 @@
 version: 2
 updates:
   - package-ecosystem: "pip"
-    directory: "/"
+    directory: "/packages/docsforge"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "QQSHI13"
+  - package-ecosystem: "npm"
+    directory: "/packages/vscode-docsforge"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
