@@ -76,6 +76,7 @@ nav:
     - Changing the colors: setup/changing-the-colors.md
     - Changing the fonts: setup/changing-the-fonts.md
     - Changing the language: setup/changing-the-language.md
+    - Multi-language sites: setup/i18n.md
     - Setting up navigation: setup/setting-up-navigation.md
     - Setting up site search: setup/setting-up-site-search.md
     - Setting up site analytics: setup/setting-up-site-analytics.md

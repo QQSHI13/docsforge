@@ -4,6 +4,19 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5.0] — 2026-07-06
+
+### Added
+
+- **Built-in i18n plugin (`material/i18n`).** Add translated files next to your default-language files (e.g. `index.zh.md` beside `index.md`) and DocsForge builds a default site at the root plus one sub-site per locale under `/<locale>/`. Supports fallback pages, per-language navigation/title translations, a header language switcher, `<link rel="alternate" hreflang="...">` tags, per-locale search indexes, and per-locale sitemaps.
+- New documentation page: [Multi-language sites](../setup/i18n.md).
+
+### Fixed
+
+- Material theme now ships a default `palette` so builds no longer fail when `theme.palette` is omitted.
+- Removed `properdocs_version`/`mkdocs_version` legacy fields from the template context.
+- VS Code extension build restored by rolling TypeScript back to `^5.9.3` and `@types/node` to `^22.20.0` with `commonjs`/`node` module resolution.
+
 ## [11.3.12] — 2026-06-27
 
 ### Added
