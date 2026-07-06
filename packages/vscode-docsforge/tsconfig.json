@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
-    "module": "Node16",
+    "module": "commonjs",
     "target": "ES2022",
     "outDir": "out",
     "lib": ["ES2022"],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
-    "moduleResolution": "node16",
-    "esModuleInterop": true
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "types": ["node", "mocha", "vscode"]
   },
   "include": ["src"],
   "exclude": ["node_modules", ".vscode-test"]

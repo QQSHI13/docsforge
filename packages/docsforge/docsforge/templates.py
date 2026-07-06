@@ -28,8 +28,6 @@ class TemplateContext(TypedDict):
     extra_css: Sequence[str]  # Do not use, prefer `config.extra_css`.
     extra_javascript: Sequence[str]  # Do not use, prefer `config.extra_javascript`.
     docsforge_version: str
-    properdocs_version: str  # Legacy alias
-    mkdocs_version: str
     build_date_utc: datetime.datetime
     config: DocsForgeConfig
     page: Page | None

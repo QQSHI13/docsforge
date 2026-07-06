@@ -67,6 +67,7 @@ docsforge = "docsforge.__main__:cli"
 # All entrypoints point to docsforge internals
 [project.entry-points."docsforge.plugins"]
 "material/blog" = "docsforge.core.blog:BlogPlugin"
+"material/i18n" = "docsforge.core.i18n:I18nPlugin"
 "material/info" = "docsforge.core.info:InfoPlugin"
 "material/meta" = "docsforge.core.meta:MetaPlugin"
 "material/privacy" = "docsforge.core.privacy:PrivacyPlugin"

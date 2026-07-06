@@ -79,6 +79,10 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         self.is_dirtyreload = False
         self.search_index_prev = None
         self.search_index = None
+        self.search_indices: dict[str, SearchIndex] = {}
+        self.search_indices_prev: dict[str, SearchIndex] = {}
+        self._default_locale: str | None = None
+        self._locales: list[str] = []
 
     def on_startup(self, *, command, dirty):
         self.is_dirty = dirty
@@ -86,6 +90,15 @@ class SearchPlugin(BasePlugin[SearchConfig]):
     def on_config(self, config):
         if not self.config.enabled:
             return
+
+        # Detect i18n configuration.
+        i18n_languages = config.get("extra", {}).get("i18n_languages", [])
+        if i18n_languages:
+            self._default_locale = config["extra"].get("i18n_default_locale")
+            self._locales = [lang["locale"] for lang in i18n_languages if lang.get("build", True)]
+        else:
+            self._default_locale = None
+            self._locales = []
 
         # Set defaults from theme translations
         if not self.config.lang:
@@ -111,8 +124,14 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         if "tags" not in self.config.fields:
             self.config.fields["tags"] = {"boost": 1e6}
 
-        # Initialize search index
-        self.search_index = SearchIndex(**self.config)
+        # Initialize search index/indices
+        if self._locales:
+            for locale in self._locales:
+                idx_config = dict(self.config)
+                idx_config["lang"] = [locale]
+                self.search_indices[locale] = SearchIndex(**idx_config)
+        else:
+            self.search_index = SearchIndex(**self.config)
 
         # Configure jieba only when Chinese search is requested
         if _needs_jieba(self.config):
@@ -136,10 +155,20 @@ class SearchPlugin(BasePlugin[SearchConfig]):
                 else:
                     log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
 
+    def _index_for_page(self, page):
+        if not self._locales:
+            return self.search_index
+        locale = getattr(page.file, "i18n_locale", None) or self._default_locale
+        if locale is None:
+            locale = self._locales[0]
+        return self.search_indices.get(locale)
+
     def on_page_context(self, context, *, page, config, nav):
         if not self.config.enabled:
             return
-        self.search_index.add_entry_from_context(page)
+        index = self._index_for_page(page)
+        if index is not None:
+            index.add_entry_from_context(page)
         page.content = re.sub(
             r"\s?data-search-\w+=\"[^\"]+\"",
             "",
@@ -149,12 +178,25 @@ class SearchPlugin(BasePlugin[SearchConfig]):
     def on_post_build(self, *, config):
         if not self.config.enabled:
             return
-        base = os.path.join(config.site_dir, "search")
-        path = os.path.join(base, "search_index.json")
-        data = self.search_index.generate_search_index(self.search_index_prev)
-        utils.write_file(data.encode("utf-8"), path)
-        if self.is_dirty:
-            self.search_index_prev = self.search_index
+        if self._locales:
+            for locale in self._locales:
+                index = self.search_indices[locale]
+                prev = self.search_indices_prev.get(locale)
+                data = index.generate_search_index(prev)
+                if locale == self._default_locale:
+                    path = os.path.join(config.site_dir, "search", "search_index.json")
+                else:
+                    path = os.path.join(config.site_dir, locale, "search", "search_index.json")
+                utils.write_file(data.encode("utf-8"), path)
+                if self.is_dirty:
+                    self.search_indices_prev[locale] = index
+        else:
+            base = os.path.join(config.site_dir, "search")
+            path = os.path.join(base, "search_index.json")
+            data = self.search_index.generate_search_index(self.search_index_prev)
+            utils.write_file(data.encode("utf-8"), path)
+            if self.is_dirty:
+                self.search_index_prev = self.search_index
 
     def on_serve(self, server, *, config, builder):
         self.is_dirtyreload = self.is_dirty

@@ -64,6 +64,12 @@ font:
 # Icons that are part of the HTML can be configured and replaced
 icon:
 
+# Color palette
+palette:
+  - scheme: default
+    primary: indigo
+    accent: indigo
+
 # Favicon to be rendered
 favicon: assets/images/favicon.png
 
