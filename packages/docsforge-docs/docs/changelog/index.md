@@ -4,6 +4,12 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5.1] — 2026-07-06
+
+### Fixed
+
+- **i18n language switcher used server-absolute URLs.** The alternate URLs included the `site_url` subpath, so when the template `url` filter resolved them relative to the current page on sites deployed under a path (e.g. `https://qqshi13.github.io/docsforge/`), the links pointed to `docsforge/docsforge/...`. The i18n plugin now emits page-relative URLs (`page.url`) so the switcher and `<link rel="alternate">` tags stay inside the docs root.
+
 ## [11.5.0] — 2026-07-06
 
 ### Added
