@@ -333,7 +333,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             else:
                 file = self._file_lookup.get((base_key, locale))
             if file is not None and file.page is not None:
-                alternates.append({"locale": locale, "url": file.page.abs_url or file.page.url})
+                alternates.append({"locale": locale, "url": file.page.url})
         return alternates
 
     def _get_language_config(self, locale: str | None) -> I18nLanguageConfig | None:
