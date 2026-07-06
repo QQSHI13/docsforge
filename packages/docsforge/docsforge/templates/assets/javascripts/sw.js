@@ -270,3 +270,10 @@ self.addEventListener('fetch', (e) => {
 
   e.respondWith(serveAsset(request));
 });
+
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'DOCSFORGE_RELOAD_DETECTED') {
+    log('Reload detected by page; refreshing manifest in background');
+    refreshManifest().catch(() => {});
+  }
+});

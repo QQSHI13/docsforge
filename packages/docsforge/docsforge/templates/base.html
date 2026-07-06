@@ -518,6 +518,20 @@
             console.warn('SW registration failed:', e.message);
           });
 
+          // If this page load was a reload (F5/Ctrl+R), tell the service worker to
+          // refresh the manifest in the background so the next navigation uses the
+          // latest deployed content. Hard reload (Ctrl+Shift+R) bypasses the SW for
+          // the main document, so we rely on the Navigation Timing API here.
+          navigator.serviceWorker.ready.then(function(registration) {
+            var nav = performance.getEntriesByType('navigation')[0];
+            if (nav && nav.type === 'reload') {
+              var controller = navigator.serviceWorker.controller;
+              if (controller) {
+                controller.postMessage({ type: 'DOCSFORGE_RELOAD_DETECTED' });
+              }
+            }
+          });
+
           // Log SW notifications once per page session to avoid console spam.
           var swMessagesLogged = {};
           function logSwOnce(type, msg) {
