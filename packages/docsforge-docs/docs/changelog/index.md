@@ -4,6 +4,18 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5.2] — 2026-07-07
+
+### Added
+
+- **i18n asset fallback.** Translated assets (e.g. `assets/diagram.zh.png`) are emitted under the locale path (`zh/assets/diagram.png`). If a translation is missing, the default asset is copied there automatically, so locale sites never lose images, CSS, or other docs assets.
+- **Per-locale Material UI language.** Translated pages now load the matching Material UI string file, so `<html lang>`, search placeholders, and the language-switcher label follow the page locale instead of staying in the default language.
+
+### Fixed
+
+- **False-positive nav warnings for translated pages.** `docsforge build` and `docsforge serve` no longer log "pages exist in the docs directory, but are not included in the nav" for translated `.zh.md` files handled by the i18n plugin.
+- `docsforge check` now treats `material/i18n` as a built-in plugin instead of a third-party plugin.
+
 ## [11.5.1] — 2026-07-06
 
 ### Fixed
