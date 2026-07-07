@@ -20,14 +20,17 @@ def _build_i18n_site(tmp_path: Path) -> Path:
     assets.mkdir()
     (docs / "index.md").write_text(
         "---\ntitle: Home\n---\n# Home\n\n[Second](second.md)\n\n"
+        "[Fallback](fallback.md)\n\n"
         "![Diagram](assets/diagram.png)\n\n![Other](assets/other.png)\n"
     )
     (docs / "index.zh.md").write_text(
         "---\ntitle: 首页\n---\n# 首页\n\n[第二页](second.md)\n\n"
+        "[Fallback](fallback.md)\n\n"
         "![Diagram](assets/diagram.png)\n\n![Other](assets/other.png)\n"
     )
     (docs / "second.md").write_text("---\ntitle: Second\n---\n# Second\n")
     (docs / "second.zh.md").write_text("---\ntitle: 第二页\n---\n# 第二页\n")
+    (docs / "fallback.md").write_text("---\ntitle: Fallback\n---\n# Fallback\n")
     (assets / "diagram.png").write_text("default-diagram")
     (assets / "diagram.zh.png").write_text("zh-diagram")
     (assets / "other.png").write_text("default-other")
@@ -37,7 +40,7 @@ def _build_i18n_site(tmp_path: Path) -> Path:
         "docs_dir": "docs",
         "site_url": "https://example.com/",
         "theme": {"name": "material"},
-        "nav": ["index.md", {"Second": "second.md"}],
+        "nav": ["index.md", {"Custom Second Title": "second.md"}, "fallback.md"],
         "plugins": [
             {
                 "material/i18n": {
@@ -141,3 +144,15 @@ class TestI18nBuild:
         # Theme UI strings should be in the page language (minified HTML may drop quotes).
         assert re.search(r'aria-label=["\']?Select language[\s>"\']', en_html)
         assert re.search(r'aria-label=["\']?选择当前语言[\s>"\']', zh_html)
+
+    def test_fallback_page_inherits_nav_title(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        zh_html = (site / "zh" / "index.html").read_text()
+        # The fallback copy of second.md should use the nav-configured title.
+        assert "Custom Second Title" in zh_html
+
+    def test_fallback_page_links_use_locale_path(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        zh_html = (site / "zh" / "index.html").read_text()
+        # Link to the fallback page should stay inside the zh subtree.
+        assert re.search(r'<a[^>]+href=["\']?fallback/["\'\s>]', zh_html)

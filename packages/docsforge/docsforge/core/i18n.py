@@ -74,6 +74,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         self.locales: list[str] = []
         self._file_lookup: dict[tuple[str, str], File] = {}
         self._base_key_lookup: dict[str, str] = {}
+        self._default_files_by_key: dict[str, File] = {}
         self._locale_navs: dict[str, Navigation] = {}
         self._locale_url_maps: dict[str, dict[str, str]] = {}
         self._locale_asset_files: dict[tuple[str, str], File] = {}
@@ -123,6 +124,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 default_files_by_key[base_key] = file
             else:
                 translation_files.setdefault(base_key, {})[locale] = file
+
+        self._default_files_by_key = default_files_by_key
 
         # For each non-default locale, ensure every default page has a file.
         for base_key, default_file in default_files_by_key.items():
@@ -287,16 +290,22 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         # Build a per-language nav by cloning the default nav and replacing pages.
         for locale in non_default:
             lang_config = self._get_language_config(locale)
-            lang_items = self._clone_nav_items(nav, locale, lang_config)
+            lang_items = self._clone_nav_items(nav, locale, lang_config, config)
             lang_pages = self._collect_pages(lang_items)
             self._locale_navs[locale] = Navigation(lang_items, lang_pages)
-            self._locale_url_maps[locale] = self._build_url_map(nav, locale)
+            self._locale_url_maps[locale] = self._build_url_map(locale)
 
         # Attach nav lookup to config for templates.
         config["extra"]["i18n_navs"] = self._locale_navs
         return nav
 
-    def _clone_nav_items(self, items: list, locale: str, lang_config: I18nLanguageConfig | None) -> list:
+    def _clone_nav_items(
+        self,
+        items: list,
+        locale: str,
+        lang_config: I18nLanguageConfig | None,
+        config: DocsForgeConfig,
+    ) -> list:
         """Recursively clone nav items, replacing pages with locale-specific pages."""
         result = []
         for item in items:
@@ -304,13 +313,15 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 title = item.title
                 if lang_config and lang_config.nav_translations and title in lang_config.nav_translations:
                     title = lang_config.nav_translations[title]
-                new_section = Section(title, self._clone_nav_items(item.children, locale, lang_config))
+                new_section = Section(
+                    title, self._clone_nav_items(item.children, locale, lang_config, config)
+                )
                 new_section.active = item.active
                 result.append(new_section)
             elif isinstance(item, Link):
                 result.append(Link(item.title, item.url))
             elif isinstance(item, Page):
-                lang_page = self._get_language_page(item, locale)
+                lang_page = self._get_language_page(item, locale, config)
                 if lang_page is not None:
                     result.append(lang_page)
                 else:
@@ -319,7 +330,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 result.append(item)
         return result
 
-    def _get_language_page(self, page: Page, locale: str) -> Page | None:
+    def _get_language_page(self, page: Page, locale: str, config: DocsForgeConfig) -> Page | None:
         """Return the Page for the given locale corresponding to the default page."""
         base_key = self._base_key_lookup.get(page.file.src_uri)
         if base_key is None:
@@ -328,8 +339,11 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         if lang_file is None:
             return None
         if lang_file.page is None:
-            # Page hasn't been created yet; create it now.
-            Page(None, lang_file, page.config)
+            # Page hasn't been created yet; create it now, inheriting the default title.
+            Page(page.title, lang_file, config)
+        elif not lang_file.page.title:
+            # Fallback/translation pages created by get_navigation may have no title yet.
+            lang_file.page.title = page.title
         return lang_file.page
 
     def _collect_pages(self, items: list) -> list[Page]:
@@ -341,17 +355,14 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 pages.extend(self._collect_pages(item.children))
         return pages
 
-    def _build_url_map(self, default_nav: Navigation, locale: str) -> dict[str, str]:
+    def _build_url_map(self, locale: str) -> dict[str, str]:
         """Map default-language page URLs to their counterparts in `locale`."""
         mapping: dict[str, str] = {}
-        for page in default_nav.pages:
-            base_key = self._base_key_lookup.get(page.file.src_uri)
-            if base_key is None:
-                continue
+        for base_key, default_file in self._default_files_by_key.items():
             lang_file = self._file_lookup.get((base_key, locale))
-            if lang_file is None or lang_file.page is None:
+            if lang_file is None or lang_file.page is None or default_file.page is None:
                 continue
-            mapping[page.url] = lang_file.page.url
+            mapping[default_file.page.url] = lang_file.page.url
         return mapping
 
     def on_page_context(self, context: templates.TemplateContext, *, page: Page, config: DocsForgeConfig, nav: Navigation) -> templates.TemplateContext:

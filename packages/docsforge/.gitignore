@@ -10,3 +10,4 @@ build/
 *.pyc
 .DS_Store
 site/
+.docsforge/
