@@ -121,3 +121,10 @@ class TestI18nBuild:
         assert not (site / "index.zh.html").exists()
         assert not (site / "second.zh.html").exists()
         assert not (site / "assets" / "diagram.zh.png").exists()
+
+    def test_no_nav_warning_for_translated_pages(self, tmp_path, caplog):
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            _build_i18n_site(tmp_path)
+        assert "exist in the docs directory, but are not included" not in caplog.text

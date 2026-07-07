@@ -15,7 +15,8 @@ from docsforge.exceptions import Abort, ConfigurationError
 log = logging.getLogger(__name__)
 
 
-KNOWN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy'}
+BUILTIN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy', 'i18n'}
+AUTOLOAD_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy'}
 
 
 def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *, full_validation: bool = False) -> int:
@@ -143,9 +144,9 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
                 continue
 
             clean_name = name.split('/')[-1] if '/' in name else name
-            if clean_name in KNOWN_PLUGINS or name in KNOWN_PLUGINS:
+            if clean_name in BUILTIN_PLUGINS or name in BUILTIN_PLUGINS:
                 print(f"                   ✓ {name}")
-                if clean_name in KNOWN_PLUGINS:
+                if clean_name in AUTOLOAD_PLUGINS:
                     warnings_list.append(
                         f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
                     )

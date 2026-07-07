@@ -245,6 +245,9 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         )
         new_file.i18n_locale = locale  # type: ignore[attr-defined]
         new_file.i18n_base_file = default_file  # type: ignore[attr-defined]
+        new_file.inclusion = (
+            InclusionLevel.NOT_IN_NAV if default_file.inclusion.is_included() else default_file.inclusion
+        )
         return new_file
 
     def _make_fallback_file(self, config, default_file: File, locale: str) -> File:
@@ -264,6 +267,9 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         new_file.i18n_locale = locale  # type: ignore[attr-defined]
         new_file.i18n_base_file = default_file  # type: ignore[attr-defined]
         new_file.i18n_fallback = True  # type: ignore[attr-defined]
+        new_file.inclusion = (
+            InclusionLevel.NOT_IN_NAV if default_file.inclusion.is_included() else default_file.inclusion
+        )
         return new_file
 
     def on_nav(self, nav: Navigation, *, config: DocsForgeConfig, files: Files) -> Navigation:
