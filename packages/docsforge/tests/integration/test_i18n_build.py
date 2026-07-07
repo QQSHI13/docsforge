@@ -128,3 +128,16 @@ class TestI18nBuild:
         with caplog.at_level(logging.INFO):
             _build_i18n_site(tmp_path)
         assert "exist in the docs directory, but are not included" not in caplog.text
+
+    def test_locale_pages_use_matching_ui_language(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        en_html = (site / "index.html").read_text()
+        zh_html = (site / "zh" / "index.html").read_text()
+
+        # <html lang> should follow the page locale.
+        assert re.search(r'<html[^>]+lang=en[\s>]', en_html)
+        assert re.search(r'<html[^>]+lang=zh[\s>]', zh_html)
+
+        # Theme UI strings should be in the page language (minified HTML may drop quotes).
+        assert re.search(r'aria-label=["\']?Select language[\s>"\']', en_html)
+        assert re.search(r'aria-label=["\']?选择当前语言[\s>"\']', zh_html)
