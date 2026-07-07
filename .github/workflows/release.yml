@@ -27,18 +27,14 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Install DocsForge + test deps
+      - name: Install DocsForge + test deps + Playwright
         run: |
           pip install -e packages/docsforge
-          pip install pytest pytest-mock
-      - name: Run unit/integration tests
+          pip install pytest pytest-mock playwright
+      - name: Install Chromium for Playwright
+        run: python -m playwright install --with-deps chromium
+      - name: Run all tests
         run: cd packages/docsforge && python -m pytest -q
-      - name: Install Playwright + Chromium
-        run: |
-          pip install playwright
-          python -m playwright install --with-deps chromium
-      - name: Run E2E tests
-        run: cd packages/docsforge && python -m pytest -m e2e -v
 
   release:
     needs: test
