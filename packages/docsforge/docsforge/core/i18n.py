@@ -138,6 +138,11 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 self._file_lookup[(base_key, locale)] = lang_file
                 new_files.append(lang_file)
 
+        # Remove translated source files from the root site; they are emitted under the locale.
+        for locale_files in translation_files.values():
+            for translated in locale_files.values():
+                files.remove(translated)
+
         for f in new_files:
             files.append(f)
 
@@ -191,6 +196,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         for file in translated_to_remove:
             files.remove(file)
+
         for file in new_assets:
             files.append(file)
 

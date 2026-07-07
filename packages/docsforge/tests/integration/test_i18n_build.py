@@ -114,3 +114,10 @@ class TestI18nBuild:
         # Both images should reference the locale copy, not climb out to the root.
         assert re.search(r'<img[^>]+src=["\']?assets/diagram\.png["\'\s>]', html)
         assert re.search(r'<img[^>]+src=["\']?assets/other\.png["\'\s>]', html)
+
+    def test_translated_pages_not_emitted_at_root(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        # Translated source files must not produce root-level pages or assets.
+        assert not (site / "index.zh.html").exists()
+        assert not (site / "second.zh.html").exists()
+        assert not (site / "assets" / "diagram.zh.png").exists()
