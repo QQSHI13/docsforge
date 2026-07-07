@@ -46,7 +46,11 @@ def _build_i18n_site(tmp_path: Path) -> Path:
                 "material/i18n": {
                     "languages": [
                         {"locale": "en", "name": "English", "default": True},
-                        {"locale": "zh", "name": "中文"},
+                        {
+                            "locale": "zh",
+                            "name": "中文",
+                            "nav_translations": {"Home": "主页", "Fallback": "回退页"},
+                        },
                     ]
                 }
             }
@@ -156,3 +160,16 @@ class TestI18nBuild:
         zh_html = (site / "zh" / "index.html").read_text()
         # Link to the fallback page should stay inside the zh subtree.
         assert re.search(r'<a[^>]+href=["\']?fallback/["\'\s>]', zh_html)
+
+    def test_locale_nav_uses_nav_translations_for_pages(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        zh_html = (site / "zh" / "index.html").read_text()
+        # nav_translations should apply to Page nav items, not just Sections.
+        assert "主页" in zh_html
+        assert "回退页" in zh_html
+
+    def test_locale_nav_uses_translated_frontmatter_title(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        zh_html = (site / "zh" / "index.html").read_text()
+        # second.zh.md has title "第二页"; the nav should show it (no override).
+        assert "第二页" in zh_html

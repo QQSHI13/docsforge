@@ -4,6 +4,13 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5.4] — 2026-07-07
+
+### Fixed
+
+- **i18n link rewriting now handles unquoted and single-quoted `href` attributes.** The HTML minifier emits attributes like `href=second/`, which the link rewriter previously missed, causing locale pages to link back to the default-language site. It now rewrites double-quoted, single-quoted, and unquoted `href` values.
+- **i18n `nav_translations` now apply to Page nav items.** Previously only Section titles were translated; Page nav items now use `nav_translations` too, with frontmatter titles used as the fallback when no explicit nav title or translation is configured.
+
 ## [11.5.3] — 2026-07-07
 
 ### Fixed

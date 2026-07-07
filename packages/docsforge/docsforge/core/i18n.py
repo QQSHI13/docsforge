@@ -16,7 +16,7 @@ from copy import copy
 from typing import TYPE_CHECKING
 from urllib.parse import quote as urlquote
 
-from docsforge import templates, utils
+from docsforge import meta, templates, utils
 from docsforge.config_options import Choice, ListOfItems, Optional, SubConfig, Type
 from docsforge.config_base import Config
 from docsforge.core.plugin_base import BasePlugin
@@ -323,6 +323,10 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             elif isinstance(item, Page):
                 lang_page = self._get_language_page(item, locale, config)
                 if lang_page is not None:
+                    if lang_config and lang_config.nav_translations:
+                        default_title = item.title or self._read_title(item.file)
+                        if default_title in lang_config.nav_translations:
+                            lang_page.title = lang_config.nav_translations[default_title]
                     result.append(lang_page)
                 else:
                     result.append(item)
@@ -338,13 +342,24 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         lang_file = self._file_lookup.get((base_key, locale))
         if lang_file is None:
             return None
+        # Prefer the default nav title if one was explicitly configured; otherwise
+        # fall back to the translated file's frontmatter title.
+        title = page.title or self._read_title(lang_file)
         if lang_file.page is None:
-            # Page hasn't been created yet; create it now, inheriting the default title.
-            Page(page.title, lang_file, config)
+            Page(title, lang_file, config)
         elif not lang_file.page.title:
             # Fallback/translation pages created by get_navigation may have no title yet.
-            lang_file.page.title = page.title
+            lang_file.page.title = title
         return lang_file.page
+
+    def _read_title(self, file: File) -> str | None:
+        """Read the title from a file's YAML frontmatter, if present."""
+        try:
+            _, data = meta.get_data(file.content_string)
+        except Exception:
+            return None
+        title = data.get("title")
+        return str(title) if title is not None else None
 
     def _collect_pages(self, items: list) -> list[Page]:
         pages = []
@@ -431,6 +446,11 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 return lang
         return None
 
+    _LINK_HREF_RE = re.compile(
+        r'<a[^>]*?\shref=(?:"([^"]*)"|\'([^\']*)\'|([^\s>"\']+))',
+        re.IGNORECASE,
+    )
+
     def _rewrite_links(self, html: str, page: Page, locale: str) -> str:
         """Rewrite internal page links in `html` to point to the same locale."""
         url_map = self._locale_url_maps.get(locale)
@@ -440,11 +460,11 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         current_dir = page.url if page.url.endswith("/") else posixpath.dirname(page.url)
 
         def replace(match: re.Match) -> str:
-            href = match.group(1)
+            href = match.group(1) or match.group(2) or match.group(3)
             new_href = self._rewrite_href(href, current_dir, url_map)
             return match.group(0).replace(href, new_href, 1)
 
-        return re.sub(r'<a\s+[^>]*href="([^"]*)"', replace, html, flags=re.IGNORECASE)
+        return self._LINK_HREF_RE.sub(replace, html)
 
     _ASSET_ATTR_RE = re.compile(
         r'<([A-Za-z][A-Za-z0-9]*)[^>]*?\s(?:src|href|data|poster)=(?:"([^"]*)"|\'([^\']*)\'|([^\s>"\']+))',

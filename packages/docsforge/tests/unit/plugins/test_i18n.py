@@ -89,6 +89,22 @@ class TestRewriteLinks:
         assert 'href="../../second/"' in out
         assert 'href="../../"' in out
 
+    def test_rewrites_unquoted_href(self):
+        p = I18nPlugin()
+        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
+        page = SimpleNamespace(url="zh/")
+        html = '<p><a href=second/>Second</a></p>'
+        out = p._rewrite_links(html, page, "zh")
+        assert '<a href=second/>' in out
+
+    def test_rewrites_single_quoted_href(self):
+        p = I18nPlugin()
+        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
+        page = SimpleNamespace(url="zh/")
+        html = "<p><a href='second/'>Second</a></p>"
+        out = p._rewrite_links(html, page, "zh")
+        assert "href='second/'" in out
+
 
 class TestAssetFallback:
     def test_parses_translated_asset_suffix(self, plugin):
