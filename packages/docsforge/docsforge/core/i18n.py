@@ -14,6 +14,7 @@ import posixpath
 import re
 from copy import copy
 from typing import TYPE_CHECKING
+from urllib.parse import quote as urlquote
 
 from docsforge import templates, utils
 from docsforge.config_options import Choice, ListOfItems, Optional, SubConfig, Type
@@ -75,6 +76,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         self._base_key_lookup: dict[str, str] = {}
         self._locale_navs: dict[str, Navigation] = {}
         self._locale_url_maps: dict[str, dict[str, str]] = {}
+        self._locale_asset_files: dict[tuple[str, str], File] = {}
+        self._locale_asset_url_maps: dict[str, dict[str, str]] = {}
 
     def on_config(self, config: DocsForgeConfig) -> DocsForgeConfig:
         if not self.config.languages:
@@ -138,7 +141,67 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         for f in new_files:
             files.append(f)
 
+        self._process_assets(files, non_default, config)
+
         return files
+
+    def _process_assets(self, files: Files, non_default: list[str], config: DocsForgeConfig) -> None:
+        """Create per-locale copies of docs assets, with fallback to the default asset."""
+        default_assets: dict[str, File] = {}
+        translation_assets: dict[str, dict[str, File]] = {}
+        translated_to_remove: list[File] = []
+
+        for file in list(files):
+            if file.is_documentation_page() or file.is_static_page():
+                continue
+            base_key, locale = self._parse_file(file.src_uri)
+            if locale == self.default_locale:
+                default_assets[base_key] = file
+            else:
+                translation_assets.setdefault(base_key, {})[locale] = file
+                translated_to_remove.append(file)
+
+        new_assets: list[File] = []
+        for base_key, default_file in default_assets.items():
+            for locale in non_default:
+                translated = translation_assets.get(base_key, {}).get(locale)
+                if translated is not None:
+                    lang_file = File(
+                        translated.src_uri,
+                        translated.src_dir,
+                        translated.dest_dir,
+                        translated.use_directory_urls,
+                        dest_uri=f"{locale}/{default_file.dest_uri}",
+                        inclusion=translated.inclusion,
+                    )
+                elif self.config.fallback_to_default:
+                    lang_file = File.generated(
+                        config,
+                        f"{locale}/{base_key}",
+                        abs_src_path=default_file.abs_src_path,
+                        inclusion=default_file.inclusion,
+                    )
+                else:
+                    continue
+
+                lang_file.i18n_locale = locale  # type: ignore[attr-defined]
+                lang_file.i18n_base_file = default_file  # type: ignore[attr-defined]
+                self._locale_asset_files[(base_key, locale)] = lang_file
+                new_assets.append(lang_file)
+
+        for file in translated_to_remove:
+            files.remove(file)
+        for file in new_assets:
+            files.append(file)
+
+        for locale in non_default:
+            mapping: dict[str, str] = {}
+            for base_key, default_file in default_assets.items():
+                lang_file = self._locale_asset_files.get((base_key, locale))
+                if lang_file is None:
+                    continue
+                mapping[default_file.url] = lang_file.url
+            self._locale_asset_url_maps[locale] = mapping
 
     def _parse_file(self, src_uri: str) -> tuple[str, str | None]:
         """Return (base_key, locale) for a source file.
@@ -317,6 +380,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         # Rewrite internal links so a translated page points to other translated pages.
         if locale and locale != self.default_locale:
             html = self._rewrite_links(html, page, locale)
+            html = self._rewrite_asset_links(html, page, locale)
 
         return html
 
@@ -359,16 +423,43 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         return re.sub(r'<a\s+[^>]*href="([^"]*)"', replace, html, flags=re.IGNORECASE)
 
+    _ASSET_ATTR_RE = re.compile(
+        r'<([A-Za-z][A-Za-z0-9]*)[^>]*?\s(?:src|href|data|poster)=(?:"([^"]*)"|\'([^\']*)\'|([^\s>"\']+))',
+        re.IGNORECASE,
+    )
+
+    def _rewrite_asset_links(self, html: str, page: Page, locale: str) -> str:
+        """Rewrite asset references on locale pages to point to the locale copy."""
+        url_map = self._locale_asset_url_maps.get(locale)
+        if not url_map:
+            return html
+
+        current_dir = page.url if page.url.endswith("/") else posixpath.dirname(page.url)
+
+        def replace(match: re.Match) -> str:
+            tag = match.group(1).lower()
+            if tag == "a":
+                return match.group(0)
+            attr_val = match.group(2) or match.group(3) or match.group(4)
+            new_val = self._rewrite_href(attr_val, current_dir, url_map)
+            return match.group(0).replace(attr_val, new_val, 1)
+
+        return self._ASSET_ATTR_RE.sub(replace, html)
+
     def _rewrite_href(self, href: str, current_dir: str, url_map: dict[str, str]) -> str:
         """Return the locale-aware replacement for a single href, or the original if not applicable."""
-        if not href or href.startswith(("#", "mailto:", "tel:")):
+        if not href or href.startswith(("#", "mailto:", "tel:", "data:")):
             return href
         if "://" in href or href.startswith("//"):
             return href
 
+        # Preserve query string and anchor; only the path part is mapped.
         anchor = ""
         if "#" in href:
             href, anchor = href.split("#", 1)
+        query = ""
+        if "?" in href:
+            href, query = href.split("?", 1)
 
         if href.startswith("/"):
             target = href[1:]
@@ -377,11 +468,12 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         locale_target = url_map.get(target)
         if locale_target is None:
-            return href + (f"#{anchor}" if anchor else "")
+            locale_target = url_map.get(urlquote(target))
+        if locale_target is None:
+            return href + (f"?{query}" if query else "") + (f"#{anchor}" if anchor else "")
 
-        if anchor:
-            locale_target += f"#{anchor}"
-        return utils.get_relative_url(current_dir, locale_target)
+        relative = utils.get_relative_url(current_dir, locale_target)
+        return relative + (f"?{query}" if query else "") + (f"#{anchor}" if anchor else "")
 
     def _resolve_relative_url(self, href: str, current_dir: str) -> str:
         """Resolve a relative href to a site-root-relative path."""

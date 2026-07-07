@@ -16,10 +16,21 @@ pytestmark = pytest.mark.slow
 def _build_i18n_site(tmp_path: Path) -> Path:
     docs = tmp_path / "docs"
     docs.mkdir()
-    (docs / "index.md").write_text("---\ntitle: Home\n---\n# Home\n\n[Second](second.md)\n")
-    (docs / "index.zh.md").write_text("---\ntitle: 首页\n---\n# 首页\n\n[第二页](second.md)\n")
+    assets = docs / "assets"
+    assets.mkdir()
+    (docs / "index.md").write_text(
+        "---\ntitle: Home\n---\n# Home\n\n[Second](second.md)\n\n"
+        "![Diagram](assets/diagram.png)\n\n![Other](assets/other.png)\n"
+    )
+    (docs / "index.zh.md").write_text(
+        "---\ntitle: 首页\n---\n# 首页\n\n[第二页](second.md)\n\n"
+        "![Diagram](assets/diagram.png)\n\n![Other](assets/other.png)\n"
+    )
     (docs / "second.md").write_text("---\ntitle: Second\n---\n# Second\n")
     (docs / "second.zh.md").write_text("---\ntitle: 第二页\n---\n# 第二页\n")
+    (assets / "diagram.png").write_text("default-diagram")
+    (assets / "diagram.zh.png").write_text("zh-diagram")
+    (assets / "other.png").write_text("default-other")
 
     config = {
         "site_name": "I18n Test",
@@ -84,3 +95,22 @@ class TestI18nBuild:
         html = (site / "zh" / "index.html").read_text()
         assert "English" in html
         assert "中文" in html
+
+    def test_translated_asset_copied_to_locale(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        assert (site / "assets" / "diagram.png").read_text() == "default-diagram"
+        assert (site / "zh" / "assets" / "diagram.png").read_text() == "zh-diagram"
+        # The suffixed source file should not be emitted at the site root.
+        assert not (site / "assets" / "diagram.zh.png").exists()
+
+    def test_fallback_asset_copied_to_locale(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        assert (site / "assets" / "other.png").read_text() == "default-other"
+        assert (site / "zh" / "assets" / "other.png").read_text() == "default-other"
+
+    def test_locale_asset_links_rewritten(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        html = (site / "zh" / "index.html").read_text()
+        # Both images should reference the locale copy, not climb out to the root.
+        assert re.search(r'<img[^>]+src=["\']?assets/diagram\.png["\'\s>]', html)
+        assert re.search(r'<img[^>]+src=["\']?assets/other\.png["\'\s>]', html)
