@@ -11,7 +11,7 @@
           <nav class="md-nav md-nav--primary">
             <div class="md-post__back">
               <div class="md-nav__title md-nav__container">
-                <a href="{{ page.parent.url | url }}" class="md-nav__link">
+                <a href="{{ page.parent.url | d('', true) | url }}" class="md-nav__link">
                   {% include ".icons/material/arrow-left.svg" %}
                   <span class="md-ellipsis">
                     {{ lang.t("blog.index") }}
