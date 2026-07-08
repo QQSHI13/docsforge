@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import pytest
+from xml.etree import ElementTree as etree
 
-from docsforge.rendering import _strip_tags
+from docsforge.rendering import _remove_anchorlink, _strip_tags
 
 
 class TestStripTags:
@@ -28,3 +29,37 @@ class TestStripTags:
     def test_preserves_literal_comparisons(self):
         # HTMLParser must not treat "< b >" as a tag.
         assert _strip_tags("<p>a < b > c</p>") == "a < b > c"
+
+
+class TestRemoveAnchorlink:
+    def test_removes_last_anchorlink(self):
+        el = etree.Element('h1')
+        el.text = 'Title'
+        anchor = etree.SubElement(el, 'a')
+        anchor.set('class', 'headerlink')
+        anchor.tail = ''
+        _remove_anchorlink(el)
+        assert [child.tag for child in el] == []
+        assert el.text == 'Title'
+
+    def test_removes_non_last_anchorlink(self):
+        el = etree.Element('h1')
+        el.text = 'Title '
+        anchor = etree.SubElement(el, 'a')
+        anchor.set('class', 'headerlink')
+        anchor.tail = ' suffix '
+        span = etree.SubElement(el, 'span')
+        span.text = 'x'
+        _remove_anchorlink(el)
+        assert [child.tag for child in el] == ['span']
+        assert el.text == 'Title  suffix '
+        assert span.text == 'x'
+
+    def test_leaves_non_headerlink_anchors(self):
+        el = etree.Element('h1')
+        el.text = 'Title '
+        anchor = etree.SubElement(el, 'a')
+        anchor.set('class', 'external')
+        anchor.tail = ''
+        _remove_anchorlink(el)
+        assert [child.tag for child in el] == ['a']

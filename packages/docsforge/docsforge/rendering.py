@@ -78,8 +78,16 @@ def _render_inner_html(el: etree.Element, md: markdown.Markdown) -> str:
 
 def _remove_anchorlink(el: etree.Element) -> None:
     """Drop anchorlink from the element, if present."""
-    if len(el) > 0 and el[-1].tag == 'a' and el[-1].get('class') == 'headerlink':
-        del el[-1]
+    for i, child in enumerate(el):
+        if child.tag == 'a' and child.get('class') == 'headerlink':
+            tail = child.tail or ''
+            if i == 0:
+                el.text = (el.text or '') + tail
+            else:
+                prev = el[i - 1]
+                prev.tail = (prev.tail or '') + tail
+            el.remove(child)
+            break
 
 
 def _remove_fnrefs(root: etree.Element) -> None:
