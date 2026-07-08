@@ -1290,6 +1290,14 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     def _generate_profiles(self, config: DocsForgeConfig, files: Files):
         for post in self.blog.posts:
             for id in post.config.authors:
+                if id not in self.authors:
+                    docs = os.path.relpath(config.docs_dir)
+                    path = os.path.relpath(post.file.abs_src_path, docs)
+                    raise PluginError(
+                        f"Error reading authors of post '{path}' in '{docs}':\n"
+                        f"Couldn't find author '{id}'"
+                    )
+
                 author = self.authors[id]
                 path = self._format_path_for_profile(id, author)
 
