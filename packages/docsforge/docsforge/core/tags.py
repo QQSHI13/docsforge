@@ -140,6 +140,15 @@ class TagSet(BaseConfigOption[Set[Tag]]):
     def run_validation(self, value: object) -> Set[Tag]:
         if not isinstance(value, list):
             raise ValidationError(f"Expected a list of tags, but got: {value}")
+
+        # Enforce allow list, if configured
+        if self._allowed is not None:
+            for tag in value:
+                if tag not in self._allowed:
+                    raise ValidationError(
+                        f"Tag '{tag}' is not allowed. Allowed tags: {self._allowed}"
+                    )
+
         return set(value)
 
     def pre_validation(self, config: Config, key_name: str):
