@@ -494,7 +494,7 @@ class ListingManager:
             hx = match.group()
 
             # Populate listing with anchor links to tags
-            anchors = toc.populate(listing, self._slugify)
+            anchors = populate(listing, self._slugify)
             if not anchors:
                 return
 
