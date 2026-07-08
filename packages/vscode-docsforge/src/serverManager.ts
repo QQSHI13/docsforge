@@ -11,6 +11,8 @@ export class ServerManager {
   private statusBarItem: vscode.StatusBarItem;
   private _serverUrl: string | null = null;
   private _startProgressResolve: (() => void) | null = null;
+  private _processCloseHandler: ((code: number | null) => void) | null = null;
+  private _processErrorHandler: ((err: Error) => void) | null = null;
   private static stateChangeEmitter = new vscode.EventEmitter<void>();
   static instance: ServerManager | undefined;
 
@@ -266,18 +268,22 @@ export class ServerManager {
       this.detectServerUrl(text);
     });
 
-    this.process.on('error', (err: Error) => {
+    const onError = (err: Error) => {
       this.cleanupAfterStop();
       this.showError(`Failed to start DocsForge server: ${err.message}`);
-    });
+    };
+    this._processErrorHandler = onError;
+    this.process.on('error', onError);
 
-    this.process.on('close', (code: number | null) => {
+    const onClose = (code: number | null) => {
       this.cleanupAfterStop();
       if (code !== 0 && code !== null) {
         this.outputChannel.appendLine(`Server exited with code ${code}`);
         this.showError(`DocsForge server exited with code ${code}`);
       }
-    });
+    };
+    this._processCloseHandler = onClose;
+    this.process.on('close', onClose);
 
     vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', true);
     ServerManager.emitStateChange();
@@ -309,10 +315,7 @@ export class ServerManager {
   stop(silent = false) {
     // Stop a running build if one exists
     if (this.buildProcess) {
-      const proc = this.buildProcess;
-      this.buildProcess = null;
-      proc.kill('SIGTERM');
-      setTimeout(() => { if (!proc.killed) proc.kill('SIGKILL'); }, 2000);
+      this.stopBuild();
       if (!silent) vscode.window.showInformationMessage('DocsForge build cancelled');
       return;
     }
@@ -320,12 +323,18 @@ export class ServerManager {
     // Stop managed server process
     if (this.process) {
       const proc = this.process;
+      this.process = null;
+      if (this._processCloseHandler) { proc.removeListener('close', this._processCloseHandler); }
+      if (this._processErrorHandler) { proc.removeListener('error', this._processErrorHandler); }
       proc.kill('SIGTERM');
-      setTimeout(() => {
-        if (!proc.killed) proc.kill('SIGKILL');
+      const sigkillTimer = setTimeout(() => {
+        if (!proc.killed) { proc.kill('SIGKILL'); }
       }, 2000);
-      this.cleanupAfterStop();
-      if (!silent) vscode.window.showInformationMessage('DocsForge server stopped');
+      proc.once('close', () => {
+        clearTimeout(sigkillTimer);
+        this.cleanupAfterStop();
+        if (!silent) vscode.window.showInformationMessage('DocsForge server stopped');
+      });
       return;
     }
 
@@ -360,15 +369,15 @@ export class ServerManager {
   }
 
   stopBuild() {
-    if (this.buildProcess) {
-      this.buildProcess.kill('SIGTERM');
-      setTimeout(() => {
-        if (this.buildProcess && !this.buildProcess.killed) {
-          this.buildProcess.kill('SIGKILL');
-        }
-      }, 2000);
-      this.buildProcess = null;
-    }
+    if (!this.buildProcess) { return; }
+    const proc = this.buildProcess;
+    this.buildProcess = null;
+    vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
+    ServerManager.emitStateChange();
+    proc.kill('SIGTERM');
+    setTimeout(() => {
+      if (!proc.killed) { proc.kill('SIGKILL'); }
+    }, 2000);
   }
 
   private cleanupAfterStop() {
@@ -410,6 +419,11 @@ export class ServerManager {
       vscode.window.showErrorMessage(
         'DocsForge: no docsforge.yml found. Run "Initialize Project" first.'
       );
+      return;
+    }
+
+    if (this.buildProcess) {
+      vscode.window.showInformationMessage('DocsForge build is already running');
       return;
     }
 

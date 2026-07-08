@@ -64,6 +64,11 @@ jobs:
             exit 1
           fi
 
+          if [ -n "$PRE" ] && ! echo "$PRE" | grep -Pq '^(a|b|rc)[0-9]+$'; then
+            echo "ERROR: Prerelease suffix must match ^(a|b|rc)[0-9]+$ (e.g. b1, rc1)"
+            exit 1
+          fi
+
           if [ -z "$PRE" ]; then
             echo "pypi=$BASE" >> $GITHUB_OUTPUT
             echo "vsix=$BASE" >> $GITHUB_OUTPUT
@@ -232,7 +237,13 @@ jobs:
           npm install -g @vscode/vsce
           vsce package --out "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix"
 
-      - name: Attach VSIX to release
+      - name: Generate VSIX checksum
+        run: |
+          cd packages/vscode-docsforge
+          sha256sum "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix" \
+            > "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix.sha256"
+
+      - name: Attach VSIX and checksum to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -240,6 +251,7 @@ jobs:
           TAG="${{ needs.release.outputs.tag }}"
           gh release upload "$TAG" \
             "packages/vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix" \
+            "packages/vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix.sha256" \
             --clobber
 
   build-docker:
@@ -267,7 +279,7 @@ jobs:
             type=raw,value=${{ needs.release.outputs.major }},enable=${{ needs.release.outputs.major != '' }}
             type=sha,format=short
           flavor: |
-            latest=true
+            latest=${{ needs.release.outputs.prerelease != 'true' }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
