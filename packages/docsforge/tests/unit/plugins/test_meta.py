@@ -42,6 +42,38 @@ class TestMetaPlugin:
         plugin.load_config({"enabled": False})
         assert plugin.on_files([], config=SimpleNamespace(docs_dir=str(tmp_path))) is None
 
+    def test_meta_scope_matches_path_components_not_prefix(self, tmp_path):
+        from types import SimpleNamespace
+
+        plugin = _make_plugin(tmp_path)
+        guide_meta = tmp_path / "docs" / "guide" / ".meta.yml"
+        guide_meta.parent.mkdir(parents=True)
+        guide_meta.write_text("author: GuideAuthor\n")
+
+        meta_file = SimpleNamespace(
+            src_uri="guide/.meta.yml",
+            src_path="guide/.meta.yml",
+            abs_src_path=str(guide_meta),
+        )
+        plugin.on_files(
+            [meta_file],
+            config=SimpleNamespace(docs_dir=str(tmp_path / "docs")),
+        )
+
+        matched_page = SimpleNamespace(
+            file=SimpleNamespace(src_path="guide/page.md"),
+            meta={},
+        )
+        plugin.on_page_markdown("# Guide", page=matched_page, config=None, files=None)
+        assert matched_page.meta.get("author") == "GuideAuthor"
+
+        unmatched_page = SimpleNamespace(
+            file=SimpleNamespace(src_path="guide-extra/page.md"),
+            meta={},
+        )
+        plugin.on_page_markdown("# Extra", page=unmatched_page, config=None, files=None)
+        assert "author" not in unmatched_page.meta
+
     def test_corrupt_meta_raises_plugin_error(self, tmp_path):
         from docsforge.exceptions import PluginError
         from types import SimpleNamespace
