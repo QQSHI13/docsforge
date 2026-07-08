@@ -6,7 +6,8 @@ from docsforge import utils
 
 class TestGetRelativeUrl:
     def test_same_dir_returns_dot(self):
-        assert utils.get_relative_url("page/", ".") in ("./", "..", "../")
+        rel = utils.get_relative_url("page/", ".")
+        assert rel == "../"
 
     def test_subdir_to_root(self):
         # page at a/b/ asking for root -> at least one level up

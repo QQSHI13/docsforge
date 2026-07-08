@@ -211,7 +211,7 @@ def _get_relative_url(url: str, other: str) -> str:
     if not rel_parts:
         return '.'
     result = '/'.join(rel_parts)
-    if url.endswith('/'):
+    if url.endswith('/') or url == '.':
         result += '/'
     return result
 
