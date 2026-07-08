@@ -20,7 +20,7 @@ class TestMinifyPlugin:
             "// a comment\nvar x = 1; // trailing\n", MINIFIERS["js"]
         )
         assert "comment" not in out
-        assert "var x=1" in out or "x" in out
+        assert "var x=1" in out
 
     def test_minify_css_strips_comments_and_whitespace(self):
         plugin = MinifyPlugin()
