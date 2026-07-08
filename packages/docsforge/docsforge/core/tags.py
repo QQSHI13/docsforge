@@ -177,7 +177,7 @@ class TagsConfig(Config):
         "tags": "listings_tags_template",
         "toc": "listings_toc_template",
     })
-    listings_sort_by = Optional(Type(Callable))
+    listings_sort_by = Type(Callable, default = item_title)
     listings_sort_reverse = Type(bool, default = False)
     listings_tags_sort_by = Type(Callable, default = tag_name)
     listings_tags_sort_reverse = Type(bool, default = False)
@@ -238,14 +238,14 @@ class Listing:
         self.page = page
         self.id = id
         self.config = config
-        self.tags: dict = {}
+        self.tags: dict[Tag, ListingTree] = {}
 
     def add(self, mapping, hidden=False):
         """Add a mapping (tag + page) to this listing."""
         for tag in mapping.tags:
             if tag not in self.tags:
-                self.tags[tag] = []
-            self.tags[tag].append(mapping)
+                self.tags[tag] = ListingTree(tag)
+            self.tags[tag].mappings.append(mapping)
 
     def __and__(self, mapping):
         """Return tags that are in both this listing and the mapping."""
