@@ -505,7 +505,7 @@ class ListingManager:
             # Populate listing with anchor links to tags
             anchors = populate(listing, self._slugify)
             if not anchors:
-                return
+                return ''
 
             # Get reference to first tag in listing
             head = next(iter(anchors.values()))
