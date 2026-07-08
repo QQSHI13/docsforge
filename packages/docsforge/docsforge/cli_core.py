@@ -115,7 +115,7 @@ class BuildEngine:
                 cfg.plugins.on_shutdown()
             return 0
         except Exception as e:
-            log.error(f"Build failed: {e}")
+            log.exception(f"Build failed: {e}")
             return 1
 
 
