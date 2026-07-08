@@ -976,7 +976,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # Compute readtime of post, if enabled and not explicitly set
         if self.config.post_readtime:
             words_per_minute = self.config.post_readtime_words_per_minute
-            if not page.config.readtime:
+            if page.config.readtime is None:
                 page.config.readtime = readtime(html, words_per_minute)
 
     # Register template filters for plugin
