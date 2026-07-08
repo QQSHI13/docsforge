@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from docsforge.core.search import SearchConfig, SearchIndex
+from docsforge.core.search import Element, SearchConfig, SearchIndex
 
 
 def _page(content, url="page/", title="T", meta=None):
@@ -84,6 +84,12 @@ class TestSearchIndex:
         assert SearchIndex(lang="en").needs_jieba is False
         assert SearchIndex(jieba_dict="d.txt").needs_jieba is True
         assert SearchIndex().needs_jieba is False
+
+    def test_element_eq_compares_tag_with_other_element(self):
+        assert Element("div") == Element("div")
+        assert Element("div") != Element("span")
+        assert Element("div") != "span"
+        assert Element("div") == "div"
 
     def test_search_config_lang_accepts_list_of_strings(self):
         cfg = SearchConfig()

@@ -332,7 +332,7 @@ class Element:
         return self.tag
 
     def __eq__(self, other):
-        if other is Element:
+        if isinstance(other, Element):
             return self.tag == other.tag
         return self.tag == other
 
