@@ -140,7 +140,7 @@ nav:
 - Or use `navigation.expand` to auto-expand all sections:
 
 ```yaml
-extra:
+theme:
   features:
     - navigation.expand
 ```
@@ -570,7 +570,9 @@ pip install docsforge
 
 ??? question "Does DocsForge support multi-language sites?"
 
-    Native multi-language support is not built in. Common workarounds:
+    Yes. DocsForge includes a built-in internationalization plugin via `material/i18n`. See [Internationalization setup](setup/i18n.md) for setup instructions.
+
+    If you cannot use the built-in plugin, common workarounds include:
 
     - Maintain separate `docsforge.yml` files per language and build them independently.
     - Use a translation plugin like `mkdocs-static-i18n` (third-party).
