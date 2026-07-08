@@ -61,9 +61,9 @@ def get_context(
                 page.meta['git_creation_date_localized'] = git_info['created_display']
 
     extra_javascript = [
-        utils.normalize_url(str(script), page, base_url) for script in config.extra_javascript
+        utils.normalize_url(str(script), base_url) for script in config.extra_javascript
     ]
-    extra_css = [utils.normalize_url(path, page, base_url) for path in config.extra_css]
+    extra_css = [utils.normalize_url(path, base_url) for path in config.extra_css]
 
     if isinstance(files, Files):
         files = files.documentation_pages()

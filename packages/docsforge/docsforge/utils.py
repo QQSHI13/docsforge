@@ -159,16 +159,16 @@ def is_markdown_file(path: str) -> bool:
     return path.lower().endswith(markdown_extensions)
 
 
-def normalize_url(path, page=None, base=''):
+def normalize_url(path, base=''):
     """Normalize a URL to be relative to the given base."""
     if path.startswith(('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')):
         return path
-    if page is not None:
-        return _get_relative_url(path, base)
     if base.startswith('/'):
         if path.startswith('/'):
             return path
         return base.rstrip('/') + '/' + path.lstrip('/')
+    if base:
+        return _get_relative_url(path, base)
     return path
 
 

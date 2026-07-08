@@ -31,10 +31,10 @@ class TestSlugify:
 
 class TestNormalizeUrl:
     def test_absolute_url_unchanged(self):
-        assert utils.normalize_url("https://example.com/x", None, "") == "https://example.com/x"
+        assert utils.normalize_url("https://example.com/x", "") == "https://example.com/x"
 
     def test_relative_prefixed_with_base(self):
-        out = utils.normalize_url("style.css", None, "../")
+        out = utils.normalize_url("style.css", "../")
         assert out.endswith("style.css")
 
 
