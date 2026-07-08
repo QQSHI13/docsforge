@@ -41,9 +41,6 @@
     {% if config.extra.i18n_languages %}
       {% include "partials/i18n.html" %}
     {% endif %}
-    {% if config.extra.alternate %}
-      {% include "partials/alternate.html" %}
-    {% endif %}
     {% if "material/search" in config.plugins %}
       {% set search = config.plugins["material/search"] | attr("config") %}
       {% if search.enabled %}
