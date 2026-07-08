@@ -32,6 +32,9 @@ MINIFIERS: Dict[str, Callable] = {
 
 log = logging.getLogger(__name__)
 
+if not getattr(csscompressor, "__version__", None):
+    csscompressor.__version__ = "0.9.6"
+
 if version.parse(csscompressor.__version__) <= version.parse("0.9.5"):
     # Monkey patch csscompressor 0.9.5
     # See https://github.com/sprymix/csscompressor/issues/9#issuecomment-1024417374
