@@ -86,8 +86,9 @@ class PreviewProcessor(Treeprocessor):
         if not isinstance(processor, _RelativePathTreeprocessor):
             raise TypeError("Relative path processor not registered")
 
-        # Normalize configurations
-        configurations = self.config["configurations"]
+        # Normalize configurations - copy to avoid mutating the shared config
+        # on every page render.
+        configurations = list(self.config["configurations"])
         configurations.append({
             "sources": self.config.get("sources"),
             "targets": self.config.get("targets")
