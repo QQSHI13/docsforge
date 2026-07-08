@@ -89,6 +89,11 @@ class TestPathSanitization:
         with pytest.raises(PluginError):
             plugin._path_from_url(url)
 
+    def test_path_from_url_preserves_leading_dot_dir(self, plugin: PrivacyPlugin):
+        """Leading dot segments like .icons must not be rewritten to _icons."""
+        url = urlparse("https://example.com/.icons/foo.svg")
+        assert ".icons" in plugin._path_from_url(url)
+
     def test_path_to_file_rejects_escaping_cache_dir(self, plugin: PrivacyPlugin):
         with pytest.raises(PluginError):
             plugin._path_to_file("../../../etc/passwd", None)  # type: ignore[arg-type]
