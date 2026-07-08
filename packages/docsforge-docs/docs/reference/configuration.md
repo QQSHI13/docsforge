@@ -332,23 +332,29 @@ theme:
     - content.action.edit
 ```
 
-| Feature | Description |
-|---------|-------------|
-| `navigation.tabs` | Top-level navigation tabs |
-| `navigation.sections` | Section pages in sidebar |
-| `navigation.expand` | Expand all sections by default |
-| `navigation.path` | Breadcrumb navigation |
-| `navigation.top` | Back-to-top button |
-| `navigation.footer` | Previous/next footer links |
-| `search.suggest` | Search suggestions in header |
-| `search.highlight` | Highlight search terms in results |
-| `search.share` | Share search query links |
-| `content.tabs.link` | Link content tabs across pages |
-| `content.code.copy` | Copy button on code blocks |
-| `content.code.annotate` | Code annotations |
-| `content.action.edit` | Edit page button |
-| `content.action.view` | View source button |
-| `announce.dismiss` | Dismissible announcement bar |
+| Feature | Default | Description |
+|---------|:-------:|-------------|
+| `navigation.tabs` | Yes | Top-level navigation tabs |
+| `navigation.sections` | Yes | Section pages in sidebar |
+| `navigation.expand` | No | Expand all sections by default |
+| `navigation.path` | No | Breadcrumb navigation |
+| `navigation.top` | Yes | Back-to-top button |
+| `navigation.footer` | Yes | Previous/next footer links |
+| `navigation.indexes` | Yes | Index pages for sections |
+| `navigation.tracking` | Yes | Anchor tracking in URL |
+| `navigation.instant` | Yes | Instant navigation |
+| `navigation.instant.progress` | Yes | Instant navigation progress bar |
+| `search.suggest` | Yes | Search suggestions in header |
+| `search.highlight` | Yes | Highlight search terms in results |
+| `search.share` | Yes | Share search query links |
+| `content.tabs.link` | No | Link content tabs across pages |
+| `content.tooltips` | Yes | Content tooltips |
+| `content.code.copy` | Yes | Copy button on code blocks |
+| `content.code.annotate` | Yes | Code annotations |
+| `content.action.edit` | Yes | Edit page button |
+| `content.action.view` | Yes | View source button |
+| `announce.dismiss` | No | Dismissible announcement bar |
+| `toc.follow` | Yes | TOC follows scroll |
 
 ---
 
@@ -570,9 +576,21 @@ markdown_extensions:
 | `footnotes` | Yes | Footnotes (`[^1]`) |
 | `attr_list` | Yes | Attribute lists (`{.class}`) |
 | `md_in_html` | Yes | Markdown inside HTML |
+| `abbr` | Yes | Abbreviations (`*[HTML]: Hyper Text Markup Language`) |
+| `nl2br` | Yes | Newlines to line breaks |
+| `sane_lists` | Yes | Strict list nesting |
+| `wikilinks` | Yes | Wiki-style links (`[[Page title]]`) |
+| `pymdownx.b64` | Yes | Base64 image encoding |
+| `pymdownx.escapeall` | Yes | Escape all characters |
+| `pymdownx.extra` | Yes | Extra Markdown features |
+| `pymdownx.fancylists` | Yes | Fancy ordered lists |
+| `pymdownx.pathconverter` | Yes | Relative path conversion |
+| `pymdownx.progressbar` | Yes | Progress bars |
+| `pymdownx.quotes` | Yes | Block quotes with attributes |
+| `pymdownx.saneheaders` | Yes | Sane header handling |
+| `pymdownx.smartsymbols` | Yes | Smart symbols |
+| `pymdownx.striphtml` | Yes | Strip HTML from output |
 | `smarty` | No | Smart quotes and dashes |
-| `sane_lists` | No | Strict list nesting |
-| `wikilinks` | No | Wiki-style links |
 
 ---
 
