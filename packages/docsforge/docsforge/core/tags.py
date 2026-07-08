@@ -1115,6 +1115,10 @@ class MappingManager:
 
         # Retrieve and validate tags, and add to mapping
         for tag in self.format.validate(page.meta[tags]):
+            # Normalize non-string tags before configuring
+            if not isinstance(tag, (str, Tag)):
+                tag = str(tag)
+
             # Convert string tags to Tag objects
             if isinstance(tag, str):
                 tag = Tag(name=tag)
