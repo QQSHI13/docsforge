@@ -199,7 +199,6 @@ class Config(UserDict):
                 config_option.reset_warnings()
             except ValidationError as e:
                 failed.append((key, e))
-                break
 
         for key in set(self.keys()) - self._schema_keys:
             warnings.append((key, f"Unrecognised configuration name: {key}"))

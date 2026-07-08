@@ -157,3 +157,15 @@ class TestOptionallyRequired:
         assert failed[0][0] == "required"
 
 
+class TestValidate:
+    def test_collects_all_validation_errors(self):
+        class _Schema(Config):
+            one = Type(str)
+            two = Type(str)
+
+        cfg = _Schema()
+        failed, _ = cfg.validate()
+        assert len(failed) == 2
+        assert {key for key, _ in failed} == {"one", "two"}
+
+
