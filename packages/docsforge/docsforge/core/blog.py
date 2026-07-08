@@ -772,14 +772,15 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
         # Adjust destination paths for media files
         for file in files.media_files():
-            if not file.src_uri.startswith(path):
+            if not file.src_uri.startswith(path + "/"):
                 continue
 
             # We need to adjust destination paths for assets to remove the
-            # purely functional posts directory prefix when building
-            file.dest_uri      = file.dest_uri.replace(path, root)
+            # purely functional posts directory prefix when building. Only the
+            # leading prefix is replaced to avoid changing matching path parts.
+            file.dest_uri      = root + file.dest_uri[len(path):]
             file.abs_dest_path = os.path.join(site, file.dest_path)
-            file.url           = file.url.replace(path, root)
+            file.url           = file._get_url()
 
         # Resolve entrypoint and posts sorted by descending date - if the posts
         # directory or entrypoint do not exist, they are automatically created
