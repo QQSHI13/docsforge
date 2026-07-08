@@ -527,9 +527,6 @@ def _finalize_build(
     start: float,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
-    # Generate PWA manifest and pre-cache all pages in the service worker
-    _generate_pwa_manifest_and_precache(config, files, nav, planner)
-
     log_level = config.validation.links.anchors
     for file in files.documentation_pages():
         assert file.page is not None
@@ -537,6 +534,11 @@ def _finalize_build(
 
     # Run `post_build` plugin events.
     config.plugins.on_post_build(config=config)
+
+    # Generate PWA manifest and pre-cache all pages in the service worker.
+    # This runs after post_build so plugins can add outputs before the cache
+    # manifest walks site_dir.
+    _generate_pwa_manifest_and_precache(config, files, nav, planner)
 
     # Optimize static assets: remove unused files, source maps, old font
     # formats. Skip when the build wrote nothing and the source set is

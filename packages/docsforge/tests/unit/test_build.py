@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
 from docsforge import build as build_mod
-from docsforge.build import _populate_changed_pages, _write_outputs
+from docsforge.build import _finalize_build, _populate_changed_pages, _write_outputs
 from docsforge.config_base import load_config
 from docsforge.exceptions import BuildError
 from docsforge.files import File, Files
@@ -114,3 +114,34 @@ class TestPopulateChangedPagesErrors:
         with pytest.raises(ExceptionGroup, match="Errors populating pages") as exc_info:
             _populate_changed_pages(cfg, files, Mock(), [file_a, file_b], lambda level: True, None)
         assert len(exc_info.value.exceptions) == 2
+
+
+class TestFinalizeBuildOrder:
+    def test_pwa_generation_runs_after_post_build(self, tmp_path, monkeypatch):
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        calls = []
+        cfg.plugins.on_post_build = Mock(side_effect=lambda **kw: calls.append("on_post_build"))
+
+        planner = Mock()
+        planner.save = Mock()
+
+        warning_counter = Mock()
+        warning_counter.get_counts.return_value = None
+
+        with patch.object(build_mod, "_generate_pwa_manifest_and_precache", lambda *a, **k: calls.append("pwa")):
+            _finalize_build(
+                cfg,
+                Files([]),
+                Mock(homepage=None),
+                planner,
+                warning_counter,
+                built_any=False,
+                sources_changed=False,
+                config_path=Path("docsforge.yml"),
+                theme_sig="",
+                start=0.0,
+            )
+
+        assert calls == ["on_post_build", "pwa"]
