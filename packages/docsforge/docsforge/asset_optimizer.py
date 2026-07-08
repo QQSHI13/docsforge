@@ -19,6 +19,8 @@ class _AssetReferenceParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.refs: list[str] = []
+        self._in_style = False
+        self._style_buffer: list[str] = []
 
     def _collect(self, url: str | None) -> None:
         if not url:
@@ -28,12 +30,38 @@ class _AssetReferenceParser(HTMLParser):
             return
         self.refs.append(url)
 
+    def _collect_srcset(self, value: str | None) -> None:
+        if not value:
+            return
+        for entry in value.split(','):
+            entry = entry.strip()
+            if not entry:
+                continue
+            parts = entry.split()
+            if parts:
+                self._collect(parts[0])
+
+    def _collect_inline_style(self, content: str) -> None:
+        for match in _CSS_URL_RE.finditer(content):
+            url = next(g for g in match.groups() if g is not None)
+            self._collect(url)
+        for match in _CSS_IMPORT_RE.finditer(content):
+            url = next(g for g in match.groups() if g is not None)
+            self._collect(url)
+
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == 'style':
+            self._in_style = True
+            self._style_buffer = []
+            return
+
         attr_dict = dict(attrs)
         if tag == 'link':
             self._collect(attr_dict.get('href'))
         elif tag in ('script', 'img', 'video', 'audio', 'source'):
             self._collect(attr_dict.get('src'))
+            if tag in ('img', 'source'):
+                self._collect_srcset(attr_dict.get('srcset'))
         elif tag == 'image':
             self._collect(attr_dict.get('href'))
         else:
@@ -43,6 +71,16 @@ class _AssetReferenceParser(HTMLParser):
                     ext = value.split('.')[-1].split('?')[0].lower()
                     if ext in _ASSET_EXTENSIONS:
                         self._collect(value)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == 'style' and self._in_style:
+            self._collect_inline_style(''.join(self._style_buffer))
+            self._in_style = False
+            self._style_buffer = []
+
+    def handle_data(self, data: str) -> None:
+        if self._in_style:
+            self._style_buffer.append(data)
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self.handle_starttag(tag, attrs)

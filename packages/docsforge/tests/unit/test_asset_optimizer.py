@@ -66,6 +66,28 @@ class TestAssetReferenceParser:
         p.feed('<div data-id="123">x</div>')
         assert '123' not in p.refs
 
+    def test_img_srcset_with_density_descriptors(self):
+        p = _AssetReferenceParser()
+        p.feed('<img srcset="images/logo-1x.png 1x, images/logo-2x.png 2x" alt="logo">')
+        assert 'images/logo-1x.png' in p.refs
+        assert 'images/logo-2x.png' in p.refs
+
+    def test_source_srcset_with_width_descriptors(self):
+        p = _AssetReferenceParser()
+        p.feed('<source srcset="images/banner-100.jpg 100w, images/banner-200.jpg 200w">')
+        assert 'images/banner-100.jpg' in p.refs
+        assert 'images/banner-200.jpg' in p.refs
+
+    def test_inline_style_url(self):
+        p = _AssetReferenceParser()
+        p.feed('<style>.x { background: url(images/bg.png); }</style>')
+        assert 'images/bg.png' in p.refs
+
+    def test_inline_style_import(self):
+        p = _AssetReferenceParser()
+        p.feed("<style>@import url('fonts/font.woff2');</style>")
+        assert 'fonts/font.woff2' in p.refs
+
 
 class TestFindReferencedAssets:
     def test_html_css_and_js_references(self, tmp_path):
