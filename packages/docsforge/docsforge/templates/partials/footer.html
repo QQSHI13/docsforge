@@ -12,8 +12,10 @@
           {% set direction = lang.t("footer.previous") %}
           <a href="{{ page.previous_page.url | url }}" class="md-footer__link md-footer__link--prev" aria-label="{{ direction }}: {{ page.previous_page.title | e }}">
             <div class="md-footer__button md-icon">
-              {% set icon = config.theme.icon.previous or "material/arrow-left" %}
-              {% include ".icons/" ~ icon ~ ".svg" %}
+              {% set icon = (config.theme.icon.previous or "material/arrow-left") | validate_icon_name %}
+              {% if icon %}
+                {% include ".icons/" ~ icon ~ ".svg" %}
+              {% endif %}
             </div>
             <div class="md-footer__title">
               <span class="md-footer__direction">
@@ -37,8 +39,10 @@
               </div>
             </div>
             <div class="md-footer__button md-icon">
-              {% set icon = config.theme.icon.next or "material/arrow-right" %}
-              {% include ".icons/" ~ icon ~ ".svg" %}
+              {% set icon = (config.theme.icon.next or "material/arrow-right") | validate_icon_name %}
+              {% if icon %}
+                {% include ".icons/" ~ icon ~ ".svg" %}
+              {% endif %}
             </div>
           </a>
         {% endif %}

@@ -8,8 +8,11 @@
     {% set accent  = option.accent  | d("indigo", true) %}
     <input class="md-option" data-md-color-media="{{ option.media }}" data-md-color-scheme="{{ scheme | replace(' ', '-') }}" data-md-color-primary="{{ primary | replace(' ', '-') }}" data-md-color-accent="{{ accent | replace(' ', '-') }}" {% if option.toggle %} aria-label="{{ option.toggle.name }}" {% else %} aria-hidden="true" {% endif %} type="radio" name="__palette" id="__palette_{{ loop.index0 }}">
     {% if option.toggle %}
+      {% set icon = option.toggle.icon | validate_icon_name %}
       <label class="md-header__button md-icon" title="{{ option.toggle.name }}" for="__palette_{{ loop.index0 }}" hidden>
-        {% include ".icons/" ~ option.toggle.icon ~ ".svg" %}
+        {% if icon %}
+          {% include ".icons/" ~ icon ~ ".svg" %}
+        {% endif %}
       </label>
     {% endif %}
   {% endfor %}

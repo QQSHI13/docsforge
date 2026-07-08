@@ -199,5 +199,6 @@ class Theme(MutableMapping[str, Any]):
         )
         env.filters['url'] = templates.url_filter
         env.filters['script_tag'] = templates.script_tag_filter
+        env.filters['validate_icon_name'] = templates.validate_icon_name
         localization.install_translations(env, self.locale, self.dirs)
         return env

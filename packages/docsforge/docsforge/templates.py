@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypedDict
 
@@ -7,6 +8,11 @@ if TYPE_CHECKING:
     import datetime
 
 from markupsafe import Markup
+
+
+# Allowed characters for icon names used in Jinja include/import paths.
+# Disallows path traversal sequences (..), absolute paths, and special chars.
+_ICON_NAME_RE = re.compile(r'^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\Z')
 
 try:
     from jinja2 import pass_context as contextfilter
@@ -53,3 +59,17 @@ def script_tag_filter(context: TemplateContext, extra_script: ExtraScriptValue) 
             html += ' async'
     html += '></script>'
     return Markup(html).format(url_filter(context, str(extra_script)), extra_script)  # noqa: S704
+
+
+def validate_icon_name(value: str | None) -> str | None:
+    """Validate an icon name for use in Jinja include/import paths.
+
+    Returns the icon name if it only contains safe path characters
+    (alphanumeric, underscore, hyphen, forward slash) and does not allow
+    path traversal, absolute paths, or empty path components. Returns None
+    for invalid names so templates can skip rendering them gracefully.
+    """
+    if value is None:
+        return None
+    name = str(value).strip()
+    return name if _ICON_NAME_RE.match(name) else None

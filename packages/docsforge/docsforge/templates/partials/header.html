@@ -13,8 +13,10 @@
       {% include "partials/logo.html" %}
     </a>
     <label class="md-header__button md-icon" for="__drawer">
-      {% set icon = config.theme.icon.menu or "material/menu" %}
-      {% include ".icons/" ~ icon ~ ".svg" %}
+      {% set icon = (config.theme.icon.menu or "material/menu") | validate_icon_name %}
+      {% if icon %}
+        {% include ".icons/" ~ icon ~ ".svg" %}
+      {% endif %}
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -45,8 +47,10 @@
       {% set search = config.plugins["material/search"] | attr("config") %}
       {% if search.enabled %}
         <label class="md-header__button md-icon" for="__search">
-          {% set icon = config.theme.icon.search or "material/magnify" %}
-          {% include ".icons/" ~ icon ~ ".svg" %}
+          {% set icon = (config.theme.icon.search or "material/magnify") | validate_icon_name %}
+          {% if icon %}
+            {% include ".icons/" ~ icon ~ ".svg" %}
+          {% endif %}
         </label>
         {% include "partials/search.html" %}
       {% endif %}

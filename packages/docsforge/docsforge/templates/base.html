@@ -139,8 +139,10 @@
           <div class="md-banner__inner md-grid md-typeset">
             {% if "announce.dismiss" in features %}
               <button class="md-banner__button md-icon" aria-label="{{ lang.t('announce.dismiss') }}">
-                {% set icon = config.theme.icon.close or "material/close" %}
-                {% include ".icons/" ~ icon ~ ".svg" %}
+                {% set icon = (config.theme.icon.close or "material/close") | validate_icon_name %}
+                {% if icon %}
+                  {% include ".icons/" ~ icon ~ ".svg" %}
+                {% endif %}
               </button>
             {% endif %}
             {% block announce %}{% endblock %}
