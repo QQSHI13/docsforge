@@ -224,7 +224,10 @@ class Page(StructureItem):
             noext = posixpath.splitext(src_uri)[0]
             file_edit_uri = edit_uri_template.format(path=src_uri, path_noext=noext)
         else:
-            assert edit_uri is not None and edit_uri.endswith('/')
+            if edit_uri is None or not edit_uri.endswith('/'):
+                raise ValueError(
+                    f"edit_uri must be a string ending with '/', got {edit_uri!r}"
+                )
             file_edit_uri = edit_uri + src_uri
 
         if repo_url:

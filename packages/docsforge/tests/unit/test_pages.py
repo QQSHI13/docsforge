@@ -126,3 +126,21 @@ class TestExtractTitle:
         ext._register(md)
         md.convert("<p>intro</p>\n# Title\n# Another\n")
         assert ext.title == "Title"
+
+
+class TestSetEditUrl:
+    def test_edit_uri_must_end_with_slash(self, page_config):
+        file = File(
+            "page.md", page_config.docs_dir, page_config.site_dir, page_config.use_directory_urls
+        )
+        page = Page(None, file, page_config)
+        with pytest.raises(ValueError, match="edit_uri must be a string ending with '/'"):
+            page._set_edit_url(repo_url="https://example.com/repo", edit_uri="edit")
+
+    def test_valid_edit_uri_is_accepted(self, page_config):
+        file = File(
+            "page.md", page_config.docs_dir, page_config.site_dir, page_config.use_directory_urls
+        )
+        page = Page(None, file, page_config)
+        page._set_edit_url(repo_url="https://example.com/repo", edit_uri="edit/")
+        assert page.edit_url == "https://example.com/repo/edit/page.md"
