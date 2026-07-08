@@ -151,6 +151,7 @@ class OptionallyRequired(Generic[T], BaseConfigOption[T]):
         super().__init__()
         self.default = default
         self.required = bool(required)
+        self._required_set = required is not None
 
     def validate(self, value):
         """
@@ -445,6 +446,9 @@ class IpAddress(OptionallyRequired[_IpAddressValue]):
             port = int(port_str)
         except Exception:
             raise ValidationError(f"'{port_str}' is not a valid port")
+
+        if not 0 <= port <= 65535:
+            raise ValidationError(f"Port must be between 0 and 65535, got {port}")
 
         return _IpAddressValue(host, port)
 

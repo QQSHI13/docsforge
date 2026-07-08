@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from docsforge.config_base import load_config
+from docsforge.config_base import Config, ValidationError, load_config
+from docsforge.config_options import IpAddress, Type
 
 
 def _write_config(root: Path, body: str) -> Path:
@@ -128,3 +129,31 @@ class TestEnvTag:
         """)
         cfg = load_config()
         assert cfg["site_description"] == "fallback"
+
+
+class TestIpAddress:
+    def test_valid_port(self):
+        value = IpAddress(default="127.0.0.1:8000").run_validation("127.0.0.1:8000")
+        assert value.port == 8000
+
+    def test_port_too_large_rejected(self):
+        with pytest.raises(ValidationError):
+            IpAddress().run_validation("127.0.0.1:70000")
+
+    def test_negative_port_rejected(self):
+        with pytest.raises(ValidationError):
+            IpAddress().run_validation("127.0.0.1:-1")
+
+
+class TestOptionallyRequired:
+    def test_explicit_required_false_is_respected(self):
+        class _Schema(Config):
+            optional = Type(str, required=False)
+            required = Type(str)
+
+        cfg = _Schema()
+        failed, _ = cfg.validate()
+        assert len(failed) == 1
+        assert failed[0][0] == "required"
+
+
