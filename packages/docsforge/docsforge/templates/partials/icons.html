@@ -15,7 +15,7 @@
     {% endif %}
   {% endfor %}
   {% set _.style = _.style ~ "}\u003c/style\u003e" %}
-  {{ _.style }}
+  {{ _.style | safe }}
 {% endif %}
 {% if config.theme.icon.annotation %}
   {% set _ = namespace(style = "\u003cstyle\u003e:root{") %}
@@ -27,7 +27,7 @@
     "');"
   %}
   {% set _.style = _.style ~ "}\u003c/style\u003e" %}
-  {{ _.style }}
+  {{ _.style | safe }}
 {% endif %}
 {% if config.theme.icon.tag %}
   {% set _ = namespace(style = "\u003cstyle\u003e:root{") %}
@@ -48,5 +48,5 @@
     {% endif %}
   {% endfor %}
   {% set _.style = _.style ~ "}\u003c/style\u003e" %}
-  {{ _.style }}
+  {{ _.style | safe }}
 {% endif %}
