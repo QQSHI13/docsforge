@@ -7,10 +7,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>{{ config.site_name }}</title>
+    {% set location = page.meta.location %}
+    {% if location.startswith('http://') or location.startswith('https://') or (location.startswith('/') and not location.startswith('//')) %}
     <noscript>
-      <meta http-equiv="refresh" content="0;url={{ page.meta.location }}">
+      <meta http-equiv="refresh" content="0;url={{ location }}">
     </noscript>
-    <script>window.location.replace(["{{ page.meta.location }}",window.location.search,window.location.hash].join(""))</script>
+    <script>window.location.replace(["{{ location }}",window.location.search,window.location.hash].join(""))</script>
+    {% endif %}
   </head>
   <body></body>
 </html>
