@@ -464,6 +464,14 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
 
         # Ignore URLs unless they are a relative link to a source file.
         if scheme or netloc:  # External link.
+            if scheme and scheme.lower() not in ('http', 'https', 'mailto', 'tel'):
+                log.log(
+                    self.config.validation.links.unrecognized_links,
+                    f"Doc file '{self.file.src_uri}' contains a link with unsupported scheme "
+                    f"'{url}', it was escaped to prevent unsafe protocol use.",
+                )
+                # Neutralize dangerous protocols such as javascript: by escaping the colon.
+                return url.replace(':', '%3A', 1)
             return url
         elif url.startswith(('/', '\\')):  # Absolute link.
             absolute_link = self.config.validation.links.absolute_links
@@ -526,7 +534,7 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                         elif absolute_link is _AbsoluteLinksValidationValue.RELATIVE_TO_DOCS:
                             path = '/' + path
                         else:
-                            path = utils.get_relative_url(path, self.file.src_uri)
+                            path = utils.get_relative_url(self.file.src_uri, path)
                         suggest_url = urlunsplit(('', '', path, query, anchor))
                         break
                 else:
@@ -600,7 +608,7 @@ class _ExtractTitleTreeprocessor(markdown.treeprocessors.Treeprocessor):
         for el in root:
             if el.tag == 'h1':
                 self.title = get_heading_text(el, self.md)
-            break
+                break
         return root
 
     def _register(self, md: markdown.Markdown) -> None:
