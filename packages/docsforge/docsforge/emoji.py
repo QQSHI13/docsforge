@@ -67,7 +67,7 @@ def _load_twemoji_index(paths):
     """Load twemoji index and add Material icons."""
     index = {
         "name": "twemoji",
-        "emoji": twemoji_db.emoji,
+        "emoji": twemoji_db.emoji.copy(),
         "aliases": twemoji_db.aliases
     }
 

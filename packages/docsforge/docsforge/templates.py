@@ -37,7 +37,7 @@ class TemplateContext(TypedDict):
 def url_filter(context: TemplateContext, value: str) -> str:
     """A Template filter to normalize URLs."""
     from docsforge.utils import normalize_url
-    return normalize_url(str(value), page=context['page'], base=context['base_url'])
+    return normalize_url(str(value), base=context['base_url'])
 
 
 @contextfilter

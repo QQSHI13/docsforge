@@ -99,7 +99,7 @@ def get_build_timestamp(*, pages: Collection[Page] | None = None) -> int:
     if pages:
         # Lexicographic comparison is OK for ISO date.
         date_string = max(p.update_date for p in pages)
-        dt = datetime.fromisoformat(date_string).replace(tzinfo=timezone.utc)
+        dt = datetime.fromisoformat(date_string).astimezone(timezone.utc)
     else:
         dt = get_build_datetime()
     return int(dt.timestamp())
@@ -156,19 +156,19 @@ def is_markdown_file(path: str) -> bool:
 
     https://superuser.com/questions/249436/file-extension-for-markdown-files
     """
-    return path.endswith(markdown_extensions)
+    return path.lower().endswith(markdown_extensions)
 
 
-def normalize_url(path, page=None, base=''):
+def normalize_url(path, base=''):
     """Normalize a URL to be relative to the given base."""
     if path.startswith(('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')):
         return path
-    if page is not None:
-        return _get_relative_url(path, base)
     if base.startswith('/'):
         if path.startswith('/'):
             return path
         return base.rstrip('/') + '/' + path.lstrip('/')
+    if base:
+        return _get_relative_url(path, base)
     return path
 
 

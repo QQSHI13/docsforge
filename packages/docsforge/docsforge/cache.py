@@ -315,7 +315,9 @@ class BuildPlanner:
         for dep in file_deps:
             dep_path = Path(dep)
             if not dep_path.exists():
-                continue
+                # A recorded dependency disappeared; force a rebuild so the
+                # page is rebuilt against the current state of the project.
+                return True
             current_dep_hash = self._current_hash(dep_path)
             cached_dep_hash = self.hashes.get(dep)
             if cached_dep_hash != current_dep_hash:
