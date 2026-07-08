@@ -73,6 +73,10 @@ class TestDataToNavigationValidation:
         with pytest.raises(BuildError, match="exactly one key"):
             _data_to_navigation([{"A": "a.md", "B": "b.md"}], None, nav_config)
 
+    def test_non_string_value_in_dict_raises(self, nav_config):
+        with pytest.raises(BuildError, match="nav entry value must be a string"):
+            _data_to_navigation({"Home": 123}, None, nav_config)
+
     def test_dict_with_nested_string_value_is_accepted(self, nav_config, tmp_path):
         from docsforge.files import File, Files
 
