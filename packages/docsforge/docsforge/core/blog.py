@@ -1670,7 +1670,17 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             else:
                 return format_datetime(date, format = format, locale = locale)
         else:
-            # Fallback to strftime if babel is not available
+            # Fallback to strftime if Babel is not available. Babel date formats
+            # use patterns like "yyyy/MM/dd" for URLs, which are not valid
+            # strftime directives, so we map the tokens used by the blog plugin.
+            mapping = {
+                "yyyy": "%Y",
+                "MM": "%m",
+                "dd": "%d",
+            }
+            for babel_token, strftime_token in mapping.items():
+                format = format.replace(babel_token, strftime_token)
+
             return date.strftime(format)
 
     # Format date for post
