@@ -56,7 +56,7 @@ class SearchFieldConfig(Config):
 
 class SearchConfig(Config):
     enabled = Type(bool, default=True)
-    lang = Optional(Type(str))
+    lang = Optional(ListOfItems(Type(str)))
     separator = Optional(Type(str))
     pipeline = Optional(ListOfItems(Choice(pipeline)))
     fields = Type(dict, default={})

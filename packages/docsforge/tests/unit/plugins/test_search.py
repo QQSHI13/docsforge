@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from docsforge.core.search import SearchIndex
+from docsforge.core.search import SearchConfig, SearchIndex
 
 
 def _page(content, url="page/", title="T", meta=None):
@@ -84,6 +84,19 @@ class TestSearchIndex:
         assert SearchIndex(lang="en").needs_jieba is False
         assert SearchIndex(jieba_dict="d.txt").needs_jieba is True
         assert SearchIndex().needs_jieba is False
+
+    def test_search_config_lang_accepts_list_of_strings(self):
+        cfg = SearchConfig()
+        cfg.load_dict({"lang": ["en", "zh-CN"]})
+        failed, _ = cfg.validate()
+        assert not failed
+        assert cfg["lang"] == ["en", "zh-CN"]
+
+    def test_search_config_lang_rejects_scalar_string(self):
+        cfg = SearchConfig()
+        cfg.load_dict({"lang": "en"})
+        failed, _ = cfg.validate()
+        assert failed
 
     def test_prev_preserved_when_no_new_entries(self):
         import json
