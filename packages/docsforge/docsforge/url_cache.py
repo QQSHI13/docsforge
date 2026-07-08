@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import datetime
 import hashlib
+import ipaddress
 import logging
 import os
 import random
 import urllib.request
 from collections.abc import Callable
+from urllib.parse import urlparse
 
 import platformdirs
 
@@ -16,12 +18,40 @@ import docsforge
 
 log = logging.getLogger(__name__)
 
+DEFAULT_TIMEOUT = 30
+
+
+def _is_local_url(url: str) -> bool:
+    """Return True for file:// URLs and hosts that are loopback or private."""
+    parsed = urlparse(url)
+    if parsed.scheme == "file":
+        return True
+    if parsed.scheme not in ("http", "https"):
+        return True
+    hostname = parsed.hostname
+    if hostname is None:
+        return False
+    try:
+        addr = ipaddress.ip_address(hostname)
+        return addr.is_loopback or addr.is_private or addr.is_link_local or addr.is_multicast
+    except ValueError:
+        # Not an IP address: reject common local hostnames.
+        lower = hostname.lower()
+        if lower in ("localhost", "localhost.localdomain"):
+            return True
+        if lower.endswith(".local"):
+            return True
+    return False
+
 
 def download_url(url: str) -> bytes:
+    if _is_local_url(url):
+        raise ValueError(f"Refusing to fetch local URL: {url}")
+
     req = urllib.request.Request(
         url, headers={"User-Agent": f"docsforge/{docsforge.__version__}"}
     )
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
         return resp.read()
 
 
