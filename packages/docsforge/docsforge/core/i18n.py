@@ -292,7 +292,15 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             lang_config = self._get_language_config(locale)
             lang_items = self._clone_nav_items(nav, locale, lang_config, config)
             lang_pages = self._collect_pages(lang_items)
-            self._locale_navs[locale] = Navigation(lang_items, lang_pages)
+            locale_nav = Navigation(lang_items, lang_pages)
+            # The locale index page is the homepage for its subtree. Setting this
+            # keeps header/nav logo links inside the locale instead of escaping
+            # to the default-language site root.
+            for page in lang_pages:
+                if page.file.url == f"{locale}/":
+                    locale_nav.homepage = page
+                    break
+            self._locale_navs[locale] = locale_nav
             self._locale_url_maps[locale] = self._build_url_map(locale)
 
         # Attach nav lookup to config for templates.
@@ -321,12 +329,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             elif isinstance(item, Link):
                 result.append(Link(item.title, item.url))
             elif isinstance(item, Page):
-                lang_page = self._get_language_page(item, locale, config)
+                lang_page = self._get_language_page(item, locale, lang_config, config)
                 if lang_page is not None:
-                    if lang_config and lang_config.nav_translations:
-                        default_title = item.title or self._read_title(item.file)
-                        if default_title in lang_config.nav_translations:
-                            lang_page.title = lang_config.nav_translations[default_title]
                     result.append(lang_page)
                 else:
                     result.append(item)
@@ -334,7 +338,13 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 result.append(item)
         return result
 
-    def _get_language_page(self, page: Page, locale: str, config: DocsForgeConfig) -> Page | None:
+    def _get_language_page(
+        self,
+        page: Page,
+        locale: str,
+        lang_config: I18nLanguageConfig | None,
+        config: DocsForgeConfig,
+    ) -> Page | None:
         """Return the Page for the given locale corresponding to the default page."""
         base_key = self._base_key_lookup.get(page.file.src_uri)
         if base_key is None:
@@ -342,24 +352,60 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         lang_file = self._file_lookup.get((base_key, locale))
         if lang_file is None:
             return None
-        # Prefer the default nav title if one was explicitly configured; otherwise
-        # fall back to the translated file's frontmatter title.
-        title = page.title or self._read_title(lang_file)
+
+        title = self._resolve_locale_title(page, lang_file, lang_config)
         if lang_file.page is None:
             Page(title, lang_file, config)
-        elif not lang_file.page.title:
+        elif title is not None and not lang_file.page.title:
             # Fallback/translation pages created by get_navigation may have no title yet.
             lang_file.page.title = title
         return lang_file.page
 
+    def _resolve_locale_title(
+        self,
+        page: Page,
+        lang_file: File,
+        lang_config: I18nLanguageConfig | None,
+    ) -> str | None:
+        """Pick the best nav title for a locale page.
+
+        Precedence:
+        1. An explicit nav_translations entry for the default page's title.
+        2. The translated file's own title (frontmatter or first H1).
+        3. The default page's configured/nav title.
+        """
+        default_title = self._default_page_title(page)
+        if lang_config and lang_config.nav_translations and default_title in lang_config.nav_translations:
+            return lang_config.nav_translations[default_title]
+
+        lang_title = self._read_title(lang_file)
+        if lang_title is not None:
+            return lang_title
+
+        return page.title
+
+    def _default_page_title(self, page: Page) -> str | None:
+        """Best-effort default-language title for nav_translations lookups."""
+        if page.title is not None:
+            return page.title
+        if page.is_homepage:
+            return "Home"
+        return self._read_title(page.file)
+
     def _read_title(self, file: File) -> str | None:
-        """Read the title from a file's YAML frontmatter, if present."""
+        """Read the title from a file's YAML frontmatter or first H1 heading."""
         try:
-            _, data = meta.get_data(file.content_string)
+            content = file.content_string
+            _, data = meta.get_data(content)
         except Exception:
             return None
         title = data.get("title")
-        return str(title) if title is not None else None
+        if title is not None:
+            return str(title)
+        title = utils.get_markdown_title(content)
+        if title:
+            return title
+        return None
 
     def _collect_pages(self, items: list) -> list[Page]:
         pages = []
@@ -426,6 +472,12 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         """Return alternate language URLs for the current page."""
         base_key = self._base_key_lookup.get(page.file.src_uri)
         if base_key is None:
+            # Generated fallback files are not present in _base_key_lookup, but
+            # they always reference their default-language source file.
+            base_file = getattr(page.file, "i18n_base_file", None)
+            if base_file is not None:
+                base_key = self._base_key_lookup.get(base_file.src_uri)
+        if base_key is None:
             return []
 
         alternates = []
@@ -435,7 +487,14 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             else:
                 file = self._file_lookup.get((base_key, locale))
             if file is not None and file.page is not None:
-                alternates.append({"locale": locale, "url": file.page.url})
+                url = file.page.url
+                # The homepage Page.url is normalized to "" for the default
+                # language, but the empty string loses its trailing slash when
+                # passed through the `url` template filter from a locale page.
+                # Return "./" so the locale stays a directory-style URL.
+                if url in ("", ".", "./"):
+                    url = "./"
+                alternates.append({"locale": locale, "url": url})
         return alternates
 
     def _get_language_config(self, locale: str | None) -> I18nLanguageConfig | None:
