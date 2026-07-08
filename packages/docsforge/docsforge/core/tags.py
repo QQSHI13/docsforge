@@ -29,17 +29,17 @@ import yaml
 
 # ------------------------------------------------------------------------------
 class Mapping:
-    """A mapping between a page and its tags."""
-    
-    def __init__(self, page: Page):
-        self.page = page
-        self.item = page
-        self.tags: set[Tag] = set()
-    
+    """A mapping between an item (page or link) and its tags."""
+
+    def __init__(self, item: Page | Link, tags: Iterable[Tag] | None = None):
+        self.page = item
+        self.item = item
+        self.tags: set[Tag] = set(tags or [])
+
     @property
     def title(self) -> str:
         return self.page.title or ""
-    
+
     def __repr__(self):
         return f"Mapping({self.page.url!r})"
 
