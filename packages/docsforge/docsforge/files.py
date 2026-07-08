@@ -549,8 +549,24 @@ def get_files(config: DocsForgeConfig) -> Files:
     """Walk the `docs_dir` and return a Files collection."""
     files: list[File] = []
     conflicting_files: list[tuple[File, File]] = []
+    visited_inodes: set[tuple[int, int]] = set()
     for source_dir, dirnames, filenames in os.walk(config['docs_dir'], followlinks=True):
         relative_dir = os.path.relpath(source_dir, config['docs_dir'])
+
+        # Detect symlink cycles so a recursive symlink does not send the walker
+        # into an infinite loop. os.walk(followlinks=True) otherwise has no
+        # cycle protection.
+        try:
+            st = os.stat(source_dir)
+            inode_key = (st.st_dev, st.st_ino)
+        except OSError:
+            inode_key = None
+        if inode_key is not None:
+            if inode_key in visited_inodes:
+                dirnames[:] = []
+                continue
+            visited_inodes.add(inode_key)
+
         dirnames.sort()
         filenames.sort(key=_file_sort_key)
 
