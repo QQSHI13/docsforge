@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from xml.etree import ElementTree as etree
 
-from docsforge.rendering import _remove_anchorlink, _strip_tags
+from docsforge.rendering import _extract_alt_texts, _remove_anchorlink, _strip_tags
 
 
 class TestStripTags:
@@ -63,3 +63,38 @@ class TestRemoveAnchorlink:
         anchor.tail = ''
         _remove_anchorlink(el)
         assert [child.tag for child in el] == ['a']
+
+
+class TestExtractAltTexts:
+    def test_replaces_image_with_alt_text(self):
+        img = etree.Element('img')
+        img.set('alt', 'description')
+        parent = etree.Element('p')
+        parent.text = 'before '
+        parent.append(img)
+        img.tail = ' after'
+        _extract_alt_texts(parent)
+        assert [child.tag for child in parent] == []
+        assert parent.text == 'before description after'
+
+    def test_replaces_image_with_empty_alt_text(self):
+        img = etree.Element('img')
+        img.set('alt', '')
+        parent = etree.Element('p')
+        parent.text = 'before '
+        parent.append(img)
+        img.tail = ' after'
+        _extract_alt_texts(parent)
+        assert [child.tag for child in parent] == []
+        assert parent.text == 'before  after'
+
+    def test_leaves_image_without_alt_attribute(self):
+        img = etree.Element('img')
+        parent = etree.Element('p')
+        parent.text = 'before '
+        parent.append(img)
+        img.tail = ' after'
+        _extract_alt_texts(parent)
+        assert [child.tag for child in parent] == ['img']
+        assert parent.text == 'before '
+        assert img.tail == ' after'

@@ -109,8 +109,10 @@ def _extract_alt_texts(root: etree.Element) -> None:
 
 
 def _predicate_for_alt_texts(el: etree.Element) -> str | None:
-    if el.tag == 'img' and (alt := el.get('alt')):
-        return alt
+    if el.tag == 'img':
+        alt = el.get('alt')
+        if alt is not None:
+            return alt
     return None
 
 
