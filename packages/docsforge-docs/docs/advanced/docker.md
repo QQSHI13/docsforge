@@ -92,7 +92,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Build docs
         run: |
           docker run --rm -v $(pwd):/docs ghcr.io/qqshi13/docsforge:latest build
