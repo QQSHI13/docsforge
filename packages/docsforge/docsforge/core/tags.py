@@ -164,7 +164,7 @@ class TagsConfig(Config):
     tags = Type(bool, default = True)
     tags_file = Optional(Type(str))
     tags_extra_files = Optional(Type(DictOfItems(Type(list))))
-    tags_slugify = Type(Callable, default = slugify)
+    tags_slugify = Type(Callable, default = slugify())
     tags_hierarchy = Type(bool, default = False)
     tags_hierarchy_separator = Type(str, default = "/")
     tags_allowed = Optional(Type(list))
