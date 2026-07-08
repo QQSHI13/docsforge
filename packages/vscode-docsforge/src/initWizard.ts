@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
+import { findConfig } from './pure';
 
 const THEME_COLORS = [
   'teal',
@@ -36,8 +37,9 @@ export class InitWizard {
 
     const workspaceRoot = workspaceFolder.uri.fsPath;
 
-    if (fs.existsSync(path.join(workspaceRoot, 'docsforge.yml'))) {
-      vscode.window.showInformationMessage('DocsForge: docsforge.yml already exists.');
+    const existingConfig = findConfig(workspaceRoot);
+    if (existingConfig) {
+      vscode.window.showInformationMessage(`DocsForge: ${existingConfig} already exists.`);
       return;
     }
 
