@@ -578,9 +578,9 @@ class EditURI(Type[str]):
         if edit_uri is None and repo_url is not None:
             repo_host = urlsplit(repo_url).netloc.lower()
             if repo_host == 'github.com' or repo_host == 'gitlab.com':
-                edit_uri = 'edit/master/docs/'
+                edit_uri = 'edit/main/docs/'
             elif repo_host == 'bitbucket.org':
-                edit_uri = 'src/default/docs/'
+                edit_uri = 'src/main/docs/'
 
         # ensure a well-formed edit_uri
         if edit_uri and not edit_uri.endswith('/'):
