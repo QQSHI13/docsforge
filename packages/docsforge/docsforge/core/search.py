@@ -275,10 +275,10 @@ class SearchIndex:
         }
 
         if prev and self.entries:
-            path = self.entries[0]["location"]
+            path = self.entries[0]["location"].split("#")[0]
             entries = [
                 entry for entry in prev.entries
-                if not entry["location"].startswith(path)
+                if entry["location"].split("#")[0] != path
             ]
             self.entries = entries + self.entries
 

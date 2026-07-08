@@ -98,6 +98,21 @@ class TestSearchIndex:
         failed, _ = cfg.validate()
         assert failed
 
+    def test_dirty_reload_dedup_matches_full_page_path(self):
+        import json
+
+        prev = SearchIndex(**_full_config())
+        prev.add_entry_from_context(_page("<p>foo</p>", url="foo/"))
+        prev.add_entry_from_context(_page("<p>foobar</p>", url="foobar/"))
+
+        idx = SearchIndex(**_full_config())
+        idx.add_entry_from_context(_page("<p>new foo</p>", url="foo/"))
+        data = json.loads(idx.generate_search_index(prev=prev))
+
+        locations = [e["location"] for e in data["docs"]]
+        assert any(loc.startswith("foo/") for loc in locations)
+        assert any(loc.startswith("foobar/") for loc in locations)
+
     def test_prev_preserved_when_no_new_entries(self):
         import json
 
