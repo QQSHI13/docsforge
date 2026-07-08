@@ -387,5 +387,5 @@ class TestBuildPlanner:
         out.write_text("built")
         # Simulate: build failed -> caller must NOT call update_cache.
         # If the caller honors that, the page stays "needs rebuild" next time.
-        assert p.should_rebuild(src, out) is False or p.should_rebuild(src, out) is True
+        assert p.should_rebuild(src, out) is True
         # (contract documented; the actual build.py loop is covered by E2E)
