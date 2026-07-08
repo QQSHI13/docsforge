@@ -2,13 +2,20 @@
 from __future__ import annotations
 
 import textwrap
+import threading
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
 from docsforge import build as build_mod
-from docsforge.build import _finalize_build, _populate_changed_pages, _write_outputs
+from docsforge.build import (
+    _build_page,
+    _default_page_lock,
+    _finalize_build,
+    _populate_changed_pages,
+    _write_outputs,
+)
 from docsforge.config_base import load_config
 from docsforge.exceptions import BuildError
 from docsforge.files import File, Files
@@ -145,3 +152,12 @@ class TestFinalizeBuildOrder:
             )
 
         assert calls == ["on_post_build", "pwa"]
+
+
+class TestBuildPageLock:
+    def test_default_lock_is_shared_module_singleton(self):
+        # The fallback lock used when _page_lock is None must be shared across
+        # calls, otherwise concurrent calls serialize on different locks.
+        assert isinstance(_default_page_lock, type(threading.Lock()))
+        # _build_page signature keeps _page_lock default as None for callers.
+        assert _build_page.__defaults__[-1] is None

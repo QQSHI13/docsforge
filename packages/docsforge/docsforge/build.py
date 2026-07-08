@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Shared fallback lock for page building when the caller does not provide one.
+_default_page_lock = threading.Lock()
+
 
 def get_context(
     nav: Navigation,
@@ -231,7 +234,7 @@ def _build_page(
     _page_lock: threading.RLock | None = None,
 ) -> None:
     """Pass a Page to theme template and write output to site_dir."""
-    lock = _page_lock or threading.Lock()  # Always have a lock
+    lock = _page_lock or _default_page_lock  # Always have a lock
 
     with lock:
         config._current_page = page
