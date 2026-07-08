@@ -81,6 +81,14 @@ class TestFileUrl:
         f = _file("foo.md", str(tmp_path), str(tmp_path / "site"), dir_urls=False)
         assert f.url == "foo.html"
 
+    def test_nested_url_preserves_slashes(self, tmp_path):
+        f = _file("a/b.md", str(tmp_path), str(tmp_path / "site"))
+        assert f.url == "a/b/"
+
+    def test_url_encodes_special_chars_but_preserves_slashes(self, tmp_path):
+        f = _file("a b/c d.md", str(tmp_path), str(tmp_path / "site"))
+        assert f.url == "a%20b/c%20d/"
+
 
 class TestFilePaths:
     def test_abs_src_path_joins_src_dir_and_uri(self, tmp_path):

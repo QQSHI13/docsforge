@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Shared fallback lock for page building when the caller does not provide one.
+_default_page_lock = threading.Lock()
+
 
 def get_context(
     nav: Navigation,
@@ -231,7 +234,7 @@ def _build_page(
     _page_lock: threading.RLock | None = None,
 ) -> None:
     """Pass a Page to theme template and write output to site_dir."""
-    lock = _page_lock or threading.Lock()  # Always have a lock
+    lock = _page_lock or _default_page_lock  # Always have a lock
 
     with lock:
         config._current_page = page
@@ -414,8 +417,16 @@ def _populate_changed_pages(
                 ex.submit(_populate_page, p, config, files, True, plugin_lock)
                 for p in to_populate
             ]
-            for f in futures:
-                f.result()  # propagate exceptions
+            errors: list[BaseException] = []
+            for f in concurrent.futures.as_completed(futures):
+                try:
+                    f.result()
+                except BaseException as e:
+                    errors.append(e)
+            if errors:
+                if len(errors) == 1:
+                    raise errors[0]
+                raise ExceptionGroup("Errors populating pages", errors)
 
     if excluded:
         log.info(
@@ -481,10 +492,13 @@ def _write_outputs(
             try:
                 future.result()
             except Exception:
-                # Error already logged in _build_page; continue with other pages.
+                # Error already logged in _build_page; continue with other pages
+                # unless strict mode is enabled, in which case we must fail.
                 # Do NOT update the cache for a failed build — otherwise the
                 # next run would consider the page up-to-date and silently keep
                 # the broken output.
+                if config.strict:
+                    raise
                 continue
 
             # Update cache after successful build. Use page.markdown (the
@@ -516,9 +530,6 @@ def _finalize_build(
     start: float,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
-    # Generate PWA manifest and pre-cache all pages in the service worker
-    _generate_pwa_manifest_and_precache(config, files, nav, planner)
-
     log_level = config.validation.links.anchors
     for file in files.documentation_pages():
         assert file.page is not None
@@ -526,6 +537,11 @@ def _finalize_build(
 
     # Run `post_build` plugin events.
     config.plugins.on_post_build(config=config)
+
+    # Generate PWA manifest and pre-cache all pages in the service worker.
+    # This runs after post_build so plugins can add outputs before the cache
+    # manifest walks site_dir.
+    _generate_pwa_manifest_and_precache(config, files, nav, planner)
 
     # Optimize static assets: remove unused files, source maps, old font
     # formats. Skip when the build wrote nothing and the source set is

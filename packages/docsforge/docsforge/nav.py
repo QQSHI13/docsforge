@@ -196,20 +196,53 @@ def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
 
 def _data_to_navigation(data, files: Files, config: DocsForgeConfig):
     if isinstance(data, dict):
-        return [
-            _data_to_navigation((key, value), files, config)
-            if isinstance(value, str)
-            else Section(title=key, children=_data_to_navigation(value, files, config))
-            for key, value in data.items()
-        ]
+        result = []
+        for key, value in data.items():
+            if not isinstance(key, str):
+                raise BuildError(
+                    f"A nav entry key must be a string, got {type(key).__name__}: {key!r}"
+                )
+            if isinstance(value, str):
+                result.append(_data_to_navigation((key, value), files, config))
+            elif isinstance(value, (list, dict)):
+                result.append(Section(title=key, children=_data_to_navigation(value, files, config)))
+            else:
+                raise BuildError(
+                    f"A nav entry value must be a string, list, or dict, "
+                    f"got {type(value).__name__}: {value!r}"
+                )
+        return result
     elif isinstance(data, list):
-        return [
-            _data_to_navigation(item, files, config)[0]
-            if isinstance(item, dict) and len(item) == 1
-            else _data_to_navigation(item, files, config)
-            for item in data
-        ]
+        result = []
+        for item in data:
+            if isinstance(item, dict):
+                if len(item) != 1:
+                    raise BuildError(
+                        f"A nav dict entry must contain exactly one key, got {item!r}"
+                    )
+                key = next(iter(item))
+                if not isinstance(key, str):
+                    raise BuildError(
+                        f"A nav entry key must be a string, got {type(key).__name__}: {key!r}"
+                    )
+                value = item[key]
+                if not isinstance(value, str):
+                    raise BuildError(
+                        f"A nav entry value must be a string, got {type(value).__name__}: {value!r}"
+                    )
+                result.append(_data_to_navigation(item, files, config)[0])
+            elif isinstance(item, str):
+                result.append(_data_to_navigation(item, files, config))
+            else:
+                raise BuildError(
+                    f"A nav entry must be a string or dict, got {type(item).__name__}: {item!r}"
+                )
+        return result
     title, path = data if isinstance(data, tuple) else (None, data)
+    if not isinstance(path, str):
+        raise BuildError(
+            f"A nav entry must be a string, got {type(path).__name__}: {path!r}"
+        )
     lookup_path = path
     if (
         lookup_path.startswith('/')

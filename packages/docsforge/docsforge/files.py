@@ -397,7 +397,7 @@ class File:
             use_directory_urls = self.use_directory_urls
         if use_directory_urls and filename == 'index.html':
             url = (dirname or '.') + '/'
-        return urlquote(url)
+        return urlquote(url, safe='/')
 
     url = cached_property(_get_url)
     """The URI of the destination file relative to the destination directory as a string."""

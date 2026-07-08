@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
+from html.parser import HTMLParser
 from typing import TYPE_CHECKING
 
 import markdown
@@ -28,17 +29,36 @@ def get_heading_text(el: etree.Element, md: markdown.Markdown) -> str:
     return _strip_tags(_render_inner_html(el, md))
 
 
+class _TextExtractor(HTMLParser):
+    """Extract plain text from HTML, leaving entities unchanged."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self._parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        self._parts.append(data)
+
+    def handle_entityref(self, name: str) -> None:
+        self._parts.append(f'&{name};')
+
+    def handle_charref(self, name: str) -> None:
+        self._parts.append(f'&#{name};')
+
+    def get_text(self) -> str:
+        return ' '.join(''.join(self._parts).split())
+
+
 def _strip_tags(text: str) -> str:
     """Strip HTML tags and return plain text. Note: HTML entities are unaffected."""
-    # A comment could contain a tag, so strip comments first
-    while (start := text.find('<!--')) != -1 and (end := text.find('-->', start)) != -1:
-        text = text[:start] + text[end + 3 :]
-
-    while (start := text.find('<')) != -1 and (end := text.find('>', start)) != -1:
-        text = text[:start] + text[end + 1 :]
-
-    # Collapse whitespace
-    return ' '.join(text.split())
+    extractor = _TextExtractor()
+    try:
+        extractor.feed(text)
+        extractor.close()
+    except Exception:
+        # Malformed input should not crash title extraction.
+        return ' '.join(text.split())
+    return extractor.get_text()
 
 
 def _render_inner_html(el: etree.Element, md: markdown.Markdown) -> str:
@@ -58,8 +78,16 @@ def _render_inner_html(el: etree.Element, md: markdown.Markdown) -> str:
 
 def _remove_anchorlink(el: etree.Element) -> None:
     """Drop anchorlink from the element, if present."""
-    if len(el) > 0 and el[-1].tag == 'a' and el[-1].get('class') == 'headerlink':
-        del el[-1]
+    for i, child in enumerate(el):
+        if child.tag == 'a' and child.get('class') == 'headerlink':
+            tail = child.tail or ''
+            if i == 0:
+                el.text = (el.text or '') + tail
+            else:
+                prev = el[i - 1]
+                prev.tail = (prev.tail or '') + tail
+            el.remove(child)
+            break
 
 
 def _remove_fnrefs(root: etree.Element) -> None:
@@ -81,8 +109,10 @@ def _extract_alt_texts(root: etree.Element) -> None:
 
 
 def _predicate_for_alt_texts(el: etree.Element) -> str | None:
-    if el.tag == 'img' and (alt := el.get('alt')):
-        return alt
+    if el.tag == 'img':
+        alt = el.get('alt')
+        if alt is not None:
+            return alt
     return None
 
 
