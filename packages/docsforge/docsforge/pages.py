@@ -398,7 +398,8 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                 continue
 
             url = element.get(key)
-            assert url is not None
+            if url is None:
+                continue
             new_url = self.path_to_url(url)
             element.set(key, new_url)
 

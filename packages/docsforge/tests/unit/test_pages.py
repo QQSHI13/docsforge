@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
+from xml.etree import ElementTree as etree
 
 import pytest
 
@@ -98,6 +99,21 @@ class TestRelativePathTreeprocessor:
         # The suggestion must be relative from source (dir/page.md) to target
         # (dir/target.md), not the reverse direction.
         assert "Did you mean 'target.md'?" in caplog.text
+
+    def test_missing_href_or_src_is_skipped(self, page_config):
+        proc = self._processor(page_config)
+        root = etree.Element('div')
+        a_without_href = etree.SubElement(root, 'a')
+        img_without_src = etree.SubElement(root, 'img')
+        a_with_href = etree.SubElement(root, 'a')
+        a_with_href.set('href', 'https://example.com')
+
+        result = proc.run(root)
+
+        assert result is root
+        assert a_without_href.get('href') is None
+        assert img_without_src.get('src') is None
+        assert a_with_href.get('href') == 'https://example.com'
 
 
 class TestExtractTitle:
