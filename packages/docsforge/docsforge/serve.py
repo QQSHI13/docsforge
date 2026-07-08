@@ -4,12 +4,11 @@ import io
 import json
 import logging
 import os
-import shutil
 import socket
 import sys
 import tempfile
 from collections.abc import Callable
-from os.path import isdir, isfile, join
+from os.path import isfile, join
 from typing import TYPE_CHECKING, BinaryIO
 from urllib.parse import urlsplit
 
@@ -66,9 +65,6 @@ def serve(
     automatically whenever a file is edited (the page must be refreshed
     manually).
     """
-    # Create a temporary build directory, and set some options to serve it
-    site_dir = tempfile.mkdtemp(prefix='docsforge_')
-
     get_config_file: Callable[[], str | BinaryIO | None]
     if config_file is None or isinstance(config_file, str):
         get_config_file = lambda: config_file
@@ -82,106 +78,118 @@ def serve(
             config_file.name if getattr(config_file, 'closed', False) else config_file
         )
 
-    def get_config():
-        config = load_config(
-            config_file=get_config_file(),
-            site_dir=site_dir,
-            **kwargs,
+    # Create a temporary build directory inside the cleanup scope so it is
+    # removed even if config loading or plugin startup fails.
+    with tempfile.TemporaryDirectory(prefix='docsforge_') as site_dir:
+
+        def get_config():
+            config = load_config(
+                config_file=get_config_file(),
+                site_dir=site_dir,
+                **kwargs,
+            )
+            config.watch.extend(watch)
+            return config
+
+        config = get_config()
+        config.plugins.on_startup(command='serve', dirty=True)
+
+        config_host, config_port = config.dev_addr
+        host = host or config_host
+        port = _find_available_port(host, config_port)
+        if port != config_port:
+            log.info(f"Port {config_port} in use, using port {port} instead")
+        mount_path = urlsplit(config.site_url or '/').path
+
+        # Use localhost for the display URL when binding to all interfaces.
+        display_host = '127.0.0.1' if host in ('0.0.0.0', '::') else host
+        config.site_url = serve_url = _serve_url(display_host, port, mount_path)
+
+        def builder(config: DocsForgeConfig | None = None):
+            log.info("Building documentation...")
+            if config is None:
+                config = get_config()
+                config.site_url = serve_url
+
+            try:
+                build(config, serve_url=serve_url, dirty=True)
+            except Exception as e:
+                log.error(f"Build error: {e}")
+                log.error("Documentation will continue to be served. Fix the error and the page will auto-reload.")
+
+        server = LiveReloadServer(
+            builder=builder, host=host, port=port, root=site_dir, mount_path=mount_path
         )
-        config.watch.extend(watch)
-        return config
+        server.url = serve_url
 
-    config = get_config()
-    config.plugins.on_startup(command='serve', dirty=True)
+        def error_handler(code) -> bytes | None:
+            if code in (404, 500):
+                error_page = join(site_dir, f'{code}.html')
+                if isfile(error_page):
+                    with open(error_page, 'rb') as f:
+                        return f.read()
+            return None
 
-    config_host, config_port = config.dev_addr
-    host = host or config_host
-    port = _find_available_port(host, config_port)
-    if port != config_port:
-        log.info(f"Port {config_port} in use, using port {port} instead")
-    mount_path = urlsplit(config.site_url or '/').path
-    config.site_url = serve_url = _serve_url(host, port, mount_path)
+        server.error_handler = error_handler
 
-    def builder(config: DocsForgeConfig | None = None):
-        log.info("Building documentation...")
-        if config is None:
-            config = get_config()
-            config.site_url = serve_url
+        # Path for the pidfile, used in both try and finally
+        pidfile_dir = os.path.dirname(config.config_file_path) if config.config_file_path else os.getcwd()
+        pidfile_path = os.path.join(pidfile_dir, ".docsforge", "server.json")
+        os.makedirs(os.path.join(pidfile_dir, ".docsforge"), exist_ok=True)
 
         try:
-            build(config, serve_url=serve_url, dirty=True)
-        except Exception as e:
-            log.error(f"Build error: {e}")
-            log.error("Documentation will continue to be served. Fix the error and the page will auto-reload.")
+            # Perform the initial build
+            log.info("Preparing initial build...")
+            try:
+                builder(config)
+            except Exception as e:
+                log.error(f"Initial build error: {e}")
+                log.error("Server will continue running. Fix errors and reload.")
 
-    server = LiveReloadServer(
-        builder=builder, host=host, port=port, root=site_dir, mount_path=mount_path
-    )
+            if livereload:
+                # Watch the documentation files, the config file and the theme files.
+                server.watch(config.docs_dir)
+                if config.config_file_path:
+                    server.watch(config.config_file_path)
 
-    def error_handler(code) -> bytes | None:
-        if code in (404, 500):
-            error_page = join(site_dir, f'{code}.html')
-            if isfile(error_page):
-                with open(error_page, 'rb') as f:
-                    return f.read()
-        return None
+                if watch_theme:
+                    for d in config.theme.dirs:
+                        if os.path.exists(d):
+                            server.watch(d)
+                        else:
+                            log.debug(f"Skipping watch for non-existent theme dir: {d}")
 
-    server.error_handler = error_handler
+                # Run `serve` plugin events.
+                server = config.plugins.on_serve(server, config=config, builder=builder)
 
-    # Path for the pidfile, used in both try and finally
-    pidfile_dir = os.path.dirname(config.config_file_path) if config.config_file_path else os.getcwd()
-    pidfile_path = os.path.join(pidfile_dir, ".docsforge", "server.json")
-    os.makedirs(os.path.join(pidfile_dir, ".docsforge"), exist_ok=True)
+                for item in config.watch:
+                    if os.path.exists(item):
+                        server.watch(item)
+                    else:
+                        log.debug(f"Skipping watch for non-existent path: {item}")
 
-    try:
-        # Perform the initial build
-        log.info("Preparing initial build...")
-        try:
-            builder(config)
-        except Exception as e:
-            log.error(f"Initial build error: {e}")
-            log.error("Server will continue running. Fix errors and reload.")
+            # Write pidfile BEFORE serve() blocks — it must be visible immediately
+            try:
+                with open(pidfile_path, "w") as f:
+                    json.dump({
+                        "pid": os.getpid(),
+                        "url": serve_url,
+                        "project_dir": pidfile_dir,
+                    }, f)
+            except Exception:
+                pass
 
-        if livereload:
-            # Watch the documentation files, the config file and the theme files.
-            server.watch(config.docs_dir)
-            if config.config_file_path:
-                server.watch(config.config_file_path)
+            server.serve(open_in_browser=open_in_browser)
 
-            if watch_theme:
-                for d in config.theme.dirs:
-                    server.watch(d)
-
-            # Run `serve` plugin events.
-            server = config.plugins.on_serve(server, config=config, builder=builder)
-
-            for item in config.watch:
-                server.watch(item)
-
-        # Write pidfile BEFORE serve() blocks — it must be visible immediately
-        try:
-            with open(pidfile_path, "w") as f:
-                json.dump({
-                    "pid": os.getpid(),
-                    "url": serve_url,
-                    "project_dir": pidfile_dir,
-                }, f)
-        except Exception:
-            pass
-
-        server.serve(open_in_browser=open_in_browser)
-
-    except KeyboardInterrupt:
-        log.info("Shutting down...")
-        sys.exit(0)
-    finally:
-        server.shutdown()
-        config.plugins.on_shutdown()
-        if isdir(site_dir):
-            shutil.rmtree(site_dir)
-        # Clean up pidfile
-        try:
-            if os.path.isfile(pidfile_path):
-                os.remove(pidfile_path)
-        except Exception:
-            pass
+        except KeyboardInterrupt:
+            log.info("Shutting down...")
+            sys.exit(0)
+        finally:
+            server.shutdown()
+            config.plugins.on_shutdown()
+            # Clean up pidfile
+            try:
+                if os.path.isfile(pidfile_path):
+                    os.remove(pidfile_path)
+            except Exception:
+                pass
