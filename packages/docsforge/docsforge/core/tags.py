@@ -170,7 +170,7 @@ class TagsConfig(Config):
     })
     listings_sort_by = Optional(Type(Callable))
     listings_sort_reverse = Type(bool, default = False)
-    listings_tags_sort_by = Optional(Type(Callable))
+    listings_tags_sort_by = Type(Callable, default = tag_name)
     listings_tags_sort_reverse = Type(bool, default = False)
     listings_shuffle = Optional(Type(int))
     listings_limit = Optional(Type(int))
