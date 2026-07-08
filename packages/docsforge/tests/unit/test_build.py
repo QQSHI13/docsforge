@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import pytest
 
 from docsforge import build as build_mod
-from docsforge.build import _write_outputs
+from docsforge.build import _populate_changed_pages, _write_outputs
 from docsforge.config_base import load_config
 from docsforge.exceptions import BuildError
 from docsforge.files import File, Files
@@ -93,3 +93,24 @@ class TestWriteOutputsStrictMode:
 
         # Should not raise when strict is False.
         _write_outputs(cfg, files, nav, env, planner, [file], lambda level: True)
+
+
+class TestPopulateChangedPagesErrors:
+    def test_collects_all_populate_errors(self, tmp_path, monkeypatch):
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        file_a = File("a.md", cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)
+        file_b = File("b.md", cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)
+        files = Files([file_a, file_b])
+        Page(None, file_a, cfg)
+        Page(None, file_b, cfg)
+
+        def _bad_populate(*args, **kwargs):
+            raise BuildError("boom")
+
+        monkeypatch.setattr(build_mod, "_populate_page", _bad_populate)
+
+        with pytest.raises(ExceptionGroup, match="Errors populating pages") as exc_info:
+            _populate_changed_pages(cfg, files, Mock(), [file_a, file_b], lambda level: True, None)
+        assert len(exc_info.value.exceptions) == 2

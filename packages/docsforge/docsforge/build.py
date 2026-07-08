@@ -414,8 +414,16 @@ def _populate_changed_pages(
                 ex.submit(_populate_page, p, config, files, True, plugin_lock)
                 for p in to_populate
             ]
-            for f in futures:
-                f.result()  # propagate exceptions
+            errors: list[BaseException] = []
+            for f in concurrent.futures.as_completed(futures):
+                try:
+                    f.result()
+                except BaseException as e:
+                    errors.append(e)
+            if errors:
+                if len(errors) == 1:
+                    raise errors[0]
+                raise ExceptionGroup("Errors populating pages", errors)
 
     if excluded:
         log.info(
