@@ -156,7 +156,7 @@ def is_markdown_file(path: str) -> bool:
 
     https://superuser.com/questions/249436/file-extension-for-markdown-files
     """
-    return path.endswith(markdown_extensions)
+    return path.lower().endswith(markdown_extensions)
 
 
 def normalize_url(path, page=None, base=''):
