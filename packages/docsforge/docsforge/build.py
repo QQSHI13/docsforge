@@ -481,10 +481,13 @@ def _write_outputs(
             try:
                 future.result()
             except Exception:
-                # Error already logged in _build_page; continue with other pages.
+                # Error already logged in _build_page; continue with other pages
+                # unless strict mode is enabled, in which case we must fail.
                 # Do NOT update the cache for a failed build — otherwise the
                 # next run would consider the page up-to-date and silently keep
                 # the broken output.
+                if config.strict:
+                    raise
                 continue
 
             # Update cache after successful build. Use page.markdown (the
