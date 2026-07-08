@@ -24,3 +24,7 @@ class TestStripTags:
 
     def test_handles_empty_string(self):
         assert _strip_tags("") == ""
+
+    def test_preserves_literal_comparisons(self):
+        # HTMLParser must not treat "< b >" as a tag.
+        assert _strip_tags("<p>a < b > c</p>") == "a < b > c"
