@@ -615,7 +615,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             gz_path = f"{output_path}.gz"
             timestamp = utils.get_build_timestamp(pages=[f.page for f in files])
             with open(gz_path, "wb") as f:
-                with gzip.GzipFile(fileobj=f, filename=gz_path, mode="wb", mtime=timestamp) as gz_buf:
+                with gzip.GzipFile(fileobj=f, filename="sitemap.xml", mode="wb", mtime=timestamp) as gz_buf:
                     gz_buf.write(output.encode("utf-8"))
 
     def _language_files(self, locale: str) -> list[File]:
