@@ -248,7 +248,8 @@ def fix_config(config_file=None) -> int:
         for p in plugins:
             name = p if isinstance(p, str) else (list(p.keys())[0] if isinstance(p, dict) else '')
             clean = name.split('/')[-1] if '/' in name else name
-            if clean not in KNOWN_PLUGINS and name not in KNOWN_PLUGINS:
+            known = BUILTIN_PLUGINS | AUTOLOAD_PLUGINS
+            if clean not in known and name not in known:
                 new_plugins.append(p)
             else:
                 print(f"  ✓ Removed built-in plugin: {name}")
