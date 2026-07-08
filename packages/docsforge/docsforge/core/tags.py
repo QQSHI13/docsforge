@@ -254,6 +254,15 @@ class Listing:
     def __hash__(self):
         return hash(self.id)
 
+    def __iter__(self) -> Iterator[ListingTree]:
+        """
+        Iterate over the listing trees of this listing.
+
+        Yields:
+            The current listing tree.
+        """
+        return iter(self.tags.values())
+
 
 #-----------------------------------------------------------------------------
 # From tags/structure/listing/manager/__init__.py
