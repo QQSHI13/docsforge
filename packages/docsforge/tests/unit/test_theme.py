@@ -6,6 +6,13 @@ from types import SimpleNamespace
 from docsforge.theme import Theme
 
 
+class TestThemeEnvironment:
+    def test_autoescape_enabled(self):
+        theme = Theme(name="material")
+        env = theme.get_env()
+        assert env.autoescape  # callable from select_autoescape, truthy for html/xml
+
+
 class TestRedirectTemplate:
     def _render(self, location: str):
         theme = Theme(name="material")
