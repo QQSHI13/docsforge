@@ -4,7 +4,7 @@
 {% macro render_content(nav_item, ref) %}
   {% set ref = ref or nav_item %}
   {% if nav_item == ref or "navigation.indexes" in features %}
-    {% set icon = nav_item.meta.icon | validate_icon_name %}
+    {% set icon = (nav_item.meta.icon | d('', true) | validate_icon_name) if nav_item.meta is defined else '' %}
     {% if nav_item.is_index and icon %}
       {% include ".icons/" ~ icon ~ ".svg" %}
     {% endif %}
