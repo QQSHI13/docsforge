@@ -363,7 +363,7 @@ def _collect_files_and_nav(
         orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
         for f in orphaned:
             log.debug(f"Removing orphaned output: {f}")
-            f.unlink()
+            _remove_orphaned_output(f)
     planner.update_sources(current_sources)
 
     nav = get_navigation(files, config)
@@ -375,6 +375,14 @@ def _collect_files_and_nav(
     all_doc_files = list(files.documentation_pages(inclusion=inclusion))
 
     return files, env, nav, all_doc_files, sources_changed
+
+
+def _remove_orphaned_output(path: Path) -> None:
+    """Remove an orphaned output file, logging a warning on transient errors."""
+    try:
+        path.unlink()
+    except OSError as exc:
+        log.warning(f"Could not remove orphaned output {path}: {exc}")
 
 
 def _populate_changed_pages(
@@ -467,6 +475,7 @@ def _write_outputs(
     page_lock = threading.RLock()
     max_workers = min(32, os.cpu_count() or 1)
 
+    built_any = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for file in all_doc_files:
@@ -511,8 +520,7 @@ def _write_outputs(
                 base_paths=[Path(config.docs_dir)],
             )
             planner.update_cache(source_path, output_path, deps)
-
-        built_any = bool(futures)
+            built_any = True
 
     return built_any
 
