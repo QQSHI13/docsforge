@@ -772,14 +772,15 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
         # Adjust destination paths for media files
         for file in files.media_files():
-            if not file.src_uri.startswith(path):
+            if not file.src_uri.startswith(path + "/"):
                 continue
 
             # We need to adjust destination paths for assets to remove the
-            # purely functional posts directory prefix when building
-            file.dest_uri      = file.dest_uri.replace(path, root)
+            # purely functional posts directory prefix when building. Only the
+            # leading prefix is replaced to avoid changing matching path parts.
+            file.dest_uri      = root + file.dest_uri[len(path):]
             file.abs_dest_path = os.path.join(site, file.dest_path)
-            file.url           = file.url.replace(path, root)
+            file.url           = file._get_url()
 
         # Resolve entrypoint and posts sorted by descending date - if the posts
         # directory or entrypoint do not exist, they are automatically created
@@ -820,11 +821,13 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # Generate pages for views
         for view in self._resolve_views(self.blog):
             if self._config_pagination(view):
-                for page in self._generate_pages(view, config, files):
-                    view.pages.append(page)
+                view.pages = list(self._generate_pages(view, config, files))
 
         # Ensure that entrypoint is always included in navigation
         self.blog.file.inclusion = InclusionLevel.INCLUDED
+
+        # Keep a reference to the files collection for page rendering
+        self._files = files
 
     # Attach posts and views to navigation (run later) - again, we allow other
     # plugins to alter the navigation before we start to attach posts and views
@@ -973,7 +976,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # Compute readtime of post, if enabled and not explicitly set
         if self.config.post_readtime:
             words_per_minute = self.config.post_readtime_words_per_minute
-            if not page.config.readtime:
+            if page.config.readtime is None:
                 page.config.readtime = readtime(html, words_per_minute)
 
     # Register template filters for plugin
@@ -1018,7 +1021,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # is that we need to replace the view in the navigation, because otherwise
     # the view would not be considered active.
     @event_priority(-100)
-    def on_page_context(self, context, *, page, config, nav):
+    def on_page_context(self, context, *, page, config, nav, files=None):
         if not self.config.enabled:
             return
 
@@ -1031,7 +1034,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # Ensure all posts have excerpts before rendering views
         for post in self.blog.posts:
             if not post.excerpt:
-                post.excerpt = Excerpt(post, config, files)
+                post.excerpt = Excerpt(post, config, self._files)
 
         # Render excerpts and prepare pagination
         posts, pagination = self._render(page)
@@ -1291,6 +1294,14 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     def _generate_profiles(self, config: DocsForgeConfig, files: Files):
         for post in self.blog.posts:
             for id in post.config.authors:
+                if id not in self.authors:
+                    docs = os.path.relpath(config.docs_dir)
+                    path = os.path.relpath(post.file.abs_src_path, docs)
+                    raise PluginError(
+                        f"Error reading authors of post '{path}' in '{docs}':\n"
+                        f"Couldn't find author '{id}'"
+                    )
+
                 author = self.authors[id]
                 path = self._format_path_for_profile(id, author)
 
@@ -1320,7 +1331,10 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # Generate pages for pagination - analyze view and generate the necessary
     # pages, creating a chain of views for simple rendering and replacement
     def _generate_pages(self, view: View, config: DocsForgeConfig, files: Files):
-        yield view
+        # Start with a fresh list so dirty reloads don't accumulate stale pages.
+        # All generated pages share this list, so each page can determine its
+        # own index without aliases mutating the list while it is being built.
+        pages = [view]
 
         # Compute pagination boundaries and create pages - pages are internally
         # handled as copies of a view, as they map to the same source location
@@ -1340,14 +1354,21 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             # Temporarily remove view from navigation
             file.inclusion = InclusionLevel.EXCLUDED
 
-            # Create and yield view
+            # Create page, if it does not exist
             if not isinstance(file.page, View):
-                yield view.__class__(None, file, config)
+                view.__class__(None, file, config)
 
-            # Assign pages and posts to view
+            # Assign posts to page and add to pagination list
             assert isinstance(file.page, View)
-            file.page.pages = view.pages
             file.page.posts = view.posts
+            pages.append(file.page)
+
+        # Share the final, stable pages list with every paginated page
+        for page in pages:
+            page.pages = pages
+
+        # Yield all pages
+        yield from pages
 
     # Generate links from the given post to other posts, pages, and sections -
     # this can only be done once all posts and pages have been parsed
@@ -1469,55 +1490,55 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # -------------------------------------------------------------------------
 
-    # Render excerpts and pagination for the given view
-    def _render(self, view: View):
-        posts, pagination = view.posts, None
+    # Render excerpts and pagination for the given page
+    def _render(self, page: View):
+        posts, pagination = page.posts, None
 
         # Create pagination, if enabled
-        if self._config_pagination(view):
-            at = view.pages.index(view)
+        if self._config_pagination(page):
+            at = page.pages.index(page)
 
             # Compute pagination boundaries
-            step = self._config_pagination_per_page(view)
+            step = self._config_pagination_per_page(page)
             p, q = at * step, at * step + step
 
             # Extract posts in pagination boundaries
-            posts = view.posts[p:q]
-            pagination = self._render_pagination(view, (p, q))
+            posts = page.posts[p:q]
+            pagination = self._render_pagination(page, (p, q))
 
         # Render excerpts for selected posts
         posts = [
-            self._render_post(post.excerpt, view)
+            self._render_post(post.excerpt, page)
                 for post in posts if post.excerpt
         ]
 
         # Return posts and pagination
         return posts, pagination
 
-    # Render excerpt in the context of the given view
-    def _render_post(self, excerpt: Excerpt, view: View):
-        excerpt.render(view, self.config.post_excerpt_separator)
+    # Render excerpt in the context of the given page
+    def _render_post(self, excerpt: Excerpt, page: View):
+        excerpt.render(page, self.config.post_excerpt_separator)
 
-        # Attach top-level table of contents item to view if it should be added
-        # and both, the view and excerpt contain table of contents items
-        toc = self._config_toc(view)
-        if toc and excerpt.toc.items and view.toc.items:
-            view.toc.items[0].children.append(excerpt.toc.items[0])
+        # Attach top-level table of contents item to page if it should be added
+        # and both, the page and excerpt contain table of contents items
+        toc = self._config_toc(page)
+        if toc and excerpt.toc.items and page.toc.items:
+            page.toc.items[0].children.append(excerpt.toc.items[0])
 
         # Return excerpt
         return excerpt
 
-    # Create pagination for the given view and range
-    def _render_pagination(self, view: View, range: tuple[int, int]):
+    # Create pagination for the given page and range
+    def _render_pagination(self, page: View, range: tuple[int, int]):
         p, q = range
 
         # Create URL from the given page to another page
         def url_maker(n: int):
-            return get_relative_url(view.pages[n - 1].url, view.url)
+            return get_relative_url(page.pages[n - 1].url, page.url)
 
         # Return pagination
         return Pagination(
-            view.posts, page = q // (q - p),
+            page.posts, page = q // (q - p),
             items_per_page = q - p,
             url_maker = url_maker
         )
