@@ -34,12 +34,8 @@
         </div>
       </div>
     </div>
-    {% if config.theme.palette %}
-      {% if not config.theme.palette is mapping %}
-        {% include "partials/palette.html" %}
-      {% endif %}
-    {% endif %}
-    {% if not config.theme.palette is mapping %}
+    {% if config.theme.palette and not config.theme.palette is mapping %}
+      {% include "partials/palette.html" %}
       {% include "partials/javascripts/palette.html" %}
     {% endif %}
     {% if config.extra.i18n_languages %}

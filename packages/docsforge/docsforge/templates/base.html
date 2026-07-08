@@ -43,7 +43,11 @@
       {% endif %}
       <link rel="icon" href="{{ config.theme.favicon | url }}">
       <link rel="manifest" href="{{ 'manifest.json' | url }}">
-      <meta name="theme-color" content="{{ config.theme.palette[0].primary | d('indigo') }}">
+      {% set palette = config.theme.palette %}
+      {% if palette and not palette is mapping %}
+        {% set palette = palette | first %}
+      {% endif %}
+      <meta name="theme-color" content="{{ palette.primary | d('indigo') if palette else 'indigo' }}">
       <meta name="generator" content="docsforge">
     {% endblock %}
     {% block htmltitle %}
