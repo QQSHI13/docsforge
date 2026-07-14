@@ -158,18 +158,6 @@ All available commands (accessible via `Ctrl+Shift+P`):
 | `DocsForge: Open in VS Code Browser` | Open the preview |
 | `DocsForge: Refresh` | Refresh the sidebar |
 
-### Quick Install
-
-**macOS / Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.ps1 | iex
-```
-
 ### From GitHub Releases
 
 Download the latest `.vsix` from the [GitHub Releases page](https://github.com/QQSHI13/docsforge/releases), then:

@@ -158,18 +158,6 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | `DocsForge: Open in VS Code Browser` | 打开预览 |
 | `DocsForge: Refresh` | 刷新侧边栏 |
 
-### 快速安装
-
-**macOS / Linux：**
-```bash
-curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.sh | bash
-```
-
-**Windows (PowerShell)：**
-```powershell
-irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.ps1 | iex
-```
-
 ### 从 GitHub Releases
 
 从 [GitHub Releases 页面](https://github.com/QQSHI13/docsforge/releases) 下载最新的 `.vsix`，然后：
