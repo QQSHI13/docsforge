@@ -143,10 +143,24 @@ def get_theme_names() -> list[str]:
 
 
 def get_theme_dir(name):
-    """Return the path to the named theme directory."""
+    """Return the path to the named theme directory.
+
+    Themes are located through their 'docsforge.themes' entry point. Falls
+    back to the built-in templates directory for the built-in 'material'
+    theme and for names without a registered entry point.
+    """
+    from importlib import import_module
     from importlib.resources import files
-    if name == 'material':
-        return files('docsforge') / 'templates'
+
+    if name != 'material':
+        value = get_themes().get(name)
+        if value is not None:
+            module = import_module(value.partition(':')[0])
+            if module.__file__ is not None:
+                return os.path.dirname(os.path.abspath(module.__file__))
+            # Namespace package: a plain directory without __init__.py.
+            return next(iter(module.__path__))
+
     return files('docsforge') / 'templates'
 
 
