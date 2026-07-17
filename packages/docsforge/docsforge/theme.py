@@ -64,10 +64,10 @@ class Theme(MutableMapping[str, Any]):
         docsforge_templates = os.path.join(package_dir, 'templates')
         # Only include known static templates, not layout templates
         self.static_templates = set()
-        for name in ('404.html', 'sitemap.xml'):
-            path = os.path.join(docsforge_templates, name)
+        for static_template in ('404.html', 'sitemap.xml'):
+            path = os.path.join(docsforge_templates, static_template)
             if os.path.exists(path):
-                self.static_templates.add(name)
+                self.static_templates.add(static_template)
 
         # Build self.dirs from various sources in order of precedence
         self.dirs = []
@@ -85,6 +85,9 @@ class Theme(MutableMapping[str, Any]):
 
         # Handle remaining user configs. Override theme configs (if set)
         self.static_templates.update(static_templates)
+        # 'name' is set from the constructor argument only; never let user
+        # config desync the 'name' key from self.name.
+        user_config.pop('name', None)
         _vars.update(user_config)
 
         # Validate locale and convert to Locale object
@@ -168,13 +171,25 @@ class Theme(MutableMapping[str, Any]):
                 f"The theme '{name}' does not appear to have a configuration file. "
                 f"Please upgrade to a current version of the theme."
             )
+        except yaml.YAMLError as e:
+            log.debug(e)
+            raise ValidationError(
+                f"The theme '{name}' has an invalid configuration file. "
+                f"Failed to parse '{file_path}': {e}"
+            )
 
         if theme_config is None:
             theme_config = {}
 
         log.debug(f"Loaded theme configuration for '{name}' from '{file_path}': {theme_config}")
 
-        if parent_theme := theme_config.pop('extends', None):
+        parent_theme = theme_config.pop('extends', None)
+        if parent_theme is not None and not isinstance(parent_theme, str):
+            raise ValidationError(
+                f"The theme '{name}' has an invalid 'extends' value: {parent_theme!r}. "
+                f"Expected the name of a theme (a string)."
+            )
+        if parent_theme:
             themes = utils.get_theme_names()
             if parent_theme not in themes:
                 raise ValidationError(
@@ -183,7 +198,18 @@ class Theme(MutableMapping[str, Any]):
                 )
             self._load_theme_config(parent_theme)
 
-        self.static_templates.update(theme_config.pop('static_templates', []))
+        static_templates = theme_config.pop('static_templates', [])
+        if not isinstance(static_templates, list) or not all(
+            isinstance(template, str) for template in static_templates
+        ):
+            raise ValidationError(
+                f"The theme '{name}' has an invalid 'static_templates' value: {static_templates!r}. "
+                f"Expected a list of strings."
+            )
+        self.static_templates.update(static_templates)
+        # 'name' comes from the theme entrypoint, not from the theme config,
+        # so it must never override the key set in __init__.
+        theme_config.pop('name', None)
         self.__vars.update(theme_config)
 
     def get_env(self) -> jinja2.Environment:
