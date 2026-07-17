@@ -345,7 +345,8 @@ def remove_unused_font_formats(site_dir: str) -> None:
     """Remove font formats that are not needed (keep only WOFF2).
 
     Modern browsers support WOFF2. We keep WOFF as a fallback for older browsers
-    but remove TTF, EOT, and SVG font formats.
+    but remove TTF, EOT, and SVG font formats. Legacy fonts that are still
+    referenced by any HTML, CSS, or JS file in the site are kept.
     """
     site_path = Path(site_dir)
     if not site_path.exists():
@@ -359,6 +360,9 @@ def remove_unused_font_formats(site_dir: str) -> None:
     # Remove old font formats
     old_extensions = {'.ttf', '.eot', '.svg'}
 
+    # Collect referenced assets first so fonts still in use are not deleted.
+    referenced = _find_referenced_assets(site_dir) if font_dirs else set()
+
     for font_dir in font_dirs:
         if not font_dir.is_dir():
             continue
@@ -368,6 +372,21 @@ def remove_unused_font_formats(site_dir: str) -> None:
                 continue
 
             if font_file.suffix.lower() in old_extensions:
+                rel_path = font_file.relative_to(site_path).as_posix()
+
+                # Keep fonts still referenced by HTML, CSS, or JS files
+                # (same fallback check as cleanup_unused_assets).
+                is_referenced = rel_path in referenced
+                if not is_referenced:
+                    for ref in referenced:
+                        if ref.endswith(font_file.name) or rel_path in ref:
+                            is_referenced = True
+                            break
+
+                if is_referenced:
+                    log.debug(f"Keeping referenced font: {rel_path}")
+                    continue
+
                 file_size = font_file.stat().st_size
                 try:
                     font_file.unlink()

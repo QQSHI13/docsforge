@@ -7,6 +7,7 @@ from docsforge.asset_optimizer import (
     _AssetReferenceParser,
     _find_referenced_assets,
     _normalize_asset_url,
+    remove_unused_font_formats,
 )
 
 
@@ -130,3 +131,33 @@ class TestFindReferencedAssets:
         )
         refs = _find_referenced_assets(str(site))
         assert 'https://cdn.example.com/app.js' not in refs
+
+
+class TestRemoveUnusedFontFormats:
+    def test_referenced_legacy_font_is_kept(self, tmp_path):
+        site = tmp_path / "site"
+        fonts = site / "assets" / "fonts"
+        fonts.mkdir(parents=True)
+        (fonts / "icons.ttf").write_bytes(b"ttf")
+        (fonts / "icons.woff2").write_bytes(b"woff2")
+        (site / "index.html").write_text(
+            "<style>@font-face { src: url('assets/fonts/icons.ttf'); }</style>"
+        )
+
+        remove_unused_font_formats(str(site))
+
+        assert (fonts / "icons.ttf").exists()
+        assert (fonts / "icons.woff2").exists()
+
+    def test_unreferenced_legacy_font_is_removed(self, tmp_path):
+        site = tmp_path / "site"
+        fonts = site / "assets" / "fonts"
+        fonts.mkdir(parents=True)
+        (fonts / "icons.ttf").write_bytes(b"ttf")
+        (fonts / "icons.woff2").write_bytes(b"woff2")
+        (site / "index.html").write_text("<html><body>no fonts here</body></html>")
+
+        remove_unused_font_formats(str(site))
+
+        assert not (fonts / "icons.ttf").exists()
+        assert (fonts / "icons.woff2").exists()
