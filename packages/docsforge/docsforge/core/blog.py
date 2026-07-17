@@ -1134,10 +1134,15 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         if not os.path.isdir(name):
             os.makedirs(name, exist_ok = True)
 
+        # Normalize path for comparison with source URIs, which always use
+        # forward slashes, even on Windows, and append a path separator, so
+        # path components are compared, not string prefixes
+        uri = posixpath.normpath(path.replace("\\", "/"))
+
         # Filter posts from all files (not just documentation_pages, since another
         # plugin instance may have already excluded them)
         for file in files:
-            if not file.src_path.startswith(path):
+            if not file.src_uri.startswith(uri + "/"):
                 continue
             if not file.is_documentation_page():
                 continue

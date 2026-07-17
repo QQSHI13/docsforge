@@ -8,7 +8,7 @@ import pytest
 
 from docsforge.core.blog import BlogPlugin, PostConfig
 from docsforge.exceptions import PluginError
-from docsforge.files import File
+from docsforge.files import File, Files
 
 
 def _post_config(**kwargs):
@@ -122,6 +122,64 @@ class TestPagination:
 
         assert len(pages1) == len(pages2) == 1
         assert pages1[0] is view
+
+
+class TestResolvePosts:
+    @pytest.fixture()
+    def plugin(self):
+        p = BlogPlugin()
+        p.load_config({})
+        return p
+
+    def _make_files(self, tmp_path, *src_uris):
+        docs = tmp_path / "docs"
+        files = []
+        for uri in src_uris:
+            path = docs / uri
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "---\ndate:\n  created: 2024-01-01\n---\n\n# Post\n",
+                encoding="utf-8",
+            )
+            files.append(File(uri, str(docs), str(tmp_path / "site"), True))
+        return Files(files)
+
+    def _resolve_post_uris(self, plugin, files, tmp_path):
+        # Stub out post resolution, as these tests target path filtering only
+        plugin._resolve_post = lambda file, _config: file
+        plugin._is_excluded = lambda _post: False
+
+        config = SimpleNamespace(
+            docs_dir=str(tmp_path / "docs"),
+            site_dir=str(tmp_path / "site"),
+        )
+        return [post.src_uri for post in plugin._resolve_posts(files, config)]
+
+    def test_resolves_posts_in_posts_directory(self, plugin, tmp_path):
+        files = self._make_files(
+            tmp_path, "blog/posts/a.md", "blog/index.md", "index.md"
+        )
+        assert self._resolve_post_uris(plugin, files, tmp_path) == [
+            "blog/posts/a.md"
+        ]
+
+    def test_ignores_pages_with_matching_path_prefix(self, plugin, tmp_path):
+        files = self._make_files(
+            tmp_path, "blog/posts/a.md", "blog/posts.md", "blog/posts-old/b.md"
+        )
+        assert self._resolve_post_uris(plugin, files, tmp_path) == [
+            "blog/posts/a.md"
+        ]
+
+    def test_resolves_posts_with_windows_separators(self, plugin, tmp_path):
+        # Simulate Windows, where os.path.normpath converts the path of the
+        # posts directory to backslashes, while source URIs always use
+        # forward slashes
+        plugin.load_config({"post_dir": "{blog}\\posts"})
+        files = self._make_files(tmp_path, "blog/posts/a.md")
+        assert self._resolve_post_uris(plugin, files, tmp_path) == [
+            "blog/posts/a.md"
+        ]
 
 
 class TestAuthorGuard:
