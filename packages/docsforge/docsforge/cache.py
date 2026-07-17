@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -186,6 +186,12 @@ class DependencyTracker:
         the docs_dir and the source file's own directory as a fallback. Only
         existing files are returned, so a non-matching resolution is a safe
         no-op (the page simply isn't tracked for that include).
+
+        Absolute includes (e.g. ``--8<-- "/etc/passwd"``) are rejected, and a
+        resolved path must stay under the base directory it resolved against,
+        so ``../..`` traversal cannot escape the project's include roots.
+        Otherwise arbitrary files outside the project would be tracked (and
+        hashed) as dependencies.
         """
         if content is None:
             try:
@@ -206,8 +212,18 @@ class DependencyTracker:
             target = match.group('path').strip()
             if not target:
                 continue
+            # Reject absolute includes (e.g. --8<-- "/etc/passwd"): they would
+            # point outside the project's include roots. Checked for both
+            # POSIX and Windows semantics so the guard is platform-independent.
+            if PurePosixPath(target).is_absolute() or PureWindowsPath(target).is_absolute():
+                continue
             for base in bases:
                 resolved = (base / target).resolve()
+                # The resolved path must stay under the base it resolved
+                # against, otherwise `../..` traversal could track (and hash)
+                # arbitrary files outside the project.
+                if not resolved.is_relative_to(base.resolve()):
+                    continue
                 key = str(resolved)
                 if key in seen:
                     break
