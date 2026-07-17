@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable
 from typing import Any, BinaryIO
 
 import watchdog.events
+import watchdog.observers
 import watchdog.observers.polling
 
 class _LoggerAdapter(logging.LoggerAdapter):
@@ -83,7 +84,12 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
         self._shutdown = False
         self.serve_thread = threading.Thread(target=lambda: self.serve_forever(shutdown_delay), daemon=True)
-        self.observer = watchdog.observers.polling.PollingObserver(timeout=polling_interval)
+        try:
+            # Prefer the native observer (inotify/FSEvents/...); polling is slow and CPU-heavy.
+            self.observer = watchdog.observers.Observer()
+        except Exception:
+            log.warning("Native file-system observer unavailable, falling back to PollingObserver", exc_info=True)
+            self.observer = watchdog.observers.polling.PollingObserver(timeout=polling_interval)
         self.observer.daemon = True
 
         self._watched_paths: dict[str, int] = {}
