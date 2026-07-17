@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import hashlib
 import importlib.util
 import ipaddress
 import logging
@@ -1190,13 +1191,15 @@ class Hooks(BaseConfigOption[list[types.ModuleType]]):
         if loaded_hook := self._loaded_hooks.get((name, path)):
             return loaded_hook
 
-        spec = importlib.util.spec_from_file_location(name, path)
-        if spec is None:
+        # Derive a safe internal module name from the absolute path hash. The raw
+        # user-supplied name must not be used as the sys.modules key, because a hook
+        # named e.g. 'os' would otherwise overwrite the stdlib module.
+        module_name = f"_docsforge_hook_{hashlib.sha256(os.path.abspath(path).encode()).hexdigest()}"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
             raise ValidationError(f"Cannot import path '{path}' as a Python module")
         module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        if spec.loader is None:
-            raise ValidationError(f"Cannot import path '{path}' as a Python module")
+        sys.modules[module_name] = module
 
         old_sys_path = sys.path.copy()
         sys.path.insert(0, os.path.dirname(path))
