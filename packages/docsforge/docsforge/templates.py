@@ -114,3 +114,23 @@ def build_asset_manifest(site_dir: str | Path) -> dict[str, str]:
         manifest[logical] = f"assets/{rel}"
 
     return manifest
+
+
+def build_asset_manifest_from_files(files) -> dict[str, str]:
+    """Build a logical -> actual path mapping from the static file collection.
+
+    Unlike ``build_asset_manifest``, this uses the planned file collection so
+    it captures assets even if they are copied/generated into ``site_dir`` after
+    the initial directory scan.  Non-hashed files are omitted because their
+    logical and actual names are identical.
+    """
+    manifest: dict[str, str] = {}
+    for file in files:
+        dest = getattr(file, "dest_uri", "")
+        if not dest or not dest.startswith("assets/"):
+            continue
+        rel = dest[len("assets/"):]
+        logical = _ASSET_HASH_SEGMENT_RE.sub("", rel)
+        if logical != rel:
+            manifest[logical] = dest
+    return manifest

@@ -56,12 +56,12 @@
       {% endif %}
     {% endblock %}
     {% block styles %}
-      <link rel="stylesheet" href="{{ asset_url('stylesheets/main.min.css') | url }}">
-      <link rel="stylesheet" href="{{ asset_url('stylesheets/pygments.css') | url }}">
-      <link rel="stylesheet" href="{{ asset_url('katex/katex.min.css') | url }}">
+      <link rel="stylesheet" href="{{ 'assets/stylesheets/main.484c7ddc.min.css' | url }}">
+      <link rel="stylesheet" href="{{ 'assets/stylesheets/pygments.css' | url }}">
+      <link rel="stylesheet" href="{{ 'assets/katex/katex.min.css' | url }}">
       {% if config.theme.palette %}
         {% set palette = config.theme.palette %}
-        <link rel="stylesheet" href="{{ asset_url('stylesheets/palette.min.css') | url }}">
+        <link rel="stylesheet" href="{{ 'assets/stylesheets/palette.ab4e12ef.min.css' | url }}">
       {% endif %}
       {% include "partials/icons.html" %}
     {% endblock %}
@@ -267,7 +267,7 @@
             "search.result.term.missing": lang.t("search.result.term.missing"),
             "select.version": lang.t("select.version")
           },
-          "search": asset_url('javascripts/workers/search.min.js') | url,
+          "search": "assets/javascripts/workers/search.2c215733.min.js" | url,
           "annotate": _.annotate or none,
           "tags": _.tags or none,
           "version": _.version or none
@@ -297,13 +297,9 @@
           if (typeof document$ !== 'undefined' && document$.subscribe) {
             document$.subscribe(function() { fixTabbedSets(); });
           }
-          // Watch for dynamically added tabbed sets inside the content container
-          // only, instead of the whole document.
+          // Watch for dynamically added elements
           var observer = new MutationObserver(function() { fixTabbedSets(); });
-          var tabbedContainer = document.querySelector('.md-content__inner');
-          if (tabbedContainer) {
-            observer.observe(tabbedContainer, {childList: true, subtree: true});
-          }
+          observer.observe(document.documentElement, {childList: true, subtree: true});
         })();
 
         // Fix: Ensure palette toggle is visible and clickable even if bundle.js crashes.
@@ -427,8 +423,8 @@
           }
         })();
       </script>
-      <script src="{{ asset_url('javascripts/bundle.min.js') | url }}"></script>
-      <script src="{{ asset_url('katex/katex.min.js') | url }}"></script>
+      <script src="{{ 'assets/javascripts/bundle.79ae519e.min.js' | url }}"></script>
+      <script src="{{ 'assets/katex/katex.min.js' | url }}"></script>
       {% for script in config.extra_javascript %}
         {{ script | script_tag }}
       {% endfor %}
@@ -494,67 +490,27 @@
 
         // Prefetch internal links on hover/focus so the service worker caches
         // the destination page before the click — instant page switches.
-        // Debounced: we only prefetch after the user has hovered/focused a link
-        // for a short moment, and cancel if they leave before the delay.
         (function() {
           if (!('fetch' in window)) return;
           var prefetched = new Set();
-          var timers = new Map();
-          var DEBOUNCE_MS = 100;
-
           function prefetch(url) {
             if (prefetched.has(url)) return;
             prefetched.add(url);
             // Fire-and-forget: the SW's serveCurrentPage() fetches+caches it.
             fetch(url, { headers: { 'Accept': 'text/html' } }).catch(function() {});
           }
-
-          function schedulePrefetch(a) {
-            if (timers.has(a.href)) return;
-            timers.set(a.href, setTimeout(function() {
-              timers.delete(a.href);
-              prefetch(a.href);
-            }, DEBOUNCE_MS));
-          }
-
-          function cancelPrefetch(a) {
-            var timer = timers.get(a.href);
-            if (timer) {
-              clearTimeout(timer);
-              timers.delete(a.href);
-            }
-          }
-
-          function linkFromEvent(e) {
+          function handler(e) {
             var a = e.target.closest && e.target.closest('a[href]');
-            if (!a) return null;
+            if (!a) return;
             var u;
-            try { u = new URL(a.href, location.href); } catch (err) { return null; }
-            if (u.origin !== location.origin) return null;
-            if (u.hash && u.pathname === location.pathname && u.search === location.search) return null;
-            if (u.pathname === location.pathname && u.search === location.search) return null;
-            return a;
+            try { u = new URL(a.href, location.href); } catch (err) { return; }
+            if (u.origin !== location.origin) return;
+            if (u.hash && u.pathname === location.pathname && u.search === location.search) return;
+            if (u.pathname === location.pathname && u.search === location.search) return;
+            prefetch(u.href);
           }
-
-          document.addEventListener('mouseover', function(e) {
-            var a = linkFromEvent(e);
-            if (a) schedulePrefetch(a);
-          }, { passive: true });
-
-          document.addEventListener('mouseout', function(e) {
-            var a = linkFromEvent(e);
-            if (a) cancelPrefetch(a);
-          }, { passive: true });
-
-          document.addEventListener('focusin', function(e) {
-            var a = linkFromEvent(e);
-            if (a) schedulePrefetch(a);
-          }, { passive: true });
-
-          document.addEventListener('focusout', function(e) {
-            var a = linkFromEvent(e);
-            if (a) cancelPrefetch(a);
-          }, { passive: true });
+          document.addEventListener('mouseover', handler, { passive: true });
+          document.addEventListener('focusin', handler, { passive: true });
         })();
 
         // Register service worker for offline support
