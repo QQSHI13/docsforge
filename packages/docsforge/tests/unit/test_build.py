@@ -1,11 +1,15 @@
 """Unit tests for docsforge.build."""
 from __future__ import annotations
 
+import json
+import struct
 import textwrap
 import threading
+import zlib
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import jinja2
 import pytest
 
 from docsforge import build as build_mod
@@ -199,3 +203,133 @@ class TestRemoveOrphanedOutput:
         with caplog.at_level("WARNING", logger="docsforge.build"):
             _remove_orphaned_output(missing)
         assert "Could not remove orphaned output" in caplog.text
+
+
+class TestBuildExtraTemplateUsesEnv:
+    """Extra templates must be compiled against the theme Jinja environment."""
+
+    def test_renders_with_theme_env_globals(self, tmp_path, monkeypatch):
+        from docsforge.build import _build_extra_template
+
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        env = jinja2.Environment()
+        env.globals['custom_global'] = 'rendered-from-env'
+
+        extra_file = File(
+            'extra.html',
+            src_dir=None,
+            dest_dir=cfg.site_dir,
+            use_directory_urls=cfg.use_directory_urls,
+        )
+        extra_file.content_string = '<span>{{ custom_global }}</span>'
+        files = Files([extra_file])
+
+        cfg.plugins = Mock()
+        cfg.plugins.on_pre_template = lambda template, **kw: template
+        cfg.plugins.on_template_context = lambda context, **kw: context
+        cfg.plugins.on_post_template = lambda output, **kw: output
+
+        _build_extra_template('extra.html', env, files, cfg, Mock())
+
+        dest_path = Path(extra_file.abs_dest_path)
+        assert dest_path.is_file()
+        rendered = dest_path.read_text()
+        assert '<span>rendered-from-env</span>' in rendered
+
+
+class TestPwaManifestIcons:
+    """Manifest icon metadata must be read from the actual image files."""
+
+    @staticmethod
+    def _make_png(width: int, height: int) -> bytes:
+        signature = b'\x89PNG\r\n\x1a\n'
+
+        def chunk(chunk_type: bytes, data: bytes) -> bytes:
+            chunk_data = struct.pack('>I', len(data)) + chunk_type + data
+            crc = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
+            return chunk_data + struct.pack('>I', crc)
+
+        ihdr = struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0)
+        # One filter byte plus one RGBA pixel per row.
+        raw = b''.join(b'\x00' + b'\x00\x00\x00' * width for _ in range(height))
+        idat = zlib.compress(raw)
+        return signature + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b'')
+
+    def test_detects_size_and_mime_for_favicon_and_logo(self, tmp_path, monkeypatch):
+        from docsforge.build import _generate_pwa_manifest_and_precache
+
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        site = tmp_path / "site"
+        site.mkdir()
+
+        (docs / "favicon.png").write_bytes(self._make_png(48, 48))
+        (docs / "logo.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 64"><rect/></svg>'
+        )
+
+        class FakeTheme:
+            static_templates = []
+
+            def get(self, key: str, default=None):
+                return {'favicon': 'favicon.png', 'logo': 'logo.svg'}.get(key, default)
+
+        class FakeConfig:
+            site_dir = str(site)
+            docs_dir = str(docs)
+            site_name = "Test Site"
+            site_description = "Test description"
+            site_url = None
+            config_file_path = ''
+            extra = {}
+            theme = FakeTheme()
+
+        with patch.object(build_mod, '_generate_cache_manifest'):
+            _generate_pwa_manifest_and_precache(FakeConfig(), Files([]), Mock(homepage=None), None)
+
+        manifest = json.loads((site / "manifest.json").read_text())
+        icons = {icon['src']: icon for icon in manifest['icons']}
+
+        assert icons['favicon.png']['sizes'] == '48x48'
+        assert icons['favicon.png']['type'] == 'image/png'
+        assert icons['logo.svg']['sizes'] == '128x64'
+        assert icons['logo.svg']['type'] == 'image/svg+xml'
+
+
+class TestPrepareBuildMdxConfigs:
+    """Mermaid fence injection must not mutate the original mdx_configs dict."""
+
+    def test_works_on_deep_copy_of_mdx_configs(self, tmp_path, monkeypatch):
+        from docsforge.build import _prepare_build
+
+        cfg = _load_config(tmp_path)
+        original = {
+            'pymdownx.superfences': {
+                'custom_fences': [{'name': 'existing'}],
+            },
+        }
+        cfg['mdx_configs'] = original
+
+        planner = Mock()
+        planner.should_full_rebuild.return_value = False
+        planner.invalidate = Mock()
+
+        cfg.plugins = Mock()
+        cfg.plugins.on_config.return_value = cfg
+        cfg.plugins.on_pre_build = Mock()
+
+        config_path = tmp_path / "docsforge.yml"
+        config, _, _ = _prepare_build(cfg, planner, config_path, "theme_sig", None)
+
+        # Original object must be untouched.
+        assert original == {
+            'pymdownx.superfences': {
+                'custom_fences': [{'name': 'existing'}],
+            },
+        }
+        # A new copy should have been installed on the config.
+        assert config['mdx_configs'] is not original
+        fences = config['mdx_configs']['pymdownx.superfences']['custom_fences']
+        assert any(fence.get('name') == 'mermaid' for fence in fences)
