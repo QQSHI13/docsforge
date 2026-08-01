@@ -96,6 +96,33 @@ class TestGetFileDeps:
         deps = DependencyTracker.get_file_deps(page, page.read_text(), base_paths=[tmp_path / "docs"])
         assert deps and Path(deps[0]).name == "top.md"
 
+    def test_absolute_include_rejected(self, tmp_path: Path):
+        """An absolute include (--8<-- "/etc/passwd") must never be tracked,
+        even when the target file exists: it escapes the project's include
+        roots and would leak arbitrary files into the dependency graph."""
+        outside = tmp_path / "outside.md"
+        outside.write_text("secret")
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        page = docs / "page.md"
+        page.write_text(f'--8<-- "{outside}"\n')
+        deps = DependencyTracker.get_file_deps(page, page.read_text(), base_paths=[docs])
+        assert deps == []
+
+    def test_include_traversal_escaping_all_bases_rejected(self, tmp_path: Path, monkeypatch):
+        """A `../..` include that escapes every candidate base directory must
+        be ignored, even when the target file exists."""
+        secret = tmp_path / "secret.md"
+        secret.write_text("s")
+        project = tmp_path / "proj"
+        docs = project / "docs"
+        docs.mkdir(parents=True)
+        page = docs / "page.md"
+        page.write_text('--8<-- "../../secret.md"\n')
+        monkeypatch.chdir(project)
+        deps = DependencyTracker.get_file_deps(page, page.read_text(), base_paths=[docs])
+        assert deps == []
+
     def test_only_existing_files_returned(self, tmp_path: Path):
         # A --8<-- line inside a code fence pointing at a non-existent file
         page = tmp_path / "page.md"
@@ -387,5 +414,5 @@ class TestBuildPlanner:
         out.write_text("built")
         # Simulate: build failed -> caller must NOT call update_cache.
         # If the caller honors that, the page stays "needs rebuild" next time.
-        assert p.should_rebuild(src, out) is False or p.should_rebuild(src, out) is True
+        assert p.should_rebuild(src, out) is True
         # (contract documented; the actual build.py loop is covered by E2E)

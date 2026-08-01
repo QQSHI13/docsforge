@@ -3,8 +3,10 @@ from __future__ import annotations
 import enum
 import logging
 import posixpath
+import re
 import threading
 import warnings
+from collections import OrderedDict
 from collections.abc import Callable, Iterator, MutableMapping, Sequence
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote as urlunquote
@@ -38,12 +40,16 @@ log = logging.getLogger(__name__)
 # Each thread gets its own instance to avoid conflicts in parallel builds.
 _md_thread_local = threading.local()
 
+# Maximum number of distinct Markdown configurations to keep cached per thread.
+_MAX_MD_CACHE_SIZE = 10
+
 
 def _get_markdown_instance(extensions: list[str], extension_configs: dict) -> markdown.Markdown:
     """Get or create a cached Markdown instance for this thread.
 
     The instance is reset between uses, and extensions are initialized only once
     per thread, avoiding the expensive re-initialization on every page render.
+    The cache is bounded to prevent unbounded growth across many configurations.
     """
     # Create a cache key from the extensions and configs
     ext_key = tuple(extensions)
@@ -58,13 +64,16 @@ def _get_markdown_instance(extensions: list[str], extension_configs: dict) -> ma
     cache_key = (ext_key, cfg_key)
 
     if not hasattr(_md_thread_local, 'instances'):
-        _md_thread_local.instances = {}
+        _md_thread_local.instances = OrderedDict()
 
     md = _md_thread_local.instances.get(cache_key)
     if md is None:
         md = markdown.Markdown(extensions=extensions, extension_configs=extension_configs)
         _md_thread_local.instances[cache_key] = md
+        if len(_md_thread_local.instances) > _MAX_MD_CACHE_SIZE:
+            _md_thread_local.instances.popitem(last=False)
     else:
+        _md_thread_local.instances.move_to_end(cache_key)
         md.reset()
 
     return md
@@ -72,6 +81,7 @@ def _get_markdown_instance(extensions: list[str], extension_configs: dict) -> ma
 
 class Page(StructureItem):
     def __init__(self, title: str | None, file: File, config: DocsForgeConfig) -> None:
+        super().__init__()
         file.page = self
         self.file = file
         if title is not None:
@@ -224,7 +234,10 @@ class Page(StructureItem):
             noext = posixpath.splitext(src_uri)[0]
             file_edit_uri = edit_uri_template.format(path=src_uri, path_noext=noext)
         else:
-            assert edit_uri is not None and edit_uri.endswith('/')
+            if edit_uri is None or not edit_uri.endswith('/'):
+                raise ValueError(
+                    f"edit_uri must be a string ending with '/', got {edit_uri!r}"
+                )
             file_edit_uri = edit_uri + src_uri
 
         if repo_url:
@@ -398,7 +411,8 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                 continue
 
             url = element.get(key)
-            assert url is not None
+            if url is None:
+                continue
             new_url = self.path_to_url(url)
             element.set(key, new_url)
 
@@ -464,6 +478,14 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
 
         # Ignore URLs unless they are a relative link to a source file.
         if scheme or netloc:  # External link.
+            if scheme and scheme.lower() not in ('http', 'https', 'mailto', 'tel'):
+                log.log(
+                    self.config.validation.links.unrecognized_links,
+                    f"Doc file '{self.file.src_uri}' contains a link with unsupported scheme "
+                    f"'{url}', it was escaped to prevent unsafe protocol use.",
+                )
+                # Neutralize dangerous protocols such as javascript: by escaping the colon.
+                return url.replace(':', '%3A', 1)
             return url
         elif url.startswith(('/', '\\')):  # Absolute link.
             absolute_link = self.config.validation.links.absolute_links
@@ -526,7 +548,7 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                         elif absolute_link is _AbsoluteLinksValidationValue.RELATIVE_TO_DOCS:
                             path = '/' + path
                         else:
-                            path = utils.get_relative_url(path, self.file.src_uri)
+                            path = utils.get_relative_url(self.file.src_uri, path)
                         suggest_url = urlunsplit(('', '', path, query, anchor))
                         break
                 else:
@@ -560,6 +582,16 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
         md.treeprocessors.register(self, "relpath", 0)
 
 
+# Inline code spans (`...` or ``...``) may contain literal HTML that must not be
+# treated as real HTML/anchors. This regex matches Markdown code spans.
+_CODE_SPAN_RE = re.compile(r'(?<!\\)(`+)(.*?)(?<!`)\1(?!`)', re.DOTALL)
+
+
+def _mask_code_spans(text: str) -> str:
+    """Replace Markdown code spans with spaces so HTML inside them is ignored."""
+    return _CODE_SPAN_RE.sub(lambda m: ' ' * len(m.group(0)), text)
+
+
 class _RawHTMLPreprocessor(markdown.preprocessors.Preprocessor):
     def __init__(self) -> None:
         super().__init__()
@@ -567,7 +599,8 @@ class _RawHTMLPreprocessor(markdown.preprocessors.Preprocessor):
 
     def run(self, lines: list[str]) -> list[str]:
         parser = _HTMLHandler()
-        parser.feed('\n'.join(lines))
+        # Mask code spans before parsing so raw HTML inside them is not extracted.
+        parser.feed(_mask_code_spans('\n'.join(lines)))
         parser.close()
         self.present_anchor_ids = parser.present_anchor_ids
         return lines
@@ -600,7 +633,7 @@ class _ExtractTitleTreeprocessor(markdown.treeprocessors.Treeprocessor):
         for el in root:
             if el.tag == 'h1':
                 self.title = get_heading_text(el, self.md)
-            break
+                break
         return root
 
     def _register(self, md: markdown.Markdown) -> None:

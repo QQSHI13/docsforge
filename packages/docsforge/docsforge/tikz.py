@@ -16,6 +16,8 @@ from pathlib import Path
 
 log = logging.getLogger("docsforge.tikz")
 
+LATEX_TIMEOUT = 60
+
 
 def _has_tool(name: str) -> bool:
     """Check if a command-line tool is available."""
@@ -38,6 +40,16 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Only compile files that contain a TikZ picture or live under a tikz/ directory.
+    try:
+        tex_text = tex_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        tex_text = ""
+    under_tikz_dir = any(part == "tikz" for part in tex_path.parent.parts)
+    if "\\begin{tikzpicture}" not in tex_text and not under_tikz_dir:
+        log.debug(f"Skipping {tex_path.name}: not a TikZ file")
+        return False
+
     # Skip if output is up to date
     if not _needs_rebuild(tex_path, output_path):
         log.debug(f"Skipping {tex_path.name} (SVG up to date)")
@@ -57,10 +69,11 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
         if has_latex and has_dvisvgm:
             # Path: latex -> dvi -> dvisvgm -> svg
             result = subprocess.run(
-                ["latex", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
+                ["latex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
+                timeout=LATEX_TIMEOUT,
             )
             if result.returncode != 0:
                 err = result.stderr[:500] if result.stderr else result.stdout[:500]
@@ -77,6 +90,7 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
+                timeout=LATEX_TIMEOUT,
             )
             if result.returncode != 0:
                 log.warning(f"dvisvgm failed for {tex_path.name}: {result.stderr[:200]}")
@@ -85,10 +99,11 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
         elif has_pdflatex and has_pdf2svg:
             # Path: pdflatex -> pdf -> pdf2svg -> svg
             result = subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
+                ["pdflatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
+                timeout=LATEX_TIMEOUT,
             )
             if result.returncode != 0:
                 log.warning(f"pdflatex failed for {tex_path.name}: {result.stderr[:200]}")
@@ -103,6 +118,7 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
                 ["pdf2svg", str(pdf_file), str(output_path)],
                 capture_output=True,
                 text=True,
+                timeout=LATEX_TIMEOUT,
             )
             if result.returncode != 0:
                 log.warning(f"pdf2svg failed for {tex_path.name}: {result.stderr[:200]}")
@@ -111,10 +127,11 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
         elif has_pdflatex and has_dvisvgm:
             # Path: pdflatex -> pdf -> dvisvgm -> svg (dvisvgm 2.0+ supports PDF)
             result = subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
+                ["pdflatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
+                timeout=LATEX_TIMEOUT,
             )
             if result.returncode != 0:
                 log.warning(f"pdflatex failed for {tex_path.name}: {result.stderr[:200]}")
@@ -130,6 +147,7 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
+                timeout=LATEX_TIMEOUT,
             )
             if result.returncode != 0:
                 log.warning(f"dvisvgm failed for {tex_path.name}: {result.stderr[:200]}")

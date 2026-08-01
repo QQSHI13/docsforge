@@ -56,7 +56,7 @@ class SearchFieldConfig(Config):
 
 class SearchConfig(Config):
     enabled = Type(bool, default=True)
-    lang = Optional(Type(str))
+    lang = Optional(ListOfItems(Type(str)))
     separator = Optional(Type(str))
     pipeline = Optional(ListOfItems(Choice(pipeline)))
     fields = Type(dict, default={})
@@ -275,10 +275,10 @@ class SearchIndex:
         }
 
         if prev and self.entries:
-            path = self.entries[0]["location"]
+            path = self.entries[0]["location"].split("#")[0]
             entries = [
                 entry for entry in prev.entries
-                if not entry["location"].startswith(path)
+                if entry["location"].split("#")[0] != path
             ]
             self.entries = entries + self.entries
 
@@ -332,7 +332,7 @@ class Element:
         return self.tag
 
     def __eq__(self, other):
-        if other is Element:
+        if isinstance(other, Element):
             return self.tag == other.tag
         return self.tag == other
 

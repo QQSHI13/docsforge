@@ -6,7 +6,7 @@
   "publisher": "QQSHI",
   "license": "LGPL-3.0-or-later",
   "engines": {
-    "vscode": "^1.125.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Programming Languages",
@@ -133,28 +133,7 @@
         }
       }
     },
-    "keybindings": [
-      {
-        "key": "ctrl+shift+d",
-        "command": "docsforge.serve",
-        "when": "!docsforge.serverRunning"
-      },
-      {
-        "key": "ctrl+shift+x",
-        "command": "docsforge.stop",
-        "when": "docsforge.serverRunning"
-      },
-      {
-        "key": "ctrl+shift+b",
-        "command": "docsforge.build",
-        "when": "!docsforge.buildRunning"
-      },
-      {
-        "key": "ctrl+shift+p",
-        "command": "docsforge.openServer",
-        "when": "docsforge.serverRunning"
-      }
-    ]
+    "keybindings": []
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -177,10 +156,11 @@
     "globals": "^17.7.0",
     "mocha": "^11.7.6",
     "ts-node": "^10.9.2",
-    "typescript": "^7.0.2",
-    "typescript-eslint": "^8.65.0"
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.63.0"
   },
   "overrides": {
+    "brace-expansion": ">=2.1.4",
     "diff": "^9.0.0",
     "glob": "^13.0.0",
     "serialize-javascript": "^7.0.5"

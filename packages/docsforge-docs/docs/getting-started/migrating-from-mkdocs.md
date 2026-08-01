@@ -70,7 +70,7 @@ mv mkdocs.yml docsforge.yml
 | Feature | MkDocs (`mkdocs.yml`) | DocsForge (`docsforge.yml`) |
 |---------|----------------------|---------------------------|
 | Theme declaration | `theme: name: material` | **Not needed** — built-in |
-| Theme customization | `theme: palette`, `features`, etc. | Top-level keys like `palette`, `features` |
+| Theme customization | `theme: palette`, `features`, etc. | `theme.palette`, `theme.features`, etc. |
 | Extra CSS/JS | `extra_css:`, `extra_javascript:` | **Remove** — assets are vendored |
 | Plugins | `plugins:` list | **Remove built-ins** — keep only custom ones |
 | Markdown extensions | `markdown_extensions:` list | **Remove built-ins** — keep only custom ones |

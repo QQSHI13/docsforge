@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import concurrent.futures
+import copy
 import gzip
 import hashlib
 import json
 import logging
+import mimetypes
 import os
+import re
+import struct
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -34,6 +38,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Shared fallback lock for page building when the caller does not provide one.
+_default_page_lock = threading.Lock()
+
 
 def get_context(
     nav: Navigation,
@@ -58,9 +65,9 @@ def get_context(
                 page.meta['git_creation_date_localized'] = git_info['created_display']
 
     extra_javascript = [
-        utils.normalize_url(str(script), page, base_url) for script in config.extra_javascript
+        utils.normalize_url(str(script), base_url) for script in config.extra_javascript
     ]
-    extra_css = [utils.normalize_url(path, page, base_url) for path in config.extra_css]
+    extra_css = [utils.normalize_url(path, base_url) for path in config.extra_css]
 
     if isinstance(files, Files):
         files = files.documentation_pages()
@@ -146,7 +153,7 @@ def _build_theme_template(
 
 
 def _build_extra_template(
-    template_name: str, files: Files, config: DocsForgeConfig, nav: Navigation
+    template_name: str, env: jinja2.Environment, files: Files, config: DocsForgeConfig, nav: Navigation
 ):
     """Build user templates which are not part of the theme."""
     log.debug(f"Building extra template: {template_name}")
@@ -157,7 +164,7 @@ def _build_extra_template(
         return
 
     try:
-        template = jinja2.Template(file.content_string)
+        template = env.from_string(file.content_string)
     except Exception as e:
         log.warning(f"Error reading template '{template_name}': {e}")
         return
@@ -231,7 +238,7 @@ def _build_page(
     _page_lock: threading.RLock | None = None,
 ) -> None:
     """Pass a Page to theme template and write output to site_dir."""
-    lock = _page_lock or threading.Lock()  # Always have a lock
+    lock = _page_lock or _default_page_lock  # Always have a lock
 
     with lock:
         config._current_page = page
@@ -308,9 +315,11 @@ def _prepare_build(
 
     # Ensure mermaid fence config is present in markdown extensions.
     # This is done once per build instead of per-page for efficiency.
+    # Work on a deep copy so the original config object is not mutated in place.
     if 'pymdownx.superfences' in config['markdown_extensions']:
         import pymdownx.superfences as superfences_mod
-        mdx_configs = config.setdefault('mdx_configs', {})
+        mdx_configs = copy.deepcopy(config.get('mdx_configs') or {})
+        config['mdx_configs'] = mdx_configs
         sf_cfg = mdx_configs.setdefault('pymdownx.superfences', {})
         custom_fences = sf_cfg.setdefault('custom_fences', [])
         if not any(f.get('name') == 'mermaid' for f in custom_fences):
@@ -360,7 +369,7 @@ def _collect_files_and_nav(
         orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
         for f in orphaned:
             log.debug(f"Removing orphaned output: {f}")
-            f.unlink()
+            _remove_orphaned_output(f)
     planner.update_sources(current_sources)
 
     nav = get_navigation(files, config)
@@ -372,6 +381,14 @@ def _collect_files_and_nav(
     all_doc_files = list(files.documentation_pages(inclusion=inclusion))
 
     return files, env, nav, all_doc_files, sources_changed
+
+
+def _remove_orphaned_output(path: Path) -> None:
+    """Remove an orphaned output file, logging a warning on transient errors."""
+    try:
+        path.unlink()
+    except OSError as exc:
+        log.warning(f"Could not remove orphaned output {path}: {exc}")
 
 
 def _populate_changed_pages(
@@ -414,8 +431,16 @@ def _populate_changed_pages(
                 ex.submit(_populate_page, p, config, files, True, plugin_lock)
                 for p in to_populate
             ]
-            for f in futures:
-                f.result()  # propagate exceptions
+            errors: list[BaseException] = []
+            for f in concurrent.futures.as_completed(futures):
+                try:
+                    f.result()
+                except BaseException as e:
+                    errors.append(e)
+            if errors:
+                if len(errors) == 1:
+                    raise errors[0]
+                raise ExceptionGroup("Errors populating pages", errors)
 
     if excluded:
         log.info(
@@ -449,56 +474,66 @@ def _write_outputs(
         _build_theme_template(template, env, files, config, nav)
 
     for template in config.extra_templates:
-        _build_extra_template(template, files, config, nav)
+        _build_extra_template(template, env, files, config, nav)
 
     log.debug("Building markdown pages.")
     # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
     page_lock = threading.RLock()
-    max_workers = min(32, os.cpu_count() or 1)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        for file in all_doc_files:
-            assert file.page is not None
+    # Collect pages that need rebuilding first so we don't create an executor
+    # (and pay its worker-thread shutdown cost) when nothing changed.
+    pages_to_build: list[tuple[Page, Path, Path]] = []
+    for file in all_doc_files:
+        assert file.page is not None
+        source_path = Path(file.abs_src_path)
+        output_path = Path(file.abs_dest_path)
+        if planner.should_rebuild(source_path, output_path):
+            pages_to_build.append((file.page, source_path, output_path))
 
-            source_path = Path(file.abs_src_path)
-            output_path = Path(file.abs_dest_path)
+    built_any = False
+    if pages_to_build:
+        max_workers = min(32, os.cpu_count() or 1)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                (
+                    executor.submit(
+                        _build_page,
+                        page, config, all_doc_files, nav, env, True,
+                        page.file.inclusion.is_excluded(),
+                        page_lock,
+                    ),
+                    source_path,
+                    output_path,
+                    page,
+                )
+                for page, source_path, output_path in pages_to_build
+            ]
 
-            # Check if page needs rebuilding
-            if not planner.should_rebuild(source_path, output_path):
-                continue
+            # Wait for all pages to complete
+            for future, source_path, output_path, page in futures:
+                try:
+                    future.result()
+                except Exception:
+                    # Error already logged in _build_page; continue with other pages
+                    # unless strict mode is enabled, in which case we must fail.
+                    # Do NOT update the cache for a failed build — otherwise the
+                    # next run would consider the page up-to-date and silently keep
+                    # the broken output.
+                    if config.strict:
+                        raise
+                    continue
 
-            future = executor.submit(
-                _build_page,
-                file.page, config, all_doc_files, nav, env, True,
-                file.inclusion.is_excluded(),
-                page_lock,
-            )
-            futures.append((future, source_path, output_path, file.page))
-
-        # Wait for all pages to complete
-        for future, source_path, output_path, page in futures:
-            try:
-                future.result()
-            except Exception:
-                # Error already logged in _build_page; continue with other pages.
-                # Do NOT update the cache for a failed build — otherwise the
-                # next run would consider the page up-to-date and silently keep
-                # the broken output.
-                continue
-
-            # Update cache after successful build. Use page.markdown (the
-            # raw source) not page.content (rendered HTML): the snippet
-            # include markers are consumed during md.convert(), so only
-            # the raw markdown still contains them.
-            deps = DependencyTracker.get_file_deps(
-                source_path,
-                page.markdown or "",
-                base_paths=[Path(config.docs_dir)],
-            )
-            planner.update_cache(source_path, output_path, deps)
-
-        built_any = bool(futures)
+                # Update cache after successful build. Use page.markdown (the
+                # raw source) not page.content (rendered HTML): the snippet
+                # include markers are consumed during md.convert(), so only
+                # the raw markdown still contains them.
+                deps = DependencyTracker.get_file_deps(
+                    source_path,
+                    page.markdown or "",
+                    base_paths=[Path(config.docs_dir)],
+                )
+                planner.update_cache(source_path, output_path, deps)
+                built_any = True
 
     return built_any
 
@@ -516,24 +551,34 @@ def _finalize_build(
     start: float,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
-    # Generate PWA manifest and pre-cache all pages in the service worker
-    _generate_pwa_manifest_and_precache(config, files, nav, planner)
+    nothing_changed = not built_any and not sources_changed
 
-    log_level = config.validation.links.anchors
-    for file in files.documentation_pages():
-        assert file.page is not None
-        file.page.validate_anchor_links(files=files, log_level=log_level)
+    if not nothing_changed:
+        log_level = config.validation.links.anchors
+        for file in files.documentation_pages():
+            assert file.page is not None
+            file.page.validate_anchor_links(files=files, log_level=log_level)
 
     # Run `post_build` plugin events.
     config.plugins.on_post_build(config=config)
 
+    # Generate PWA manifest and pre-cache all pages in the service worker.
+    # This runs after post_build so plugins can add outputs before the cache
+    # manifest walks site_dir. Skip when nothing changed: the existing files
+    # in site_dir are still valid.
+    if not nothing_changed:
+        _generate_pwa_manifest_and_precache(config, files, nav, planner)
+
     # Optimize static assets: remove unused files, source maps, old font
-    # formats. Skip when the build wrote nothing and the source set is
-    # unchanged — the site is already optimized from the last build.
-    if built_any or sources_changed:
-        optimize_assets(config.site_dir)
-    else:
-        log.debug("Asset optimization skipped (site unchanged)")
+    # formats. Source-map stripping is incremental (skips unchanged JS files
+    # using cached mtime+size). The expensive reference scan for unused assets
+    # is skipped when nothing changed.
+    optimize_assets(
+        config.site_dir,
+        built_any=built_any,
+        sources_changed=sources_changed,
+        cache_dir=planner.cache.cache_dir,
+    )
 
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
@@ -589,6 +634,122 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
 def site_directory_contains_stale_files(site_directory: str) -> bool:
     """Check if the site directory contains stale files from a previous build."""
     return bool(os.path.exists(site_directory) and os.listdir(site_directory))
+
+
+def _parse_svg_length(value: str) -> int | None:
+    """Extract a numeric pixel length from an SVG width/height attribute."""
+    value = value.strip()
+    match = re.match(r'^([0-9]*\.?[0-9]+)', value)
+    if match:
+        try:
+            return int(float(match.group(1)))
+        except ValueError:
+            return None
+    return None
+
+
+def _svg_dimensions(data: bytes) -> tuple[int | None, int | None]:
+    """Return (width, height) for an SVG, derived from width/height/viewBox."""
+    try:
+        text = data.decode('utf-8')
+    except UnicodeDecodeError:
+        return None, None
+    svg_match = re.search(r'<svg[^>]*>', text, re.DOTALL | re.IGNORECASE)
+    if not svg_match:
+        return None, None
+    svg_tag = svg_match.group(0)
+
+    width_match = re.search(r'\bwidth=["\']([^"\']+)', svg_tag, re.IGNORECASE)
+    height_match = re.search(r'\bheight=["\']([^"\']+)', svg_tag, re.IGNORECASE)
+    viewbox_match = re.search(r'\bviewBox=["\']([^"\']+)', svg_tag, re.IGNORECASE)
+
+    width = _parse_svg_length(width_match.group(1)) if width_match else None
+    height = _parse_svg_length(height_match.group(1)) if height_match else None
+
+    if (width is None or height is None) and viewbox_match:
+        parts = viewbox_match.group(1).split()
+        if len(parts) == 4:
+            try:
+                vb_width = float(parts[2])
+                vb_height = float(parts[3])
+                if width is None:
+                    width = int(vb_width)
+                if height is None:
+                    height = int(vb_height)
+            except ValueError:
+                pass
+
+    return width, height
+
+
+def _png_dimensions(data: bytes) -> tuple[int | None, int | None]:
+    """Return (width, height) from a PNG IHDR chunk."""
+    if data[:8] != b'\x89PNG\r\n\x1a\n' or len(data) < 24:
+        return None, None
+    return (
+        int.from_bytes(data[16:20], 'big'),
+        int.from_bytes(data[20:24], 'big'),
+    )
+
+
+def _jpeg_dimensions(data: bytes) -> tuple[int | None, int | None]:
+    """Return (width, height) from a JPEG SOF marker."""
+    i = 0
+    while i + 1 < len(data):
+        if data[i] != 0xFF:
+            i += 1
+            continue
+        marker = data[i + 1]
+        if marker == 0xD8:  # SOI
+            i += 2
+            continue
+        if marker == 0xD9:  # EOI
+            break
+        if 0xD0 <= marker <= 0xD7 or marker in (0x00, 0x01):
+            i += 2
+            continue
+        # SOF markers contain dimensions.
+        if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+                      0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+            if len(data) < i + 9:
+                return None, None
+            return (
+                int.from_bytes(data[i + 7:i + 9], 'big'),
+                int.from_bytes(data[i + 5:i + 7], 'big'),
+            )
+        if i + 4 > len(data):
+            break
+        length = struct.unpack('>H', data[i + 2:i + 4])[0]
+        i += 2 + length
+    return None, None
+
+
+def _get_image_info(path: str) -> tuple[int | None, int | None, str | None]:
+    """Return (width, height, mime_type) for an image file, using the file contents.
+
+    Supports PNG, JPEG and SVG. Width/height may be ``None`` for formats where
+    they cannot be determined without additional dependencies.
+    """
+    mime_type, _ = mimetypes.guess_type(path)
+    try:
+        with open(path, 'rb') as f:
+            data = f.read()
+    except OSError:
+        return None, None, mime_type
+    if not data:
+        return None, None, mime_type
+
+    lower_path = path.lower()
+    if lower_path.endswith('.png') or mime_type == 'image/png':
+        width, height = _png_dimensions(data)
+    elif lower_path.endswith(('.jpg', '.jpeg')) or mime_type in ('image/jpeg', 'image/jpg'):
+        width, height = _jpeg_dimensions(data)
+    elif lower_path.endswith('.svg') or mime_type == 'image/svg+xml':
+        width, height = _svg_dimensions(data)
+    else:
+        width, height = None, None
+
+    return width, height, mime_type
 
 
 def _generate_pwa_manifest_and_precache(
@@ -724,22 +885,26 @@ def _generate_pwa_manifest_and_precache(
     if favicon:
         favicon_path = os.path.join(config.docs_dir, favicon)
         if os.path.isfile(favicon_path):
-            manifest["icons"].append({
-                "src": favicon,
-                "sizes": "48x48",
-                "type": "image/png"
-            })
+            width, height, mime_type = _get_image_info(favicon_path)
+            icon = {"src": favicon}
+            if width is not None and height is not None:
+                icon["sizes"] = f"{width}x{height}"
+            if mime_type:
+                icon["type"] = mime_type
+            manifest["icons"].append(icon)
 
     # Add logo as icon if available
     logo = config.theme.get('logo', '')
     if logo:
         logo_path = os.path.join(config.docs_dir, logo)
         if os.path.isfile(logo_path):
-            manifest["icons"].append({
-                "src": logo,
-                "sizes": "512x512",
-                "type": "image/svg+xml" if logo.endswith('.svg') else "image/png"
-            })
+            width, height, mime_type = _get_image_info(logo_path)
+            icon = {"src": logo}
+            if width is not None and height is not None:
+                icon["sizes"] = f"{width}x{height}"
+            if mime_type:
+                icon["type"] = mime_type
+            manifest["icons"].append(icon)
 
     # Add extra icons if specified
     extra = config.extra or {}

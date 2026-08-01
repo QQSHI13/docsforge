@@ -37,13 +37,13 @@
           <link rel="alternate" href="{{ alt.url | url }}" hreflang="{{ alt.locale }}">
         {% endfor %}
       {% endif %}
-      {% if "rss" in config.plugins %}
-        <link rel="alternate" type="application/rss+xml" title="{{ lang.t('rss.created') }}" href="{{ 'feed_rss_created.xml' | url }}">
-        <link rel="alternate" type="application/rss+xml" title="{{ lang.t('rss.updated') }}" href="{{ 'feed_rss_updated.xml' | url }}">
-      {% endif %}
       <link rel="icon" href="{{ config.theme.favicon | url }}">
       <link rel="manifest" href="{{ 'manifest.json' | url }}">
-      <meta name="theme-color" content="{{ config.theme.palette[0].primary | d('indigo') }}">
+      {% set palette = config.theme.palette %}
+      {% if palette and not palette is mapping %}
+        {% set palette = palette | first %}
+      {% endif %}
+      <meta name="theme-color" content="{{ palette.primary | d('indigo') if palette else 'indigo' }}">
       <meta name="generator" content="docsforge">
     {% endblock %}
     {% block htmltitle %}
@@ -139,8 +139,10 @@
           <div class="md-banner__inner md-grid md-typeset">
             {% if "announce.dismiss" in features %}
               <button class="md-banner__button md-icon" aria-label="{{ lang.t('announce.dismiss') }}">
-                {% set icon = config.theme.icon.close or "material/close" %}
-                {% include ".icons/" ~ icon ~ ".svg" %}
+                {% set icon = (config.theme.icon.close or "material/close") | validate_icon_name %}
+                {% if icon %}
+                  {% include ".icons/" ~ icon ~ ".svg" %}
+                {% endif %}
               </button>
             {% endif %}
             {% block announce %}{% endblock %}
@@ -247,10 +249,7 @@
       {% set _.annotate = config.extra.annotate %}
       {% set _.tags = config.extra.tags %}
       {%- if config.extra.version -%}
-        {%- set mike = config.plugins.mike -%}
-        {%- if not mike or mike.config.version_selector -%}
-          {%- set _.version = config.extra.version -%}
-        {%- endif -%}
+        {%- set _.version = config.extra.version -%}
       {%- endif -%}
       <script id="__config" type="application/json">
         {{- {

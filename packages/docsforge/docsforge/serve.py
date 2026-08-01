@@ -4,12 +4,10 @@ import io
 import json
 import logging
 import os
-import shutil
 import socket
 import sys
-import tempfile
 from collections.abc import Callable
-from os.path import isdir, isfile, join
+from os.path import isfile, join
 from typing import TYPE_CHECKING, BinaryIO
 from urllib.parse import urlsplit
 
@@ -65,10 +63,10 @@ def serve(
     When ``livereload`` is enabled, it will rebuild the documentation
     automatically whenever a file is edited (the page must be refreshed
     manually).
-    """
-    # Create a temporary build directory, and set some options to serve it
-    site_dir = tempfile.mkdtemp(prefix='docsforge_')
 
+    The dev server uses the configured ``site_dir`` exactly like
+    ``docsforge build`` so that builds are incremental and caches are reused.
+    """
     get_config_file: Callable[[], str | BinaryIO | None]
     if config_file is None or isinstance(config_file, str):
         get_config_file = lambda: config_file
@@ -82,13 +80,32 @@ def serve(
             config_file.name if getattr(config_file, 'closed', False) else config_file
         )
 
+    # Cache loaded config by config-file mtime so incremental serve rebuilds
+    # don't pay the ~1-2s config-loading cost every time.
+    _config_cache: dict[str, tuple[float | None, DocsForgeConfig]] = {}
+    _watch_applied: set[int] = set()
+
     def get_config():
-        config = load_config(
-            config_file=get_config_file(),
-            site_dir=site_dir,
-            **kwargs,
-        )
-        config.watch.extend(watch)
+        cf = get_config_file()
+        if isinstance(cf, str):
+            try:
+                mtime = os.path.getmtime(cf)
+            except OSError:
+                mtime = None
+            cached = _config_cache.get(cf)
+            if cached is not None and cached[0] == mtime:
+                config = cached[1]
+            else:
+                config = load_config(config_file=cf, **kwargs)
+                _config_cache[cf] = (mtime, config)
+        else:
+            # BinaryIO (e.g. stdin) cannot be cached by mtime; reload each time.
+            config = load_config(config_file=cf, **kwargs)
+
+        # Extend watch list only once per config object to avoid duplicates.
+        if id(config) not in _watch_applied:
+            config.watch.extend(watch)
+            _watch_applied.add(id(config))
         return config
 
     config = get_config()
@@ -98,9 +115,12 @@ def serve(
     host = host or config_host
     port = _find_available_port(host, config_port)
     if port != config_port:
-        log.info(f"Port {config_port} in use, using port {port} instead")
+        log.info(f"Port {config_port} is in use, using port {port} instead")
     mount_path = urlsplit(config.site_url or '/').path
-    config.site_url = serve_url = _serve_url(host, port, mount_path)
+
+    # Use localhost for the display URL when binding to all interfaces.
+    display_host = '127.0.0.1' if host in ('0.0.0.0', '::') else host
+    config.site_url = serve_url = _serve_url(display_host, port, mount_path)
 
     def builder(config: DocsForgeConfig | None = None):
         log.info("Building documentation...")
@@ -115,12 +135,13 @@ def serve(
             log.error("Documentation will continue to be served. Fix the error and the page will auto-reload.")
 
     server = LiveReloadServer(
-        builder=builder, host=host, port=port, root=site_dir, mount_path=mount_path
+        builder=builder, host=host, port=port, root=config.site_dir, mount_path=mount_path
     )
+    server.url = serve_url
 
     def error_handler(code) -> bytes | None:
         if code in (404, 500):
-            error_page = join(site_dir, f'{code}.html')
+            error_page = join(config.site_dir, f'{code}.html')
             if isfile(error_page):
                 with open(error_page, 'rb') as f:
                     return f.read()
@@ -150,13 +171,19 @@ def serve(
 
             if watch_theme:
                 for d in config.theme.dirs:
-                    server.watch(d)
+                    if os.path.exists(d):
+                        server.watch(d)
+                    else:
+                        log.debug(f"Skipping watch for non-existent theme dir: {d}")
 
             # Run `serve` plugin events.
             server = config.plugins.on_serve(server, config=config, builder=builder)
 
             for item in config.watch:
-                server.watch(item)
+                if os.path.exists(item):
+                    server.watch(item)
+                else:
+                    log.debug(f"Skipping watch for non-existent path: {item}")
 
         # Write pidfile BEFORE serve() blocks — it must be visible immediately
         try:
@@ -177,8 +204,6 @@ def serve(
     finally:
         server.shutdown()
         config.plugins.on_shutdown()
-        if isdir(site_dir):
-            shutil.rmtree(site_dir)
         # Clean up pidfile
         try:
             if os.path.isfile(pidfile_path):

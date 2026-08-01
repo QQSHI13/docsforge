@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable
 from typing import Any, BinaryIO
 
 import watchdog.events
+import watchdog.observers
 import watchdog.observers.polling
 
 class _LoggerAdapter(logging.LoggerAdapter):
@@ -83,7 +84,12 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
         self._shutdown = False
         self.serve_thread = threading.Thread(target=lambda: self.serve_forever(shutdown_delay), daemon=True)
-        self.observer = watchdog.observers.polling.PollingObserver(timeout=polling_interval)
+        try:
+            # Prefer the native observer (inotify/FSEvents/...); polling is slow and CPU-heavy.
+            self.observer = watchdog.observers.Observer()
+        except Exception:
+            log.warning("Native file-system observer unavailable, falling back to PollingObserver", exc_info=True)
+            self.observer = watchdog.observers.polling.PollingObserver(timeout=polling_interval)
         self.observer.daemon = True
 
         self._watched_paths: dict[str, int] = {}
@@ -113,6 +119,12 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         signal the build loop to rebuild.
         """
         if event.is_directory:
+            return
+        # Ignore read-only events. On Linux, simply reading a file emits
+        # IN_OPEN/IN_CLOSE_NOWRITE events; treating them as changes causes
+        # the build itself to trigger an endless rebuild loop.
+        if event.event_type not in ('created', 'modified', 'moved', 'deleted'):
+            log.debug(f"Ignoring non-modifying event: {event}")
             return
         log.debug(str(event))
         with self._rebuild_cond:
@@ -172,14 +184,18 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             try:
                 self._rebuilding = True
                 self.builder()
-            except Exception as e:
+            except BaseException as e:
                 if isinstance(e, SystemExit):
                     print(e, file=sys.stderr)  # noqa: T201
                 else:
                     traceback.print_exc()
                 log.error(
-                    "An error happened during the rebuild. The server will appear stuck until build errors are resolved."
+                    "An error happened during the rebuild. The server will continue serving the last successful build."
                 )
+                # Roll back the wanted epoch so requests waiting on the
+                # condition variable are unblocked instead of blocking forever.
+                with self._epoch_cond:
+                    self._wanted_epoch = self._visible_epoch
                 continue
             finally:
                 self._rebuilding = False
@@ -298,7 +314,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
 class _Handler(wsgiref.simple_server.WSGIRequestHandler):
     def log_request(self, code="-", size="-"):
-        level = logging.DEBUG if str(code) in ("200", "301", "302", "304") else logging.DEBUG
+        level = logging.DEBUG if str(code) in ("200", "301", "302", "304") else logging.ERROR
         log.log(level, f'"{self.requestline}" code {code}')
 
     def log_message(self, format, *args):

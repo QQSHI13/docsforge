@@ -105,6 +105,22 @@ class TestRewriteLinks:
         out = p._rewrite_links(html, page, "zh")
         assert "href='second/'" in out
 
+    def test_rewrites_root_relative_href_via_url_map(self):
+        p = I18nPlugin()
+        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
+        page = SimpleNamespace(url="zh/")
+        html = '<p><a href="/second/">Second</a></p>'
+        out = p._rewrite_links(html, page, "zh")
+        assert 'href="second/"' in out
+
+    def test_rewrites_nested_relative_href_via_url_map(self):
+        p = I18nPlugin()
+        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
+        page = SimpleNamespace(url="zh/guide/intro/")
+        html = '<p><a href="../../../second/">Second</a></p>'
+        out = p._rewrite_links(html, page, "zh")
+        assert 'href="../../second/"' in out
+
 
 class TestAssetFallback:
     def test_parses_translated_asset_suffix(self, plugin):

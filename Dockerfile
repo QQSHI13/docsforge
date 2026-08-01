@@ -12,8 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install DocsForge with all extras
-RUN pip install --no-cache-dir "docsforge[all]" && \
+# Install DocsForge from local source with all extras
+COPY packages/docsforge /tmp/docsforge
+RUN pip install --no-cache-dir "/tmp/docsforge[all]" && \
+    rm -rf /tmp/docsforge && \
     playwright install chromium 2>/dev/null || true
 
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium

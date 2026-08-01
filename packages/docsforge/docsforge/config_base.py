@@ -149,7 +149,8 @@ class Config(UserDict):
         cls._schema = tuple(schema.items())
 
         for attr_name, attr in cls._schema:
-            attr.required = True
+            if not getattr(attr, '_required_set', False):
+                attr.required = True
             if getattr(attr, '_legacy_required', None) is not None:
                 raise TypeError(
                     f"{cls.__name__}.{attr_name}: "
@@ -198,7 +199,6 @@ class Config(UserDict):
                 config_option.reset_warnings()
             except ValidationError as e:
                 failed.append((key, e))
-                break
 
         for key in set(self.keys()) - self._schema_keys:
             warnings.append((key, f"Unrecognised configuration name: {key}"))

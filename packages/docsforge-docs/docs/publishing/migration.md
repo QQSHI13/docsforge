@@ -64,7 +64,7 @@ These MkDocs plugins are not supported, but their features can be replicated wit
 | `git-authors` | Built-in — author info extracted from git history |
 | `macros` | Use Jinja2 templates or `extra:` config variables |
 | `redirects` | Use web server redirects (Netlify `_redirects`, nginx config, etc.) |
-| `awesome-pages` | Use `nav:` in `docsforge.yml` — DocsForge doesn't auto-discover nav structure |
+| `awesome-pages` | Navigation is auto-discovered when `nav:` is omitted; use `nav:` for explicit ordering |
 | `section-index` | Built-in — section index pages work automatically |
 | `tooltipster-links` | Built-in — tooltips on reference links are included in the theme |
 | `embed-external` | Use standard Markdown links or `pymdownx.snippets` |
@@ -79,8 +79,8 @@ These MkDocs plugins are not supported, but their features can be replicated wit
 | `mkdocs-redirects` | Use server-level redirects (Cloudflare `_redirects`, nginx, etc.) |
 | `mkdocs-awesome-pages` | Manually specify `nav:` structure |
 | `mkdocs-glightbox` | Image lightbox not built-in. Use theme's built-in image zoom if available. |
-| `mkdocs-pdf-export` | No built-in PDF export. Use Playwright or WeasyPrint post-build (see [docsforge pdf](#) — coming soon) |
-| `mkdocs-static-i18n` | No built-in multi-language support. Use separate docsforge.yml per language or a third-party tool. |
+| `mkdocs-pdf-export` | Use `docsforge build --pdf` (see [PDF export setup](../setup/pdf-export.md)) |
+| `mkdocs-static-i18n` | Use the built-in `material/i18n` plugin (see [Internationalization setup](../setup/i18n.md)) |
 | `mkdocs-video` | Use standard HTML `<video>` tags in Markdown |
 | `mkdocs-gallery` | Use standard Markdown image syntax |
 | `mkdocs-jupyter` | Not supported. Export notebooks to Markdown first. |
@@ -139,7 +139,7 @@ The 31 most common extensions are already pre-enabled — you only need to list 
 
 | Key | Status | Replacement |
 |-----|--------|-------------|
-| `strict` | :material-check-bold: Moved to `build` subcommand | Use `docsforge build --strict` |
+| `strict` | :material-check-bold: Supported | Use `strict: true` in config or `docsforge build --strict` on the CLI |
 | `config_file_path` | Internal | Not needed in user config |
 | `site_description` | :material-check-bold: Supported | Same key |
 | `site_author` | :material-check-bold: Supported | Same key |

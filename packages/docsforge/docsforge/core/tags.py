@@ -29,17 +29,17 @@ import yaml
 
 # ------------------------------------------------------------------------------
 class Mapping:
-    """A mapping between a page and its tags."""
-    
-    def __init__(self, page: Page):
-        self.page = page
-        self.item = page
-        self.tags: set[Tag] = set()
-    
+    """A mapping between an item (page or link) and its tags."""
+
+    def __init__(self, item: Page | Link, tags: Iterable[Tag] | None = None):
+        self.page = item
+        self.item = item
+        self.tags: set[Tag] = set(tags or [])
+
     @property
     def title(self) -> str:
         return self.page.title or ""
-    
+
     def __repr__(self):
         return f"Mapping({self.page.url!r})"
 
@@ -140,6 +140,15 @@ class TagSet(BaseConfigOption[Set[Tag]]):
     def run_validation(self, value: object) -> Set[Tag]:
         if not isinstance(value, list):
             raise ValidationError(f"Expected a list of tags, but got: {value}")
+
+        # Enforce allow list, if configured
+        if self._allowed is not None:
+            for tag in value:
+                if tag not in self._allowed:
+                    raise ValidationError(
+                        f"Tag '{tag}' is not allowed. Allowed tags: {self._allowed}"
+                    )
+
         return set(value)
 
     def pre_validation(self, config: Config, key_name: str):
@@ -155,7 +164,7 @@ class TagsConfig(Config):
     tags = Type(bool, default = True)
     tags_file = Optional(Type(str))
     tags_extra_files = Optional(Type(DictOfItems(Type(list))))
-    tags_slugify = Type(Callable, default = slugify)
+    tags_slugify = Type(Callable, default = slugify())
     tags_hierarchy = Type(bool, default = False)
     tags_hierarchy_separator = Type(str, default = "/")
     tags_allowed = Optional(Type(list))
@@ -168,9 +177,9 @@ class TagsConfig(Config):
         "tags": "listings_tags_template",
         "toc": "listings_toc_template",
     })
-    listings_sort_by = Optional(Type(Callable))
+    listings_sort_by = Type(Callable, default = item_title)
     listings_sort_reverse = Type(bool, default = False)
-    listings_tags_sort_by = Optional(Type(Callable))
+    listings_tags_sort_by = Type(Callable, default = tag_name)
     listings_tags_sort_reverse = Type(bool, default = False)
     listings_shuffle = Optional(Type(int))
     listings_limit = Optional(Type(int))
@@ -186,8 +195,8 @@ class TagsConfig(Config):
     shadow_page_limit = Optional(Type(int))
     tags_sort_by = Optional(Type(Callable))
     tags_sort_reverse = Type(bool, default = False)
-    tags_slugify_format = Optional(Type(str))
-    tags_slugify_separator = Optional(Type(str))
+    tags_slugify_format = Type(str, default = '{slug}')
+    tags_slugify_separator = Type(str, default = '-')
     export = Type(bool, default = False)
     export_file = Type(str, default = "tags.json")
     export_json_encoder = Optional(Type(str))
@@ -229,14 +238,14 @@ class Listing:
         self.page = page
         self.id = id
         self.config = config
-        self.tags: dict = {}
+        self.tags: dict[Tag, ListingTree] = {}
 
     def add(self, mapping, hidden=False):
         """Add a mapping (tag + page) to this listing."""
         for tag in mapping.tags:
             if tag not in self.tags:
-                self.tags[tag] = []
-            self.tags[tag].append(mapping)
+                self.tags[tag] = ListingTree(tag)
+            self.tags[tag].mappings.append(mapping)
 
     def __and__(self, mapping):
         """Return tags that are in both this listing and the mapping."""
@@ -253,6 +262,15 @@ class Listing:
 
     def __hash__(self):
         return hash(self.id)
+
+    def __iter__(self) -> Iterator[ListingTree]:
+        """
+        Iterate over the listing trees of this listing.
+
+        Yields:
+            The current listing tree.
+        """
+        return iter(self.tags.values())
 
 
 #-----------------------------------------------------------------------------
@@ -485,9 +503,9 @@ class ListingManager:
             hx = match.group()
 
             # Populate listing with anchor links to tags
-            anchors = toc.populate(listing, self._slugify)
+            anchors = populate(listing, self._slugify)
             if not anchors:
-                return
+                return ''
 
             # Get reference to first tag in listing
             head = next(iter(anchors.values()))
@@ -1097,6 +1115,10 @@ class MappingManager:
 
         # Retrieve and validate tags, and add to mapping
         for tag in self.format.validate(page.meta[tags]):
+            # Normalize non-string tags before configuring
+            if not isinstance(tag, (str, Tag)):
+                tag = str(tag)
+
             # Convert string tags to Tag objects
             if isinstance(tag, str):
                 tag = Tag(name=tag)

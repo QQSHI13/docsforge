@@ -149,11 +149,13 @@ class TestI18nBuild:
         assert re.search(r'aria-label=["\']?Select language[\s>"\']', en_html)
         assert re.search(r'aria-label=["\']?选择当前语言[\s>"\']', zh_html)
 
-    def test_fallback_page_inherits_nav_title(self, tmp_path):
+    def test_translated_page_overrides_default_nav_title(self, tmp_path):
         site = _build_i18n_site(tmp_path)
         zh_html = (site / "zh" / "index.html").read_text()
-        # The fallback copy of second.md should use the nav-configured title.
-        assert "Custom Second Title" in zh_html
+        # second.zh.md has its own frontmatter title; it should override the
+        # default-language nav title configured for second.md.
+        assert "Custom Second Title" not in zh_html
+        assert "第二页" in zh_html
 
     def test_fallback_page_links_use_locale_path(self, tmp_path):
         site = _build_i18n_site(tmp_path)
@@ -173,3 +175,94 @@ class TestI18nBuild:
         zh_html = (site / "zh" / "index.html").read_text()
         # second.zh.md has title "第二页"; the nav should show it (no override).
         assert "第二页" in zh_html
+
+    def test_locale_homepage_logo_stays_in_locale(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        html = (site / "zh" / "second" / "index.html").read_text()
+        # The header/nav logo links should point into the zh subtree, not to the root.
+        logo_hrefs = re.findall(
+            r'<a\b[^>]*?\sdata-md-component=["\']?logo["\']?[^>]*?\shref=([^\s>]+)',
+            html,
+            flags=re.IGNORECASE,
+        )
+        logo_hrefs += re.findall(
+            r'<a\b[^>]*?\shref=([^\s>]+)[^>]*?\sdata-md-component=["\']?logo["\']?',
+            html,
+            flags=re.IGNORECASE,
+        )
+        assert logo_hrefs
+        for href in logo_hrefs:
+            href = href.strip('"').strip("'")
+            # Must stay inside the locale (contains zh/) or be a self-link.
+            assert "zh/" in href or href in (".", "./")
+            assert not href.startswith("../../assets")
+
+    def test_locale_alternate_links_keep_trailing_slash(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        html = (site / "zh" / "index.html").read_text()
+        # The default-language alternate from a locale page should be a directory URL.
+        assert re.search(r'<link[^>]+rel=["\']?alternate["\']?[^>]*href=["\']?\.\./["\'\s>]', html) or \
+               re.search(r'<link[^>]+href=["\']?\.\./["\'\s>][^>]*rel=["\']?alternate["\']?', html)
+
+    def test_language_switcher_on_fallback_page(self, tmp_path):
+        site = _build_i18n_site(tmp_path)
+        html = (site / "zh" / "fallback" / "index.html").read_text()
+        # Fallback pages must still expose alternates so the switcher is rendered.
+        assert "English" in html
+        assert "中文" in html
+
+
+def _build_i18n_site_without_frontmatter_titles(tmp_path: Path) -> Path:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text("# Home\n\nWelcome.\n")
+    (docs / "index.zh.md").write_text("# 首页\n\n欢迎.\n")
+    (docs / "second.md").write_text("# Second Page\n\nPage 2.\n")
+    (docs / "second.zh.md").write_text("# 第二页\n\n第二页.\n")
+
+    config = {
+        "site_name": "I18n Test",
+        "docs_dir": "docs",
+        "site_url": "https://example.com/",
+        "theme": {"name": "material"},
+        "nav": ["index.md", "second.md"],
+        "plugins": [
+            {
+                "material/i18n": {
+                    "languages": [
+                        {"locale": "en", "name": "English", "default": True},
+                        {"locale": "zh", "name": "中文"},
+                    ]
+                }
+            }
+        ],
+    }
+    import yaml
+
+    (tmp_path / "docsforge.yml").write_text(yaml.safe_dump(config))
+
+    cfg = load_config(config_file=str(tmp_path / "docsforge.yml"))
+    cfg.plugins.on_startup(command="build", dirty=True)
+    try:
+        build(cfg, dirty=True)
+    finally:
+        cfg.plugins.on_shutdown()
+    return tmp_path / "site"
+
+
+class TestI18nNoFrontmatterTitles:
+    def test_no_none_in_nav_titles(self, tmp_path):
+        site = _build_i18n_site_without_frontmatter_titles(tmp_path)
+        for rel in ["zh/index.html", "zh/second/index.html"]:
+            html = (site / rel).read_text()
+            assert "None" not in html
+            nav_match = re.search(
+                r'<nav\b[^>]*?class=["\']?md-nav[^>]*?>.*?</nav>',
+                html,
+                re.S | re.IGNORECASE,
+            )
+            assert nav_match
+            nav_html = nav_match.group(0)
+            # Both the English and Chinese H1-derived titles should appear in nav.
+            assert "Home" in nav_html or "首页" in nav_html
+            assert "Second Page" in nav_html or "第二页" in nav_html

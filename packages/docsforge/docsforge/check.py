@@ -248,7 +248,8 @@ def fix_config(config_file=None) -> int:
         for p in plugins:
             name = p if isinstance(p, str) else (list(p.keys())[0] if isinstance(p, dict) else '')
             clean = name.split('/')[-1] if '/' in name else name
-            if clean not in KNOWN_PLUGINS and name not in KNOWN_PLUGINS:
+            known = BUILTIN_PLUGINS | AUTOLOAD_PLUGINS
+            if clean not in known and name not in known:
                 new_plugins.append(p)
             else:
                 print(f"  ✓ Removed built-in plugin: {name}")
@@ -257,15 +258,18 @@ def fix_config(config_file=None) -> int:
 
     # Fix 4: Move misplaced theme keys under theme:
     theme = raw.get('theme', {})
-    if not isinstance(theme, dict):
-        theme = {}
     top_level_theme_keys = {'palette', 'features', 'logo', 'favicon', 'icon', 'font', 'language', 'direction', 'custom_dir'}
-    for key in list(raw.keys()):
-        if key in top_level_theme_keys:
+    misplaced = top_level_theme_keys & set(raw.keys())
+    if misplaced:
+        if isinstance(theme, str):
+            theme = {'name': theme}
+        elif not isinstance(theme, dict):
+            theme = {}
+        for key in misplaced:
             theme[key] = raw.pop(key)
             print(f"  ✓ Moved '{key}' under 'theme:'")
             changed = True
-    raw['theme'] = theme
+        raw['theme'] = theme
 
     if not changed:
         print("  No issues found. Configuration is clean.")

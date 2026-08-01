@@ -44,6 +44,15 @@ def _find_browser() -> str | None:
     return None
 
 
+def _is_within(local: Path, base: Path) -> bool:
+    """Return True if *local* resolves to a path inside *base*."""
+    try:
+        local.resolve().relative_to(base.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def build_pdf(docs_dir: str, output_dir: str = "pdf", **kwargs) -> int:
     """Build the site and export to PDF via Playwright."""
     if not HAS_PLAYWRIGHT:
@@ -96,26 +105,24 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(**launch_opts)
-        tabs = await asyncio.gather(*[browser.new_page() for _ in range(concurrency)])
+        tabs = []
 
         async def _route(route):
             try:
                 url = route.request.url
-                if url.startswith("file://"):
-                    return await route.continue_()
                 parsed = urllib.parse.urlparse(url)
+                if parsed.scheme == "file":
+                    return await route.continue_()
                 if parsed.scheme in ("http", "https"):
+                    if ".." in parsed.path:
+                        return await route.abort()
                     rel = parsed.path.lstrip("/")
-                    local = site_path / rel
-                    if local.exists():
+                    local = (site_path / rel).resolve()
+                    if local.exists() and _is_within(local, site_path):
                         return await route.fulfill(path=str(local))
             except Exception:
                 pass
             await route.abort()
-
-        for tab in tabs:
-            await tab.emulate_media(media="print")
-            await tab.route("**/*", _route)
 
         async def render_one(tab, html_file, idx):
             rel = html_file.relative_to(site_path)
@@ -172,10 +179,17 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                 idx += 1
                 await render_one(tab, html_files[file_idx], file_idx + 1)
 
-        await asyncio.gather(*[worker(tabs[i % concurrency]) for i in range(concurrency)])
+        try:
+            tabs = await asyncio.gather(*[browser.new_page() for _ in range(concurrency)])
 
-        for tab in tabs:
-            await tab.close()
-        await browser.close()
+            for tab in tabs:
+                await tab.emulate_media(media="print")
+                await tab.route("**/*", _route)
+
+            await asyncio.gather(*[worker(tabs[i % concurrency]) for i in range(concurrency)])
+        finally:
+            for tab in tabs:
+                await tab.close()
+            await browser.close()
 
     log.info(f"\nPDF export complete: {output_path.resolve()} ({total} pages)")

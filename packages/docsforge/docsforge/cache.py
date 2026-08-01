@@ -6,7 +6,7 @@ import hashlib
 import json
 import logging
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -186,6 +186,12 @@ class DependencyTracker:
         the docs_dir and the source file's own directory as a fallback. Only
         existing files are returned, so a non-matching resolution is a safe
         no-op (the page simply isn't tracked for that include).
+
+        Absolute includes (e.g. ``--8<-- "/etc/passwd"``) are rejected, and a
+        resolved path must stay under the base directory it resolved against,
+        so ``../..`` traversal cannot escape the project's include roots.
+        Otherwise arbitrary files outside the project would be tracked (and
+        hashed) as dependencies.
         """
         if content is None:
             try:
@@ -206,8 +212,18 @@ class DependencyTracker:
             target = match.group('path').strip()
             if not target:
                 continue
+            # Reject absolute includes (e.g. --8<-- "/etc/passwd"): they would
+            # point outside the project's include roots. Checked for both
+            # POSIX and Windows semantics so the guard is platform-independent.
+            if PurePosixPath(target).is_absolute() or PureWindowsPath(target).is_absolute():
+                continue
             for base in bases:
                 resolved = (base / target).resolve()
+                # The resolved path must stay under the base it resolved
+                # against, otherwise `../..` traversal could track (and hash)
+                # arbitrary files outside the project.
+                if not resolved.is_relative_to(base.resolve()):
+                    continue
                 key = str(resolved)
                 if key in seen:
                     break
@@ -243,22 +259,25 @@ class BuildPlanner:
 
         A change triggers a full rebuild so edits to base.html, a partial, or
         a custom_dir template propagate to every page. Only .html/.xml are
-        tracked (rendering-affecting); the 14k+ .icons/ are excluded.
+        tracked (rendering-affecting); the 14k+ .icons/ and asset directories
+        are skipped by globbing for the exact suffixes.
         """
         import hashlib
         items = []
+        seen = set()
         for d in dirs:
             dpath = Path(d)
-            if not dpath.is_dir():
+            key = dpath.resolve()
+            if key in seen or not dpath.is_dir():
                 continue
-            for p in dpath.rglob('*'):
-                if not p.is_file() or p.suffix not in ('.html', '.xml'):
-                    continue
-                try:
-                    st = p.stat()
-                except OSError:
-                    continue
-                items.append((str(p), st.st_mtime_ns, st.st_size))
+            seen.add(key)
+            for pattern in ('*.html', '*.xml'):
+                for p in dpath.rglob(pattern):
+                    try:
+                        st = p.stat()
+                    except OSError:
+                        continue
+                    items.append((str(p), st.st_mtime_ns, st.st_size))
         items.sort()
         h = hashlib.sha256()
         for path, mtime, size in items:
@@ -315,7 +334,9 @@ class BuildPlanner:
         for dep in file_deps:
             dep_path = Path(dep)
             if not dep_path.exists():
-                continue
+                # A recorded dependency disappeared; force a rebuild so the
+                # page is rebuilt against the current state of the project.
+                return True
             current_dep_hash = self._current_hash(dep_path)
             cached_dep_hash = self.hashes.get(dep)
             if cached_dep_hash != current_dep_hash:

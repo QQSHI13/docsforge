@@ -99,7 +99,7 @@ def get_build_timestamp(*, pages: Collection[Page] | None = None) -> int:
     if pages:
         # Lexicographic comparison is OK for ISO date.
         date_string = max(p.update_date for p in pages)
-        dt = datetime.fromisoformat(date_string).replace(tzinfo=timezone.utc)
+        dt = datetime.fromisoformat(date_string).astimezone(timezone.utc)
     else:
         dt = get_build_datetime()
     return int(dt.timestamp())
@@ -143,10 +143,24 @@ def get_theme_names() -> list[str]:
 
 
 def get_theme_dir(name):
-    """Return the path to the named theme directory."""
+    """Return the path to the named theme directory.
+
+    Themes are located through their 'docsforge.themes' entry point. Falls
+    back to the built-in templates directory for the built-in 'material'
+    theme and for names without a registered entry point.
+    """
+    from importlib import import_module
     from importlib.resources import files
-    if name == 'material':
-        return files('docsforge') / 'templates'
+
+    if name != 'material':
+        value = get_themes().get(name)
+        if value is not None:
+            module = import_module(value.partition(':')[0])
+            if module.__file__ is not None:
+                return os.path.dirname(os.path.abspath(module.__file__))
+            # Namespace package: a plain directory without __init__.py.
+            return next(iter(module.__path__))
+
     return files('docsforge') / 'templates'
 
 
@@ -156,19 +170,19 @@ def is_markdown_file(path: str) -> bool:
 
     https://superuser.com/questions/249436/file-extension-for-markdown-files
     """
-    return path.endswith(markdown_extensions)
+    return path.lower().endswith(markdown_extensions)
 
 
-def normalize_url(path, page=None, base=''):
+def normalize_url(path, base=''):
     """Normalize a URL to be relative to the given base."""
     if path.startswith(('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')):
         return path
-    if page is not None:
-        return _get_relative_url(path, base)
     if base.startswith('/'):
         if path.startswith('/'):
             return path
         return base.rstrip('/') + '/' + path.lstrip('/')
+    if base:
+        return _get_relative_url(path, base)
     return path
 
 
@@ -211,7 +225,7 @@ def _get_relative_url(url: str, other: str) -> str:
     if not rel_parts:
         return '.'
     result = '/'.join(rel_parts)
-    if url.endswith('/'):
+    if url.endswith('/') or url == '.':
         result += '/'
     return result
 

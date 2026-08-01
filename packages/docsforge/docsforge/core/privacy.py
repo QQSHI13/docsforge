@@ -39,6 +39,7 @@ from docsforge.files import File, Files
 # ---------------------------------------------------------------------------
 
 DEFAULT_TIMEOUT_IN_SECS = 5
+MAX_DOWNLOAD_SIZE = 16 * 1024 * 1024  # 16 MiB
 
 # Expected file extensions
 extensions = {
@@ -130,6 +131,16 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     supports_multiple_instances = True
 
     # -----------------------------------------------------------------------
+    # Pool lifecycle
+    # -----------------------------------------------------------------------
+
+    def _get_pool(self) -> ThreadPoolExecutor:
+        """Return the thread pool, creating it on first use."""
+        if self.pool is None:
+            self.pool = ThreadPoolExecutor(self.config.concurrency)
+        return self.pool
+
+    # -----------------------------------------------------------------------
     # One-time events
     # -----------------------------------------------------------------------
 
@@ -138,8 +149,18 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not self.config.enabled:
             return
 
-        # Initialize thread pool
-        self.pool = ThreadPoolExecutor(self.config.concurrency)
+        # Resolve cache_dir relative to the project root (config file directory)
+        # so cached external assets are reused regardless of the current working
+        # directory from which docsforge is invoked.
+        cache_dir = self.config['cache_dir']
+        if not os.path.isabs(cache_dir):
+            project_dir = os.path.dirname(config.config_file_path or "") or os.getcwd()
+            cache_dir = os.path.normpath(os.path.join(project_dir, cache_dir))
+            self.config['cache_dir'] = cache_dir
+
+        # Thread pool is created lazily: if a site has no external assets,
+        # we avoid the cost of starting and shutting down worker threads.
+        self.pool: ThreadPoolExecutor | None = None
         self.pool_jobs: list[Future] = []
 
         # Initialize collections of external assets
@@ -280,13 +301,14 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         for file in self.assets:
             _, extension = posixpath.splitext(file.dest_uri)
             if extension in [".css", ".js"]:
-                self.pool_jobs.append(self.pool.submit(self._patch, file))
+                self.pool_jobs.append(self._get_pool().submit(self._patch, file))
             elif file not in self.assets_done:
                 if os.path.exists(str(file.abs_src_path)):
                     file.copy_file()
 
         wait(self.pool_jobs)
-        self.pool.shutdown()
+        if self.pool is not None:
+            self.pool.shutdown()
 
     # -----------------------------------------------------------------------
     # URL helpers
@@ -444,7 +466,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
             _, extension = posixpath.splitext(url.path)
             if extension and concurrent:
-                self.pool_jobs.append(self.pool.submit(self._fetch, file, config))
+                self.pool_jobs.append(self._get_pool().submit(self._fetch, file, config))
             else:
                 if not self._fetch(file, config):
                     return None
@@ -464,6 +486,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             if file.url.startswith("//"):
                 file.url = f"http:{file.url}"
 
+            parsed = urlparse(file.url)
+            if parsed.scheme not in ("http", "https"):
+                log.warning(f"Unsupported URL scheme for external file: {file.url}")
+                return False
+
             log.info(f"Downloading external file: {file.url}")
             try:
                 res = requests.get(
@@ -476,13 +503,27 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                         ])
                     },
                     timeout=DEFAULT_TIMEOUT_IN_SECS,
+                    stream=True,
                 )
                 res.raise_for_status()
             except Exception as error:
                 log.warning(f"Couldn't retrieve {file.url}: {error}")
                 return False
 
-            mime = res.headers["content-type"].split(";")[0]
+            # Enforce a response size cap while streaming.
+            content_length = res.headers.get("content-length")
+            if content_length and int(content_length) > MAX_DOWNLOAD_SIZE:
+                log.warning(f"External file too large: {file.url}")
+                return False
+
+            content = b""
+            for chunk in res.iter_content(chunk_size=8192):
+                content += chunk
+                if len(content) > MAX_DOWNLOAD_SIZE:
+                    log.warning(f"External file too large: {file.url}")
+                    return False
+
+            mime = res.headers.get("content-type", "").split(";")[0]
             extension = extensions.get(mime)
 
             # Save with content-based hash for cache busting
@@ -490,11 +531,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             if extension and not download_base.endswith(extension):
                 download_base += extension
 
-            content_hash = sha1(res.content).hexdigest()[:12]
+            content_hash = sha1(content).hexdigest()[:12]
             base, ext = os.path.splitext(download_base)
             hashed_path = f"{base}.{content_hash}{ext}"
 
-            self._save_to_file(hashed_path, res.content)
+            self._save_to_file(hashed_path, content)
 
             # Symlink from file.abs_src_path to the content-hashed file
             # so URL-based lookups resolve correctly.
@@ -586,7 +627,18 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     # -----------------------------------------------------------------------
 
     def _path_from_url(self, url: URL):
-        path = posixpath.normpath(url.path)
+        path = url.path or "/"
+        # Reject traversal attempts before normalization
+        if any(part == ".." for part in path.split("/")):
+            raise PluginError(
+                f"External asset URL contains traversal: {url.geturl()}"
+            )
+
+        path = posixpath.normpath(path)
+        # Strip leading slashes so the local path is always relative and cannot
+        # be interpreted as an absolute filesystem path.
+        path = path.lstrip("/")
+
         # Only replace /. when followed by / (current dir .) or end-of-string,
         # not /.icons or other valid dot-prefixed directories.
         path = re.sub(r"/\.(?=/|$)", "/_", path)
@@ -599,10 +651,25 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         url = url._replace(scheme="", query="", fragment="", path=path)
         return url.geturl()[2:]
 
+    def _is_within(self, path: str, base: str) -> bool:
+        """Return True if *path* is inside *base* after resolving symlinks."""
+        try:
+            return os.path.commonpath([path, base]) == base
+        except ValueError:
+            return False
+
     def _path_to_file(self, path: str, config: DocsForgeConfig):
+        base = os.path.abspath(self.config.cache_dir)
+        src_uri = posixpath.join(self.config.assets_fetch_dir, unquote(path))
+        abs_src_path = os.path.abspath(os.path.join(base, src_uri))
+        if not self._is_within(abs_src_path, base):
+            raise PluginError(
+                f"External asset path escapes cache directory: {path}"
+            )
+
         return File(
-            posixpath.join(self.config.assets_fetch_dir, unquote(path)),
-            os.path.abspath(self.config.cache_dir),
+            src_uri,
+            base,
             config.site_dir,
             False
         )

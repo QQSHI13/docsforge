@@ -2,7 +2,7 @@
   This file was automatically generated - do not edit
 -#}
 {% macro render(listing) %}
-  {{ listing.content }}
+  {{ listing.content | safe }}
   <ul>
     {% for mapping in listing.mappings %}
       <li>

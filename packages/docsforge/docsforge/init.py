@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import yaml
+
 log = logging.getLogger(__name__)
 
 COLOR_MAP = {
@@ -36,91 +38,70 @@ def _generate_config(
 
     color = COLOR_MAP.get(theme_color, COLOR_MAP['teal'])
 
-    lines = [
-        f'site_name: {site_name}',
-    ]
+    config: dict = {
+        'site_name': site_name,
+    }
 
     if site_description:
-        lines.append(f'site_description: {site_description}')
+        config['site_description'] = site_description
 
     if site_url:
-        lines.append(f'site_url: {site_url}')
+        config['site_url'] = site_url
 
     if copyright:
-        lines.append(f'copyright: {copyright}')
+        config['copyright'] = copyright
 
     if repo_url:
-        lines.extend([
-            '',
-            '# Repository info for social cards and edit links',
-            f'repo_url: {repo_url}',
-            'edit_uri: edit/main/docs/',
-        ])
+        config['repo_url'] = repo_url
+        config['edit_uri'] = 'edit/main/docs/'
 
-    lines.extend([
-        '',
-        'theme:',
-        '  name: material',
-        '  palette:',
-        '    - scheme: default',
-        f"      primary: {color['primary']}",
-        f"      accent: {color['accent']}",
-        '      toggle:',
-        '        icon: material/brightness-7',
-        '        name: Switch to dark mode',
-        '    - scheme: slate',
-        f"      primary: {color['primary']}",
-        f"      accent: {color['accent']}",
-        '      toggle:',
-        '        icon: material/brightness-4',
-        '        name: Switch to light mode',
-        f'  language: {language}',
-    ])
+    theme: dict = {
+        'name': 'material',
+        'palette': [
+            {
+                'scheme': 'default',
+                'primary': color['primary'],
+                'accent': color['accent'],
+                'toggle': {
+                    'icon': 'material/brightness-7',
+                    'name': 'Switch to dark mode',
+                },
+            },
+            {
+                'scheme': 'slate',
+                'primary': color['primary'],
+                'accent': color['accent'],
+                'toggle': {
+                    'icon': 'material/brightness-4',
+                    'name': 'Switch to light mode',
+                },
+            },
+        ],
+        'language': language,
+    }
 
-    if favicon or logo:
-        if favicon:
-            lines.append(f'  favicon: {favicon}')
-        if logo:
-            lines.append(f'  logo: {logo}')
+    if favicon:
+        theme['favicon'] = favicon
+    if logo:
+        theme['logo'] = logo
 
-    lines.extend([
-        '',
-        '# Core features are always enabled:',
-        '# search, tags, blog, info, meta, minify, social, optimize',
-        '',
-    ])
+    config['theme'] = theme
 
     if privacy:
-        lines.extend([
-            '# Privacy: external assets are fetched and inlined locally',
-            '# This is the only optional core feature.',
-            'privacy: true',
-            '',
-        ])
+        config['privacy'] = True
 
     if author_name:
-        lines.extend([
-            'extra:',
-            f'  author: {author_name}',
-            '',
-        ])
-    
-    lines.extend([
-        'extra_css:',
-        '  - stylesheets/extra.css',
-        '',
-        'extra_javascript:',
-        '  - javascripts/extra.js',
-        '',
-        'nav:',
-        '  - Home: index.md',
-        '  - Getting Started: getting-started.md',
-        '  - Blog:',
-        '    - blog/index.md',
-        '',
-    ])
-    
-    return '\n'.join(lines)
+        config['extra'] = {'author': author_name}
+
+    config['extra_css'] = ['stylesheets/extra.css']
+    config['extra_javascript'] = ['javascripts/extra.js']
+    config['nav'] = [
+        {'Home': 'index.md'},
+        {'Getting Started': 'getting-started.md'},
+        {'Blog': ['blog/index.md']},
+    ]
+
+    return yaml.dump(config, sort_keys=False, default_flow_style=False, allow_unicode=True)
 
 
 def _generate_github_workflow(site_url: str | None) -> str:

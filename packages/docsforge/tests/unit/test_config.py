@@ -1,12 +1,14 @@
 """Unit tests for config loading and validation (docsforge.config_base / config_defaults)."""
 from __future__ import annotations
 
+import sys
 import textwrap
 from pathlib import Path
 
 import pytest
 
-from docsforge.config_base import load_config
+from docsforge.config_base import Config, ValidationError, load_config
+from docsforge.config_options import Hooks, IpAddress, Type
 
 
 def _write_config(root: Path, body: str) -> Path:
@@ -128,3 +130,70 @@ class TestEnvTag:
         """)
         cfg = load_config()
         assert cfg["site_description"] == "fallback"
+
+
+class TestIpAddress:
+    def test_valid_port(self):
+        value = IpAddress(default="127.0.0.1:8000").run_validation("127.0.0.1:8000")
+        assert value.port == 8000
+
+    def test_port_too_large_rejected(self):
+        with pytest.raises(ValidationError):
+            IpAddress().run_validation("127.0.0.1:70000")
+
+    def test_negative_port_rejected(self):
+        with pytest.raises(ValidationError):
+            IpAddress().run_validation("127.0.0.1:-1")
+
+
+class TestOptionallyRequired:
+    def test_explicit_required_false_is_respected(self):
+        class _Schema(Config):
+            optional = Type(str, required=False)
+            required = Type(str)
+
+        cfg = _Schema()
+        failed, _ = cfg.validate()
+        assert len(failed) == 1
+        assert failed[0][0] == "required"
+
+
+class TestValidate:
+    def test_collects_all_validation_errors(self):
+        class _Schema(Config):
+            one = Type(str)
+            two = Type(str)
+
+        cfg = _Schema()
+        failed, _ = cfg.validate()
+        assert len(failed) == 2
+        assert {key for key, _ in failed} == {"one", "two"}
+
+
+class TestHooks:
+    def test_hook_name_colliding_with_stdlib_does_not_clobber_sys_modules(self, tmp_path):
+        # The raw user-supplied hook name must never become a sys.modules key,
+        # otherwise a hook named e.g. 'os' would overwrite the stdlib module.
+        hook_file = tmp_path / "hook_script.py"
+        hook_file.write_text("x = 1\n")
+        real_os = sys.modules["os"]
+        module = Hooks("plugins")._load_hook("os", str(hook_file))
+        assert module.x == 1
+        assert sys.modules["os"] is real_os
+
+    def test_hook_is_not_registered_under_raw_name(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "myhook.py").write_text(
+            "def on_page_markdown(markdown, **kwargs):\n    return markdown\n"
+        )
+        _write_config(tmp_path, """
+            site_name: T
+            hooks:
+              - myhook.py
+        """)
+        cfg = load_config()
+        # The hook still becomes a plugin under its user-facing name...
+        assert "myhook.py" in cfg["plugins"]
+        # ...but the module itself gets a safe internal name, not the raw path.
+        assert cfg["plugins"]["myhook.py"].__name__.startswith("_docsforge_hook_")
+        assert "myhook.py" not in sys.modules

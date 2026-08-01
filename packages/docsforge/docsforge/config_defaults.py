@@ -12,10 +12,14 @@ from docsforge.yaml_utils import get_yaml_loader, yaml_load
 
 
 class _LogLevel(c.OptionallyRequired[int]):
+    # Sentinel level below any normal logger level so that log.log(level, ...)
+    # is discarded by isEnabledFor() and effectively suppresses the message.
+    SUPPRESS = -2
+
     levels: Mapping[str, int] = {
         "warn": logging.WARNING,
         "info": logging.INFO,
-        "ignore": logging.DEBUG,
+        "ignore": SUPPRESS,
     }
 
     def run_validation(self, value: object) -> int:

@@ -32,6 +32,9 @@ MINIFIERS: Dict[str, Callable] = {
 
 log = logging.getLogger(__name__)
 
+if not getattr(csscompressor, "__version__", None):
+    csscompressor.__version__ = "0.9.6"
+
 if version.parse(csscompressor.__version__) <= version.parse("0.9.5"):
     # Monkey patch csscompressor 0.9.5
     # See https://github.com/sprymix/csscompressor/issues/9#issuecomment-1024417374
@@ -65,6 +68,15 @@ class MinifyPlugin(BasePlugin):
         """Return the path string from an extra item (ExtraScriptValue or str)."""
         return str(item.path if hasattr(item, 'path') else item).strip()
 
+    @staticmethod
+    def _is_within(path: Path, base: Path) -> bool:
+        """Return True if *path* is contained within *base* after resolving."""
+        try:
+            path.resolve().relative_to(base.resolve())
+            return True
+        except ValueError:
+            return False
+
     def _minify_file_data_with_func(self, file_data: str, minify_func: Callable) -> str:
         """Use the minify_func and return the minified data."""
         if minify_func.__name__ == "jsmin":
@@ -95,7 +107,15 @@ class MinifyPlugin(BasePlugin):
             if not file_path or file_path.startswith(('http://', 'https://', '//')):
                 continue
             src_path = docs_dir / file_path.lstrip('/')
+            try:
+                src_path = src_path.resolve()
+            except (OSError, ValueError):
+                log.warning(f"Invalid extra {file_type} path: {file_path}")
+                continue
             if not src_path.exists():
+                continue
+            if not self._is_within(src_path, docs_dir):
+                log.warning(f"Extra {file_type} path escapes docs_dir: {file_path}")
                 continue
 
             try:
@@ -136,9 +156,12 @@ class MinifyPlugin(BasePlugin):
 
     def on_post_build(self, *, config: DocsForgeConfig) -> None:
         """Write minified extra JS/CSS files to the site directory."""
-        site_dir = Path(config['site_dir'])
+        site_dir = Path(config['site_dir']).resolve()
         for site_rel_path, minified in self._pending_minified.items():
-            dest_path = site_dir / site_rel_path
+            dest_path = (site_dir / site_rel_path).resolve()
+            if not self._is_within(dest_path, site_dir):
+                log.warning(f"Minified file path escapes site_dir: {site_rel_path}")
+                continue
             try:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 dest_path.write_text(minified, encoding='utf-8')

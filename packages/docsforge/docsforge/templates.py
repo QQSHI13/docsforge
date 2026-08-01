@@ -1,12 +1,25 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
+
+
+# Content-hash segment injected by the asset build.  Templates refer to stable
+# logical names (e.g. ``stylesheets/main.min.css``) and the manifest maps them
+# to the concrete hashed filename on disk.
+_ASSET_HASH_SEGMENT_RE = re.compile(r"\.[a-f0-9]{8,}(?=\.min\.[^.]+$)")
 
 if TYPE_CHECKING:
     import datetime
 
 from markupsafe import Markup
+
+
+# Allowed characters for icon names used in Jinja include/import paths.
+# Disallows path traversal sequences (..), absolute paths, and special chars.
+_ICON_NAME_RE = re.compile(r'^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\Z')
 
 try:
     from jinja2 import pass_context as contextfilter
@@ -37,7 +50,7 @@ class TemplateContext(TypedDict):
 def url_filter(context: TemplateContext, value: str) -> str:
     """A Template filter to normalize URLs."""
     from docsforge.utils import normalize_url
-    return normalize_url(str(value), page=context['page'], base=context['base_url'])
+    return normalize_url(str(value), base=context['base_url'])
 
 
 @contextfilter
@@ -53,3 +66,71 @@ def script_tag_filter(context: TemplateContext, extra_script: ExtraScriptValue) 
             html += ' async'
     html += '></script>'
     return Markup(html).format(url_filter(context, str(extra_script)), extra_script)  # noqa: S704
+
+
+def validate_icon_name(value: str | None) -> str | None:
+    """Validate an icon name for use in Jinja include/import paths.
+
+    Returns the icon name if it only contains safe path characters
+    (alphanumeric, underscore, hyphen, forward slash) and does not allow
+    path traversal, absolute paths, or empty path components. Returns None
+    for invalid names so templates can skip rendering them gracefully.
+    """
+    if value is None:
+        return None
+    name = str(value).strip()
+    return name if _ICON_NAME_RE.match(name) else None
+
+
+def asset_url(value: str, manifest: dict[str, str] | None = None) -> str:
+    """Resolve a logical asset path to the concrete site-relative URL.
+
+    When a manifest is supplied (during a real build), the logical name is
+    mapped to the hashed filename on disk.  Outside of a build the helper
+    falls back to ``assets/<value>`` so templates still render.
+    """
+    if manifest is not None:
+        return manifest.get(value, f"assets/{value}")
+    return f"assets/{value}"
+
+
+def build_asset_manifest(site_dir: str | Path) -> dict[str, str]:
+    """Build a logical -> actual path mapping for vendored assets.
+
+    Scans ``<site_dir>/assets`` and strips content-hash segments from filenames
+    so templates can refer to stable logical names.  Non-hashed files are mapped
+    to themselves.
+    """
+    manifest: dict[str, str] = {}
+    assets_dir = Path(site_dir) / "assets"
+    if not assets_dir.is_dir():
+        return manifest
+
+    for path in assets_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(assets_dir).as_posix()
+        logical = _ASSET_HASH_SEGMENT_RE.sub("", rel)
+        manifest[logical] = f"assets/{rel}"
+
+    return manifest
+
+
+def build_asset_manifest_from_files(files) -> dict[str, str]:
+    """Build a logical -> actual path mapping from the static file collection.
+
+    Unlike ``build_asset_manifest``, this uses the planned file collection so
+    it captures assets even if they are copied/generated into ``site_dir`` after
+    the initial directory scan.  Non-hashed files are omitted because their
+    logical and actual names are identical.
+    """
+    manifest: dict[str, str] = {}
+    for file in files:
+        dest = getattr(file, "dest_uri", "")
+        if not dest or not dest.startswith("assets/"):
+            continue
+        rel = dest[len("assets/"):]
+        logical = _ASSET_HASH_SEGMENT_RE.sub("", rel)
+        if logical != rel:
+            manifest[logical] = dest
+    return manifest

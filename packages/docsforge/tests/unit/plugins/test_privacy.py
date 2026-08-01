@@ -6,9 +6,14 @@ work and is tested directly.
 """
 from __future__ import annotations
 
+from pathlib import Path
+from urllib.parse import urlparse
+
 import pytest
 
 from docsforge.core import privacy as privacy_mod
+from docsforge.core.privacy import PrivacyPlugin
+from docsforge.exceptions import PluginError
 
 
 class TestFragmentParser:
@@ -64,3 +69,31 @@ class TestPrivacyConfig:
         cfg.validate()
         assert cfg["enabled"] is True
         assert cfg["concurrency"] >= 1
+
+
+class TestPathSanitization:
+    """External URL paths must not traverse the local cache directory."""
+
+    @pytest.fixture()
+    def plugin(self, tmp_path: Path):
+        p = PrivacyPlugin()
+        p.load_config({"cache_dir": str(tmp_path / "cache")})
+        return p
+
+    def test_path_from_url_strips_leading_slash(self, plugin: PrivacyPlugin):
+        url = urlparse("https://example.com/assets/style.css")
+        assert plugin._path_from_url(url) == "example.com/assets/style.css"
+
+    def test_path_from_url_rejects_traversal(self, plugin: PrivacyPlugin):
+        url = urlparse("https://example.com/../../etc/passwd")
+        with pytest.raises(PluginError):
+            plugin._path_from_url(url)
+
+    def test_path_from_url_preserves_leading_dot_dir(self, plugin: PrivacyPlugin):
+        """Leading dot segments like .icons must not be rewritten to _icons."""
+        url = urlparse("https://example.com/.icons/foo.svg")
+        assert ".icons" in plugin._path_from_url(url)
+
+    def test_path_to_file_rejects_escaping_cache_dir(self, plugin: PrivacyPlugin):
+        with pytest.raises(PluginError):
+            plugin._path_to_file("../../../etc/passwd", None)  # type: ignore[arg-type]

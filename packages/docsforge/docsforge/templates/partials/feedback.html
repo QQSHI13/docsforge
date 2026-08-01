@@ -18,8 +18,11 @@
       <div class="md-feedback__inner">
         <div class="md-feedback__list">
           {% for rating in feedback.ratings %}
+            {% set icon = rating.icon | validate_icon_name %}
             <button class="md-feedback__icon md-icon" type="submit" title="{{ rating.name }}" data-md-value="{{ rating.data }}">
-              {% include ".icons/" ~ rating.icon ~ ".svg" %}
+              {% if icon %}
+                {% include ".icons/" ~ icon ~ ".svg" %}
+              {% endif %}
             </button>
           {% endfor %}
         </div>

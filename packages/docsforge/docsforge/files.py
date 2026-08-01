@@ -322,7 +322,7 @@ class File:
             use_directory_urls=config.use_directory_urls,
             inclusion=inclusion,
         )
-        f.generated_by = config.plugins._current_plugin or '<unknown>'
+        f.generated_by = config.plugins.current_plugin or '<unknown>'
         f.abs_src_path = abs_src_path
         f._content = content
         return f
@@ -349,7 +349,7 @@ class File:
         return (
             f"{type(self).__name__}({self.src_uri!r}, src_dir={self.src_dir!r}, "
             f"dest_dir={self.dest_dir!r}, use_directory_urls={self.use_directory_urls!r}, "
-            f"dest_uri={self.dest_uri!r}, inclusion={self.inclusion})"
+            f"inclusion={self.inclusion!r})"
         )
 
     @utils.weak_property
@@ -397,7 +397,7 @@ class File:
             use_directory_urls = self.use_directory_urls
         if use_directory_urls and filename == 'index.html':
             url = (dirname or '.') + '/'
-        return urlquote(url)
+        return urlquote(url, safe='/')
 
     url = cached_property(_get_url)
     """The URI of the destination file relative to the destination directory as a string."""
@@ -549,8 +549,24 @@ def get_files(config: DocsForgeConfig) -> Files:
     """Walk the `docs_dir` and return a Files collection."""
     files: list[File] = []
     conflicting_files: list[tuple[File, File]] = []
+    visited_inodes: set[tuple[int, int]] = set()
     for source_dir, dirnames, filenames in os.walk(config['docs_dir'], followlinks=True):
         relative_dir = os.path.relpath(source_dir, config['docs_dir'])
+
+        # Detect symlink cycles so a recursive symlink does not send the walker
+        # into an infinite loop. os.walk(followlinks=True) otherwise has no
+        # cycle protection.
+        try:
+            st = os.stat(source_dir)
+            inode_key = (st.st_dev, st.st_ino)
+        except OSError:
+            inode_key = None
+        if inode_key is not None:
+            if inode_key in visited_inodes:
+                dirnames[:] = []
+                continue
+            visited_inodes.add(inode_key)
+
         dirnames.sort()
         filenames.sort(key=_file_sort_key)
 
@@ -606,6 +622,11 @@ def _file_sort_key(f: str):
 
 def _sort_files(filenames: Iterable[str]) -> list[str]:
     """Soft-deprecated, do not use."""
+    warnings.warn(
+        "_sort_files is soft-deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return sorted(filenames, key=_file_sort_key)
 
 

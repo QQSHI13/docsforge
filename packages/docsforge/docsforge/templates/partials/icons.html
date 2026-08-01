@@ -4,6 +4,7 @@
 {% if config.theme.icon.admonition %}
   {% set _ = namespace(style = "\u003cstyle\u003e:root{") %}
   {% for type, icon in config.theme.icon.admonition | items %}
+    {% set icon = icon | validate_icon_name %}
     {% if type and icon %}
       {% import ".icons/" ~ icon ~ ".svg" as icon %}
       {% set _.style = _.style ~
@@ -15,11 +16,12 @@
     {% endif %}
   {% endfor %}
   {% set _.style = _.style ~ "}\u003c/style\u003e" %}
-  {{ _.style }}
+  {{ _.style | safe }}
 {% endif %}
-{% if config.theme.icon.annotation %}
+{% set annotation_icon = config.theme.icon.annotation | validate_icon_name %}
+{% if annotation_icon %}
   {% set _ = namespace(style = "\u003cstyle\u003e:root{") %}
-  {% import ".icons/" ~ config.theme.icon.annotation ~ ".svg" as icon %}
+  {% import ".icons/" ~ annotation_icon ~ ".svg" as icon %}
   {% set _.style = _.style ~
     "--md-annotation-icon:" ~
     "url('data:image/svg+xml;charset=utf-8," ~
@@ -27,11 +29,12 @@
     "');"
   %}
   {% set _.style = _.style ~ "}\u003c/style\u003e" %}
-  {{ _.style }}
+  {{ _.style | safe }}
 {% endif %}
 {% if config.theme.icon.tag %}
   {% set _ = namespace(style = "\u003cstyle\u003e:root{") %}
   {% for type, icon in config.theme.icon.tag | items %}
+    {% set icon = icon | validate_icon_name %}
     {% if type and icon %}
       {% import ".icons/" ~ icon ~ ".svg" as icon %}
       {% if type != "default" %}
@@ -48,5 +51,5 @@
     {% endif %}
   {% endfor %}
   {% set _.style = _.style ~ "}\u003c/style\u003e" %}
-  {{ _.style }}
+  {{ _.style | safe }}
 {% endif %}

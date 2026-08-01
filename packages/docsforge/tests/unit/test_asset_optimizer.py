@@ -7,6 +7,8 @@ from docsforge.asset_optimizer import (
     _AssetReferenceParser,
     _find_referenced_assets,
     _normalize_asset_url,
+    remove_source_maps,
+    remove_unused_font_formats,
 )
 
 
@@ -66,6 +68,28 @@ class TestAssetReferenceParser:
         p.feed('<div data-id="123">x</div>')
         assert '123' not in p.refs
 
+    def test_img_srcset_with_density_descriptors(self):
+        p = _AssetReferenceParser()
+        p.feed('<img srcset="images/logo-1x.png 1x, images/logo-2x.png 2x" alt="logo">')
+        assert 'images/logo-1x.png' in p.refs
+        assert 'images/logo-2x.png' in p.refs
+
+    def test_source_srcset_with_width_descriptors(self):
+        p = _AssetReferenceParser()
+        p.feed('<source srcset="images/banner-100.jpg 100w, images/banner-200.jpg 200w">')
+        assert 'images/banner-100.jpg' in p.refs
+        assert 'images/banner-200.jpg' in p.refs
+
+    def test_inline_style_url(self):
+        p = _AssetReferenceParser()
+        p.feed('<style>.x { background: url(images/bg.png); }</style>')
+        assert 'images/bg.png' in p.refs
+
+    def test_inline_style_import(self):
+        p = _AssetReferenceParser()
+        p.feed("<style>@import url('fonts/font.woff2');</style>")
+        assert 'fonts/font.woff2' in p.refs
+
 
 class TestFindReferencedAssets:
     def test_html_css_and_js_references(self, tmp_path):
@@ -108,3 +132,91 @@ class TestFindReferencedAssets:
         )
         refs = _find_referenced_assets(str(site))
         assert 'https://cdn.example.com/app.js' not in refs
+
+
+class TestRemoveUnusedFontFormats:
+    def test_referenced_legacy_font_is_kept(self, tmp_path):
+        site = tmp_path / "site"
+        fonts = site / "assets" / "fonts"
+        fonts.mkdir(parents=True)
+        (fonts / "icons.ttf").write_bytes(b"ttf")
+        (fonts / "icons.woff2").write_bytes(b"woff2")
+        (site / "index.html").write_text(
+            "<style>@font-face { src: url('assets/fonts/icons.ttf'); }</style>"
+        )
+
+        remove_unused_font_formats(str(site))
+
+        assert (fonts / "icons.ttf").exists()
+        assert (fonts / "icons.woff2").exists()
+
+    def test_unreferenced_legacy_font_is_removed(self, tmp_path):
+        site = tmp_path / "site"
+        fonts = site / "assets" / "fonts"
+        fonts.mkdir(parents=True)
+        (fonts / "icons.ttf").write_bytes(b"ttf")
+        (fonts / "icons.woff2").write_bytes(b"woff2")
+        (site / "index.html").write_text("<html><body>no fonts here</body></html>")
+
+        remove_unused_font_formats(str(site))
+
+        assert not (fonts / "icons.ttf").exists()
+        assert (fonts / "icons.woff2").exists()
+
+
+class TestRemoveSourceMaps:
+    def test_strips_source_mapping_url_comment(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n//# sourceMappingURL=bundle.js.map\n")
+
+        remove_source_maps(str(site))
+
+        assert "sourceMappingURL" not in js.read_text()
+
+    def test_removes_map_files(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n")
+        map_file = site / "assets" / "bundle.js.map"
+        map_file.write_text("{}")
+
+        remove_source_maps(str(site))
+
+        assert not map_file.exists()
+
+    def test_skips_unchanged_js_files_on_second_run(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n//# sourceMappingURL=bundle.js.map\n")
+        cache_dir = tmp_path / ".docsforge" / "cache"
+
+        remove_source_maps(str(site), cache_dir=cache_dir)
+        stripped = js.read_text()
+        assert "sourceMappingURL" not in stripped
+        cached_mtime = js.stat().st_mtime
+
+        # Re-run without touching the file: it should be skipped.
+        remove_source_maps(str(site), cache_dir=cache_dir)
+
+        assert js.stat().st_mtime == cached_mtime
+        assert js.read_text() == stripped
+
+    def test_reprocesses_js_file_when_it_changes(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n//# sourceMappingURL=bundle.js.map\n")
+        cache_dir = tmp_path / ".docsforge" / "cache"
+
+        remove_source_maps(str(site), cache_dir=cache_dir)
+        assert "sourceMappingURL" not in js.read_text()
+
+        # File changes (new content / different size).
+        js.write_text("console.log(2);\n//# sourceMappingURL=bundle.js.map\n")
+
+        remove_source_maps(str(site), cache_dir=cache_dir)
+        assert "sourceMappingURL" not in js.read_text()

@@ -20,8 +20,11 @@
       {% set url = split_and_get(social.link, "//", 1) %}
       {% set title = split_and_get(url, "/", 0) %}
     {% endif %}
+    {% set icon = social.icon | validate_icon_name %}
     <a href="{{ social.link }}" target="_blank" rel="{{ rel }}" title="{{ title | e }}" class="md-social__link">
-      {% include ".icons/" ~ social.icon ~ ".svg" %}
+      {% if icon %}
+        {% include ".icons/" ~ icon ~ ".svg" %}
+      {% endif %}
     </a>
   {% endfor %}
 </div>

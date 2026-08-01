@@ -105,7 +105,7 @@ class RelativeDirPlaceholder(_DirPlaceholder):
         return os.path.dirname(os.path.join(self.config.docs_dir, current_page.file.src_path))
 
 
-def get_yaml_loader(loader=yaml.Loader, config: DocsForgeConfig | None = None):
+def get_yaml_loader(loader=yaml.SafeLoader, config: DocsForgeConfig | None = None):
     """Wrap PyYaml's loader so we can extend it to suit our needs."""
 
     class Loader(loader):
@@ -144,8 +144,17 @@ def yaml_load(
         and getattr(source, 'name', None) is not None
     ):
         relpath = result.pop('INHERIT')
-        abspath = os.path.normpath(os.path.join(os.path.dirname(source.name), relpath))
-        if not os.path.exists(abspath):
+        if not isinstance(relpath, str):
+            raise exceptions.ConfigurationError(
+                f"INHERIT must be a file path, got {type(relpath).__name__}"
+            )
+        config_dir = os.path.realpath(os.path.dirname(source.name))
+        abspath = os.path.realpath(os.path.join(config_dir, relpath))
+        if os.path.commonpath([config_dir, abspath]) != config_dir:
+            raise exceptions.ConfigurationError(
+                f"Inherited config file '{relpath}' resolves outside the config directory."
+            )
+        if not os.path.isfile(abspath):
             raise exceptions.ConfigurationError(
                 f"Inherited config file '{relpath}' does not exist at '{abspath}'."
             )

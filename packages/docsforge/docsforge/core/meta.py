@@ -63,9 +63,11 @@ class MetaPlugin(BasePlugin[MetaConfig]):
         meta = {}
         strategy = Strategy.TYPESAFE_ADDITIVE
 
-        # Merge matching meta files in level-order
-        for path, defaults in self.meta.items():
-            if not page.file.src_path.startswith(os.path.dirname(path)):
+        # Merge matching meta files in level-order (shallowest first)
+        for path, defaults in sorted(self.meta.items(), key=lambda item: item[0].count(os.sep)):
+            dir_path = os.path.dirname(path)
+            page_dir = os.path.dirname(page.file.src_path)
+            if dir_path and page_dir != dir_path and not page_dir.startswith(dir_path + os.sep):
                 continue
 
             page.meta.setdefault("__extends", [])

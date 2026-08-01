@@ -316,7 +316,9 @@ DocsForge supports keyboard navigation out of the box. Custom interactive elemen
 
 ## Multi-language Sites
 
-DocsForge does not include a built-in internationalization plugin. You have two practical options:
+DocsForge includes a built-in internationalization plugin via `material/i18n`. See [Internationalization setup](../setup/i18n.md) for details.
+
+If the built-in plugin doesn't fit your workflow, you can also use one of these alternatives:
 
 ### Option 1: Build separate sites per language
 

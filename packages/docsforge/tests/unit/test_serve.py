@@ -4,6 +4,7 @@ WSL port hangs, infinite reload loops, pidfile races).
 """
 from __future__ import annotations
 
+import os
 import socket
 from types import SimpleNamespace
 
@@ -106,7 +107,8 @@ class TestTryRelativizePath:
         sub.parent.mkdir()
         sub.write_text("x")
         rel = _try_relativize_path(str(sub))
-        assert rel == "sub/file.md" or rel.endswith("file.md")
+        assert rel == "sub/file.md"
+        assert not os.path.isabs(rel)
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +128,9 @@ def _make_server(tmp_path):
 
 
 def _file_event():
-    return SimpleNamespace(is_directory=False, src_path="/x.md", dest_path="/x.md")
+    return SimpleNamespace(
+        is_directory=False, src_path="/x.md", dest_path="/x.md", event_type="modified"
+    )
 
 
 class TestRebuildQueueing:
