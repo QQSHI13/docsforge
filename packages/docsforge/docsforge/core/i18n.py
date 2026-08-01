@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote as urlquote
 
 from docsforge import meta, templates, utils
-from docsforge.config_options import Choice, ListOfItems, Optional, SubConfig, Type
+from docsforge.config_options import ListOfItems, Optional, SubConfig, Type
 from docsforge.config_base import Config
 from docsforge.core.plugin_base import BasePlugin
 from docsforge.files import File, Files, InclusionLevel
@@ -57,9 +57,6 @@ class I18nLanguageConfig(Config):
 class I18nConfig(Config):
     languages = ListOfItems(SubConfig(I18nLanguageConfig), default=[])
     """List of configured languages. When empty, the plugin does nothing."""
-
-    docs_structure = Choice(("suffix", "folder"), default="suffix")
-    """How translated files are organized: 'suffix' (page.zh.md) or 'folder' (zh/page.md)."""
 
     fallback_to_default = Type(bool, default=True)
     """When a translation is missing, use the default-language page."""
@@ -215,7 +212,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
     def _parse_file(self, src_uri: str) -> tuple[str, str | None]:
         """Return (base_key, locale) for a source file.
 
-        Examples (suffix mode):
+        Translated files are recognized by the locale suffix:
             index.md -> ("index", default_locale)
             index.zh.md -> ("index", "zh")
             guide/intro.md -> ("guide/intro", default_locale)
@@ -224,14 +221,13 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         parent, filename = posixpath.split(src_uri)
         stem, ext = posixpath.splitext(filename)
 
-        if self.config.docs_structure == "suffix":
-            match = re.fullmatch(r"(.+)\.([a-zA-Z0-9_-]+)", stem)
-            if match:
-                maybe_locale = match.group(2)
-                if maybe_locale in self.locales and maybe_locale != self.default_locale:
-                    base_name = match.group(1)
-                    base_key = posixpath.join(parent, base_name + ext) if parent else base_name + ext
-                    return base_key, maybe_locale
+        match = re.fullmatch(r"(.+)\.([a-zA-Z0-9_-]+)", stem)
+        if match:
+            maybe_locale = match.group(2)
+            if maybe_locale in self.locales and maybe_locale != self.default_locale:
+                base_name = match.group(1)
+                base_key = posixpath.join(parent, base_name + ext) if parent else base_name + ext
+                return base_key, maybe_locale
 
         locale = self.default_locale
         return src_uri, locale
