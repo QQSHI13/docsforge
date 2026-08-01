@@ -117,7 +117,7 @@ class PostDate(BaseConfigOption[DateDict]):
                 )
 
         # Ensure presence of `date.created`
-        if not value.created:
+        if value.created is None:
             raise ValidationError(
                 "Expected 'created' date when using dictionary syntax"
             )
@@ -287,7 +287,7 @@ class BlogConfig(Config):
     categories_slugify_separator = Type(str, default = "-")
     categories_sort_by = Type(Callable, default = view_name)
     categories_sort_reverse = Type(bool, default = False)
-    categories_allowed = Type(list, default = [])
+    categories_allowed = Type(list, default = list())
     categories_pagination = Optional(Type(bool))
     categories_pagination_per_page = Optional(Type(int))
     categories_toc = Optional(Type(bool))
@@ -467,7 +467,7 @@ class Post(Page):
             # `on_files` but the meta plugin first runs in `on_page_markdown`.
             plugin: MetaPlugin = config.plugins.get("material/meta")
             if plugin:
-                plugin.on_page_markdown(
+                self.markdown = plugin.on_page_markdown(
                     self.markdown, page = self, config = config, files = None
                 )
 

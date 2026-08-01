@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from docsforge.core.blog import BlogPlugin, PostConfig
+from docsforge.core.blog import BlogConfig, BlogPlugin, DateDict, Post, PostConfig, PostDate
 from docsforge.exceptions import PluginError
 from docsforge.files import File, Files
 
@@ -199,4 +199,73 @@ class TestAuthorGuard:
             list(plugin._generate_profiles(config, None))
 
 
+class TestPostDate:
+    def test_truthiness_check_does_not_reject_falsy_datetime(self):
+        """A datetime subclass that evaluates to falsy must not be treated as missing."""
+        class FalsyDateTime(datetime):
+            def __bool__(self):
+                return False
 
+        created = FalsyDateTime(2024, 1, 1, tzinfo=datetime.now().tzinfo)
+        value = DateDict({"created": created})
+        option = PostDate()
+
+        # Before the fix this raised "Expected 'created' date ..." because the
+        # code checked `if not value.created`. After the fix it checks `is None`
+        # and correctly validates the present (albeit falsy) datetime.
+        result = option.run_validation(value)
+        assert result is value
+        assert result.created is created
+
+
+class TestPostMetaMarkdown:
+    def test_on_page_markdown_return_value_is_assigned(self, tmp_path, mocker):
+        """The return value of the meta plugin's on_page_markdown must update self.markdown."""
+
+        class FakeConfig:
+            def __init__(self, docs_dir, plugins):
+                self.docs_dir = docs_dir
+                self.plugins = plugins
+
+            def get(self, key, default=None):
+                return getattr(self, key, default)
+
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        post_file = docs / "posts" / "a.md"
+        post_file.parent.mkdir(parents=True, exist_ok=True)
+        post_file.write_text(
+            "---\ndate:\n  created: 2024-01-01\n---\n\n# Hello\n",
+            encoding="utf-8",
+        )
+
+        file = File(str(post_file.relative_to(docs)), str(docs), str(tmp_path / "site"), True)
+        file.abs_src_path = str(post_file)
+
+        meta_plugin = mocker.MagicMock()
+        meta_plugin.on_page_markdown.return_value = "# Modified\n"
+
+        config = FakeConfig(str(docs), {"material/meta": meta_plugin})
+
+        post = Post(file, config)
+
+        meta_plugin.on_page_markdown.assert_called_once_with(
+            "# Hello\n", page=post, config=config, files=None
+        )
+        assert post.markdown == "# Modified\n"
+
+
+class TestBlogConfigDefaults:
+    def test_categories_allowed_defaults_are_isolated(self):
+        """Each BlogConfig instance must get its own categories_allowed list."""
+        config1 = BlogConfig()
+        config2 = BlogConfig()
+
+        # Default should be empty
+        assert config1.categories_allowed == []
+        assert config2.categories_allowed == []
+
+        # Modifying one config must not affect the other
+        config1.categories_allowed.append("news")
+        assert config1.categories_allowed == ["news"]
+        assert config2.categories_allowed == []
