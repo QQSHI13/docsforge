@@ -149,7 +149,7 @@ class TestFinalizeBuildOrder:
                 Mock(homepage=None),
                 planner,
                 warning_counter,
-                built_any=False,
+                built_any=True,
                 sources_changed=False,
                 config_path=Path("docsforge.yml"),
                 theme_sig="",
@@ -157,6 +157,74 @@ class TestFinalizeBuildOrder:
             )
 
         assert calls == ["on_post_build", "pwa"]
+
+
+class TestFinalizeBuildOptimizesAssets:
+    """Asset optimization must run even on incremental builds with no changes."""
+
+    def test_optimize_assets_runs_when_nothing_changed(self, tmp_path, monkeypatch):
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        planner = Mock()
+        planner.save = Mock()
+
+        warning_counter = Mock()
+        warning_counter.get_counts.return_value = None
+
+        optimize_calls = []
+
+        def fake_optimize(site_dir, **kwargs):
+            optimize_calls.append((site_dir, kwargs))
+
+        # Avoid running real plugin post_build handlers and PWA generation;
+        # they require a full build state this test does not set up.
+        cfg.plugins.on_post_build = Mock()
+
+        with patch.object(build_mod, "optimize_assets", fake_optimize):
+            with patch.object(build_mod, "_generate_pwa_manifest_and_precache", Mock()):
+                _finalize_build(
+                    cfg,
+                    Files([]),
+                    Mock(homepage=None),
+                    planner,
+                    warning_counter,
+                    built_any=False,
+                    sources_changed=False,
+                    config_path=Path("docsforge.yml"),
+                    theme_sig="",
+                    start=0.0,
+                )
+
+        assert optimize_calls == [
+            (
+                cfg.site_dir,
+                {
+                    "built_any": False,
+                    "sources_changed": False,
+                    "cache_dir": planner.cache.cache_dir,
+                },
+            )
+        ]
+
+
+class TestInstantNavigationBundleIgnoresI18nAlternates:
+    """The vendored instant-navigation bundle must not treat i18n hreflang
+    alternates as version bases (which causes subdirectory sitemap.xml 404s)."""
+
+    def test_bundle_selector_excludes_hreflang_alternates(self):
+        from docsforge import utils
+
+        theme_dir = utils.get_theme_dir('material')
+        bundle_path = Path(theme_dir) / 'assets' / 'javascripts' / 'bundle.79ae519e.min.js'
+        if not bundle_path.exists():
+            pytest.skip('Vendored bundle not present')
+
+        content = bundle_path.read_text(encoding='utf-8', errors='ignore')
+        # The upstream selector would be M("link[rel=alternate]"); DocsForge
+        # patches it to exclude hreflang alternates used by the i18n plugin.
+        assert 'link[rel=alternate]:not([hreflang])' in content
+        assert 'M("link[rel=alternate]")' not in content
 
 
 class TestBuildPageLock:

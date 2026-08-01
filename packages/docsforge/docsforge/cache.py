@@ -259,22 +259,25 @@ class BuildPlanner:
 
         A change triggers a full rebuild so edits to base.html, a partial, or
         a custom_dir template propagate to every page. Only .html/.xml are
-        tracked (rendering-affecting); the 14k+ .icons/ are excluded.
+        tracked (rendering-affecting); the 14k+ .icons/ and asset directories
+        are skipped by globbing for the exact suffixes.
         """
         import hashlib
         items = []
+        seen = set()
         for d in dirs:
             dpath = Path(d)
-            if not dpath.is_dir():
+            key = dpath.resolve()
+            if key in seen or not dpath.is_dir():
                 continue
-            for p in dpath.rglob('*'):
-                if not p.is_file() or p.suffix not in ('.html', '.xml'):
-                    continue
-                try:
-                    st = p.stat()
-                except OSError:
-                    continue
-                items.append((str(p), st.st_mtime_ns, st.st_size))
+            seen.add(key)
+            for pattern in ('*.html', '*.xml'):
+                for p in dpath.rglob(pattern):
+                    try:
+                        st = p.stat()
+                    except OSError:
+                        continue
+                    items.append((str(p), st.st_mtime_ns, st.st_size))
         items.sort()
         h = hashlib.sha256()
         for path, mtime, size in items:

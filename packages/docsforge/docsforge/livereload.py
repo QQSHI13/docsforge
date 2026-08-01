@@ -120,6 +120,12 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         """
         if event.is_directory:
             return
+        # Ignore read-only events. On Linux, simply reading a file emits
+        # IN_OPEN/IN_CLOSE_NOWRITE events; treating them as changes causes
+        # the build itself to trigger an endless rebuild loop.
+        if event.event_type not in ('created', 'modified', 'moved', 'deleted'):
+            log.debug(f"Ignoring non-modifying event: {event}")
+            return
         log.debug(str(event))
         with self._rebuild_cond:
             if self._rebuilding:

@@ -128,7 +128,9 @@ def _make_server(tmp_path):
 
 
 def _file_event():
-    return SimpleNamespace(is_directory=False, src_path="/x.md", dest_path="/x.md")
+    return SimpleNamespace(
+        is_directory=False, src_path="/x.md", dest_path="/x.md", event_type="modified"
+    )
 
 
 class TestRebuildQueueing:

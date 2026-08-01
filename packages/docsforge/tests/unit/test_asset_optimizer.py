@@ -7,6 +7,7 @@ from docsforge.asset_optimizer import (
     _AssetReferenceParser,
     _find_referenced_assets,
     _normalize_asset_url,
+    remove_source_maps,
     remove_unused_font_formats,
 )
 
@@ -161,3 +162,61 @@ class TestRemoveUnusedFontFormats:
 
         assert not (fonts / "icons.ttf").exists()
         assert (fonts / "icons.woff2").exists()
+
+
+class TestRemoveSourceMaps:
+    def test_strips_source_mapping_url_comment(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n//# sourceMappingURL=bundle.js.map\n")
+
+        remove_source_maps(str(site))
+
+        assert "sourceMappingURL" not in js.read_text()
+
+    def test_removes_map_files(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n")
+        map_file = site / "assets" / "bundle.js.map"
+        map_file.write_text("{}")
+
+        remove_source_maps(str(site))
+
+        assert not map_file.exists()
+
+    def test_skips_unchanged_js_files_on_second_run(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n//# sourceMappingURL=bundle.js.map\n")
+        cache_dir = tmp_path / ".docsforge" / "cache"
+
+        remove_source_maps(str(site), cache_dir=cache_dir)
+        stripped = js.read_text()
+        assert "sourceMappingURL" not in stripped
+        cached_mtime = js.stat().st_mtime
+
+        # Re-run without touching the file: it should be skipped.
+        remove_source_maps(str(site), cache_dir=cache_dir)
+
+        assert js.stat().st_mtime == cached_mtime
+        assert js.read_text() == stripped
+
+    def test_reprocesses_js_file_when_it_changes(self, tmp_path):
+        site = tmp_path / "site"
+        js = site / "assets" / "bundle.js"
+        js.parent.mkdir(parents=True)
+        js.write_text("console.log(1);\n//# sourceMappingURL=bundle.js.map\n")
+        cache_dir = tmp_path / ".docsforge" / "cache"
+
+        remove_source_maps(str(site), cache_dir=cache_dir)
+        assert "sourceMappingURL" not in js.read_text()
+
+        # File changes (new content / different size).
+        js.write_text("console.log(2);\n//# sourceMappingURL=bundle.js.map\n")
+
+        remove_source_maps(str(site), cache_dir=cache_dir)
+        assert "sourceMappingURL" not in js.read_text()

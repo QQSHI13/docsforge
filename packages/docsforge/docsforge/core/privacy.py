@@ -131,6 +131,16 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     supports_multiple_instances = True
 
     # -----------------------------------------------------------------------
+    # Pool lifecycle
+    # -----------------------------------------------------------------------
+
+    def _get_pool(self) -> ThreadPoolExecutor:
+        """Return the thread pool, creating it on first use."""
+        if self.pool is None:
+            self.pool = ThreadPoolExecutor(self.config.concurrency)
+        return self.pool
+
+    # -----------------------------------------------------------------------
     # One-time events
     # -----------------------------------------------------------------------
 
@@ -139,8 +149,18 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not self.config.enabled:
             return
 
-        # Initialize thread pool
-        self.pool = ThreadPoolExecutor(self.config.concurrency)
+        # Resolve cache_dir relative to the project root (config file directory)
+        # so cached external assets are reused regardless of the current working
+        # directory from which docsforge is invoked.
+        cache_dir = self.config['cache_dir']
+        if not os.path.isabs(cache_dir):
+            project_dir = os.path.dirname(config.config_file_path or "") or os.getcwd()
+            cache_dir = os.path.normpath(os.path.join(project_dir, cache_dir))
+            self.config['cache_dir'] = cache_dir
+
+        # Thread pool is created lazily: if a site has no external assets,
+        # we avoid the cost of starting and shutting down worker threads.
+        self.pool: ThreadPoolExecutor | None = None
         self.pool_jobs: list[Future] = []
 
         # Initialize collections of external assets
@@ -281,13 +301,14 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         for file in self.assets:
             _, extension = posixpath.splitext(file.dest_uri)
             if extension in [".css", ".js"]:
-                self.pool_jobs.append(self.pool.submit(self._patch, file))
+                self.pool_jobs.append(self._get_pool().submit(self._patch, file))
             elif file not in self.assets_done:
                 if os.path.exists(str(file.abs_src_path)):
                     file.copy_file()
 
         wait(self.pool_jobs)
-        self.pool.shutdown()
+        if self.pool is not None:
+            self.pool.shutdown()
 
     # -----------------------------------------------------------------------
     # URL helpers
@@ -445,7 +466,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
             _, extension = posixpath.splitext(url.path)
             if extension and concurrent:
-                self.pool_jobs.append(self.pool.submit(self._fetch, file, config))
+                self.pool_jobs.append(self._get_pool().submit(self._fetch, file, config))
             else:
                 if not self._fetch(file, config):
                     return None

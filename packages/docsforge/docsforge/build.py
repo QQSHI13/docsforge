@@ -479,54 +479,61 @@ def _write_outputs(
     log.debug("Building markdown pages.")
     # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
     page_lock = threading.RLock()
-    max_workers = min(32, os.cpu_count() or 1)
+
+    # Collect pages that need rebuilding first so we don't create an executor
+    # (and pay its worker-thread shutdown cost) when nothing changed.
+    pages_to_build: list[tuple[Page, Path, Path]] = []
+    for file in all_doc_files:
+        assert file.page is not None
+        source_path = Path(file.abs_src_path)
+        output_path = Path(file.abs_dest_path)
+        if planner.should_rebuild(source_path, output_path):
+            pages_to_build.append((file.page, source_path, output_path))
 
     built_any = False
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        for file in all_doc_files:
-            assert file.page is not None
+    if pages_to_build:
+        max_workers = min(32, os.cpu_count() or 1)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                (
+                    executor.submit(
+                        _build_page,
+                        page, config, all_doc_files, nav, env, True,
+                        page.file.inclusion.is_excluded(),
+                        page_lock,
+                    ),
+                    source_path,
+                    output_path,
+                    page,
+                )
+                for page, source_path, output_path in pages_to_build
+            ]
 
-            source_path = Path(file.abs_src_path)
-            output_path = Path(file.abs_dest_path)
+            # Wait for all pages to complete
+            for future, source_path, output_path, page in futures:
+                try:
+                    future.result()
+                except Exception:
+                    # Error already logged in _build_page; continue with other pages
+                    # unless strict mode is enabled, in which case we must fail.
+                    # Do NOT update the cache for a failed build — otherwise the
+                    # next run would consider the page up-to-date and silently keep
+                    # the broken output.
+                    if config.strict:
+                        raise
+                    continue
 
-            # Check if page needs rebuilding
-            if not planner.should_rebuild(source_path, output_path):
-                continue
-
-            future = executor.submit(
-                _build_page,
-                file.page, config, all_doc_files, nav, env, True,
-                file.inclusion.is_excluded(),
-                page_lock,
-            )
-            futures.append((future, source_path, output_path, file.page))
-
-        # Wait for all pages to complete
-        for future, source_path, output_path, page in futures:
-            try:
-                future.result()
-            except Exception:
-                # Error already logged in _build_page; continue with other pages
-                # unless strict mode is enabled, in which case we must fail.
-                # Do NOT update the cache for a failed build — otherwise the
-                # next run would consider the page up-to-date and silently keep
-                # the broken output.
-                if config.strict:
-                    raise
-                continue
-
-            # Update cache after successful build. Use page.markdown (the
-            # raw source) not page.content (rendered HTML): the snippet
-            # include markers are consumed during md.convert(), so only
-            # the raw markdown still contains them.
-            deps = DependencyTracker.get_file_deps(
-                source_path,
-                page.markdown or "",
-                base_paths=[Path(config.docs_dir)],
-            )
-            planner.update_cache(source_path, output_path, deps)
-            built_any = True
+                # Update cache after successful build. Use page.markdown (the
+                # raw source) not page.content (rendered HTML): the snippet
+                # include markers are consumed during md.convert(), so only
+                # the raw markdown still contains them.
+                deps = DependencyTracker.get_file_deps(
+                    source_path,
+                    page.markdown or "",
+                    base_paths=[Path(config.docs_dir)],
+                )
+                planner.update_cache(source_path, output_path, deps)
+                built_any = True
 
     return built_any
 
@@ -544,26 +551,34 @@ def _finalize_build(
     start: float,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
-    log_level = config.validation.links.anchors
-    for file in files.documentation_pages():
-        assert file.page is not None
-        file.page.validate_anchor_links(files=files, log_level=log_level)
+    nothing_changed = not built_any and not sources_changed
+
+    if not nothing_changed:
+        log_level = config.validation.links.anchors
+        for file in files.documentation_pages():
+            assert file.page is not None
+            file.page.validate_anchor_links(files=files, log_level=log_level)
 
     # Run `post_build` plugin events.
     config.plugins.on_post_build(config=config)
 
     # Generate PWA manifest and pre-cache all pages in the service worker.
     # This runs after post_build so plugins can add outputs before the cache
-    # manifest walks site_dir.
-    _generate_pwa_manifest_and_precache(config, files, nav, planner)
+    # manifest walks site_dir. Skip when nothing changed: the existing files
+    # in site_dir are still valid.
+    if not nothing_changed:
+        _generate_pwa_manifest_and_precache(config, files, nav, planner)
 
     # Optimize static assets: remove unused files, source maps, old font
-    # formats. Skip when the build wrote nothing and the source set is
-    # unchanged — the site is already optimized from the last build.
-    if built_any or sources_changed:
-        optimize_assets(config.site_dir)
-    else:
-        log.debug("Asset optimization skipped (site unchanged)")
+    # formats. Source-map stripping is incremental (skips unchanged JS files
+    # using cached mtime+size). The expensive reference scan for unused assets
+    # is skipped when nothing changed.
+    optimize_assets(
+        config.site_dir,
+        built_any=built_any,
+        sources_changed=sources_changed,
+        cache_dir=planner.cache.cache_dir,
+    )
 
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
