@@ -464,6 +464,13 @@ def _write_outputs(
     log.debug("Copying static assets.")
     files.copy_static_files(dirty=False, inclusion=inclusion)
 
+    # Map stable logical asset names to the hashed filenames on disk so the
+    # base template never hard-codes a hash that can 404 after an asset rebuild.
+    asset_manifest = templates.build_asset_manifest(config.site_dir)
+    env_globals = getattr(env, 'globals', None)
+    if isinstance(env_globals, dict):
+        env_globals['asset_url'] = lambda value: templates.asset_url(value, asset_manifest)
+
     for template in config.theme.static_templates:
         _build_theme_template(template, env, files, config, nav)
 
