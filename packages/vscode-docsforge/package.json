@@ -160,6 +160,7 @@
     "typescript-eslint": "^8.63.0"
   },
   "overrides": {
+    "brace-expansion": ">=2.1.4",
     "diff": "^9.0.0",
     "glob": "^13.0.0",
     "serialize-javascript": "^7.0.5"
