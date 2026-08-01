@@ -23,14 +23,25 @@ def _can_launch_browser() -> bool:
         from playwright.sync_api import sync_playwright
     except ImportError:
         return False
+    p = None
+    b = None
     try:
         p = sync_playwright().start()
         b = p.chromium.launch()
-        b.close()
-        p.stop()
         return True
     except Exception:
         return False
+    finally:
+        try:
+            if b:
+                b.close()
+        except Exception:
+            pass
+        try:
+            if p:
+                p.stop()
+        except Exception:
+            pass
 
 
 _HAS_BROWSER = None
@@ -96,9 +107,9 @@ def served_site(tmp_path_factory) -> Iterator[tuple[str, Path]]:
     if not has_browser():
         pytest.skip("Playwright/Chromium unavailable — E2E tests skipped")
     _, site_dir = _build_fixture(tmp_path_factory.mktemp("e2e"))
-    port = _free_port()
-    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), lambda *a: _Handler(*a, directory=str(site_dir)))
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", 0), lambda *a: _Handler(*a, directory=str(site_dir)))
     httpd.daemon_threads = True
+    port = httpd.server_address[1]
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
     yield (f"http://127.0.0.1:{port}/", site_dir)
@@ -111,20 +122,13 @@ def served_site_i18n(tmp_path_factory):
     if not has_browser():
         pytest.skip("Playwright/Chromium unavailable — E2E tests skipped")
     _, site_dir = _build_fixture(tmp_path_factory.mktemp("e2e-i18n"), language="fr")
-    port = _free_port()
-    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), lambda *a: _Handler(*a, directory=str(site_dir)))
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", 0), lambda *a: _Handler(*a, directory=str(site_dir)))
     httpd.daemon_threads = True
+    port = httpd.server_address[1]
     t = threading.Thread(target=httpd.serve_forever, daemon=True)
     t.start()
     yield f"http://127.0.0.1:{port}/"
     httpd.shutdown()
-
-
-def _free_port() -> int:
-    import socket
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 @pytest.fixture
@@ -171,6 +175,12 @@ def served_dev(tmp_path_factory):
     deadline = time.time() + 40
     try:
         while time.time() < deadline:
+            import select
+            readable, _, _ = select.select([proc.stdout], [], [], max(0, deadline - time.time()))
+            if not readable:
+                if proc.poll() is not None:
+                    break
+                continue
             line = proc.stdout.readline()
             if not line:
                 if proc.poll() is not None:

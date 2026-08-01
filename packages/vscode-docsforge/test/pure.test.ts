@@ -12,7 +12,9 @@ describe('pure helpers', () => {
       tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-vscode-'));
     });
     afterEach(() => {
-      fs.rmSync(tmp, { recursive: true, force: true });
+      if (tmp) {
+        fs.rmSync(tmp, { recursive: true, force: true });
+      }
     });
 
     it('prefers docsforge.yml over docsforge.yaml', () => {

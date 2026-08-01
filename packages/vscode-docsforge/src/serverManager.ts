@@ -13,6 +13,7 @@ export class ServerManager {
   private _startProgressResolve: (() => void) | null = null;
   private _processCloseHandler: ((code: number | null) => void) | null = null;
   private _processErrorHandler: ((err: Error) => void) | null = null;
+  private _startSafetyTimeout: NodeJS.Timeout | null = null;
   private static stateChangeEmitter = new vscode.EventEmitter<void>();
   static instance: ServerManager | undefined;
 
@@ -25,6 +26,10 @@ export class ServerManager {
   }
 
   constructor() {
+    // Dispose any previous instance's UI resources to avoid output-channel leaks.
+    if (ServerManager.instance) {
+      ServerManager.instance.dispose();
+    }
     ServerManager.instance = this;
     this.outputChannel = vscode.window.createOutputChannel('DocsForge');
     this.statusBarItem = vscode.window.createStatusBarItem(
@@ -235,13 +240,15 @@ export class ServerManager {
         // Resolve when URL is detected (server is ready)
         const disposable = ServerManager.onStateChange(() => {
           if (this._serverUrl) {
+            this._clearStartSafetyTimeout();
             this._startProgressResolve = null;
             disposable.dispose();
             resolve();
           }
         });
         // Safety timeout: resolve after 30s even if URL not yet detected
-        setTimeout(() => {
+        this._startSafetyTimeout = setTimeout(() => {
+          this._startSafetyTimeout = null;
           if (this._startProgressResolve) {
             this._startProgressResolve = null;
             disposable.dispose();
@@ -482,8 +489,17 @@ export class ServerManager {
     );
   }
 
+  private _clearStartSafetyTimeout() {
+    if (this._startSafetyTimeout) {
+      clearTimeout(this._startSafetyTimeout);
+      this._startSafetyTimeout = null;
+    }
+  }
+
   dispose() {
+    this._clearStartSafetyTimeout();
     this.stop(/* silent */ true);
+    this.outputChannel.dispose();
     this.statusBarItem.dispose();
   }
 }

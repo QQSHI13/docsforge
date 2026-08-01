@@ -87,8 +87,8 @@ def test_regression_11_1_4_dep_hashes_actually_stored(tmp_path: Path):
 
 
 def test_regression_10_8_4_relative_url_not_backwards():
-    """get_relative_url('.', page_url) must go from page->root, not root->page."""
-    # page at getting-started/ -> root is "../"
+    """get_relative_url('.', page_url) must go from root->page, not page->root."""
+    # from root (current=".") to page getting-started/ -> "getting-started/"
     rel = utils.get_relative_url(".", "getting-started/")
     assert rel == "getting-started/"
 

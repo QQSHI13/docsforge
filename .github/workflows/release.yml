@@ -203,7 +203,7 @@ jobs:
           if [ "${{ steps.versions.outputs.prerelease }}" = "true" ]; then
             FLAGS+=(--prerelease)
           fi
-          gh release create "$TAG" "${FLAGS[@]}" || echo "Release $TAG already exists"
+          gh release create "$TAG" "${FLAGS[@]}"
 
   build-vsix:
     needs: release

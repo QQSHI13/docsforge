@@ -139,7 +139,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "test": "mocha"
   },
   "mocha": {

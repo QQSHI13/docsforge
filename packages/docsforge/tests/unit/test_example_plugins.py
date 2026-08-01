@@ -14,13 +14,30 @@ import pytest
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "plugins"
 
+# Module names injected into sys.modules by this test file.
+_LOADED_MODULE_NAMES: list[str] = []
+
 
 def _load_module(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    _LOADED_MODULE_NAMES.append(name)
+    try:
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+    except Exception:
+        sys.modules.pop(name, None)
+        _LOADED_MODULE_NAMES.remove(name)
+        raise
     return module
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_example_modules():
+    yield
+    for name in _LOADED_MODULE_NAMES:
+        sys.modules.pop(name, None)
+    _LOADED_MODULE_NAMES.clear()
 
 
 def test_reading_time_plugin():
