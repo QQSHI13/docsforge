@@ -96,7 +96,7 @@ class Section(StructureItem):
 
 
 class Link(StructureItem):
-    def __init__(self, title: str, url: str):
+    def __init__(self, title: str | None, url: str):
         self.title = title
         self.url = url
 
@@ -105,7 +105,7 @@ class Link(StructureItem):
         title = f"{self.title!r}" if self.title is not None else '[blank]'
         return f"{name}(title={title}, url={self.url!r})"
 
-    title: str
+    title: str | None
     """The title of the link. This would generally be used as the label of the link."""
 
     url: str
@@ -225,12 +225,7 @@ def _data_to_navigation(data, files: Files, config: DocsForgeConfig):
                     raise BuildError(
                         f"A nav entry key must be a string, got {type(key).__name__}: {key!r}"
                     )
-                value = item[key]
-                if not isinstance(value, str):
-                    raise BuildError(
-                        f"A nav entry value must be a string, got {type(value).__name__}: {value!r}"
-                    )
-                result.append(_data_to_navigation(item, files, config)[0])
+                result.extend(_data_to_navigation(item, files, config))
             elif isinstance(item, str):
                 result.append(_data_to_navigation(item, files, config))
             else:

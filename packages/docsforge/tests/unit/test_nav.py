@@ -85,3 +85,37 @@ class TestDataToNavigationValidation:
         result = _data_to_navigation({"Section": {"Home": "index.md"}}, files, nav_config)
         assert result[0].title == "Section"
         assert isinstance(result[0].children[0], Page)
+
+    def test_dict_with_list_value_in_list_is_accepted(self, nav_config, tmp_path):
+        from docsforge.files import File, Files
+
+        file_a = File("publishing-your-site.md", str(tmp_path), str(tmp_path / "site"), True)
+        file_b = File("writing-your-docs.md", str(tmp_path), str(tmp_path / "site"), True)
+        files = Files([file_a, file_b])
+        result = _data_to_navigation(
+            [{"Publishing": ["publishing-your-site.md", "writing-your-docs.md"]}],
+            files,
+            nav_config,
+        )
+        section = result[0]
+        assert isinstance(section, Section)
+        assert section.title == "Publishing"
+        assert isinstance(section.children[0], Page)
+        assert section.children[0].file.src_uri == "publishing-your-site.md"
+        assert isinstance(section.children[1], Page)
+        assert section.children[1].file.src_uri == "writing-your-docs.md"
+
+    def test_dict_with_nested_dict_value_in_list_is_accepted(self, nav_config, tmp_path):
+        from docsforge.files import File, Files
+
+        file = File("index.md", str(tmp_path), str(tmp_path / "site"), True)
+        files = Files([file])
+        result = _data_to_navigation(
+            [{"Section": {"Home": "index.md"}}],
+            files,
+            nav_config,
+        )
+        section = result[0]
+        assert isinstance(section, Section)
+        assert section.title == "Section"
+        assert isinstance(section.children[0], Page)
