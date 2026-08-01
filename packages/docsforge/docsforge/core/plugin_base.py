@@ -514,6 +514,12 @@ class PluginCollection(dict, MutableMapping[str, BasePlugin]):
         super().__init__(*args, **kwargs)
         self.events: dict[str, list[Callable]] = {k: [] for k in EVENTS}
         self._event_origins: dict[Callable, str] = {}
+        self._current_plugin: str | None = None
+
+    @property
+    def current_plugin(self) -> str | None:
+        """The entry-point name of the plugin whose event is currently running, or None."""
+        return self._current_plugin
 
     def _register_event(
         self, event_name: str, method: CombinedEvent | Callable, plugin_name: str | None = None

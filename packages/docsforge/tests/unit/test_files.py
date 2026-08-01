@@ -182,3 +182,59 @@ class TestGetFiles:
         uris = {f.src_uri for f in files}
         assert "index.md" in uris
         assert "README.md" not in uris
+
+
+
+class TestFileGenerated:
+    """File.generated must use the public PluginCollection.current_plugin API."""
+
+    def test_generated_uses_public_current_plugin(self):
+        """generated_by should come from config.plugins.current_plugin, not the private attr."""
+        config = type(
+            "Config",
+            (),
+            {
+                "site_dir": "/site",
+                "use_directory_urls": True,
+                "plugins": type("Plugins", (), {"current_plugin": "my-plugin"})(),
+            },
+        )()
+        f = File.generated(config, "foo.md", content="# Foo")
+        assert f.generated_by == "my-plugin"
+
+    def test_generated_falls_back_to_unknown_when_no_current_plugin(self):
+        config = type(
+            "Config",
+            (),
+            {
+                "site_dir": "/site",
+                "use_directory_urls": True,
+                "plugins": type("Plugins", (), {"current_plugin": None})(),
+            },
+        )()
+        f = File.generated(config, "foo.md", content="# Foo")
+        assert f.generated_by == "<unknown>"
+
+
+class TestFileRepr:
+    """__repr__ must avoid expensive computed properties such as dest_uri and url."""
+
+    def test_repr_does_not_include_dest_uri(self, tmp_path):
+        f = _file("foo.md", str(tmp_path), str(tmp_path / "site"))
+        r = repr(f)
+        assert "dest_uri" not in r
+        assert "foo.md" in r
+
+    def test_repr_does_not_compute_dest_uri(self, tmp_path):
+        f = _file("foo.md", str(tmp_path), str(tmp_path / "site"))
+        repr(f)
+        # dest_uri is a cached_property; repr should not populate its cache.
+        assert "dest_uri" not in f.__dict__
+
+
+class TestDeprecatedHelpers:
+    def test_sort_files_emits_deprecation_warning(self):
+        from docsforge.files import _sort_files
+
+        with pytest.warns(DeprecationWarning, match="_sort_files is soft-deprecated"):
+            _sort_files(["b.md", "a.md", "index.md"])

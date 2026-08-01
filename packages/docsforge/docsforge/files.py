@@ -322,7 +322,7 @@ class File:
             use_directory_urls=config.use_directory_urls,
             inclusion=inclusion,
         )
-        f.generated_by = config.plugins._current_plugin or '<unknown>'
+        f.generated_by = config.plugins.current_plugin or '<unknown>'
         f.abs_src_path = abs_src_path
         f._content = content
         return f
@@ -349,7 +349,7 @@ class File:
         return (
             f"{type(self).__name__}({self.src_uri!r}, src_dir={self.src_dir!r}, "
             f"dest_dir={self.dest_dir!r}, use_directory_urls={self.use_directory_urls!r}, "
-            f"dest_uri={self.dest_uri!r}, inclusion={self.inclusion})"
+            f"inclusion={self.inclusion!r})"
         )
 
     @utils.weak_property
@@ -622,6 +622,11 @@ def _file_sort_key(f: str):
 
 def _sort_files(filenames: Iterable[str]) -> list[str]:
     """Soft-deprecated, do not use."""
+    warnings.warn(
+        "_sort_files is soft-deprecated and will be removed in a future release.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return sorted(filenames, key=_file_sort_key)
 
 
