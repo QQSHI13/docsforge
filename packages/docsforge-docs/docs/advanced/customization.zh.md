@@ -1,36 +1,36 @@
-# Customization Guide
+# 自定义指南
 
-DocsForge provides powerful customization options beyond the basic configuration. This guide covers advanced techniques for tailoring your site's appearance, behavior, and functionality.
+DocsForge 提供了超越基础配置的强大自定义选项。本指南涵盖了用于定制网站外观、行为和功能的高级技术。
 
 ---
 
-## Custom CSS
+## 自定义 CSS
 
-Add custom stylesheets via the `extra_css` setting in `docsforge.yml`:
+通过 `docsforge.yml` 中的 `extra_css` 设置添加自定义样式表：
 
 ```yaml
 extra_css:
   - stylesheets/extra.css
 ```
 
-Create `docs/stylesheets/extra.css`:
+创建 `docs/stylesheets/extra.css`：
 
 ```css
-/* Custom brand color */
+/* 自定义品牌色 */
 :root {
   --md-primary-fg-color: #4051b5;
   --md-primary-fg-color--light: #5d6cc0;
   --md-primary-fg-color--dark: #2e3b8e;
 }
 
-/* Custom font for headings */
+/* 自定义标题字体 */
 .md-typeset h1,
 .md-typeset h2 {
   font-family: 'Georgia', serif;
   font-weight: 700;
 }
 
-/* Wider content area */
+/* 更宽的内容区域 */
 @media screen and (min-width: 76.25em) {
   .md-content {
     max-width: 900px;
@@ -38,40 +38,40 @@ Create `docs/stylesheets/extra.css`:
 }
 ```
 
-### Overriding theme variables
+### 覆盖主题变量
 
-DocsForge uses CSS custom properties for theming. Override them in your custom CSS:
+DocsForge 使用 CSS 自定义属性进行主题设置。在你的自定义 CSS 中覆盖它们：
 
-| Variable | Description |
+| 变量 | 说明 |
 |----------|-------------|
-| `--md-primary-fg-color` | Primary color |
-| `--md-primary-fg-color--light` | Light variant |
-| `--md-primary-fg-color--dark` | Dark variant |
-| `--md-accent-fg-color` | Accent color |
-| `--md-typeset-color` | Body text color |
-| `--md-typeset-a-color` | Link color |
-| `--md-code-fg-color` | Code text color |
-| `--md-code-bg-color` | Code background |
-| `--md-default-fg-color` | Default foreground |
-| `--md-default-bg-color` | Default background |
+| `--md-primary-fg-color` | 主色 |
+| `--md-primary-fg-color--light` | 浅色变体 |
+| `--md-primary-fg-color--dark` | 深色变体 |
+| `--md-accent-fg-color` | 强调色 |
+| `--md-typeset-color` | 正文文本颜色 |
+| `--md-typeset-a-color` | 链接颜色 |
+| `--md-code-fg-color` | 代码文本颜色 |
+| `--md-code-bg-color` | 代码背景 |
+| `--md-default-fg-color` | 默认前景色 |
+| `--md-default-bg-color` | 默认背景色 |
 
 ---
 
-## Custom JavaScript
+## 自定义 JavaScript
 
-Add custom scripts via `extra_javascript`:
+通过 `extra_javascript` 添加自定义脚本：
 
 ```yaml
 extra_javascript:
   - javascripts/extra.js
 ```
 
-Create `docs/javascripts/extra.js`:
+创建 `docs/javascripts/extra.js`：
 
 ```javascript
-// Custom behavior on page load
+// 页面加载时的自定义行为
 document.addEventListener('DOMContentLoaded', function() {
-  // Add copy button to all tables
+  // 为所有表格添加复制按钮
   const tables = document.querySelectorAll('.md-typeset table');
   tables.forEach(table => {
     const button = document.createElement('button');
@@ -85,15 +85,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 ```
 
-### Hooking into DocsForge events
+### 接入 DocsForge 事件
 
 ```javascript
-// Listen for search events
+// 监听搜索事件
 window.addEventListener('docsforge-search', function(e) {
   console.log('Search query:', e.detail.query);
 });
 
-// Listen for theme changes
+// 监听主题切换
 window.addEventListener('docsforge-theme', function(e) {
   console.log('Theme changed to:', e.detail.scheme);
 });
@@ -101,21 +101,21 @@ window.addEventListener('docsforge-theme', function(e) {
 
 ---
 
-## Custom Templates
+## 自定义模板
 
-Override built-in templates by creating an `overrides` directory and referencing it in `docsforge.yml`:
+通过创建 `overrides` 目录并在 `docsforge.yml` 中引用它来覆盖内置模板：
 
 ```yaml
 theme:
   custom_dir: overrides
 ```
 
-### Override partials
+### 覆盖局部模板
 
-Create `docs/overrides/partials/copyright.html`:
+创建 `docs/overrides/partials/copyright.html`：
 
 ```html
-<!-- Custom copyright notice -->
+<!-- 自定义版权声明 -->
 <div class="md-copyright">
   <strong>My Company</strong> — 
   <a href="{{ config.repo_url }}" target="_blank" rel="noopener">
@@ -124,9 +124,9 @@ Create `docs/overrides/partials/copyright.html`:
 </div>
 ```
 
-### Override base template
+### 覆盖基础模板
 
-Create `docs/overrides/main.html` to extend the base template:
+创建 `docs/overrides/main.html` 以扩展基础模板：
 
 ```html
 {% extends "base.html" %}
@@ -143,26 +143,26 @@ Create `docs/overrides/main.html` to extend the base template:
 {% endblock %}
 ```
 
-### Available blocks
+### 可用的块
 
-| Block | Description |
+| 块 | 说明 |
 |-------|-------------|
-| `extrahead` | Inside `<head>` tag |
-| `announce` | Announcement banner |
-| `header` | Site header |
-| `tabs` | Navigation tabs |
-| `content` | Main content area |
-| `footer` | Page footer |
-| `outdated` | Outdated version notice |
+| `extrahead` | 在 `<head>` 标签内 |
+| `announce` | 公告横幅 |
+| `header` | 网站页眉 |
+| `tabs` | 导航标签 |
+| `content` | 主内容区域 |
+| `footer` | 页面页脚 |
+| `outdated` | 过时版本提示 |
 
 ---
 
-## Custom Admonitions
+## 自定义提示框
 
-Define custom admonition types with CSS:
+使用 CSS 定义自定义提示框类型：
 
 ```css
-/* Custom "tip" admonition in brand color */
+/* 品牌色的自定义 "tip" 提示框 */
 .md-typeset .admonition.tip {
   border-color: #4051b5;
 }
@@ -179,31 +179,31 @@ Define custom admonition types with CSS:
 }
 ```
 
-Usage in Markdown:
+在 Markdown 中使用：
 
 ```markdown
-!!! tip "Custom Tip"
+!!! tip "自定义提示"
     This uses your brand color!
 ```
 
 ---
 
-## Custom Icons and Logos
+## 自定义图标和 Logo
 
-### SVG logo
+### SVG Logo
 
-Use an SVG for crisp rendering at any size:
+使用 SVG 以获得任意尺寸下的清晰渲染：
 
 ```yaml
 theme:
   logo: assets/logo.svg
 ```
 
-The SVG should be optimized and have `viewBox` for proper scaling.
+SVG 应经过优化，并包含 `viewBox` 以实现正确缩放。
 
-### Custom icon definitions
+### 自定义图标定义
 
-Define custom icons in `extra.css`:
+在 `extra.css` 中定义自定义图标：
 
 ```css
 .md-icon--custom::after {
@@ -219,11 +219,11 @@ Define custom icons in `extra.css`:
 
 ---
 
-## Custom Fonts
+## 自定义字体
 
-### Self-hosted fonts
+### 自托管字体
 
-Place font files in `docs/assets/fonts/` and define them in CSS:
+将字体文件放在 `docs/assets/fonts/` 中，并在 CSS 中定义：
 
 ```css
 @font-face {
@@ -241,9 +241,9 @@ Place font files in `docs/assets/fonts/` and define them in CSS:
 
 ---
 
-## Custom 404 Page
+## 自定义 404 页面
 
-Create `docs/overrides/404.html`:
+创建 `docs/overrides/404.html`：
 
 ```html
 {% extends "base.html" %}
@@ -261,29 +261,29 @@ Create `docs/overrides/404.html`:
 
 ---
 
-## Performance Tuning
+## 性能调优
 
-### Lazy loading images
+### 图片懒加载
 
-Images are lazy-loaded by default. For above-the-fold images, use `loading="eager"`:
+图片默认启用懒加载。对于首屏图片，请使用 `loading="eager"`：
 
 ```markdown
 ![Hero image](hero.png){ loading=eager }
 ```
 
-### Image optimization
+### 图片优化
 
-Optimize images before adding them to `docs/`:
+在将图片添加到 `docs/` 之前对其进行优化：
 
 ```bash
-# Convert to WebP for smaller size
+# 转换为 WebP 以减小体积
 ffmpeg -i image.png image.webp
 
-# Or use ImageMagick
+# 或者使用 ImageMagick
 convert image.png -quality 85 image.webp
 ```
 
-### Preload critical resources
+### 预加载关键资源
 
 ```html
 {% block extrahead %}
@@ -294,17 +294,17 @@ convert image.png -quality 85 image.webp
 
 ---
 
-## Accessibility
+## 无障碍访问
 
-### Color contrast
+### 颜色对比度
 
-Ensure your custom colors meet WCAG AA standards (4.5:1 for normal text, 3:1 for large text). Test with a contrast checker.
+确保你的自定义颜色符合 WCAG AA 标准（普通文本 4.5:1，大文本 3:1）。使用对比度检查器进行测试。
 
-### Keyboard navigation
+### 键盘导航
 
-DocsForge supports keyboard navigation out of the box. Custom interactive elements should handle `Tab`, `Enter`, and `Escape` keys.
+DocsForge 开箱即用地支持键盘导航。自定义交互元素应处理 `Tab`、`Enter` 和 `Escape` 键。
 
-### ARIA labels
+### ARIA 标签
 
 ```html
 <button class="md-button" aria-label="Close announcement">
@@ -314,15 +314,15 @@ DocsForge supports keyboard navigation out of the box. Custom interactive elemen
 
 ---
 
-## Multi-language Sites
+## 多语言网站
 
-DocsForge includes a built-in internationalization plugin via `material/i18n`. See [Internationalization setup](../setup/i18n.md) for details.
+DocsForge 包含通过 `material/i18n` 内置的国际化插件。详情请参见 [国际化设置](../setup/i18n.md)。
 
-If the built-in plugin doesn't fit your workflow, you can also use one of these alternatives:
+如果内置插件不符合你的工作流程，你也可以使用以下替代方案之一：
 
-### Option 1: Build separate sites per language
+### 选项 1：为每种语言构建单独的网站
 
-Maintain a `docsforge.yml` for each language and build them independently:
+为每种语言维护一个 `docsforge.yml` 并独立构建：
 
 ```
 docs/
@@ -334,11 +334,11 @@ docs/
     └── index.md
 ```
 
-Use a small build script to output each language to a separate subdirectory.
+使用一个小型构建脚本将每种语言输出到单独的子目录。
 
-### Option 2: Use a third-party i18n plugin
+### 选项 2：使用第三方 i18n 插件
 
-Install an MkDocs-compatible i18n plugin and declare it under `plugins:`:
+安装与 MkDocs 兼容的 i18n 插件，并在 `plugins:` 下声明：
 
 ```yaml
 plugins:
@@ -353,12 +353,12 @@ plugins:
           name: Français
 ```
 
-!!! warning "Compatibility"
-    Third-party MkDocs plugins may need to be adapted for DocsForge. Test thoroughly before relying on them in production.
+!!! warning "兼容性"
+    第三方 MkDocs 插件可能需要针对 DocsForge 进行调整。在将其用于生产环境之前，请进行彻底测试。
 
 ---
 
-## Analytics Integration
+## 分析集成
 
 ### Google Analytics 4
 
@@ -378,7 +378,7 @@ extra:
     property: docs.example.com
 ```
 
-### Custom analytics
+### 自定义分析
 
 ```html
 {% block extrahead %}
@@ -389,9 +389,9 @@ extra:
 
 ---
 
-## Social Cards
+## 社交卡片
 
-DocsForge does not auto-generate social card images, but it does set basic OpenGraph tags. For a custom card image, add it manually in a template override:
+DocsForge 不会自动生成社交卡片图片，但它会设置基本的 OpenGraph 标签。如需自定义卡片图片，请在模板覆盖中手动添加：
 
 ```html
 {% block extrahead %}
@@ -405,37 +405,37 @@ DocsForge does not auto-generate social card images, but it does set basic OpenG
 
 ---
 
-## Build Hooks
+## 构建钩子
 
-`hooks` are Python modules that act like mini-plugins. Each file listed under `hooks:` is imported and can implement `on_pre_build` and/or `on_post_build` events.
+`hooks` 是类似迷你插件的 Python 模块。列在 `hooks:` 下的每个文件都会被导入，并可以实现 `on_pre_build` 和/或 `on_post_build` 事件。
 
 ```yaml
 hooks:
   - scripts/hooks.py
 ```
 
-Create `docs/scripts/hooks.py`:
+创建 `docs/scripts/hooks.py`：
 
 ```python
 import os
 
 
 def on_pre_build(*, config):
-    """Run before DocsForge starts building pages."""
+    """在 DocsForge 开始构建页面之前运行。"""
     print("Pre-build hook running...")
 
 
 def on_post_build(*, config):
-    """Run after DocsForge has written the site directory."""
+    """在 DocsForge 写入站点目录之后运行。"""
     print(f"Site built at: {config.site_dir}")
 ```
 
-!!! note "Shell scripts"
-    If you need to run a shell command, invoke it from the Python hook with `subprocess.run(["..."])`.
+!!! note "Shell 脚本"
+    如果你需要运行 shell 命令，请从 Python 钩子中使用 `subprocess.run(["..."])` 调用。
 
-## Custom Plugins
+## 自定义插件
 
-For functionality that spans multiple events or needs its own configuration, write a full plugin by subclassing `docsforge.core.plugin_base.BasePlugin`.
+对于需要跨多个事件或需要自身配置的功能，请编写一个完整的插件，通过继承 `docsforge.core.plugin_base.BasePlugin` 实现。
 
 ```python
 from docsforge.config_base import Config
@@ -454,7 +454,7 @@ class MyPlugin(BasePlugin[MyPluginConfig]):
         return markdown.replace("{{year}}", "2026")
 ```
 
-Register the plugin in `docsforge.yml`:
+在 `docsforge.yml` 中注册插件：
 
 ```yaml
 plugins:
@@ -462,5 +462,4 @@ plugins:
       enabled: true
 ```
 
-DocsForge uses the same event names as MkDocs (`on_page_markdown`, `on_page_content`, `on_post_build`, etc.). If you are migrating an MkDocs plugin, change the import from `mkdocs.plugins` to `docsforge.core.plugin_base` and use DocsForge's `Config` class for the plugin's options.
-
+DocsForge 使用与 MkDocs 相同的事件名称（`on_page_markdown`、`on_page_content`、`on_post_build` 等）。如果你要迁移 MkDocs 插件，请将导入从 `mkdocs.plugins` 改为 `docsforge.core.plugin_base`，并使用 DocsForge 的 `Config` 类作为插件选项。
