@@ -38,14 +38,14 @@ theme:
       accent: teal
       toggle:
         icon: material/brightness-7
-        name: Switch to dark mode
+        name: palette.toggle.dark
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: black
       accent: teal
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: palette.toggle.light
   font:
     text: Roboto
     code: Roboto Mono
