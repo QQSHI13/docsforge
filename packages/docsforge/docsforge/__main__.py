@@ -54,8 +54,9 @@ class ColorFormatter(logging.Formatter):
         if record.levelname in self.colors:
             prefix = click.style(prefix, fg=self.colors[record.levelname])
         if self.text_wrapper.width:
+            indent = self.text_wrapper.initial_indent
             msg = '\n'.join(self.text_wrapper.fill(line) for line in message.splitlines())
-            return prefix + msg[11:]
+            return prefix + msg[len(indent):]
         return prefix + message
 
 
@@ -88,11 +89,6 @@ def _enable_warnings():
         warning_counter.setLevel(logging.WARNING)
         logging.getLogger("docsforge").addHandler(warning_counter)
         warnings.simplefilter('module', DeprecationWarning)
-
-
-def _set_log_level(level: int):
-    """Set the logging level for docsforge."""
-    logging.getLogger('docsforge').setLevel(level)
 
 
 # ---- Main CLI ----

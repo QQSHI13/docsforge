@@ -7,9 +7,11 @@ interface: CLI, VS Code extension, API, or programmatically.
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import BinaryIO, TYPE_CHECKING
+from urllib.parse import urlparse
 
 from docsforge import slugify
 
@@ -25,16 +27,15 @@ CONFIG_PRIORITY = [
 ]
 
 
-def find_config_file(config_file: str | BinaryIO | None = None) -> Path | None:
+def find_config_file(config_file: str | None = None) -> Path | None:
     """Find the appropriate configuration file.
     
     Returns the path if found, None otherwise.
     """
     if config_file is not None:
-        if isinstance(config_file, str):
-            path = Path(config_file)
-            if path.exists():
-                return path
+        path = Path(config_file)
+        if path.exists():
+            return path
         return None
     
     for name in CONFIG_PRIORITY:
@@ -80,6 +81,38 @@ def detect_environment() -> dict:
             pass
     
     return result
+
+
+# Allowed theme colors for interactive init.
+_THEME_COLORS = {
+    'teal', 'indigo', 'blue', 'green', 'red', 'orange', 'purple', 'pink'
+}
+
+
+def _validate_theme_color(value: str) -> str:
+    """Return lower-case color if valid, otherwise raise ValueError."""
+    color = value.lower()
+    if color not in _THEME_COLORS:
+        raise ValueError(f"Choose one of: {', '.join(sorted(_THEME_COLORS))}")
+    return color
+
+
+def _validate_language(value: str) -> str:
+    """Return language code if it looks like a locale tag."""
+    value = value.strip()
+    if not re.fullmatch(r'[a-zA-Z0-9_-]+', value):
+        raise ValueError("Language code must contain only letters, numbers, hyphens and underscores")
+    return value
+
+
+def _validate_url(value: str | None, field: str) -> str | None:
+    """Return URL if valid/empty, otherwise raise ValueError."""
+    if not value:
+        return None
+    parsed = urlparse(value)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        raise ValueError(f"{field} must be a valid http/https URL")
+    return value
 
 
 class BuildEngine:
@@ -198,33 +231,55 @@ class ProjectManager:
 
             # Step 4: Copyright
             print("Step 4/10 — Copyright")
-            copyright = input("  Copyright notice [Optional]: ").strip() or None
+            copyright_notice = input("  Copyright notice [Optional]: ").strip() or None
             print()
 
             # Step 5: Theme color
             print("Step 5/10 — Theme color")
             print("  Available: teal, indigo, blue, green, red, orange, purple, pink")
-            theme_input = input(f"  Pick a color [{theme_color}]: ").strip() or theme_color
-            theme_color = theme_input
+            while True:
+                theme_input = input(f"  Pick a color [{theme_color}]: ").strip() or theme_color
+                try:
+                    theme_color = _validate_theme_color(theme_input)
+                    break
+                except ValueError as e:
+                    print(f"  Invalid: {e}")
             print()
 
             # Step 6: Language
             print("Step 6/10 — Language")
-            language_input = input("  Site language code [en]: ").strip() or 'en'
-            language = language_input
+            while True:
+                language_input = input("  Site language code [en]: ").strip() or 'en'
+                try:
+                    language = _validate_language(language_input)
+                    break
+                except ValueError as e:
+                    print(f"  Invalid: {e}")
             print()
 
             # Step 7: GitHub repository
             print("Step 7/10 — GitHub repository")
             print("  Used for social cards and edit links. Format: https://github.com/user/repo")
-            repo_url = input("  GitHub repo URL [Optional]: ").strip() or None
+            while True:
+                repo_url = input("  GitHub repo URL [Optional]: ").strip() or None
+                try:
+                    repo_url = _validate_url(repo_url, "Repository URL")
+                    break
+                except ValueError as e:
+                    print(f"  Invalid: {e}")
             print()
 
             # Step 8: Site URL (for social cards, RSS, etc.)
             print("Step 8/10 — Site URL")
             print("  Where will your docs be hosted? e.g. https://user.github.io/repo/")
-            site_url_input = input("  Site URL [Optional]: ").strip()
-            site_url = site_url_input if site_url_input else None
+            while True:
+                site_url_input = input("  Site URL [Optional]: ").strip()
+                site_url = site_url_input if site_url_input else None
+                try:
+                    site_url = _validate_url(site_url, "Site URL")
+                    break
+                except ValueError as e:
+                    print(f"  Invalid: {e}")
             print()
 
             # Step 9: Branding assets
@@ -261,7 +316,7 @@ class ProjectManager:
                 repo_url=repo_url,
                 site_description=site_description,
                 language=language,
-                copyright=copyright,
+                copyright=copyright_notice,
                 favicon=favicon,
                 logo=logo,
             )

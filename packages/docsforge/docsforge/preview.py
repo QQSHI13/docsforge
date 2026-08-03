@@ -203,7 +203,7 @@ def get_filter(settings: dict, key: str):
     errors, warnings = config.validate()
     for _, w in warnings:
         log.warning(
-            f"Error reading filter configuration in '{key}':\n"
+            f"Warning reading filter configuration in '{key}':\n"
             f"{w}"
         )
     for _, e in errors:
@@ -232,4 +232,4 @@ def makeExtension(**kwargs):
 # -----------------------------------------------------------------------------
 
 # Set up logging
-log = logging.getLogger("mkdocs.material.extensions.preview")
+log = logging.getLogger("docsforge.preview")

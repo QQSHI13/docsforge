@@ -143,8 +143,12 @@ def serve(
         if code in (404, 500):
             error_page = join(config.site_dir, f'{code}.html')
             if isfile(error_page):
-                with open(error_page, 'rb') as f:
-                    return f.read()
+                try:
+                    with open(error_page, 'rb') as f:
+                        return f.read()
+                except OSError as e:
+                    log.debug(f"Could not read error page {error_page}: {e}")
+                    return None
         return None
 
     server.error_handler = error_handler
