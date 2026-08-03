@@ -177,10 +177,10 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     """
     docs_dir = Path(config.docs_dir)
     site_dir = Path(config.site_dir)
-    if output_to_docs:
-        output_dir = docs_dir / "assets" / "tikz"
-    else:
-        output_dir = site_dir / "assets" / "tikz"
+    # Always write generated SVGs to the build directory; never mutate the
+    # source docs tree. The output_to_docs flag is kept for API compatibility
+    # but no longer affects the output location.
+    output_dir = site_dir / "assets" / "tikz"
 
     # Check if tikz config is enabled
     tikz_config = getattr(config, "tikz", None)
@@ -222,8 +222,9 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
             )
         return []
 
-    generated = []
+    generated: list[Path] = []
     skipped = 0
+    newly_compiled = 0
 
     def _compile_one(tex_file: Path) -> Path | None:
         """Compile a single TikZ file; returns output path or None."""
@@ -237,6 +238,8 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
             return output_path
 
         if _compile_tex_to_svg(tex_file, output_path):
+            nonlocal newly_compiled
+            newly_compiled += 1
             return output_path
         return None
 
@@ -250,17 +253,11 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
                 generated.append(result)
 
     if skipped:
-        log.info(f"TikZ: {len(generated)} compiled, {skipped} skipped (up to date)")
+        log.info(
+            f"TikZ: {newly_compiled} compiled, {skipped} skipped (up to date), "
+            f"{len(generated)} total"
+        )
     else:
-        log.info(f"TikZ: {len(generated)} diagrams compiled")
-
-    # Copy to site dir if outputting to docs
-    if output_to_docs:
-        for svg_path in generated:
-            svg_name = svg_path.name
-            site_output = site_dir / "assets" / "tikz" / svg_name
-            site_output.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(svg_path, site_output)
-            log.debug(f"Copied TikZ SVG to site: {site_output}")
+        log.info(f"TikZ: {newly_compiled} diagrams compiled")
 
     return generated

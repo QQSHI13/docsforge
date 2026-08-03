@@ -21,10 +21,23 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 _DEFAULT_BROWSER_PATHS = [
+    # Linux
     "/usr/bin/thorium-browser", "/usr/bin/thorium",
     "/usr/bin/chromium-browser", "/usr/bin/chromium",
     "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
     "/usr/bin/brave-browser",
+    # macOS
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    # Windows
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files\Chromium\Application\chrome.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
 ]
 
 try:
@@ -121,7 +134,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                     if local.exists() and _is_within(local, site_path):
                         return await route.fulfill(path=str(local))
             except Exception:
-                pass
+                log.debug("Route handling failed", exc_info=True)
             await route.abort()
 
         async def render_one(tab, html_file, idx):
@@ -145,7 +158,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                         "() => document.querySelectorAll('.mermaid').length === 0",
                     )
                 except Exception:
-                    pass
+                    log.debug("Mermaid rendering failed", exc_info=True)
                 # Expand tooltips for PDF (show hover content inline)
                 await tab.evaluate("""() => {
                     document.querySelectorAll("[data-md-tooltip], [title]").forEach(el => {
@@ -169,6 +182,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4) -> N
                 log.info(f"  [{idx}/{total}] {rel.with_suffix('')}")
             except Exception as e:
                 log.warning(f"  [{idx}/{total}] FAILED {rel} — {e}")
+                log.debug(f"PDF render failed for {rel}", exc_info=True)
 
         # Work queue: each tab picks the next file as soon as it finishes
         idx = 0
