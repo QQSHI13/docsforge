@@ -41,20 +41,16 @@ def _build_i18n_site(tmp_path: Path) -> Path:
         "site_url": "https://example.com/",
         "theme": {"name": "material"},
         "nav": ["index.md", {"Custom Second Title": "second.md"}, "fallback.md"],
-        "plugins": [
-            {
-                "material/i18n": {
-                    "languages": [
-                        {"locale": "en", "name": "English", "default": True},
-                        {
-                            "locale": "zh",
-                            "name": "中文",
-                            "nav_translations": {"Home": "主页", "Fallback": "回退页"},
-                        },
-                    ]
-                }
-            }
-        ],
+        "extra": {
+            "i18n_languages": [
+                {"locale": "en", "name": "English", "default": True},
+                {
+                    "locale": "zh",
+                    "name": "中文",
+                    "nav_translations": {"Home": "主页", "Fallback": "回退页"},
+                },
+            ]
+        },
     }
     import yaml
 
@@ -226,16 +222,12 @@ def _build_i18n_site_without_frontmatter_titles(tmp_path: Path) -> Path:
         "site_url": "https://example.com/",
         "theme": {"name": "material"},
         "nav": ["index.md", "second.md"],
-        "plugins": [
-            {
-                "material/i18n": {
-                    "languages": [
-                        {"locale": "en", "name": "English", "default": True},
-                        {"locale": "zh", "name": "中文"},
-                    ]
-                }
-            }
-        ],
+        "extra": {
+            "i18n_languages": [
+                {"locale": "en", "name": "English", "default": True},
+                {"locale": "zh", "name": "中文"},
+            ]
+        },
     }
     import yaml
 

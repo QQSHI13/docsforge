@@ -6,7 +6,7 @@
     {% set scheme  = option.scheme  | d("default", true) %}
     {% set primary = option.primary | d("indigo", true) %}
     {% set accent  = option.accent  | d("indigo", true) %}
-    {% set toggle_name = option.toggle and lang.t(option.toggle.name) or option.toggle.name %}
+    {% set toggle_name = lang.t(option.toggle.name) if option.toggle else '' %}
     <input class="md-option" data-md-color-media="{{ option.media }}" data-md-color-scheme="{{ scheme | replace(' ', '-') }}" data-md-color-primary="{{ primary | replace(' ', '-') }}" data-md-color-accent="{{ accent | replace(' ', '-') }}" {% if option.toggle %} aria-label="{{ toggle_name }}" {% else %} aria-hidden="true" {% endif %} type="radio" name="__palette" id="__palette_{{ loop.index0 }}">
     {% if option.toggle %}
       {% set icon = option.toggle.icon | validate_icon_name %}
