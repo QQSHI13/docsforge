@@ -92,7 +92,7 @@ class PrivacyConfig(Config):
 
     # Settings for caching
     cache = Type(bool, default=True)
-    cache_dir = Type(str, default=".cache/plugin/privacy")
+    cache_dir = Type(str, default=".docsforge/cache/privacy")
 
     # Settings for logging
     log = Type(bool, default=True)
