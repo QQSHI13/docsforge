@@ -50,6 +50,7 @@ class Section(StructureItem):
     def __init__(self, title: str, children: list[StructureItem]) -> None:
         self.title = title
         self.children = children
+        self.i18n_titles: dict[str, str] = {}
 
         self.active = False
 
@@ -99,6 +100,7 @@ class Link(StructureItem):
     def __init__(self, title: str | None, url: str):
         self.title = title
         self.url = url
+        self.i18n_titles: dict[str, str] = {}
 
     def __repr__(self):
         name = self.__class__.__name__
@@ -194,8 +196,57 @@ def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
     return Navigation(items, pages)
 
 
+# Reserved keys for the explicit nav entry format. Any other dict key is
+# treated as the old shorthand `"Title": "path"` format.
+_EXPLICIT_NAV_KEYS = frozenset({"title", "path", "children", "i18n"})
+
+
+def _is_explicit_nav_entry(item: dict) -> bool:
+    """Return True if the dict uses the explicit title/path/children/i18n format."""
+    return bool(item) and set(item.keys()).issubset(_EXPLICIT_NAV_KEYS)
+
+
 def _data_to_navigation(data, files: Files, config: DocsForgeConfig):
     if isinstance(data, dict):
+        # Explicit format: {title: ..., path: ..., children: ..., i18n: ...}
+        if _is_explicit_nav_entry(data):
+            title = data.get("title")
+            path = data.get("path")
+            children = data.get("children")
+            i18n_titles = data.get("i18n") or {}
+            if not isinstance(i18n_titles, dict):
+                raise BuildError(
+                    f"A nav entry 'i18n' value must be a dict mapping locales to titles, "
+                    f"got {type(i18n_titles).__name__}: {i18n_titles!r}"
+                )
+
+            if children is not None:
+                if path is not None:
+                    raise BuildError(
+                        "A nav section entry cannot have both 'path' and 'children': "
+                        f"{data!r}"
+                    )
+                section = Section(
+                    title=title or "",
+                    children=_data_to_navigation(children, files, config),
+                )
+                section.i18n_titles = i18n_titles
+                return section
+
+            if path is None:
+                raise BuildError(
+                    f"A nav entry must have either 'path' or 'children': {data!r}"
+                )
+            item = _path_to_navigation(title, path, files, config)
+            item.i18n_titles = i18n_titles
+            return item
+
+        # Old shorthand format: {"Title": "path"} or {"Section": [...]}.
+        # Still parsed for backwards compatibility, but deprecated.
+        log.warning(
+            "The shorthand nav format 'Title: path' is deprecated. "
+            "Use the explicit format with 'title', 'path', 'children', and 'i18n' keys."
+        )
         result = []
         for key, value in data.items():
             if not isinstance(key, str):
@@ -216,16 +267,19 @@ def _data_to_navigation(data, files: Files, config: DocsForgeConfig):
         result = []
         for item in data:
             if isinstance(item, dict):
-                if len(item) != 1:
-                    raise BuildError(
-                        f"A nav dict entry must contain exactly one key, got {item!r}"
-                    )
-                key = next(iter(item))
-                if not isinstance(key, str):
-                    raise BuildError(
-                        f"A nav entry key must be a string, got {type(key).__name__}: {key!r}"
-                    )
-                result.extend(_data_to_navigation(item, files, config))
+                if _is_explicit_nav_entry(item):
+                    result.append(_data_to_navigation(item, files, config))
+                else:
+                    if len(item) != 1:
+                        raise BuildError(
+                            f"A nav dict entry must contain exactly one key, got {item!r}"
+                        )
+                    key = next(iter(item))
+                    if not isinstance(key, str):
+                        raise BuildError(
+                            f"A nav entry key must be a string, got {type(key).__name__}: {key!r}"
+                        )
+                    result.extend(_data_to_navigation(item, files, config))
             elif isinstance(item, str):
                 result.append(_data_to_navigation(item, files, config))
             else:
@@ -234,6 +288,10 @@ def _data_to_navigation(data, files: Files, config: DocsForgeConfig):
                 )
         return result
     title, path = data if isinstance(data, tuple) else (None, data)
+    return _path_to_navigation(title, path, files, config)
+
+
+def _path_to_navigation(title, path, files: Files, config: DocsForgeConfig):
     if not isinstance(path, str):
         raise BuildError(
             f"A nav entry must be a string, got {type(path).__name__}: {path!r}"

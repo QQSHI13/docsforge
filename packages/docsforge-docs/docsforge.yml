@@ -67,54 +67,207 @@ extra:
         Troubleshooting: 故障排除
 
 nav:
-  - Home: index.md
-  - Getting started:
-    - Installation: getting-started.md
-    - Migrating from MkDocs: getting-started/migrating-from-mkdocs.md
-    - Creating your site: creating-your-site.md
-    - Publishing:
-      - publishing-your-site.md
-      - publishing/index.md
-      - Usage Guide: publishing/usage.md
-      - Migration Guide: publishing/migration.md
-      - Deployment Guide: publishing/deployment-guide.md
-    - Visual Studio Code: vscode-extension.md
-    - Features: features.md
-    - Philosophy: philosophy.md
-    - License: license.md
-    - Changelog:
-      - changelog/index.md
-  - Setup:
-    - setup/index.md
-    - PDF Export: setup/pdf-export.md
-    - Changing the colors: setup/changing-the-colors.md
-    - Changing the fonts: setup/changing-the-fonts.md
-    - Changing the language: setup/changing-the-language.md
-    - Multi-language sites: setup/i18n.md
-    - Setting up navigation: setup/setting-up-navigation.md
-    - Setting up site search: setup/setting-up-site-search.md
-    - Setting up site analytics: setup/setting-up-site-analytics.md
-    - Building an optimized site: setup/building-an-optimized-site.md
-    - Adding a git repository: setup/adding-a-git-repository.md
-    - Setting up social cards: setup/setting-up-social-cards.md
-    - Setting up a blog: blogging.md
-  - Reference:
-    - reference/index.md
-    - Configuration: reference/configuration.md
-    - Admonitions: reference/admonitions.md
-    - Annotations: reference/annotations.md
-    - Code blocks: reference/code-blocks.md
-    - Content tabs: reference/content-tabs.md
-    - Data tables: reference/data-tables.md
-    - Diagrams: reference/diagrams.md
-    - Formatting: reference/formatting.md
-    - Icons & Emojis: reference/icons-emojis.md
-    - Images: reference/images.md
-    - Lists: reference/lists.md
-    - Tooltips: reference/tooltips.md
-  - Advanced:
-    - Customization: advanced/customization.md
-    - Custom Plugins: advanced/plugins.md
-    - Plugin Development: advanced/plugin-development.md
-    - Docker: advanced/docker.md
-  - Troubleshooting: troubleshooting.md
+  - title: Home
+    path: index.md
+    i18n:
+      zh: 首页
+  - title: Getting started
+    i18n:
+      zh: 入门
+    children:
+      - title: Installation
+        path: getting-started.md
+        i18n:
+          zh: 安装
+      - title: Migrating from MkDocs
+        path: getting-started/migrating-from-mkdocs.md
+        i18n:
+          zh: 从 MkDocs 迁移
+      - title: Creating your site
+        path: creating-your-site.md
+        i18n:
+          zh: 创建你的站点
+      - title: Publishing
+        i18n:
+          zh: 发布
+        children:
+          - title: Publishing your site
+            path: publishing-your-site.md
+            i18n:
+              zh: 发布你的站点
+          - title: Publishing overview
+            path: publishing/index.md
+            i18n:
+              zh: 发布概览
+          - title: Usage Guide
+            path: publishing/usage.md
+            i18n:
+              zh: 使用指南
+          - title: Migration Guide
+            path: publishing/migration.md
+            i18n:
+              zh: 迁移指南
+          - title: Deployment Guide
+            path: publishing/deployment-guide.md
+            i18n:
+              zh: 部署指南
+      - title: Visual Studio Code
+        path: vscode-extension.md
+        i18n:
+          zh: Visual Studio Code
+      - title: Features
+        path: features.md
+        i18n:
+          zh: 功能
+      - title: Philosophy
+        path: philosophy.md
+        i18n:
+          zh: 理念
+      - title: License
+        path: license.md
+        i18n:
+          zh: 许可证
+      - title: Changelog
+        i18n:
+          zh: 更新日志
+        children:
+          - title: Changelog
+            path: changelog/index.md
+            i18n:
+              zh: 更新日志
+  - title: Setup
+    i18n:
+      zh: 设置
+    children:
+      - title: Setup overview
+        path: setup/index.md
+        i18n:
+          zh: 设置概览
+      - title: PDF Export
+        path: setup/pdf-export.md
+        i18n:
+          zh: PDF 导出
+      - title: Changing the colors
+        path: setup/changing-the-colors.md
+        i18n:
+          zh: 更改颜色
+      - title: Changing the fonts
+        path: setup/changing-the-fonts.md
+        i18n:
+          zh: 更改字体
+      - title: Changing the language
+        path: setup/changing-the-language.md
+        i18n:
+          zh: 更改语言
+      - title: Multi-language sites
+        path: setup/i18n.md
+        i18n:
+          zh: 多语言站点
+      - title: Setting up navigation
+        path: setup/setting-up-navigation.md
+        i18n:
+          zh: 设置导航
+      - title: Setting up site search
+        path: setup/setting-up-site-search.md
+        i18n:
+          zh: 设置站点搜索
+      - title: Setting up site analytics
+        path: setup/setting-up-site-analytics.md
+        i18n:
+          zh: 设置站点分析
+      - title: Building an optimized site
+        path: setup/building-an-optimized-site.md
+        i18n:
+          zh: 构建优化站点
+      - title: Adding a git repository
+        path: setup/adding-a-git-repository.md
+        i18n:
+          zh: 添加 Git 仓库
+      - title: Setting up social cards
+        path: setup/setting-up-social-cards.md
+        i18n:
+          zh: 设置社交卡片
+      - title: Setting up a blog
+        path: blogging.md
+        i18n:
+          zh: 设置博客
+  - title: Reference
+    i18n:
+      zh: 参考
+    children:
+      - title: Reference overview
+        path: reference/index.md
+        i18n:
+          zh: 参考概览
+      - title: Configuration
+        path: reference/configuration.md
+        i18n:
+          zh: 配置
+      - title: Admonitions
+        path: reference/admonitions.md
+        i18n:
+          zh: 提示框
+      - title: Annotations
+        path: reference/annotations.md
+        i18n:
+          zh: 注解
+      - title: Code blocks
+        path: reference/code-blocks.md
+        i18n:
+          zh: 代码块
+      - title: Content tabs
+        path: reference/content-tabs.md
+        i18n:
+          zh: 内容标签
+      - title: Data tables
+        path: reference/data-tables.md
+        i18n:
+          zh: 数据表格
+      - title: Diagrams
+        path: reference/diagrams.md
+        i18n:
+          zh: 图表
+      - title: Formatting
+        path: reference/formatting.md
+        i18n:
+          zh: 格式化
+      - title: Icons & Emojis
+        path: reference/icons-emojis.md
+        i18n:
+          zh: 图标与表情
+      - title: Images
+        path: reference/images.md
+        i18n:
+          zh: 图片
+      - title: Lists
+        path: reference/lists.md
+        i18n:
+          zh: 列表
+      - title: Tooltips
+        path: reference/tooltips.md
+        i18n:
+          zh: 工具提示
+  - title: Advanced
+    i18n:
+      zh: 高级
+    children:
+      - title: Customization
+        path: advanced/customization.md
+        i18n:
+          zh: 自定义
+      - title: Custom Plugins
+        path: advanced/plugins.md
+        i18n:
+          zh: 自定义插件
+      - title: Plugin Development
+        path: advanced/plugin-development.md
+        i18n:
+          zh: 插件开发
+      - title: Docker
+        path: advanced/docker.md
+        i18n:
+          zh: Docker
+  - title: Troubleshooting
+    path: troubleshooting.md
+    i18n:
+      zh: 故障排除

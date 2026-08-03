@@ -21,7 +21,7 @@ from docsforge.config_options import ListOfItems, Optional, SubConfig, Type, Val
 from docsforge.config_base import Config
 from docsforge.core.plugin_base import BasePlugin
 from docsforge.files import File, Files, InclusionLevel
-from docsforge.nav import Link, Navigation, Section
+from docsforge.nav import Link, Navigation, Section, _add_parent_links
 from docsforge.pages import Page
 
 if TYPE_CHECKING:
@@ -318,6 +318,9 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             lang_items = self._clone_nav_items(nav, locale, lang_config, config)
             lang_pages = self._collect_pages(lang_items)
             locale_nav = Navigation(lang_items, lang_pages)
+            # Rebuild parent links for the cloned nav so active-state propagation
+            # works when rendering locale pages.
+            _add_parent_links(locale_nav.items)
             # The locale index page is the homepage for its subtree. Setting this
             # keeps header/nav logo links inside the locale instead of escaping
             # to the default-language site root.
@@ -343,16 +346,23 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         result = []
         for item in items:
             if isinstance(item, Section):
-                title = item.title
-                if lang_config and lang_config.nav_translations and title in lang_config.nav_translations:
-                    title = lang_config.nav_translations[title]
+                title = item.i18n_titles.get(locale) if item.i18n_titles else None
+                if title is None and lang_config and lang_config.nav_translations and item.title in lang_config.nav_translations:
+                    title = lang_config.nav_translations[item.title]
+                if title is None:
+                    title = item.title
                 new_section = Section(
                     title, self._clone_nav_items(item.children, locale, lang_config, config)
                 )
                 new_section.active = item.active
                 result.append(new_section)
             elif isinstance(item, Link):
-                result.append(Link(item.title, item.url))
+                title = item.i18n_titles.get(locale) if item.i18n_titles else None
+                if title is None and lang_config and lang_config.nav_translations and item.title in lang_config.nav_translations:
+                    title = lang_config.nav_translations[item.title]
+                if title is None:
+                    title = item.title
+                result.append(Link(title, item.url))
             elif isinstance(item, Page):
                 lang_page = self._get_language_page(item, locale, lang_config, config)
                 if lang_page is not None:
@@ -378,7 +388,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         if lang_file is None:
             return None
 
-        title = self._resolve_locale_title(page, lang_file, lang_config)
+        title = self._resolve_locale_title(page, lang_file, lang_config, locale)
         if lang_file.page is None:
             Page(title, lang_file, config)
         elif title is not None and not lang_file.page.title:
@@ -391,14 +401,19 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         page: Page,
         lang_file: File,
         lang_config: I18nLanguageConfig | None,
+        locale: str | None = None,
     ) -> str | None:
         """Pick the best nav title for a locale page.
 
         Precedence:
-        1. An explicit nav_translations entry for the default page's title.
-        2. The translated file's own title (frontmatter or first H1).
-        3. The default page's configured/nav title.
+        1. An explicit i18n title on the nav entry for the target locale.
+        2. An explicit nav_translations entry for the default page's title.
+        3. The translated file's own title (frontmatter or first H1).
+        4. The default page's configured/nav title.
         """
+        if locale and page.i18n_titles and locale in page.i18n_titles:
+            return page.i18n_titles[locale]
+
         default_title = self._default_page_title(page)
         if lang_config and lang_config.nav_translations and default_title in lang_config.nav_translations:
             return lang_config.nav_translations[default_title]
@@ -441,6 +456,17 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 pages.extend(self._collect_pages(item.children))
         return pages
 
+    def _find_page_in_nav(self, items: list, target_file: File) -> Page | None:
+        """Return the Page in the locale nav whose file matches target_file."""
+        for item in items:
+            if isinstance(item, Page) and item.file is target_file:
+                return item
+            if isinstance(item, Section):
+                found = self._find_page_in_nav(item.children, target_file)
+                if found is not None:
+                    return found
+        return None
+
     def _build_url_map(self, locale: str) -> dict[str, str]:
         """Map default-language page URLs to their counterparts in `locale`."""
         mapping: dict[str, str] = {}
@@ -462,6 +488,13 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             locale_nav = self._locale_navs.get(locale)
             if locale_nav is not None:
                 context["nav"] = locale_nav
+                # Re-wire parent links to the locale nav (the default-language
+                # nav may have overwritten them) and activate the current page
+                # so the top bar highlights and the left sidebar expands.
+                _add_parent_links(locale_nav.items)
+                locale_page = self._find_page_in_nav(locale_nav.items, page.file)
+                if locale_page is not None:
+                    locale_page.active = True
 
         # Expose the site base URL so the language switcher can rewrite its
         # links client-side after instant navigation.

@@ -869,16 +869,33 @@ class Nav(OptionallyRequired):
             raise ValidationError(f"Expected nav to be a list, got {self._repr_item(value)}")
         return value
 
+    _EXPLICIT_NAV_KEYS = frozenset({"title", "path", "children", "i18n"})
+
     def _validate_nav_item(self, value):
         if isinstance(value, str):
             pass
         elif isinstance(value, dict):
-            if len(value) != 1:
+            if set(value.keys()).issubset(self._EXPLICIT_NAV_KEYS):
+                # Explicit format: {title, path, children, i18n}
+                if "children" in value:
+                    self.run_validation(value["children"], top=False)
+                elif "path" not in value:
+                    raise ValidationError(
+                        f"Expected nav entry to have 'path' or 'children', got {self._repr_item(value)}"
+                    )
+                if "i18n" in value and not isinstance(value["i18n"], dict):
+                    raise ValidationError(
+                        f"Expected nav entry 'i18n' to be a dict, got {self._repr_item(value['i18n'])}"
+                    )
+            elif len(value) == 1:
+                # Old shorthand format: {"Title": "path"} or {"Section": [...]}
+                for subnav in value.values():
+                    self.run_validation(subnav, top=False)
+            else:
                 raise ValidationError(
-                    f"Expected nav item to be a dict of size 1, got {self._repr_item(value)}"
+                    f"Expected nav item to be a dict of size 1 or use explicit keys "
+                    f"(title, path, children, i18n), got {self._repr_item(value)}"
                 )
-            for subnav in value.values():
-                self.run_validation(subnav, top=False)
         else:
             raise ValidationError(
                 f"Expected nav item to be a string or dict, got {self._repr_item(value)}"

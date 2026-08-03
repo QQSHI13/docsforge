@@ -87,6 +87,9 @@ class Page(StructureItem):
         if title is not None:
             self.title = title
 
+        # i18n titles from explicit nav configuration, keyed by locale.
+        self.i18n_titles: dict[str, str] = {}
+
         # Navigation attributes
         self.children = None
         self.previous_page = None
