@@ -1,8 +1,21 @@
 {#-
   Language switcher for the i18n plugin.
+
+  Because the switcher lives in the header, Material's instant navigation does
+  not update its links when the page content is swapped. We therefore compute
+  the correct target URL client-side from the current path and force a full
+  page load when a language is selected.
 -#}
 {% if config.extra.i18n_languages and page.i18n_alternates %}
-  <div class="md-header__option">
+  {% set i18n_locales = config.extra.i18n_languages | map(attribute='locale') | list %}
+  {% set i18n_default_locale = config.extra.i18n_default_locale | d(config.theme.language, true) %}
+  <div
+    class="md-header__option"
+    data-md-component="i18n"
+    data-i18n-base-url="{{ i18n_base_url | default('/', true) }}"
+    data-i18n-default-locale="{{ i18n_default_locale }}"
+    data-i18n-locales="{{ i18n_locales | tojson | forceescape }}"
+  >
     <div class="md-select">
       {% set icon = (config.theme.icon.i18n or "material/translate") | validate_icon_name %}
       <button class="md-header__button md-icon" aria-label="{{ lang.t('select.language') }}">
@@ -29,5 +42,43 @@
         </ul>
       </div>
     </div>
+    <script>
+      (function() {
+        var switcher = document.querySelector('[data-md-component="i18n"]');
+        if (!switcher) return;
+
+        var baseUrl = switcher.getAttribute('data-i18n-base-url') || '/';
+        var defaultLocale = switcher.getAttribute('data-i18n-default-locale') || '';
+        var locales = JSON.parse(switcher.getAttribute('data-i18n-locales') || '[]');
+
+        function getLocalePath(targetLocale) {
+          var path = location.pathname;
+          if (!path.startsWith(baseUrl)) return location.href;
+
+          var relative = path.slice(baseUrl.length).replace(/\/$/, '');
+          var parts = relative.split('/').filter(Boolean);
+          var currentLocale = defaultLocale;
+
+          if (parts.length && locales.indexOf(parts[0]) !== -1 && parts[0] !== defaultLocale) {
+            currentLocale = parts[0];
+            parts.shift();
+          }
+
+          var rest = parts.join('/');
+          if (targetLocale === defaultLocale) {
+            return baseUrl + rest + (rest ? '/' : '');
+          }
+          return baseUrl + targetLocale + '/' + rest + (rest ? '/' : '');
+        }
+
+        switcher.querySelectorAll('.md-select__link').forEach(function(link) {
+          link.addEventListener('click', function(event) {
+            event.preventDefault();
+            var targetLocale = link.getAttribute('hreflang');
+            window.location.href = getLocalePath(targetLocale);
+          });
+        });
+      })();
+    </script>
   </div>
 {% endif %}

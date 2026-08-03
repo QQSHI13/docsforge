@@ -14,7 +14,7 @@ import posixpath
 import re
 from copy import copy
 from typing import TYPE_CHECKING
-from urllib.parse import quote as urlquote
+from urllib.parse import quote as urlquote, urlparse
 
 from docsforge import meta, templates, utils
 from docsforge.config_options import ListOfItems, Optional, SubConfig, Type, ValidationError
@@ -462,6 +462,17 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             locale_nav = self._locale_navs.get(locale)
             if locale_nav is not None:
                 context["nav"] = locale_nav
+
+        # Expose the site base URL so the language switcher can rewrite its
+        # links client-side after instant navigation.
+        site_url = config.get("site_url", "")
+        base_url = "/"
+        if site_url:
+            parsed = urlparse(site_url)
+            base_url = parsed.path
+            if base_url and not base_url.endswith("/"):
+                base_url += "/"
+        context["i18n_base_url"] = base_url
 
         return context
 
