@@ -99,3 +99,38 @@ class TestEventFiltering:
 
         s._on_file_event(self._event('modified', str(tmp_path / 'file.md')))
         assert s._pending_rebuild is True
+
+    def test_ignores_nano_backup_files(self, tmp_path):
+        s = _make_server(tmp_path)
+        s._on_file_event(self._event('created', str(tmp_path / 'file.md~')))
+        assert s._want_rebuild is False
+
+    def test_ignores_vim_swap_files(self, tmp_path):
+        s = _make_server(tmp_path)
+        s._on_file_event(self._event('modified', str(tmp_path / '.file.md.swp')))
+        assert s._want_rebuild is False
+
+    def test_ignores_events_in_cache_dirs(self, tmp_path):
+        s = _make_server(tmp_path)
+        cache_file = tmp_path / '.docsforge' / 'cache.json'
+        cache_file.parent.mkdir()
+        s._on_file_event(self._event('modified', str(cache_file)))
+        assert s._want_rebuild is False
+
+    def test_ignores_hidden_metadata_files(self, tmp_path):
+        s = _make_server(tmp_path)
+        s._on_file_event(self._event('modified', str(tmp_path / '.git' / 'HEAD')))
+        assert s._want_rebuild is False
+
+    def test_noop_modification_is_ignored(self, tmp_path):
+        s = _make_server(tmp_path)
+        f = tmp_path / 'file.md'
+        f.write_text('hello')
+        # First modified event records the fingerprint.
+        s._on_file_event(self._event('modified', str(f)))
+        assert s._want_rebuild is True
+
+        # A second event with identical mtime/size is ignored.
+        s._want_rebuild = False
+        s._on_file_event(self._event('modified', str(f)))
+        assert s._want_rebuild is False

@@ -95,6 +95,11 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         self._watched_paths: dict[str, int] = {}
         self._watch_refs: dict[str, Any] = {}
 
+        # Cheap guard against editors that rewrite a file without changing its
+        # content. Maps absolute path -> (mtime_ns, size). Only consulted for
+        # ``modified`` events, because create/delete/move are real changes.
+        self._last_seen: dict[str, tuple[int, int]] = {}
+
     def watch(self, path: str, func: None = None, *, recursive: bool = True) -> None:
         """Add the 'path' to watched paths and call the builder when any file changes under it."""
         path = os.path.abspath(path)
@@ -111,6 +116,97 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         log.debug(f"Watching '{path}'")
         self._watch_refs[path] = self.observer.schedule(handler, path, recursive=recursive)
 
+    # Editor and tool artifacts that should never trigger a rebuild.
+    _IGNORED_SUFFIXES = frozenset({
+        "~",          # nano/emacs backup files
+        ".swp",       # vim swap files
+        ".swo",       # vim swap files
+        ".swx",       # vim swap files
+        ".tmp",       # generic temp files
+        ".bak",       # generic backup files
+        ".part",      # partial downloads
+    })
+    _IGNORED_NAMES = frozenset({
+        ".#",         # emacs lock files (prefix)
+        "#",          # emacs auto-save files (prefix)
+        ".gitignore",
+        ".gitkeep",
+    })
+    _IGNORED_DIR_SEGMENTS = frozenset({
+        ".git",
+        ".docsforge",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".tox",
+        ".venv",
+        "venv",
+        "node_modules",
+        ".cache",
+        "site",       # build output directory
+    })
+
+    def _is_ignored_event(self, event) -> bool:
+        """Return True if the event targets an editor temp/backup/cache file."""
+        path = getattr(event, "src_path", "")
+        if not path:
+            return False
+
+        # Normalize to a pathlib object for component checks.
+        try:
+            p = pathlib.Path(path)
+        except Exception:
+            return False
+
+        # Ignore events inside known cache/build/tool directories.
+        parts = set(p.parts)
+        if parts & self._IGNORED_DIR_SEGMENTS:
+            return True
+
+        name = p.name
+
+        # Emacs lock files: .#filename and #filename#
+        if name.startswith(".#"):
+            return True
+        if name.startswith("#") and name.endswith("#"):
+            return True
+
+        if name in self._IGNORED_NAMES:
+            return True
+
+        suffix = p.suffix.lower()
+        if suffix in self._IGNORED_SUFFIXES:
+            return True
+
+        # Files whose entire stem looks like a backup, e.g. "file~" (nano).
+        # The suffix check above catches "file.md~" because p.suffix is "~";
+        # this catches "file~" without an extension.
+        if name.endswith("~"):
+            return True
+
+        # Hidden files in general are often editor metadata; be conservative.
+        if name.startswith("."):
+            return True
+
+        return False
+
+    def _content_unchanged(self, event) -> bool:
+        """Return True if a modified event did not actually change file content."""
+        if event.event_type != "modified":
+            return False
+        path = getattr(event, "src_path", "")
+        if not path:
+            return False
+        try:
+            stat = os.stat(path)
+            key = (stat.st_mtime_ns, stat.st_size)
+            prev = self._last_seen.get(path)
+            self._last_seen[path] = key
+            return prev == key
+        except (OSError, ValueError):
+            return False
+
     def _on_file_event(self, event) -> None:
         """Handle a file-change event from the watcher.
 
@@ -125,6 +221,12 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         # the build itself to trigger an endless rebuild loop.
         if event.event_type not in ('created', 'modified', 'moved', 'deleted'):
             log.debug(f"Ignoring non-modifying event: {event}")
+            return
+        if self._is_ignored_event(event):
+            log.debug(f"Ignoring editor/temp/cache event: {event}")
+            return
+        if self._content_unchanged(event):
+            log.debug(f"Ignoring no-op modification: {event}")
             return
         log.debug(str(event))
         with self._rebuild_cond:
