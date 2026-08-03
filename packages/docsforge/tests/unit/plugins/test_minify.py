@@ -16,16 +16,18 @@ class TestMinifyPlugin:
 
     def test_minify_js_removes_comments(self):
         plugin = MinifyPlugin()
+        func, kwargs = MINIFIERS["js"]
         out = plugin._minify_file_data_with_func(
-            "// a comment\nvar x = 1; // trailing\n", MINIFIERS["js"]
+            "// a comment\nvar x = 1; // trailing\n", func, kwargs
         )
         assert "comment" not in out
         assert "var x=1" in out
 
     def test_minify_css_strips_comments_and_whitespace(self):
         plugin = MinifyPlugin()
+        func, kwargs = MINIFIERS["css"]
         out = plugin._minify_file_data_with_func(
-            "/* a */ body { color : red ; }", MINIFIERS["css"]
+            "/* a */ body { color : red ; }", func, kwargs
         )
         assert "/* a */" not in out
         assert "red" in out

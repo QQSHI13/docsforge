@@ -25,9 +25,10 @@ EXTRAS: Dict[str, str] = {
     "css": "extra_css",
 }
 
-MINIFIERS: Dict[str, Callable] = {
-    "js": jsmin.jsmin,
-    "css": csscompressor.compress,
+# Per-type minifier and its fixed keyword arguments.
+MINIFIERS: Dict[str, tuple[Callable, dict]] = {
+    "js": (jsmin.jsmin, {"quote_chars": "'\"`"}),
+    "css": (csscompressor.compress, {}),
 }
 
 log = logging.getLogger(__name__)
@@ -77,12 +78,11 @@ class MinifyPlugin(BasePlugin):
         except ValueError:
             return False
 
-    def _minify_file_data_with_func(self, file_data: str, minify_func: Callable) -> str:
-        """Use the minify_func and return the minified data."""
-        if minify_func.__name__ == "jsmin":
-            return minify_func(file_data, quote_chars="'\"`")
-        else:
-            return minify_func(file_data)
+    def _minify_file_data_with_func(
+        self, file_data: str, minify_func: Callable, minify_kwargs: dict
+    ) -> str:
+        """Use the minify_func with its fixed kwargs and return the minified data."""
+        return minify_func(file_data, **minify_kwargs)
 
     def _process_extras(self, file_type: str, config: DocsForgeConfig) -> None:
         """Minify extra JS/CSS files and update config before pages are rendered.
@@ -92,7 +92,7 @@ class MinifyPlugin(BasePlugin):
         here (before rendering) with a cache-busting query string so the HTML
         references match the file that will exist on disk.
         """
-        minify_func: Callable = MINIFIERS[file_type]
+        minify_func, minify_kwargs = MINIFIERS[file_type]
         extra_key: str = EXTRAS[file_type]
         extra_files = config.get(extra_key, [])
         if not extra_files:
@@ -120,7 +120,9 @@ class MinifyPlugin(BasePlugin):
 
             try:
                 file_data = src_path.read_text(encoding='utf-8')
-                minified = self._minify_file_data_with_func(file_data, minify_func)
+                minified = self._minify_file_data_with_func(
+                    file_data, minify_func, minify_kwargs
+                )
                 file_hash = hashlib.sha384(minified.encode('utf-8')).hexdigest()[:8]
                 site_rel_path = file_path.lstrip('/')
                 self._pending_minified[site_rel_path] = minified

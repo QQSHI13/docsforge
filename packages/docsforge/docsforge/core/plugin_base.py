@@ -87,11 +87,9 @@ class BasePlugin(Generic[SomeConfig]):
         return type(name, (cls,), dict(config_class=config_class))
 
     def __init_subclass__(cls):
-        # Accept both vendored upstream Config and docsforge.config.base.Config
-        from docsforge.config_base import Config as DocsforgeConfig
-        if not issubclass(cls.config_class, Config) and not issubclass(cls.config_class, DocsforgeConfig):
+        if not issubclass(cls.config_class, Config):
             raise TypeError(
-                f"config_class {cls.config_class} must be a subclass of `docsforge.config.base.Config`"
+                f"config_class {cls.config_class} must be a subclass of `docsforge.config_base.Config`"
             )
         if cls.config_class is not LegacyConfig:
             cls.config_scheme = cls.config_class._schema  # For compatibility.

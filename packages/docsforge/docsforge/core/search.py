@@ -15,7 +15,7 @@ from html import escape
 from html.parser import HTMLParser
 
 from docsforge import utils
-from docsforge.config_options import Choice, Deprecated, ListOfItems, Optional, SubConfig, Type
+from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, Optional, SubConfig, Type
 from docsforge.config_base import Config
 from docsforge.core.plugin_base import BasePlugin
 
@@ -59,7 +59,7 @@ class SearchConfig(Config):
     lang = Optional(ListOfItems(Type(str)))
     separator = Optional(Type(str))
     pipeline = Optional(ListOfItems(Choice(pipeline)))
-    fields = Type(dict, default={})
+    fields = DictOfItems(SubConfig(SearchFieldConfig), default={})
     jieba_dict = Optional(Type(str))
     jieba_dict_user = Optional(Type(str))
     indexing = Deprecated(message="Unsupported option")
@@ -110,11 +110,6 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             self.config.pipeline = list(filter(len, re.split(
                 r"\s*,\s*", self._translate(config, "search.config.pipeline")
             )))
-
-        # Validate fields
-        validator = SubConfig(SearchFieldConfig)
-        for field_config in self.config.fields.values():
-            validator.run_validation(field_config)
 
         # Default field boosts
         if "title" not in self.config.fields:
