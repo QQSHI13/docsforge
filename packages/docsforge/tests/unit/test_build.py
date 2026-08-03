@@ -216,7 +216,7 @@ class TestInstantNavigationBundleIgnoresI18nAlternates:
         from docsforge import utils
 
         theme_dir = utils.get_theme_dir('material')
-        bundle_path = Path(theme_dir) / 'assets' / 'javascripts' / 'bundle.79ae519e.min.js'
+        bundle_path = Path(theme_dir) / 'assets' / 'javascripts' / 'bundle.min.js'
         if not bundle_path.exists():
             pytest.skip('Vendored bundle not present')
 
