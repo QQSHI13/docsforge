@@ -13,6 +13,7 @@ from collections.abc import Callable
 from urllib.parse import urlparse
 
 import platformdirs
+import re
 
 import docsforge
 
@@ -75,7 +76,13 @@ def download_and_cache_url(
     """
     directory = os.path.join(platformdirs.user_cache_dir("docsforge"), "docsforge_url_cache")
     name_hash = hashlib.sha256(url.encode()).hexdigest()[:32]
-    path = os.path.join(directory, name_hash + os.path.splitext(url)[1])
+
+    # Sanitize the URL-derived extension so cache paths only contain safe
+    # characters and a reasonable length.
+    ext = os.path.splitext(url)[1]
+    ext = re.sub(r"[^a-zA-Z0-9._-]", "", ext)
+    ext = ext[:16]
+    path = os.path.join(directory, name_hash + ext)
 
     now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
     prefix = b"%s%s downloaded at timestamp " % (comment, url.encode())

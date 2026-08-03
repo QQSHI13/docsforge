@@ -63,7 +63,7 @@ class CacheManager:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
             log.warning(f"Corrupted cache file: {path}, rebuilding from scratch")
             return {}
 
@@ -150,8 +150,17 @@ class CacheManager:
         self.theme_sig_file.write_text(sig)
 
     def invalidate(self) -> None:
-        """Clear all cache files."""
-        for f in [self.hashes_file, self.deps_file, self.config_hash_file]:
+        """Clear all cache files tracked by the manager."""
+        for f in [
+            self.hashes_file,
+            self.deps_file,
+            self.config_hash_file,
+            self.version_file,
+            self.sources_file,
+            self.meta_file,
+            self.pkg_version_file,
+            self.theme_sig_file,
+        ]:
             if f.exists():
                 f.unlink()
         log.info("Build cache invalidated")

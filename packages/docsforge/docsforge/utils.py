@@ -302,8 +302,6 @@ def get_url_path(path, use_directory_urls=True):
     return path
 
 
-def get_static_url(path, use_directory_urls=True):
+def get_static_url(path):
     """Get the URL for a static file."""
-    if use_directory_urls:
-        return path
     return path

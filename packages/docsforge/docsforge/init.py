@@ -523,9 +523,9 @@ def init(
     blog_index_path = blog_dir / 'index.md'
     
     if not blog_dir.exists():
-        blog_dir.mkdir()
+        blog_dir.mkdir(exist_ok=True)
     if not posts_dir.exists():
-        posts_dir.mkdir()
+        posts_dir.mkdir(exist_ok=True)
     
     if not blog_index_path.exists():
         blog_index_path.write_text(_generate_blog_index(), encoding='utf-8')
@@ -544,7 +544,7 @@ def init(
     # Write stylesheets
     stylesheets_dir = docs_dir / 'stylesheets'
     if not stylesheets_dir.exists():
-        stylesheets_dir.mkdir()
+        stylesheets_dir.mkdir(exist_ok=True)
     css_path = stylesheets_dir / 'extra.css'
     if not css_path.exists():
         log.info(f'Writing stylesheet: {css_path}')
@@ -553,7 +553,7 @@ def init(
     # Write javascripts
     javascripts_dir = docs_dir / 'javascripts'
     if not javascripts_dir.exists():
-        javascripts_dir.mkdir()
+        javascripts_dir.mkdir(exist_ok=True)
     js_path = javascripts_dir / 'extra.js'
     if not js_path.exists():
         log.info(f'Writing JavaScript: {js_path}')
@@ -574,7 +574,7 @@ def init(
     # Write GitHub workflow
     github_dir = output_dir / '.github' / 'workflows'
     if not github_dir.exists():
-        github_dir.mkdir(parents=True)
+        github_dir.mkdir(parents=True, exist_ok=True)
     workflow_path = github_dir / 'pages.yml'
     if not workflow_path.exists():
         log.info(f'Writing GitHub workflow: {workflow_path}')
