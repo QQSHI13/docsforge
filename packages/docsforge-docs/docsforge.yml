@@ -9,7 +9,7 @@ repo_name: QQSHI13/docsforge
 repo_url: https://github.com/QQSHI13/docsforge
 edit_uri: edit/main/packages/docsforge-docs/docs/
 
-copyright: Copyright &copy; 2025–2026 QQ
+copyright: Copyright © 2025–2026 QQ
 
 theme:
   name: material
@@ -52,20 +52,19 @@ theme:
   favicon: assets/images/favicon.png
   logo: assets/logo.svg
 
-plugins:
-  - material/i18n:
-      languages:
-        - locale: en
-          name: English
-          default: true
-        - locale: zh
-          name: 中文
-          nav_translations:
-            Home: 首页
-            "Getting started": 入门
-            Setup: 设置
-            Reference: 参考
-            Troubleshooting: 故障排除
+extra:
+  i18n_languages:
+    - locale: en
+      name: English
+      default: true
+    - locale: zh
+      name: 中文
+      nav_translations:
+        Home: 首页
+        "Getting started": 入门
+        Setup: 设置
+        Reference: 参考
+        Troubleshooting: 故障排除
 
 nav:
   - Home: index.md

@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote as urlquote
 
 from docsforge import meta, templates, utils
-from docsforge.config_options import ListOfItems, Optional, SubConfig, Type
+from docsforge.config_options import ListOfItems, Optional, SubConfig, Type, ValidationError
 from docsforge.config_base import Config
 from docsforge.core.plugin_base import BasePlugin
 from docsforge.files import File, Files, InclusionLevel
@@ -69,6 +69,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         super().__init__(*args, **kwargs)
         self.default_locale: str | None = None
         self.locales: list[str] = []
+        self._languages: list[I18nLanguageConfig] = []
         self._file_lookup: dict[tuple[str, str], File] = {}
         self._base_key_lookup: dict[str, str] = {}
         self._default_files_by_key: dict[str, File] = {}
@@ -77,29 +78,57 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         self._locale_asset_files: dict[tuple[str, str], File] = {}
         self._locale_asset_url_maps: dict[str, dict[str, str]] = {}
 
+    def _get_languages(self, config: DocsForgeConfig) -> list[I18nLanguageConfig]:
+        """Return configured languages from plugin config or extra.i18n_languages."""
+        if self.config.languages:
+            return self.config.languages
+        extra = config.get("extra", {})
+        raw = extra.get("i18n_languages", []) or []
+        if not raw:
+            return []
+
+        validator = SubConfig(I18nLanguageConfig)
+        validated: list[I18nLanguageConfig] = []
+        for idx, item in enumerate(raw):
+            if not isinstance(item, dict):
+                raise ValidationError(
+                    f"extra.i18n_languages[{idx}] must be a mapping, got {type(item).__name__}"
+                )
+            cfg = I18nLanguageConfig()
+            cfg.load_dict(dict(item))
+            errors, warnings = cfg.validate()
+            if errors:
+                raise ValidationError(
+                    f"extra.i18n_languages[{idx}]: "
+                    + "; ".join(f"{k}: {v}" for k, v in errors)
+                )
+            validated.append(cfg)
+        return validated
+
     def on_config(self, config: DocsForgeConfig) -> DocsForgeConfig:
-        if not self.config.languages:
+        self._languages = self._get_languages(config)
+        if not self._languages:
             return config
 
-        defaults = [lang for lang in self.config.languages if lang.default]
+        defaults = [lang for lang in self._languages if lang.default]
         if len(defaults) != 1:
-            raise ValueError("plugins.i18n.languages must contain exactly one default language")
+            raise ValueError("i18n.languages must contain exactly one default language")
 
         self.default_locale = defaults[0].locale
-        self.locales = [lang.locale for lang in self.config.languages if lang.build]
+        self.locales = [lang.locale for lang in self._languages if lang.build]
 
         # Expose language metadata to templates.
         config.setdefault("extra", {})
         config["extra"]["i18n_languages"] = [
             {"locale": lang.locale, "name": lang.name, "default": lang.default, "build": lang.build}
-            for lang in self.config.languages
+            for lang in self._languages
         ]
         config["extra"]["i18n_default_locale"] = self.default_locale
         config["extra"]["i18n_current_locale"] = self.default_locale
         return config
 
     def on_files(self, files: Files, *, config: DocsForgeConfig) -> Files:
-        if not self.config.languages:
+        if not self._languages:
             return files
 
         assert self.default_locale is not None
@@ -272,7 +301,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         return new_file
 
     def on_nav(self, nav: Navigation, *, config: DocsForgeConfig, files: Files) -> Navigation:
-        if not self.config.languages:
+        if not self._languages:
             return nav
 
         assert self.default_locale is not None
@@ -423,7 +452,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         return mapping
 
     def on_page_context(self, context: templates.TemplateContext, *, page: Page, config: DocsForgeConfig, nav: Navigation) -> templates.TemplateContext:
-        if not self.config.languages:
+        if not self._languages:
             return context
 
         locale = getattr(page.file, "i18n_locale", self.default_locale)
@@ -437,7 +466,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         return context
 
     def on_page_content(self, html: str, *, page: Page, config: DocsForgeConfig, files: Files) -> str:
-        if not self.config.languages:
+        if not self._languages:
             return html
 
         locale = getattr(page.file, "i18n_locale", self.default_locale)
@@ -496,7 +525,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
     def _get_language_config(self, locale: str | None) -> I18nLanguageConfig | None:
         if locale is None:
             return None
-        for lang in self.config.languages:
+        for lang in self._languages:
             if lang.locale == locale:
                 return lang
         return None
@@ -585,7 +614,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         return normalized + trailing
 
     def on_post_build(self, *, config: DocsForgeConfig) -> None:
-        if not self.config.languages:
+        if not self._languages:
             return
 
         env = config.theme.get_env()

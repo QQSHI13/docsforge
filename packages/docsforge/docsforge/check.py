@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 BUILTIN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy', 'i18n'}
-AUTOLOAD_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy'}
+AUTOLOAD_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy', 'i18n'}
 
 
 def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *, full_validation: bool = False) -> int:
