@@ -62,26 +62,6 @@ class BaseConfigOption(Generic[T]):
         """
         return value
 
-    def format_error(self, value: object, key_name: str, error: Exception) -> str:
-        """Format a user-friendly error message with context and suggestions."""
-        msg = str(error)
-        
-        # Add context based on the option type
-        if hasattr(self, '_type'):
-            expected = self._type.__name__ if hasattr(self._type, '__name__') else str(self._type)
-            msg += f"\n  Expected: {expected}"
-        
-        # Add suggestions for common mistakes
-        suggestions = self._get_suggestions(value, key_name)
-        if suggestions:
-            msg += f"\n  Suggestions: {suggestions}"
-        
-        return msg
-    
-    def _get_suggestions(self, value: object, key_name: str) -> str | None:
-        """Return suggestions for fixing common config errors."""
-        return None
-
     def post_validation(self, config: Config, key_name: str) -> None:
         """
         After all options have passed validation, perform a post-validation

@@ -13,6 +13,7 @@ import traceback
 import types
 import warnings
 from collections import Counter, UserString
+from pathlib import Path
 from collections.abc import Callable, Collection, Iterator, Mapping, MutableMapping
 from types import SimpleNamespace
 from typing import Any, Generic, NamedTuple, TypeVar, overload
@@ -257,6 +258,9 @@ class DictOfItems(Generic[T], BaseConfigOption[dict[str, T]]):
             raise ValidationError(f"Expected a dict of items, but a {type(value)} was given.")
         if not value:  # Optimization for empty list
             return value
+
+        # Avoid mutating the caller's original dict.
+        value = dict(value)
 
         fake_config = LegacyConfig(())
         with contextlib.suppress(AttributeError):
@@ -741,26 +745,33 @@ class SiteDir(Dir):
 
     def post_validation(self, config: Config, key_name: str):
         super().post_validation(config, key_name)
-        docs_dir = config['docs_dir']
-        site_dir = config['site_dir']
+        docs_dir = Path(config['docs_dir']).resolve()
+        site_dir = Path(config['site_dir']).resolve()
 
         # Validate that the docs_dir and site_dir don't contain the
         # other as this will lead to copying back and forth on each
         # and eventually make a deep nested mess.
-        if (docs_dir + os.sep).startswith(site_dir.rstrip(os.sep) + os.sep):
+        try:
+            docs_dir.relative_to(site_dir)
             raise ValidationError(
                 f"The 'docs_dir' should not be within the 'site_dir' as this "
                 f"can mean the source files are overwritten by the output or "
                 f"it will be deleted if --clean is passed to docsforge build. "
                 f"(site_dir: '{site_dir}', docs_dir: '{docs_dir}')"
             )
-        elif (site_dir + os.sep).startswith(docs_dir.rstrip(os.sep) + os.sep):
+        except ValueError:
+            pass
+
+        try:
+            site_dir.relative_to(docs_dir)
             raise ValidationError(
                 f"The 'site_dir' should not be within the 'docs_dir' as this "
                 f"leads to the build directory being copied into itself and "
                 f"duplicate nested files in the 'site_dir'. "
                 f"(site_dir: '{site_dir}', docs_dir: '{docs_dir}')"
             )
+        except ValueError:
+            pass
 
 
 class Theme(BaseConfigOption["theme.Theme"]):
@@ -1141,7 +1152,7 @@ class Plugins(OptionallyRequired[PluginCollection]):
             enabled = config.pop('enabled')
             if not isinstance(enabled, bool):
                 raise ValidationError(
-                    f"Plugin '{name}' option 'enabled': Expected boolean but received: {type(enabled)}"
+                    f"Plugin '{inst_name}' option 'enabled': Expected boolean but received: {type(enabled)}"
                 )
             if not enabled:
                 log.debug(f"Plugin '{inst_name}' is disabled in the config, skipping.")
