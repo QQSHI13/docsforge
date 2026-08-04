@@ -490,17 +490,9 @@
 
           getPreferredLocale().then(function(preferred) {
             if (!preferred) return;
+            // Keep the service worker's in-memory locale in sync, so subsequent
+            // fetches (including instant navigation) use the stored preference.
             notifySW(preferred);
-            // If the SW served a different locale than the one stored (for
-            // example because the preference changed in another tab), reload
-            // once so the SW can serve the correct sibling.
-            if (preferred !== pageLocale) {
-              var lastReload = sessionStorage.getItem('docsforge-locale-reload');
-              if (lastReload !== preferred) {
-                sessionStorage.setItem('docsforge-locale-reload', preferred);
-                location.reload();
-              }
-            }
           }).catch(function() {});
         })();
       </script>

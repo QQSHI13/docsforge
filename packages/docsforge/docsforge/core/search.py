@@ -179,6 +179,20 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             return "search/search_index.json"
         return f"search/search_index.{locale}.json"
 
+    def _load_prev_index(self, path: str) -> SearchIndex | None:
+        """Load a previous search index from disk for incremental builds."""
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            docs = data.get("docs", [])
+            if not docs:
+                return None
+            prev = SearchIndex(**data.get("config", {}))
+            prev.entries = docs
+            return prev
+        except Exception:
+            return None
+
     def on_post_build(self, *, config):
         if not self.config.enabled:
             return
@@ -186,15 +200,17 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             for locale in self._locales:
                 index = self.search_indices[locale]
                 prev = self.search_indices_prev.get(locale)
-                data = index.generate_search_index(prev)
                 path = os.path.join(config.site_dir, self._search_index_url(locale))
+                if prev is None:
+                    prev = self._load_prev_index(path)
+                data = index.generate_search_index(prev)
                 utils.write_file(data.encode("utf-8"), path)
                 if self.is_dirty:
                     self.search_indices_prev[locale] = index
         else:
-            base = os.path.join(config.site_dir, "search")
-            path = os.path.join(base, "search_index.json")
-            data = self.search_index.generate_search_index(self.search_index_prev)
+            path = os.path.join(config.site_dir, "search", "search_index.json")
+            prev = self.search_index_prev or self._load_prev_index(path)
+            data = self.search_index.generate_search_index(prev)
             utils.write_file(data.encode("utf-8"), path)
             if self.is_dirty:
                 self.search_index_prev = self.search_index
@@ -276,12 +292,16 @@ class SearchIndex:
         }
 
         if prev and self.entries:
-            path = self.entries[0]["location"].split("#")[0]
-            entries = [
+            # Replace all entries belonging to pages that were rebuilt.
+            changed_paths = {
+                entry["location"].split("#")[0]
+                for entry in self.entries
+            }
+            kept_entries = [
                 entry for entry in prev.entries
-                if entry["location"].split("#")[0] != path
+                if entry["location"].split("#")[0] not in changed_paths
             ]
-            self.entries = entries + self.entries
+            self.entries = kept_entries + self.entries
 
         if prev and not self.entries:
             self.entries = prev.entries

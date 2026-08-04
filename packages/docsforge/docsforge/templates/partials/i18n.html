@@ -40,7 +40,11 @@
             event.preventDefault();
             var targetLocale = link.getAttribute('hreflang') || '';
             if (window.docsforge && window.docsforge.setLocale) {
-              window.docsforge.setLocale(targetLocale).then(function() { location.reload(); });
+              window.docsforge.setLocale(targetLocale).then(function() {
+                // Give the service worker a moment to apply the new locale
+                // before this page reloads, avoiding a stale-language flash.
+                setTimeout(function() { location.reload(); }, 100);
+              });
             } else {
               location.reload();
             }
