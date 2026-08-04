@@ -321,15 +321,34 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         if base_key is None:
             return None
         lang_file = self._file_lookup.get((base_key, locale))
-        if lang_file is None:
-            return None
 
-        title = self._resolve_locale_title(page, locale, lang_config)
-        if lang_file.page is None:
-            Page(title, lang_file, config)
-        elif title is not None:
-            lang_file.page.title = title
-        return lang_file.page
+        # Explicit translations (per-item or nav config) win. Otherwise leave
+        # title as None so the translated file's frontmatter title is used.
+        title = None
+        if page.i18n_titles and locale in page.i18n_titles:
+            title = page.i18n_titles[locale]
+        elif lang_config and lang_config.nav_translations and page.title in lang_config.nav_translations:
+            title = lang_config.nav_translations[page.title]
+
+        if lang_file is not None:
+            if lang_file.page is None:
+                Page(title, lang_file, config)
+            elif title is not None:
+                lang_file.page.title = title
+            # Remember the default-language file so nav titles can be resolved
+            # after Markdown sources (and frontmatter titles) have been read.
+            lang_file.page.i18n_base_file = page.file  # type: ignore[attr-defined]
+            return lang_file.page
+
+        # No translation exists: still produce a nav entry pointing at the
+        # default page, but with a translated nav title if one is configured.
+        # Do not overwrite the original file.page.
+        original_page = page.file.page
+        nav_title = title if title is not None else page.title
+        nav_page = Page(nav_title, page.file, config)
+        nav_page.i18n_base_file = page.file  # type: ignore[attr-defined]
+        page.file.page = original_page
+        return nav_page
 
     def _resolve_locale_title(
         self,
@@ -356,6 +375,11 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         locale_nav = self._locale_navs.get(locale)
         if locale_nav is not None:
             context["nav"] = locale_nav
+            # By the time pages are rendered all Markdown sources have been read,
+            # so translated frontmatter titles are available. Ensure nav titles
+            # use explicit translations when configured, and that fallback nav
+            # entries copied from the default page carry the correct title.
+            self._fix_locale_nav_titles(locale_nav, locale)
             # Activate the current page in the locale nav so the sidebar/top bar
             # highlight the right item.
             for nav_page in locale_nav.pages:
@@ -375,6 +399,40 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         context["i18n_base_url"] = base_url
 
         return context
+
+    def _fix_locale_nav_titles(self, locale_nav: Navigation, locale: str) -> None:
+        """Update nav titles after Markdown sources have been read.
+
+        Explicit nav translations win over frontmatter. Fallback entries that
+        point to the default-language file are synced from the original page.
+        """
+        if getattr(locale_nav, "_i18n_titles_fixed", False):
+            return
+        locale_nav._i18n_titles_fixed = True  # type: ignore[attr-defined]
+
+        lang_config = self._get_language_config(locale)
+        for nav_page in locale_nav.pages:
+            # Use the canonical page stored on the file. For translated files
+            # this is the translated page itself; for fallback entries it is
+            # the original default-language page.
+            source_page = nav_page.file.page
+            if source_page is None:
+                continue
+
+            title = None
+            base_file = getattr(nav_page, "i18n_base_file", nav_page.file)
+            default_page = base_file.page if base_file else None
+            default_title = default_page.title if default_page else source_page.title
+            if nav_page.i18n_titles and locale in nav_page.i18n_titles:
+                title = nav_page.i18n_titles[locale]
+            elif lang_config and lang_config.nav_translations and default_title in lang_config.nav_translations:
+                title = lang_config.nav_translations[default_title]
+
+            if title is not None:
+                nav_page.title = title
+            elif nav_page.file.page is not nav_page and source_page.title is not None:
+                # Fallback nav-only copy: mirror the original page title.
+                nav_page.title = source_page.title
 
     def on_page_content(self, html: str, *, page: Page, config: DocsForgeConfig, files: Files) -> str:
         if not self._languages:
