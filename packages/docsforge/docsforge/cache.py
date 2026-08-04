@@ -55,6 +55,7 @@ class CacheManager:
         self.meta_file = cache_dir / "meta.json"
         self.pkg_version_file = cache_dir / "pkg_version"
         self.theme_sig_file = cache_dir / "theme_sig"
+        self.nav_sig_file = cache_dir / "nav_sig"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -149,6 +150,16 @@ class CacheManager:
         """Save the theme-template signature for this build."""
         self.theme_sig_file.write_text(sig)
 
+    def get_nav_sig(self) -> str | None:
+        """Get the navigation signature from the last build."""
+        if self.nav_sig_file.exists():
+            return self.nav_sig_file.read_text().strip() or None
+        return None
+
+    def set_nav_sig(self, sig: str) -> None:
+        """Save the navigation signature for this build."""
+        self.nav_sig_file.write_text(sig)
+
     def invalidate(self) -> None:
         """Clear all cache files tracked by the manager."""
         for f in [
@@ -160,6 +171,7 @@ class CacheManager:
             self.meta_file,
             self.pkg_version_file,
             self.theme_sig_file,
+            self.nav_sig_file,
         ]:
             if f.exists():
                 f.unlink()
@@ -259,6 +271,7 @@ class BuildPlanner:
         self.config_hash = cache.get_config_hash()
         self.pkg_version = cache.get_pkg_version()
         self.theme_sig = cache.get_theme_sig()
+        self.nav_sig = cache.get_nav_sig()
         # {path: {mtime, size, hash}} — lets us skip re-reading+hashing a file
         # whose mtime+size are unchanged since last build.
         self.meta = cache.get_meta()
@@ -461,7 +474,7 @@ class BuildPlanner:
         """Record the source set for this build."""
         self.cache.set_sources(list(current_sources))
 
-    def save(self, config_hash: str | None = None, pkg_version: str | None = None, theme_sig: str | None = None) -> None:
+    def save(self, config_hash: str | None = None, pkg_version: str | None = None, theme_sig: str | None = None, nav_sig: str | None = None) -> None:
         """Save all cache state."""
         self.cache.set_hashes(self.hashes)
         self.cache.set_deps(self.deps)
@@ -475,4 +488,7 @@ class BuildPlanner:
         if theme_sig:
             self.cache.set_theme_sig(theme_sig)
             self.theme_sig = theme_sig
+        if nav_sig:
+            self.cache.set_nav_sig(nav_sig)
+            self.nav_sig = nav_sig
         self.cache.set_version(CACHE_VERSION)

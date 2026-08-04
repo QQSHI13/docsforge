@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
 
 from backrefs import bre
 from html import escape
@@ -77,12 +78,12 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         super().__init__(*args, **kwargs)
         self.is_dirty = False
         self.is_dirtyreload = False
-        self.search_index_prev = None
         self.search_index = None
         self.search_indices: dict[str, SearchIndex] = {}
-        self.search_indices_prev: dict[str, SearchIndex] = {}
         self._default_locale: str | None = None
         self._locales: list[str] = []
+        self._entries_cache: dict[str, dict[str, list[dict]]] = {}
+        self._entries_cache_file: Path | None = None
 
     def on_startup(self, *, command, dirty):
         self.is_dirty = dirty
@@ -99,6 +100,11 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         else:
             self._default_locale = None
             self._locales = []
+
+        # Load the persisted per-page search-entry cache.
+        cache_dir = Path(".docsforge/cache")
+        self._entries_cache_file = cache_dir / "search_entries.json"
+        self._entries_cache = self._load_entries_cache()
 
         # Set defaults from theme translations
         if not self.config.lang:
@@ -163,15 +169,22 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             return
         index = self._index_for_page(page)
         if index is not None:
+            before = len(index.entries)
             index.add_entry_from_context(page)
+            page_entries = index.entries[before:]
+            locale = self._locale_for_page(page)
+            self._entries_cache.setdefault(locale, {})[page.file.src_uri] = page_entries
         page.content = re.sub(
             r"\s?data-search-\w+=\"[^\"]+\"",
             "",
             page.content
         )
         # Tell the frontend which search index this locale page should use.
-        locale = getattr(page.file, "i18n_locale", None) or self._default_locale
+        locale = self._locale_for_page(page)
         context["search_index_url"] = self._search_index_url(locale)
+
+    def _locale_for_page(self, page) -> str:
+        return getattr(page.file, "i18n_locale", None) or self._default_locale or ""
 
     def _search_index_url(self, locale: str | None) -> str:
         """Return the search index path relative to site root for the given locale."""
@@ -179,19 +192,89 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             return "search/search_index.json"
         return f"search/search_index.{locale}.json"
 
-    def _load_prev_index(self, path: str) -> SearchIndex | None:
-        """Load a previous search index from disk for incremental builds."""
+    def _load_entries_cache(self) -> dict[str, dict[str, list[dict]]]:
+        """Load the persisted per-page search-entry cache."""
+        if self._entries_cache_file is None or not self._entries_cache_file.exists():
+            return {}
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(self._entries_cache_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            docs = data.get("docs", [])
-            if not docs:
-                return None
-            prev = SearchIndex(**data.get("config", {}))
-            prev.entries = docs
-            return prev
+            if isinstance(data, dict):
+                return data
         except Exception:
-            return None
+            pass
+        return {}
+
+    def _save_entries_cache(self) -> None:
+        """Persist the per-page search-entry cache."""
+        if self._entries_cache_file is None:
+            return
+        self._entries_cache_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self._entries_cache_file.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(self._entries_cache, f)
+        tmp.replace(self._entries_cache_file)
+
+    def _file_locale(self, src_uri: str) -> str:
+        """Return the locale for a source URI, inferring from filename suffix."""
+        if not self._locales:
+            return ""
+        stem, _ = os.path.splitext(src_uri)
+        for locale in self._locales:
+            if locale != self._default_locale and stem.endswith(f".{locale}"):
+                return locale
+        return self._default_locale or ""
+
+    def _current_source_uris(self, config) -> set[str]:
+        """Return all Markdown source URIs under docs_dir."""
+        docs_dir = Path(config.docs_dir)
+        if not docs_dir.exists():
+            return set()
+        return {
+            p.relative_to(docs_dir).as_posix()
+            for p in docs_dir.rglob("*.md")
+            if p.is_file()
+        }
+
+    def _prepare_index_entries(self, index, locale: str, config):
+        """Assemble the search index from the entries cache, recovering if needed."""
+        cache = self._entries_cache.setdefault(locale, {})
+
+        # Drop entries for deleted sources.
+        current_uris = self._current_source_uris(config)
+        for uri in list(cache.keys()):
+            if uri not in current_uris:
+                del cache[uri]
+
+        # If the cache is empty/corrupted, rebuild by re-rendering sources.
+        if not cache:
+            cache.update(self._recover_entries_for_locale(config, locale, index))
+
+        index.entries = []
+        for entries in cache.values():
+            index.entries.extend(entries)
+
+    def _recover_entries_for_locale(self, config, locale: str, index):
+        """Re-render Markdown sources for the locale to rebuild search entries."""
+        from docsforge.files import get_files, InclusionLevel
+        from docsforge.pages import Page
+
+        entries_by_uri: dict[str, list[dict]] = {}
+        files = get_files(config)
+        for file in files.documentation_pages(inclusion=InclusionLevel.is_included):
+            if self._file_locale(file.src_uri) != locale:
+                continue
+            if not Path(file.abs_dest_path).exists():
+                continue
+            if file.page is None:
+                Page(None, file, config)
+            page = file.page
+            page.read_source(config)
+            page.render(config, files)
+            before = len(index.entries)
+            index.add_entry_from_context(page)
+            entries_by_uri[file.src_uri] = index.entries[before:]
+        return entries_by_uri
 
     def on_post_build(self, *, config):
         if not self.config.enabled:
@@ -199,21 +282,16 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         if self._locales:
             for locale in self._locales:
                 index = self.search_indices[locale]
-                prev = self.search_indices_prev.get(locale)
                 path = os.path.join(config.site_dir, self._search_index_url(locale))
-                if prev is None:
-                    prev = self._load_prev_index(path)
-                data = index.generate_search_index(prev)
+                self._prepare_index_entries(index, locale, config)
+                data = index.generate_search_index(prev=None)
                 utils.write_file(data.encode("utf-8"), path)
-                if self.is_dirty:
-                    self.search_indices_prev[locale] = index
         else:
             path = os.path.join(config.site_dir, "search", "search_index.json")
-            prev = self.search_index_prev or self._load_prev_index(path)
-            data = self.search_index.generate_search_index(prev)
+            self._prepare_index_entries(self.search_index, "", config)
+            data = self.search_index.generate_search_index(prev=None)
             utils.write_file(data.encode("utf-8"), path)
-            if self.is_dirty:
-                self.search_index_prev = self.search_index
+        self._save_entries_cache()
 
     def on_serve(self, server, *, config, builder):
         self.is_dirtyreload = self.is_dirty

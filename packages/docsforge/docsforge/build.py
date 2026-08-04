@@ -338,11 +338,72 @@ def _prepare_build(
     return config, warning_counter, inclusion
 
 
+def _ensure_nav_titles(nav: Navigation, config: DocsForgeConfig) -> None:
+    """Load Markdown source titles for every page in the navigation.
+
+    Navigation titles are not available until a page's source has been read.
+    Reading them here is much cheaper than a full render and lets the nav
+    signature detect title changes on incremental builds.
+    """
+    for page in nav.pages:
+        try:
+            if getattr(page, "markdown", None) is None:
+                page.read_source(config)
+        except Exception:
+            pass
+
+
+def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
+    """Return a deterministic hash of the navigation structure.
+
+    Any change to page order, titles, section structure, i18n titles, or the
+    effective site URL path invalidates the signature and forces all pages to
+    be re-rendered so navigation/previous/next links stay consistent.
+    """
+
+    def _sorted_dict(d: dict) -> dict:
+        return {k: d[k] for k in sorted(d)}
+
+    def _serialize(item):
+        if getattr(item, 'is_page', False):
+            return {
+                'type': 'page',
+                'src_uri': item.file.src_uri,
+                'url': item.url,
+                'title': item.title,
+                'is_homepage': item.is_homepage,
+                'i18n_titles': _sorted_dict(item.i18n_titles),
+            }
+        if getattr(item, 'is_section', False):
+            return {
+                'type': 'section',
+                'title': item.title,
+                'i18n_titles': _sorted_dict(item.i18n_titles),
+                'children': [_serialize(c) for c in item.children],
+            }
+        if getattr(item, 'is_link', False):
+            return {
+                'type': 'link',
+                'title': item.title,
+                'url': item.url,
+                'i18n_titles': _sorted_dict(item.i18n_titles),
+            }
+        return {}
+
+    data = {
+        'site_url_path': urlsplit(config.site_url or '/').path,
+        'items': [_serialize(i) for i in nav.items],
+    }
+    hasher = hashlib.sha256()
+    hasher.update(json.dumps(data, ensure_ascii=False, sort_keys=True).encode('utf-8'))
+    return hasher.hexdigest()[:32]
+
+
 def _collect_files_and_nav(
     config: DocsForgeConfig,
     planner: BuildPlanner,
     inclusion: Callable[[InclusionLevel], bool],
-) -> tuple[Files, jinja2.Environment, Navigation, list[File], bool]:
+) -> tuple[Files, jinja2.Environment, Navigation, list[File], bool, bool]:
     """Gather files from docs_dir and theme, cleanup orphans, build navigation."""
     # Compile TikZ diagrams BEFORE scanning files so the build discovers the SVGs.
     from docsforge import tikz
@@ -377,10 +438,19 @@ def _collect_files_and_nav(
     # Run `nav` plugin events.
     nav = config.plugins.on_nav(nav, config=config, files=files)
 
+    # Detect navigation/global changes that require every page to be re-rendered.
+    # Titles must be loaded first so the signature reflects page title changes.
+    _ensure_nav_titles(nav, config)
+    nav_sig = _nav_signature(nav, config)
+    nav_changed = planner.nav_sig != nav_sig
+    if nav_changed:
+        planner.nav_sig = nav_sig
+        log.debug("Navigation signature changed; all pages will be re-rendered")
+
     log.debug("Reading markdown pages.")
     all_doc_files = list(files.documentation_pages(inclusion=inclusion))
 
-    return files, env, nav, all_doc_files, sources_changed
+    return files, env, nav, all_doc_files, sources_changed, nav_changed
 
 
 def _remove_orphaned_output(path: Path) -> None:
@@ -398,6 +468,7 @@ def _populate_changed_pages(
     all_doc_files: list[File],
     inclusion: Callable[[InclusionLevel], bool],
     serve_url: str | None,
+    force_all: bool = False,
 ) -> list[Page]:
     """Render Markdown for all changed pages in parallel."""
     excluded: list[str] = []
@@ -414,7 +485,7 @@ def _populate_changed_pages(
         source_path = Path(file.abs_src_path)
         output_path = Path(file.abs_dest_path)
 
-        if not planner.should_rebuild(source_path, output_path):
+        if not force_all and not planner.should_rebuild(source_path, output_path):
             log.debug(f"Skipping unchanged page: {file.src_uri}")
             continue
 
@@ -460,6 +531,7 @@ def _write_outputs(
     planner: BuildPlanner,
     all_doc_files: list[File],
     inclusion: Callable[[InclusionLevel], bool],
+    force_all: bool = False,
 ) -> bool:
     """Copy static assets and build all changed pages in parallel."""
     # Run `env` plugin events.
@@ -487,7 +559,7 @@ def _write_outputs(
         assert file.page is not None
         source_path = Path(file.abs_src_path)
         output_path = Path(file.abs_dest_path)
-        if planner.should_rebuild(source_path, output_path):
+        if force_all or planner.should_rebuild(source_path, output_path):
             pages_to_build.append((file.page, source_path, output_path))
 
     built_any = False
@@ -546,12 +618,13 @@ def _finalize_build(
     warning_counter: utils.CountHandler,
     built_any: bool,
     sources_changed: bool,
+    nav_changed: bool,
     config_path: Path,
     theme_sig: str,
     start: float,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
-    nothing_changed = not built_any and not sources_changed
+    nothing_changed = not built_any and not sources_changed and not nav_changed
 
     if not nothing_changed:
         log_level = config.validation.links.anchors
@@ -582,7 +655,12 @@ def _finalize_build(
 
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
-    planner.save(config_hash=config_hash, pkg_version=docsforge.__version__, theme_sig=theme_sig)
+    planner.save(
+        config_hash=config_hash,
+        pkg_version=docsforge.__version__,
+        theme_sig=theme_sig,
+        nav_sig=planner.nav_sig,
+    )
 
     # Save cache after successful build (only if not in strict mode with errors)
     if counts := warning_counter.get_counts():
@@ -608,14 +686,18 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         config, warning_counter, inclusion = _prepare_build(
             config, planner, config_path, theme_sig, serve_url
         )
-        files, env, nav, all_doc_files, sources_changed = _collect_files_and_nav(
+        files, env, nav, all_doc_files, sources_changed, nav_changed = _collect_files_and_nav(
             config, planner, inclusion
         )
-        _populate_changed_pages(config, files, planner, all_doc_files, inclusion, serve_url)
-        built_any = _write_outputs(config, files, nav, env, planner, all_doc_files, inclusion)
+        _populate_changed_pages(
+            config, files, planner, all_doc_files, inclusion, serve_url, force_all=nav_changed
+        )
+        built_any = _write_outputs(
+            config, files, nav, env, planner, all_doc_files, inclusion, force_all=nav_changed
+        )
         _finalize_build(
             config, files, nav, planner, warning_counter,
-            built_any, sources_changed, config_path, theme_sig, start,
+            built_any, sources_changed, nav_changed, config_path, theme_sig, start,
         )
 
     except Exception as e:

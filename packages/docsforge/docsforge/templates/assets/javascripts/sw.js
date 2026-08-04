@@ -309,7 +309,7 @@ async function syncCacheFromManifest(manifest) {
       try {
         const fullUrl = keyToUrl(key);
         log('Caching:', key);
-        const resp = await fetch(fullUrl);
+        const resp = await fetch(fullUrl, { cache: 'no-cache' });
         if (resp && resp.ok) {
           await putWithQuotaHandling(cache, fullUrl, resp);
           prevFiles[key] = newHash;

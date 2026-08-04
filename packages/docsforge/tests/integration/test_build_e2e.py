@@ -153,3 +153,65 @@ class TestBuildE2E:
             assert not any(h in url for h in ("unpkg.com", "cdn.jsdelivr", "cdnjs")), (
                 f"unexpected CDN script in built page: {url}"
             )
+
+    def test_nav_change_rebuilds_existing_pages(self, tmp_project, monkeypatch):
+        """Changing a page title must re-render existing pages so navigation stays consistent."""
+        cfg = tmp_project / "docsforge.yml"
+        cfg.write_text(
+            cfg.read_text()
+            + "nav:\n  - path: index.md\n  - path: other.md\n"
+        )
+        (tmp_project / "docs" / "other.md").write_text("# Other\n\nOther content.\n")
+        _build_once(monkeypatch, tmp_project)
+
+        out = tmp_project / "site" / "index.html"
+        before = out.stat().st_mtime_ns
+        time.sleep(0.01)
+
+        (tmp_project / "docs" / "other.md").write_text("# Renamed Other\n\nOther content.\n")
+        _build_once(monkeypatch, tmp_project)
+
+        after = out.stat().st_mtime_ns
+        assert after > before, "existing page was not rebuilt after nav change"
+        html = out.read_text()
+        assert "Renamed Other" in html, "renamed page title missing from existing page navigation"
+
+    def test_search_index_survives_empty_previous_index(self, tmp_project, monkeypatch):
+        """If the on-disk search index is lost, an incremental build must regenerate it."""
+        _build_once(monkeypatch, tmp_project)
+        index_path = tmp_project / "site" / "search" / "search_index.json"
+        assert index_path.is_file()
+        original_count = len(json.loads(index_path.read_text())["docs"])
+        assert original_count > 0
+
+        # Simulate cache corruption / loss.
+        index_path.write_text('{"config":{},"docs":[]}')
+        cache_path = tmp_project / ".docsforge" / "cache" / "search_entries.json"
+        if cache_path.exists():
+            cache_path.unlink()
+
+        _build_once(monkeypatch, tmp_project)
+        recovered = json.loads(index_path.read_text())
+        assert len(recovered["docs"]) == original_count, (
+            "search index was not regenerated after previous index was emptied"
+        )
+
+    def test_search_index_incremental_update(self, tmp_project, monkeypatch):
+        """Editing a page must update its entries in the search index without losing others."""
+        _build_once(monkeypatch, tmp_project)
+        index_path = tmp_project / "site" / "search" / "search_index.json"
+        original = json.loads(index_path.read_text())
+
+        time.sleep(0.01)
+        (tmp_project / "docs" / "index.md").write_text(
+            "# Home\n\nWelcome to the test site. UNIQUE_KEYWORD_FOR_SEARCH.\n"
+        )
+        _build_once(monkeypatch, tmp_project)
+
+        updated = json.loads(index_path.read_text())
+        assert any("UNIQUE_KEYWORD_FOR_SEARCH" in e.get("text", "") for e in updated["docs"]), (
+            "edited page content was not reflected in search index"
+        )
+        assert len(updated["docs"]) == len(original["docs"]), (
+            "search index lost entries for unchanged pages"
+        )
