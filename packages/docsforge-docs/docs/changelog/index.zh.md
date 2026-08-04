@@ -4,6 +4,18 @@
 
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，并且本项目遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
+## [12.0.0] — 未发布
+
+### 变更
+
+- **破坏性变更：与语言无关的 i18n 架构。** 翻译页面现在作为兄弟文件输出（同一目录下的 `index.html` 和 `index.<locale>.html`），并共享相同的公开 URL。Service Worker 将用户的偏好语言存储在 IndexedDB 中，并在每次请求时提供对应的兄弟文件。这移除了 `/<locale>/` 子站点、回退页面、按语言复制的资源以及链接/资源重写。
+- **i18n 搜索支持按语言切换。** 每种语言都有自己的 `search/search_index.<locale>.json`；前端会加载当前显示语言对应的索引，而不是始终搜索默认语言。
+- **i18n 语言切换器重新加载同一 URL。** 选择语言会将偏好写入 IndexedDB 并重新加载当前页面，因此切换器不会产生过时的语言专属 URL。
+
+### 移除
+
+- **i18n `fallback_to_default` 选项。** 由于不再生成回退页面，该选项现已被忽略。
+
 ## [11.5.4] — 2026-07-07
 
 ### 修复

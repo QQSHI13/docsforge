@@ -184,7 +184,7 @@ theme:
 | `tags` | :material-check-bold: 已内置 | 默认启用标签支持 |
 | `blog` | :material-check-bold: 已内置 | 博客插件可用 |
 | `social` | ❌ 未内置 | 需要 Pillow + CairoSVG；如需请使用自定义图片 |
-| `i18n` | ❌ 未内置 | 多语言支持尚未提供 |
+| `i18n` | :material-check-bold: 已内置 | 使用 `material/i18n` 插件（参见[国际化设置](../setup/i18n.md)） |
 
 ### 需要从 `mkdocs.yml` 中移除的插件
 
