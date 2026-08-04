@@ -4,6 +4,18 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.0.0] — Unreleased
+
+### Changed
+
+- **BREAKING: Locale-agnostic i18n architecture.** Translated pages are now emitted as siblings (`index.html` and `index.<locale>.html` in the same directory) and share the same public URL. The service worker stores the user's preferred locale in IndexedDB and serves the matching sibling on every request. This removes `/<locale>/` sub-sites, fallback pages, per-locale asset copies, and link/asset rewriting.
+- **i18n search is locale-aware.** Each locale has its own `search/search_index.<locale>.json`; the frontend loads the index for the currently displayed language instead of always searching the default locale.
+- **i18n language switcher reloads the same URL.** Selecting a language writes the preference to IndexedDB and reloads the current page, so the switcher never produces stale locale-specific URLs.
+
+### Removed
+
+- **i18n `fallback_to_default` option.** It is now ignored because fallback pages are no longer generated.
+
 ## [11.5.4] — 2026-07-07
 
 ### Fixed

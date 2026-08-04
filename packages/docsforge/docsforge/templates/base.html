@@ -268,6 +268,8 @@
             "select.version": lang.t("select.version")
           },
           "search": "assets/javascripts/workers/search.min.js" | url,
+          "search_index": search_index_url | default(none),
+          "locale": config.extra.i18n_current_locale | default(none),
           "annotate": _.annotate or none,
           "tags": _.tags or none,
           "version": _.version or none
@@ -421,6 +423,85 @@
               setupPaletteClickHandlers();
             });
           }
+        })();
+      </script>
+      <script>
+        // DocsForge i18n: sync the user's preferred locale with the service
+        // worker. The SW reads this value from IndexedDB and serves the
+        // matching locale sibling (e.g. index.zh.html) for every locale-agnostic
+        // URL. We also mirror it to localStorage so the minified bundle can
+        // read it synchronously when building instant-navigation URLs.
+        (function() {
+          var pageLocale = {{ (config.extra.i18n_current_locale | default(config.theme.language, true)) | tojson }};
+          var defaultLocale = {{ (config.extra.i18n_default_locale | default(config.theme.language, true)) | tojson }};
+          var dbName = 'docsforge-i18n';
+          var storeName = 'preferences';
+          var key = 'preferred_locale';
+          var storageKey = 'docsforge-i18n-locale';
+
+          function openDB() {
+            return new Promise(function(resolve, reject) {
+              var req = indexedDB.open(dbName, 1);
+              req.onupgradeneeded = function(e) { e.target.result.createObjectStore(storeName); };
+              req.onsuccess = function(e) { resolve(e.target.result); };
+              req.onerror = function(e) { reject(e); };
+            });
+          }
+
+          function getPreferredLocale() {
+            return openDB().then(function(db) {
+              return new Promise(function(resolve, reject) {
+                var tx = db.transaction(storeName, 'readonly');
+                var store = tx.objectStore(storeName);
+                var req = store.get(key);
+                req.onsuccess = function() { resolve(req.result || ''); };
+                req.onerror = function() { reject(req.error); };
+              });
+            });
+          }
+
+          function notifySW(locale) {
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+              navigator.serviceWorker.controller.postMessage({
+                type: 'DOCSFORGE_SET_LOCALE',
+                locale: locale
+              });
+            }
+          }
+
+          function setPreferredLocale(locale) {
+            return openDB().then(function(db) {
+              var tx = db.transaction(storeName, 'readwrite');
+              var store = tx.objectStore(storeName);
+              if (locale) store.put(locale, key);
+              else store.delete(key);
+
+              try {
+                if (locale) localStorage.setItem(storageKey, locale);
+                else localStorage.removeItem(storageKey);
+              } catch (e) {}
+
+              notifySW(locale);
+            }).catch(function() {});
+          }
+
+          window.docsforge = window.docsforge || {};
+          window.docsforge.setLocale = setPreferredLocale;
+
+          getPreferredLocale().then(function(preferred) {
+            if (!preferred) return;
+            notifySW(preferred);
+            // If the SW served a different locale than the one stored (for
+            // example because the preference changed in another tab), reload
+            // once so the SW can serve the correct sibling.
+            if (preferred !== pageLocale) {
+              var lastReload = sessionStorage.getItem('docsforge-locale-reload');
+              if (lastReload !== preferred) {
+                sessionStorage.setItem('docsforge-locale-reload', preferred);
+                location.reload();
+              }
+            }
+          }).catch(function() {});
         })();
       </script>
       <script src="{{ 'assets/javascripts/bundle.min.js' | url }}"></script>

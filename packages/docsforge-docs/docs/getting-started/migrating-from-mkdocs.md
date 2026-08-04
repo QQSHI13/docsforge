@@ -184,7 +184,7 @@ These MkDocs plugins are **built into DocsForge** and should be removed from you
 | `tags` | :material-check-bold: Built-in | Tag support enabled by default |
 | `blog` | :material-check-bold: Built-in | Blog plugin available |
 | `social` | ❌ Not built-in | Requires Pillow + CairoSVG; use custom images if needed |
-| `i18n` | ❌ Not built-in | Multi-language support not yet available |
+| `i18n` | :material-check-bold: Built-in | Use the `material/i18n` plugin (see [Internationalization setup](../setup/i18n.md)) |
 
 ### Plugins to Remove from `mkdocs.yml`
 

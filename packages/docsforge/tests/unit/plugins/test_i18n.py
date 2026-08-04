@@ -1,7 +1,6 @@
 """Unit tests for the i18n plugin (docsforge.core.i18n)."""
 from __future__ import annotations
 
-import re
 from types import SimpleNamespace
 
 import pytest
@@ -37,130 +36,141 @@ class TestParseFile:
         assert plugin._parse_file("index.fr.md") == ("index.fr.md", "en")
 
 
-class TestRewriteLinks:
-    def test_rewrites_internal_links_to_same_locale(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {
-            "zh": {
-                "": "zh/",
-                "second/": "zh/second/",
-                "guide/intro/": "zh/guide/intro/",
-            }
-        }
-        page = SimpleNamespace(url="zh/")
-        html = '<p><a href="second/">Second</a> <a href="guide/intro/">Intro</a></p>'
-        out = p._rewrite_links(html, page, "zh")
-        assert 'href="second/"' in out
-        assert 'href="guide/intro/"' in out
+class TestLocaleSiblingDestUri:
+    def test_directory_url_homepage(self, plugin):
+        f = SimpleNamespace(dest_uri="index.html", use_directory_urls=True)
+        assert plugin._locale_sibling_dest_uri(f, "zh") == "index.zh.html"
 
-    def test_preserves_external_and_anchor_links(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
-        page = SimpleNamespace(url="zh/")
-        html = (
-            '<p><a href="https://example.com">External</a> '
-            '<a href="#anchor">Anchor</a> '
-            '<a href="mailto:a@b.com">Mail</a></p>'
+    def test_directory_url_nested_page(self, plugin):
+        f = SimpleNamespace(dest_uri="page/index.html", use_directory_urls=True)
+        assert plugin._locale_sibling_dest_uri(f, "zh") == "page/index.zh.html"
+
+    def test_file_url_homepage(self, plugin):
+        f = SimpleNamespace(dest_uri="index.html", use_directory_urls=False)
+        assert plugin._locale_sibling_dest_uri(f, "zh") == "index.zh.html"
+
+    def test_file_url_nested_page(self, plugin):
+        f = SimpleNamespace(dest_uri="page.html", use_directory_urls=False)
+        assert plugin._locale_sibling_dest_uri(f, "zh") == "page.zh.html"
+
+
+class TestGetAlternates:
+    def test_alternates_share_locale_agnostic_url(self, plugin):
+        page = SimpleNamespace(url="page/")
+        alts = plugin._get_alternates(page)
+        locales = {a["locale"] for a in alts}
+        urls = {a["url"] for a in alts}
+        assert locales == {"en", "zh"}
+        assert urls == {"page/"}
+
+    def test_alternates_handle_homepage_url(self, plugin):
+        page = SimpleNamespace(url="./")
+        alts = plugin._get_alternates(page)
+        assert all(a["url"] == "./" for a in alts)
+
+
+class TestMakeLanguageFile:
+    def test_sibling_shares_default_url(self, plugin):
+        default = SimpleNamespace(
+            src_uri="index.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+            dest_uri="index.html",
+            url="./",
+            inclusion=SimpleNamespace(is_included=lambda: True),
         )
-        out = p._rewrite_links(html, page, "zh")
-        assert 'href="https://example.com"' in out
-        assert 'href="#anchor"' in out
-        assert 'href="mailto:a@b.com"' in out
-
-    def test_preserves_link_anchors_after_rewrite(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
-        page = SimpleNamespace(url="zh/")
-        html = '<p><a href="second/#section">Section</a></p>'
-        out = p._rewrite_links(html, page, "zh")
-        assert 'href="second/#section"' in out
-
-    def test_rewrites_relative_links_from_nested_page(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {
-            "zh": {
-                "": "zh/",
-                "second/": "zh/second/",
-            }
-        }
-        page = SimpleNamespace(url="zh/guide/intro/")
-        html = '<p><a href="../../second/">Second</a> <a href="../../">Home</a></p>'
-        out = p._rewrite_links(html, page, "zh")
-        assert 'href="../../second/"' in out
-        assert 'href="../../"' in out
-
-    def test_rewrites_unquoted_href(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
-        page = SimpleNamespace(url="zh/")
-        html = '<p><a href=second/>Second</a></p>'
-        out = p._rewrite_links(html, page, "zh")
-        assert '<a href=second/>' in out
-
-    def test_rewrites_single_quoted_href(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
-        page = SimpleNamespace(url="zh/")
-        html = "<p><a href='second/'>Second</a></p>"
-        out = p._rewrite_links(html, page, "zh")
-        assert "href='second/'" in out
-
-    def test_rewrites_root_relative_href_via_url_map(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
-        page = SimpleNamespace(url="zh/")
-        html = '<p><a href="/second/">Second</a></p>'
-        out = p._rewrite_links(html, page, "zh")
-        assert 'href="second/"' in out
-
-    def test_rewrites_nested_relative_href_via_url_map(self):
-        p = I18nPlugin()
-        p._locale_url_maps = {"zh": {"second/": "zh/second/"}}
-        page = SimpleNamespace(url="zh/guide/intro/")
-        html = '<p><a href="../../../second/">Second</a></p>'
-        out = p._rewrite_links(html, page, "zh")
-        assert 'href="../../second/"' in out
-
-
-class TestAssetFallback:
-    def test_parses_translated_asset_suffix(self, plugin):
-        assert plugin._parse_file("assets/diagram.png") == ("assets/diagram.png", "en")
-        assert plugin._parse_file("assets/diagram.zh.png") == ("assets/diagram.png", "zh")
-        assert plugin._parse_file("guide/assets/figure.zh.png") == (
-            "guide/assets/figure.png",
-            "zh",
+        translated = SimpleNamespace(
+            src_uri="index.zh.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+            inclusion=SimpleNamespace(is_included=lambda: True),
         )
+        from docsforge.files import File
 
-    def test_rewrites_asset_src_to_locale_copy(self):
-        p = I18nPlugin()
-        p._locale_asset_url_maps = {
-            "zh": {"assets/diagram.png": "zh/assets/diagram.png"}
-        }
-        page = SimpleNamespace(url="zh/page/")
-        html = '<img src="../../assets/diagram.png" alt="Diagram">'
-        out = p._rewrite_asset_links(html, page, "zh")
-        assert 'src="../assets/diagram.png"' in out
+        lang_file = plugin._make_language_file({}, translated, "zh", default)
+        assert lang_file.url == "./"
+        assert lang_file.dest_uri == "index.zh.html"
+        assert lang_file.i18n_locale == "zh"
 
-    def test_preserves_external_and_data_asset_src(self):
-        p = I18nPlugin()
-        p._locale_asset_url_maps = {
-            "zh": {"assets/diagram.png": "zh/assets/diagram.png"}
-        }
-        page = SimpleNamespace(url="zh/")
-        html = (
-            '<img src="https://example.com/diagram.png"> '
-            '<img src="data:image/png;base64,abc">'
+
+class TestOnFiles:
+    def test_translation_emitted_as_sibling(self, plugin):
+        from docsforge.files import File, Files, InclusionLevel
+
+        files = Files([])
+        default = File(
+            path="index.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
         )
-        out = p._rewrite_asset_links(html, page, "zh")
-        assert 'src="https://example.com/diagram.png"' in out
-        assert 'src="data:image/png;base64,abc"' in out
+        default.dest_uri = "index.html"
+        default.url = "./"
+        default.inclusion = InclusionLevel.INCLUDED
+        zh = File(
+            path="index.zh.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+        )
+        zh.dest_uri = "index.zh.html"
+        zh.url = "./"
+        zh.inclusion = InclusionLevel.INCLUDED
+        files.append(default)
+        files.append(zh)
 
-    def test_preserves_asset_query_and_anchor(self):
-        p = I18nPlugin()
-        p._locale_asset_url_maps = {
-            "zh": {"assets/diagram.png": "zh/assets/diagram.png"}
-        }
-        page = SimpleNamespace(url="zh/")
-        html = '<img src="../assets/diagram.png?v=1#thumb">'
-        out = p._rewrite_asset_links(html, page, "zh")
-        assert 'src="assets/diagram.png?v=1#thumb"' in out
+        out = plugin.on_files(files, config={})
+        by_dest = {f.dest_uri: f for f in out.documentation_pages()}
+        assert "index.html" in by_dest
+        assert "index.zh.html" in by_dest
+        # Sibling translations share the locale-agnostic public URL.
+        assert by_dest["index.html"].url == "./"
+        assert by_dest["index.zh.html"].url == "./"
+
+
+class TestOnPageContext:
+    def test_sets_locale_nav_and_base_url(self, plugin):
+        from docsforge.nav import Navigation, Page
+        from docsforge.files import File
+
+        default = File(
+            path="index.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+        )
+        default.dest_uri = "index.html"
+        default.url = "./"
+        default.i18n_locale = "zh"
+        default.i18n_base_file = default
+        page = Page("Home", default, {"site_url": "https://example.com/docs/"})
+        nav = Navigation([], [page])
+        plugin.on_nav(nav, config={"site_url": "https://example.com/docs/"}, files=[])
+
+        context = {"nav": nav}
+        config = {"site_url": "https://example.com/docs/", "extra": {}}
+        plugin.on_page_context(context, page=page, config=config, nav=nav)
+        assert context["i18n_base_url"] == "/docs/"
+
+
+class TestOnPageContent:
+    def test_sets_page_locale_and_alternates(self, plugin):
+        from docsforge.files import File
+        from docsforge.pages import Page
+
+        default = File(
+            path="index.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+        )
+        default.dest_uri = "index.html"
+        default.url = "./"
+        default.i18n_locale = "zh"
+        default.i18n_base_file = default
+        page = Page("Home", default, {})
+        plugin.on_page_content("<p>hello</p>", page=page, config={}, files=[])
+        assert page.i18n_locale == "zh"
+        assert {a["locale"] for a in page.i18n_alternates} == {"en", "zh"}
