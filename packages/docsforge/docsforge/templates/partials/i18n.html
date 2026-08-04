@@ -1,21 +1,13 @@
 {#-
   Language switcher for the i18n plugin.
 
-  Because the switcher lives in the header, Material's instant navigation does
-  not update its links when the page content is swapped. We therefore compute
-  the correct target URL client-side from the current path and force a full
-  page load when a language is selected.
+  URLs are locale-agnostic; the service worker serves the correct locale
+  sibling based on the user's preferred locale stored in IndexedDB. Clicking
+  a language option only updates the stored preference and reloads the same
+  URL, so the switcher never needs to know the current path.
 -#}
 {% if config.extra.i18n_languages and page.i18n_alternates %}
-  {% set i18n_locales = config.extra.i18n_languages | map(attribute='locale') | list %}
-  {% set i18n_default_locale = config.extra.i18n_default_locale | d(config.theme.language, true) %}
-  <div
-    class="md-header__option"
-    data-md-component="i18n"
-    data-i18n-base-url="{{ i18n_base_url | default('/', true) }}"
-    data-i18n-default-locale="{{ i18n_default_locale }}"
-    data-i18n-locales="{{ i18n_locales | tojson | forceescape }}"
-  >
+  <div class="md-header__option" data-md-component="i18n">
     <div class="md-select">
       {% set icon = (config.theme.icon.i18n or "material/translate") | validate_icon_name %}
       <button class="md-header__button md-icon" aria-label="{{ lang.t('select.language') }}">
@@ -26,18 +18,15 @@
       <div class="md-select__inner">
         <ul class="md-select__list">
           {% for lang in config.extra.i18n_languages %}
-            {% set alt = page.i18n_alternates | selectattr('locale', 'equalto', lang.locale) | first %}
-            {% if alt %}
-              <li class="md-select__item">
-                <a
-                  href="{{ alt.url | url }}"
-                  hreflang="{{ lang.locale }}"
-                  class="md-select__link{% if lang.locale == page.i18n_locale %} md-select__link--active{% endif %}"
-                >
-                  {{ lang.name }}
-                </a>
-              </li>
-            {% endif %}
+            <li class="md-select__item">
+              <a
+                href="#"
+                hreflang="{{ lang.locale }}"
+                class="md-select__link{% if lang.locale == page.i18n_locale %} md-select__link--active{% endif %}"
+              >
+                {{ lang.name }}
+              </a>
+            </li>
           {% endfor %}
         </ul>
       </div>
@@ -46,36 +35,15 @@
       (function() {
         var switcher = document.querySelector('[data-md-component="i18n"]');
         if (!switcher) return;
-
-        var baseUrl = switcher.getAttribute('data-i18n-base-url') || '/';
-        var defaultLocale = switcher.getAttribute('data-i18n-default-locale') || '';
-        var locales = JSON.parse(switcher.getAttribute('data-i18n-locales') || '[]');
-
-        function getLocalePath(targetLocale) {
-          var path = location.pathname;
-          if (!path.startsWith(baseUrl)) return location.href;
-
-          var relative = path.slice(baseUrl.length).replace(/\/$/, '');
-          var parts = relative.split('/').filter(Boolean);
-          var currentLocale = defaultLocale;
-
-          if (parts.length && locales.indexOf(parts[0]) !== -1 && parts[0] !== defaultLocale) {
-            currentLocale = parts[0];
-            parts.shift();
-          }
-
-          var rest = parts.join('/');
-          if (targetLocale === defaultLocale) {
-            return baseUrl + rest + (rest ? '/' : '');
-          }
-          return baseUrl + targetLocale + '/' + rest + (rest ? '/' : '');
-        }
-
         switcher.querySelectorAll('.md-select__link').forEach(function(link) {
           link.addEventListener('click', function(event) {
             event.preventDefault();
-            var targetLocale = link.getAttribute('hreflang');
-            window.location.href = getLocalePath(targetLocale);
+            var targetLocale = link.getAttribute('hreflang') || '';
+            if (window.docsforge && window.docsforge.setLocale) {
+              window.docsforge.setLocale(targetLocale).then(function() { location.reload(); });
+            } else {
+              location.reload();
+            }
           });
         });
       })();

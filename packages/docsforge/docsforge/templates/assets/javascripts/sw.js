@@ -23,14 +23,70 @@ const FILES_KEY = 'docsforge-manifest-files';
 const BASE_URL = "__DOCSFORGE_BASE_URL__".replace(/\/?$/, '/') || self.location.pathname.replace(/sw\.js$/, '');
 const ORIGIN_BASE = self.location.origin + BASE_URL;
 
+const I18N_DB_NAME = 'docsforge-i18n';
+const I18N_DB_STORE = 'preferences';
+const I18N_LOCALE_KEY = 'preferred_locale';
+
 // In-memory manifest + dedupe promises.
 let _manifest = null;
 let _manifestRefresh = null;
 let _syncPromise = null;
+let _preferredLocale = null;
 
 function log(...args) {
   console.log('[SW]', ...args);
 }
+
+// === i18n preference (IndexedDB) ===
+
+function openI18nDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(I18N_DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore(I18N_DB_STORE);
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e);
+  });
+}
+
+async function readPreferredLocale() {
+  if (_preferredLocale !== null) return _preferredLocale;
+  try {
+    const db = await openI18nDB();
+    const tx = db.transaction(I18N_DB_STORE, 'readonly');
+    const store = tx.objectStore(I18N_DB_STORE);
+    const result = await new Promise((resolve, reject) => {
+      const req = store.get(I18N_LOCALE_KEY);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    _preferredLocale = result || '';
+  } catch (e) {
+    _preferredLocale = '';
+  }
+  return _preferredLocale;
+}
+
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'DOCSFORGE_RELOAD_DETECTED') {
+    log('Reload detected by page; refreshing manifest in background');
+    refreshManifest().catch(() => {});
+  }
+  if (e.data && e.data.type === 'DOCSFORGE_SET_LOCALE') {
+    const locale = e.data.locale || '';
+    _preferredLocale = locale;
+    openI18nDB().then((db) => {
+      const tx = db.transaction(I18N_DB_STORE, 'readwrite');
+      const store = tx.objectStore(I18N_DB_STORE);
+      if (locale) {
+        store.put(locale, I18N_LOCALE_KEY);
+      } else {
+        store.delete(I18N_LOCALE_KEY);
+      }
+    }).catch(() => {});
+  }
+});
 
 // === Manifest helpers ===
 
@@ -163,10 +219,38 @@ async function respond404() {
 
 async function servePage(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
-  if (cached) {
-    log('Serving page from cache:', request.url);
-    return cached;
+  const url = new URL(request.url);
+  const preferredLocale = await readPreferredLocale();
+
+  // Build locale-aware candidates. The cache manifest stores translated
+  // siblings as <dir>/index.<locale>.html, while the default locale lives
+  // under the locale-agnostic directory URL (e.g. <dir>/).
+  const candidates = [];
+  if (preferredLocale) {
+    if (url.pathname.endsWith('/')) {
+      candidates.push(new URL(url.pathname + 'index.' + preferredLocale + '.html', url.origin).href);
+    } else if (url.pathname.endsWith('.html')) {
+      candidates.push(new URL(url.pathname.slice(0, -5) + '.' + preferredLocale + '.html', url.origin).href);
+    } else {
+      candidates.push(new URL(url.pathname + '.' + preferredLocale + '.html', url.origin).href);
+    }
+  }
+
+  // The request URL itself is the canonical locale-agnostic address for the
+  // default locale (cached by syncCacheFromManifest as a directory URL).
+  candidates.push(request.url);
+
+  // Fallback to an explicit index.html for directory URLs.
+  if (url.pathname.endsWith('/')) {
+    candidates.push(new URL(url.pathname + 'index.html', url.origin).href);
+  }
+
+  for (const candidate of candidates) {
+    const cached = await cache.match(candidate);
+    if (cached) {
+      log('Serving page from cache:', candidate);
+      return cached;
+    }
   }
 
   log('Page not in cache, fetching:', request.url);
@@ -271,9 +355,3 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(serveAsset(request));
 });
 
-self.addEventListener('message', (e) => {
-  if (e.data && e.data.type === 'DOCSFORGE_RELOAD_DETECTED') {
-    log('Reload detected by page; refreshing manifest in background');
-    refreshManifest().catch(() => {});
-  }
-});
