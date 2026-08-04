@@ -1,7 +1,15 @@
 # i18n Architecture Rewrite Plan
 
 ## Status
-Draft — not yet implemented. Branch: `i18n-rewrite`.
+Implementation in progress. Branch: `i18n-rewrite`.
+
+## Decisions made
+
+- **No backwards compatibility.** Old `/zh/page/` URLs will 404. Project is beta and has few users.
+- **No automatic asset fallback.** Markdown authors explicitly reference the asset they want (`image.png` or `image.zh.png`). No build-time or SW-time asset swapping.
+- **Keep pre-caching all pages.** The SW cache manifest includes every `index.<locale>.html`.
+- **Instant nav cache disabled.** Instant navigation still intercepts clicks and swaps the DOM, but it always fetches through the SW instead of using its own in-memory page cache. This prevents stale content after locale switches.
+- **Language switcher triggers full reload.** This resets instant nav state cleanly when the user changes language.
 
 ## Context
 
@@ -79,9 +87,7 @@ This is a **breaking change** for any existing i18n deployment.
 
 ### Migration for existing sites
 
-- Existing `/zh/...` URLs will 404 after the rewrite unless we add redirect rules or keep compatibility shims.
-- Option 1 (recommended): generate tiny redirect HTML files at the old `/zh/page/index.html` paths that set `preferred_locale=zh` in IndexedDB and redirect to `/page/`.
-- Option 2: leave old URLs broken; document that i18n URLs have changed.
+No backwards compatibility. Existing `/zh/...` URLs will 404. This is acceptable because the project is beta and has minimal usage.
 
 ## Detailed implementation changes
 
@@ -91,6 +97,7 @@ This is a **breaking change** for any existing i18n deployment.
 - Do **not** emit fallback pages. If `page.zh.md` does not exist, only `page/index.html` exists.
 - Stop copying docs assets into `zh/assets/`. Assets stay at root and locale pages reference root assets.
 - Remove internal-link locale rewriting (URLs are now locale-agnostic).
+- Remove asset-link locale rewriting (authors explicitly reference assets).
 - Update language-switcher generation: instead of emitting `/zh/page/` links, emit click handlers that set `preferred_locale` and reload.
 - Keep `page.i18n_locale` metadata so templates know which physical file they are.
 
@@ -127,6 +134,7 @@ This is a **breaking change** for any existing i18n deployment.
 - Patch `bundle.min.js`:
   - Use `config.search_index` for the search index URL.
   - Use `config.locale` for any locale-aware UI logic.
+  - Disable instant nav's internal page cache so it always fetches through the SW.
 
 ### 5. `docsforge/build.py`
 
@@ -160,11 +168,11 @@ This is a **breaking change** for any existing i18n deployment.
 
 ## Risks and open questions
 
-1. **SEO / social previews.** Search engines and crawlers see default language at canonical URLs. Accepted tradeoff, but must be documented.
-2. **Instant navigation interaction.** Material's instant nav caches pages by URL. If the SW returns different HTML for the same URL based on locale, instant nav must not cache the wrong locale. We may need to disable instant nav's own cache and rely on the SW.
-3. **Redirect shims for old URLs.** Do we generate `/zh/page/index.html` redirect files for backward compatibility? This reintroduces some of the storage we are trying to save.
-4. **Asset fallback.** If `image.zh.png` exists, the locale page should reference it. If not, it references `image.png`. Need to decide if this happens at build time (HTML rewrite) or SW runtime.
-5. **Multiple locales visited offline.** If a user switches from English to Chinese, the SW must have cached the Chinese pages. The current manifest pre-caches everything, so this is fine, but storage is not reduced unless we stop pre-caching all locales.
+1. **SEO / social previews.** Search engines and crawlers see default language at canonical URLs. Accepted tradeoff, documented.
+2. **Instant navigation interaction.** Decided: disable instant nav's internal cache; rely on SW. Language switcher triggers full reload.
+3. ~~Redirect shims for old URLs~~ — decided: none.
+4. ~~Asset fallback~~ — decided: none. Authors explicitly reference assets.
+5. **Storage.** Fallback-page duplication is removed and docs assets are no longer copied per locale, but all `index.<locale>.html` files are still pre-cached. Net storage reduction depends on translation coverage.
 
 ## Testing strategy
 
@@ -176,7 +184,7 @@ This is a **breaking change** for any existing i18n deployment.
    - Reload → SW serves Chinese.
    - Hard refresh → English.
    - Search returns Chinese results only.
-4. Verify old `/zh/page/` URLs either redirect or 404 (decide in open questions).
+4. Verify old `/zh/page/` URLs 404 (no backwards compatibility).
 
 ## Rollback plan
 
@@ -186,7 +194,9 @@ This is a **breaking change** for any existing i18n deployment.
 
 ## Decision checklist before implementation
 
-- [ ] Confirm Option A: language switcher sets locale and reloads same URL.
-- [ ] Confirm no backward-compatibility shims for old `/zh/page/` URLs (Option 2) or accept the storage cost of shims (Option 1).
-- [ ] Confirm asset fallback happens at build time vs SW runtime.
-- [ ] Confirm whether to keep pre-caching all locales or switch to "cache visited pages" for pages.
+- [x] Option A: language switcher sets locale and reloads same URL.
+- [x] No backward-compatibility shims for old `/zh/page/` URLs.
+- [x] No automatic asset fallback; authors explicitly reference assets.
+- [x] Keep pre-caching all pages.
+- [x] Disable instant nav's internal cache; rely on SW cache.
+- [x] Language switcher triggers full reload.
