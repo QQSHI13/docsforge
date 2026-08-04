@@ -169,6 +169,15 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             "",
             page.content
         )
+        # Tell the frontend which search index this locale page should use.
+        locale = getattr(page.file, "i18n_locale", None) or self._default_locale
+        context["search_index_url"] = self._search_index_url(locale)
+
+    def _search_index_url(self, locale: str | None) -> str:
+        """Return the search index path relative to site root for the given locale."""
+        if not self._locales or locale == self._default_locale or locale is None:
+            return "search/search_index.json"
+        return f"search/search_index.{locale}.json"
 
     def on_post_build(self, *, config):
         if not self.config.enabled:
@@ -178,10 +187,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
                 index = self.search_indices[locale]
                 prev = self.search_indices_prev.get(locale)
                 data = index.generate_search_index(prev)
-                if locale == self._default_locale:
-                    path = os.path.join(config.site_dir, "search", "search_index.json")
-                else:
-                    path = os.path.join(config.site_dir, locale, "search", "search_index.json")
+                path = os.path.join(config.site_dir, self._search_index_url(locale))
                 utils.write_file(data.encode("utf-8"), path)
                 if self.is_dirty:
                     self.search_indices_prev[locale] = index
