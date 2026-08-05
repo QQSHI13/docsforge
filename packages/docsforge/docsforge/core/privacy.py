@@ -551,21 +551,15 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
             path = hashed_path
 
-            # Include content hash in dest URI so browser URL changes when
-            # content changes (cache busting). The symlink at file.abs_src_path
-            # still resolves for backward-compatible lookups.
-            content_tag = f".{content_hash}"
-            if content_tag not in file.dest_uri:
-                dest_base, dest_ext = os.path.splitext(file.dest_uri)
-                if not dest_ext:
-                    dest_ext = extension or ""
-                    dest_base = file.dest_uri
-                file.src_uri = f"{dest_base}{content_tag}{dest_ext}"
-                file.dest_uri = f"{dest_base}{content_tag}{dest_ext}"
-                file.abs_dest_path = os.path.join(
-                    os.path.dirname(file.abs_dest_path),
-                    f"{os.path.basename(dest_base)}{content_tag}{dest_ext}"
-                )
+            # NOTE: the destination URI keeps the *unhashed* name on purpose.
+            # The content-hashed file lives only in the cache (referenced by a
+            # symlink at the unhashed path). If we propagated the content hash
+            # into dest_uri, the URL written into patched CSS/HTML would flip
+            # between hashed (fresh download) and unhashed (cache hit) across
+            # builds, so the referenced name and the copied file would disagree
+            # and produce 404s for fonts/emojis. Keeping dest_uri unhashed makes
+            # referenced name == copied file on every build. Cache invalidation
+            # is handled by the service-worker build hash + cache manifest.
 
         _, extension = os.path.splitext(file.abs_src_path)
         if os.path.isfile(file.abs_src_path):

@@ -357,8 +357,14 @@ def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
     """Return a deterministic hash of the navigation structure.
 
     Any change to page order, titles, section structure, i18n titles, or the
-    effective site URL path invalidates the signature and forces all pages to
-    be re-rendered so navigation/previous/next links stay consistent.
+    effective site URL invalidates the signature and forces all pages to be
+    re-rendered so navigation/previous/next links stay consistent.
+
+    The *full* site_url (not just its path) is included: ``docsforge build``
+    and ``docsforge serve`` differ only in origin (production vs localhost) but
+    share the same path, so a path-only signature would let serve reuse stale
+    production output (wrong canonical/absolute URLs). Including the full URL
+    makes the first serve build re-render everything.
     """
 
     def _sorted_dict(d: dict) -> dict:
@@ -391,7 +397,7 @@ def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
         return {}
 
     data = {
-        'site_url_path': urlsplit(config.site_url or '/').path,
+        'site_url': config.site_url or '',
         'items': [_serialize(i) for i in nav.items],
     }
     hasher = hashlib.sha256()
