@@ -26,7 +26,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 11
 
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
@@ -47,5 +47,5 @@ jobs:
           pip install pytest pytest-mock
 
       - name: Run tests
-        run: python -m pytest tests/unit -q
+        run: python -m pytest tests/unit tests/regression tests/integration -q
         working-directory: packages/docsforge
