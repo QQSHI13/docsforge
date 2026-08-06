@@ -1,4 +1,5 @@
-{#- This file was automatically generated - do not edit -#} {% macro render(listing) %} {{ listing.content | safe }}
+{#- This file was automatically generated - do not edit -#}
+{% macro render(listing) %} {{ listing.content }}
 <ul>
 {% for mapping in listing.mappings %}
 <li>
@@ -10,4 +11,5 @@
 <li style="list-style-type:none">{{ render(child) }}</li>
 {% endfor %}
 </ul>
-{% endmacro %} {{ render(listing) }}
+{% endmacro %}
+{{ render(listing) }}

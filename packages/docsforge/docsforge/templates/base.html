@@ -1,258 +1,149 @@
-{#-
-  This file was automatically generated - do not edit
--#}
-{% import "partials/language.html" as lang with context %}
+{#- This file was automatically generated - do not edit -#} {% import "partials/language.html" as lang with context %}
 <!doctype html>
 <html lang="{{ lang.t('language') }}" class="no-js">
-  <head>
-    {% block site_meta %}
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-      {% if page.meta and page.meta.description %}
-        <meta name="description" content="{{ page.meta.description }}">
-      {% elif config.site_description %}
-        <meta name="description" content="{{ config.site_description }}">
-      {% endif %}
-      {% if page.meta and page.meta.author %}
-        <meta name="author" content="{{ page.meta.author }}">
-      {% elif config.site_author %}
-        <meta name="author" content="{{ config.site_author }}">
-      {% endif %}
-      {% if page.canonical_url %}
-        <link rel="canonical" href="{{ page.canonical_url }}">
-      {% endif %}
-      {% if page.previous_page %}
-        <link rel="prev" href="{{ page.previous_page.url | url }}">
-      {% endif %}
-      {% if page.next_page %}
-        <link rel="next" href="{{ page.next_page.url | url }}">
-      {% endif %}
-      {% if config.extra.alternate is iterable %}
-        {% for alt in config.extra.alternate %}
-          <link rel="alternate" href="{{ alt.link | url }}" hreflang="{{ alt.lang | d(lang.t('language')) }}">
-        {% endfor %}
-      {% endif %}
-      {% if page.i18n_alternates is iterable %}
-        {% for alt in page.i18n_alternates %}
-          <link rel="alternate" href="{{ alt.url | url }}" hreflang="{{ alt.locale }}">
-        {% endfor %}
-      {% endif %}
-      <link rel="icon" href="{{ config.theme.favicon | url }}">
-      <link rel="manifest" href="{{ 'manifest.json' | url }}">
-      {% set palette = config.theme.palette %}
-      {% if palette and not palette is mapping %}
-        {% set palette = palette | first %}
-      {% endif %}
-      <meta name="theme-color" content="{{ palette.primary | d('indigo') if palette else 'indigo' }}">
-      <meta name="generator" content="docsforge">
-    {% endblock %}
-    {% block htmltitle %}
-      {% if page.meta and page.meta.title %}
-        <title>{{ page.meta.title }} - {{ config.site_name }}</title>
-      {% elif page.title and not page.is_homepage %}
-        <title>{{ page.title | striptags }} - {{ config.site_name }}</title>
-      {% else %}
-        <title>{{ config.site_name }}</title>
-      {% endif %}
-    {% endblock %}
-    {% block styles %}
-      <link rel="stylesheet" href="{{ 'assets/stylesheets/main.min.css' | url }}">
-      <link rel="stylesheet" href="{{ 'assets/stylesheets/pygments.css' | url }}">
-      <link rel="stylesheet" href="{{ 'assets/katex/katex.min.css' | url }}">
-      {% if config.theme.palette %}
-        {% set palette = config.theme.palette %}
-        <link rel="stylesheet" href="{{ 'assets/stylesheets/palette.min.css' | url }}">
-      {% endif %}
-      {% include "partials/icons.html" %}
-    {% endblock %}
-    {% block libs %}
-      {% for script in config.extra.polyfills %}
-        {{ script | script_tag }}
-      {% endfor %}
-    {% endblock %}
-    {% block fonts %}
-      {% if config.theme.font != false %}
-        {% set text = config.theme.font.text | d("Roboto", true) %}
-        {% set code = config.theme.font.code | d("Roboto Mono", true) %}
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family={{
+<head>
+{% block site_meta %}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+{% if page.meta and page.meta.description %}
+<meta name="description" content="{{ page.meta.description }}">
+{% elif config.site_description %}
+<meta name="description" content="{{ config.site_description }}">
+{% endif %} {% if page.meta and page.meta.author %}
+<meta name="author" content="{{ page.meta.author }}">
+{% elif config.site_author %}
+<meta name="author" content="{{ config.site_author }}">
+{% endif %} {% if page.canonical_url %}
+<link rel="canonical" href="{{ page.canonical_url }}">
+{% endif %} {% if page.previous_page %}
+<link rel="prev" href="{{ page.previous_page.url | url }}">
+{% endif %} {% if page.next_page %}
+<link rel="next" href="{{ page.next_page.url | url }}">
+{% endif %} {% if config.extra.alternate is iterable %} {% for alt in config.extra.alternate %}
+<link rel="alternate" href="{{ alt.link | url }}" hreflang="{{ alt.lang | d(lang.t('language')) }}">
+{% endfor %} {% endif %} {% if page.i18n_alternates is iterable %} {% for alt in page.i18n_alternates %}
+<link rel="alternate" href="{{ alt.url | url }}" hreflang="{{ alt.locale }}">
+{% endfor %} {% endif %}
+<link rel="icon" href="{{ config.theme.favicon | url }}">
+<link rel="manifest" href="{{ 'manifest.json' | url }}">
+{% set palette = config.theme.palette %} {% if palette and not palette is mapping %} {% set palette = palette | first %} {% endif %}
+<meta name="theme-color" content="{{ palette.primary | d('indigo') if palette else 'indigo' }}">
+<meta name="generator" content="docsforge">
+{% endblock %} {% block htmltitle %} {% if page.meta and page.meta.title %}
+<title>{{ page.meta.title }} - {{ config.site_name }}</title>
+{% elif page.title and not page.is_homepage %}
+<title>{{ page.title | striptags }} - {{ config.site_name }}</title>
+{% else %}
+<title>{{ config.site_name }}</title>
+{% endif %} {% endblock %} {% block styles %}
+<link rel="stylesheet" href="{{ 'assets/stylesheets/main.min.css' | url }}">
+<link rel="stylesheet" href="{{ 'assets/stylesheets/pygments.css' | url }}">
+<link rel="stylesheet" href="{{ 'assets/katex/katex.min.css' | url }}">
+{% if config.theme.palette %} {% set palette = config.theme.palette %}
+<link rel="stylesheet" href="{{ 'assets/stylesheets/palette.min.css' | url }}">
+{% endif %} {% include "partials/icons.html" %} {% endblock %} {% block libs %} {% for script in config.extra.polyfills %} {{ script | script_tag }} {% endfor %} {% endblock %} {% block fonts %} {% if config.theme.font != false %} {% set text = config.theme.font.text | d("Roboto", true) %} {% set code = config.theme.font.code | d("Roboto Mono", true) %}
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family={{
             text | replace(' ', '+') + ':300,300i,400,400i,700,700i%7C' +
             code | replace(' ', '+') + ':400,400i,700,700i'
           }}&display=swap">
-        <style>@font-face{font-display:swap}:root{--md-text-font:"{{ text }}";--md-code-font:"{{ code }}"}</style>
-      {% endif %}
-    {% endblock %}
-    {% for path in config.extra_css %}
-      <link rel="stylesheet" href="{{ path | url }}">
-    {% endfor %}
-    <style>.MathJax_Preview{display:none!important}</style>
-    {% include "partials/javascripts/base.html" %}
-    {% block analytics %}
-      {% include "partials/integrations/analytics.html" %}
-    {% endblock %}
-    {% block extrahead %}{% endblock %}
-    <style>
-      /* DocsForge: Fix blank spot in source repository when no facts */
-      .md-header__source { width: auto; }
-      .md-source { display: inline-flex; align-items: center; gap: 0.5rem; width: auto; }
-      .md-source__repository { max-width: none; }
-
-      /* DocsForge: Fix sidebar height to prevent content overlapping footer */
-      @media screen and (min-width: 60em) {
-        .md-sidebar .md-sidebar__scrollwrap {
-          max-height: calc(100vh - 2.4rem);
-        }
-        .md-header--lifted ~ .md-container .md-sidebar .md-sidebar__scrollwrap {
-          max-height: calc(100vh - 4.8rem);
-        }
-      }
-    </style>
-  </head>
-  {% set direction = config.theme.direction or lang.t("direction") %}
-  {% if config.theme.palette %}
-    {% set palette = config.theme.palette %}
-    {% if not palette is mapping %}
-      {% set palette = palette | first %}
-    {% endif %}
-    {% set scheme  = palette.scheme  | d("default", true) %}
-    {% set primary = palette.primary | d("indigo", true) %}
-    {% set accent  = palette.accent  | d("indigo", true) %}
-    <body dir="{{ direction }}" data-md-color-scheme="{{ scheme | replace(' ', '-') }}" data-md-color-primary="{{ primary | replace(' ', '-') }}" data-md-color-accent="{{ accent | replace(' ', '-') }}">
-  {% else %}
-    <body dir="{{ direction }}">
-  {% endif %}
-    {% set features = config.theme.features or [] %}
-    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
-    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
-    <div data-md-component="skip">
-      {% if page.toc | first is defined %}
-        {% set skip = page.toc | first %}
-        <a href="{{ skip.url | url }}" class="md-skip">
-          {{ lang.t("action.skip") }}
-        </a>
-      {% endif %}
-    </div>
-    <div data-md-component="announce">
-      {% if self.announce() %}
-        <aside class="md-banner">
-          <div class="md-banner__inner md-grid md-typeset">
-            {% if "announce.dismiss" in features %}
-              <button class="md-banner__button md-icon" aria-label="{{ lang.t('announce.dismiss') }}">
-                {% set icon = (config.theme.icon.close or "material/close") | validate_icon_name %}
-                {% if icon %}
-                  {% include ".icons/" ~ icon ~ ".svg" %}
-                {% endif %}
-              </button>
-            {% endif %}
-            {% block announce %}{% endblock %}
-          </div>
-          {% if "announce.dismiss" in features %}
-            {% include "partials/javascripts/announce.html" %}
-          {% endif %}
-        </aside>
-      {% endif %}
-    </div>
-    {% if config.extra.version %}
-      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
-        {% if self.outdated() %}
-          <aside class="md-banner md-banner--warning">
-            <div class="md-banner__inner md-grid md-typeset">
-              {% block outdated %}{% endblock %}
-            </div>
-            {% include "partials/javascripts/outdated.html" %}
-          </aside>
-        {% endif %}
-      </div>
-    {% endif %}
-    {% block header %}
-      {% include "partials/header.html" %}
-    {% endblock %}
-    <div class="md-container" data-md-component="container">
-      {% block hero %}{% endblock %}
-      {% block tabs %}
-        {% if "navigation.tabs.sticky" not in features %}
-          {% if "navigation.tabs" in features %}
-            {% include "partials/tabs.html" %}
-          {% endif %}
-        {% endif %}
-      {% endblock %}
-      <main class="md-main" data-md-component="main">
-        <div class="md-main__inner md-grid">
-          {% block site_nav %}
-            {% if nav %}
-              {% if page.meta and page.meta.hide %}
-                {% set hidden = "hidden" if "navigation" in page.meta.hide %}
-              {% endif %}
-              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" {{ hidden }}>
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    {% include "partials/nav.html" %}
-                  </div>
-                </div>
-              </div>
-            {% endif %}
-            {% if "toc.integrate" not in features %}
-              {% if page.meta and page.meta.hide %}
-                {% set hidden = "hidden" if "toc" in page.meta.hide %}
-              {% endif %}
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" {{ hidden }}>
-                <div class="md-sidebar__scrollwrap">
-                  <div class="md-sidebar__inner">
-                    {% include "partials/toc.html" %}
-                  </div>
-                </div>
-              </div>
-            {% endif %}
-          {% endblock %}
-          {% block container %}
-            <div class="md-content" data-md-component="content">
-              {% if "navigation.path" in features %}
-                {% include "partials/path.html" %}
-              {% endif %}
-              <article class="md-content__inner md-typeset">
-                {% block content %}
-                  {% include "partials/content.html" %}
-                {% endblock %}
-              </article>
-            </div>
-          {% endblock %}
-          {% include "partials/javascripts/content.html" %}
-        </div>
-        {% if "navigation.top" in features %}
-          {% include "partials/top.html" %}
-        {% endif %}
-      </main>
-      {% block footer %}
-        {% include "partials/footer.html" %}
-      {% endblock %}
-    </div>
-    <div class="md-dialog" data-md-component="dialog">
-      <div class="md-dialog__inner md-typeset"></div>
-    </div>
-    {% if "navigation.instant.progress" in features %}
-      {% include "partials/progress.html" %}
-    {% endif %}
-    {% if config.extra.consent %}
-      <div class="md-consent" data-md-component="consent" id="__consent" hidden>
-        <div class="md-consent__overlay"></div>
-        <aside class="md-consent__inner">
-          <form class="md-consent__form md-grid md-typeset" name="consent">
-            {% include "partials/consent.html" %}
-          </form>
-        </aside>
-      </div>
-      {% include "partials/javascripts/consent.html" %}
-    {% endif %}
-    {% block config %}
-      {% set _ = namespace() %}
-      {% set _.annotate = config.extra.annotate %}
-      {% set _.tags = config.extra.tags %}
-      {%- if config.extra.version -%}
-        {%- set _.version = config.extra.version -%}
-      {%- endif -%}
-      <script id="__config" type="application/json">
-        {{- {
+<style>@font-face{font-display:swap}:root{--md-text-font:"{{ text }}";--md-code-font:"{{ code }}"}</style>
+{% endif %} {% endblock %} {% for path in config.extra_css %}
+<link rel="stylesheet" href="{{ path | url }}">
+{% endfor %}
+<style>.MathJax_Preview{display:none!important}</style>
+{% include "partials/javascripts/base.html" %} {% block analytics %} {% include "partials/integrations/analytics.html" %} {% endblock %} {% block extrahead %}{% endblock %}
+<style>.md-header__source{width:auto}.md-source{display:inline-flex;align-items:center;gap:.5rem;width:auto}.md-source__repository{max-width:none}@media screen and (min-width:60em){.md-sidebar .md-sidebar__scrollwrap{max-height:calc(100vh - 2.4rem)}.md-header--lifted~.md-container .md-sidebar .md-sidebar__scrollwrap{max-height:calc(100vh - 4.8rem)}}</style>
+</head>
+{% set direction = config.theme.direction or lang.t("direction") %} {% if config.theme.palette %} {% set palette = config.theme.palette %} {% if not palette is mapping %} {% set palette = palette | first %} {% endif %} {% set scheme = palette.scheme | d("default", true) %} {% set primary = palette.primary | d("indigo", true) %} {% set accent = palette.accent | d("indigo", true) %}
+<body dir="{{ direction }}" data-md-color-scheme="{{ scheme | replace(' ', '-') }}" data-md-color-primary="{{ primary | replace(' ', '-') }}" data-md-color-accent="{{ accent | replace(' ', '-') }}">
+{% else %}
+<body dir="{{ direction }}">
+{% endif %} {% set features = config.theme.features or [] %}
+<input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+<input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+{% if page.toc | first is defined %} {% set skip = page.toc | first %}
+<a href="{{ skip.url | url }}" class="md-skip">
+{{ lang.t("action.skip") }}
+</a>
+{% endif %}
+</div>
+<div data-md-component="announce">
+{% if self.announce() %}
+<aside class="md-banner">
+<div class="md-banner__inner md-grid md-typeset">
+{% if "announce.dismiss" in features %}
+<button class="md-banner__button md-icon" aria-label="{{ lang.t('announce.dismiss') }}">
+{% set icon = (config.theme.icon.close or "material/close") | validate_icon_name %} {% if icon %} {% include ".icons/" ~ icon ~ ".svg" %} {% endif %}
+</button>
+{% endif %} {% block announce %}{% endblock %}
+</div>
+{% if "announce.dismiss" in features %} {% include "partials/javascripts/announce.html" %} {% endif %}
+</aside>
+{% endif %}
+</div>
+{% if config.extra.version %}
+<div data-md-color-scheme="default" data-md-component="outdated" hidden>
+{% if self.outdated() %}
+<aside class="md-banner md-banner--warning">
+<div class="md-banner__inner md-grid md-typeset">
+{% block outdated %}{% endblock %}
+</div>
+{% include "partials/javascripts/outdated.html" %}
+</aside>
+{% endif %}
+</div>
+{% endif %} {% block header %} {% include "partials/header.html" %} {% endblock %}
+<div class="md-container" data-md-component="container">
+{% block hero %}{% endblock %} {% block tabs %} {% if "navigation.tabs.sticky" not in features %} {% if "navigation.tabs" in features %} {% include "partials/tabs.html" %} {% endif %} {% endif %} {% endblock %}
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+{% block site_nav %} {% if nav %} {% if page.meta and page.meta.hide %} {% set hidden = "hidden" if "navigation" in page.meta.hide %} {% endif %}
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" {{ hidden }}>
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+{% include "partials/nav.html" %}
+</div>
+</div>
+</div>
+{% endif %} {% if "toc.integrate" not in features %} {% if page.meta and page.meta.hide %} {% set hidden = "hidden" if "toc" in page.meta.hide %} {% endif %}
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" {{ hidden }}>
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+{% include "partials/toc.html" %}
+</div>
+</div>
+</div>
+{% endif %} {% endblock %} {% block container %}
+<div class="md-content" data-md-component="content">
+{% if "navigation.path" in features %} {% include "partials/path.html" %} {% endif %}
+<article class="md-content__inner md-typeset">
+{% block content %} {% include "partials/content.html" %} {% endblock %}
+</article>
+</div>
+{% endblock %} {% include "partials/javascripts/content.html" %}
+</div>
+{% if "navigation.top" in features %} {% include "partials/top.html" %} {% endif %}
+</main>
+{% block footer %} {% include "partials/footer.html" %} {% endblock %}
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+{% if "navigation.instant.progress" in features %} {% include "partials/progress.html" %} {% endif %} {% if config.extra.consent %}
+<div class="md-consent" data-md-component="consent" id="__consent" hidden>
+<div class="md-consent__overlay"></div>
+<aside class="md-consent__inner">
+<form class="md-consent__form md-grid md-typeset" name="consent">
+{% include "partials/consent.html" %}
+</form>
+</aside>
+</div>
+{% include "partials/javascripts/consent.html" %} {% endif %} {% block config %} {% set _ = namespace() %} {% set _.annotate = config.extra.annotate %} {% set _.tags = config.extra.tags %} {%- if config.extra.version -%} {%- set _.version = config.extra.version -%} {%- endif -%}
+<script id="__config" type="application/json">
+{{- {
           "base": base_url,
           "features": features,
           "translations": {
@@ -274,159 +165,11 @@
           "tags": _.tags or none,
           "version": _.version or none
         } | tojson -}}
-      </script>
-    {% endblock %}
-    {% block scripts %}
-      <script>
-        // Fix: pymdownx.tabbed generates labels without .tabbed-labels wrapper,
-        // but Material JS bundle expects it. Wrap them before bundle loads.
-        (function() {
-          function fixTabbedSets() {
-            document.querySelectorAll('.tabbed-set:not([data-fixed])').forEach(function(set) {
-              var labels = set.querySelectorAll(':scope > label');
-              if (labels.length && !set.querySelector('.tabbed-labels')) {
-                var wrapper = document.createElement('div');
-                wrapper.className = 'tabbed-labels';
-                labels.forEach(function(l) { wrapper.appendChild(l); });
-                set.insertBefore(wrapper, set.firstChild);
-                set.setAttribute('data-fixed', 'true');
-              }
-            });
-          }
-          // Fix existing elements immediately (before bundle init)
-          fixTabbedSets();
-          // Also run after instant navigation page switches (document$)
-          if (typeof document$ !== 'undefined' && document$.subscribe) {
-            document$.subscribe(function() { fixTabbedSets(); });
-          }
-          // Watch for dynamically added elements
-          var observer = new MutationObserver(function() { fixTabbedSets(); });
-          observer.observe(document.documentElement, {childList: true, subtree: true});
-        })();
-
-        // Fix: Ensure palette toggle is visible and clickable even if bundle.js crashes.
-        // Also initialize / migrate the stored palette without a media query so the
-        // theme never reverts to the device preference after a manual switch.
-        (function() {
-          var scope = (typeof __md_scope !== 'undefined') ? __md_scope : new URL('.', location);
-          var key = scope.pathname + '.__palette';
-          var chosenKey = scope.pathname + '.__palette_chosen';
-          var paletteEl = document.querySelector('[data-md-component="palette"]');
-          var inputs = paletteEl ? Array.prototype.slice.call(paletteEl.querySelectorAll('input[name="__palette"]')) : [];
-
-          function getStoredPalette() {
-            try { return JSON.parse(localStorage.getItem(key)) || null; } catch(e) { return null; }
-          }
-
-          function isChosen() {
-            try { return localStorage.getItem(chosenKey) === '1'; } catch(e) { return false; }
-          }
-
-          function markChosen() {
-            try { localStorage.setItem(chosenKey, '1'); } catch(e) {}
-          }
-
-          function setStoredPalette(index, scheme, primary, accent) {
-            try {
-              localStorage.setItem(key, JSON.stringify({
-                index: index,
-                color: { scheme: scheme, primary: primary, accent: accent }
-              }));
-              markChosen();
-            } catch(e) {}
-          }
-
-          // If the user (or this script) has already made a palette choice, let the
-          // stored palette drive the theme. Otherwise pick the device theme once and
-          // remember that choice.
-          var stored = getStoredPalette();
-          if (stored) {
-            markChosen();
-          }
-
-          if (!isChosen()) {
-            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            var scheme = prefersDark ? 'slate' : 'default';
-            var input = null;
-            for (var i = 0; i < inputs.length; i++) {
-              if (inputs[i].getAttribute('data-md-color-scheme') === scheme) {
-                input = inputs[i];
-                break;
-              }
-            }
-            // Fall back to the first palette option if no scheme matches.
-            if (!input && inputs.length) {
-              input = inputs[0];
-            }
-            if (input) {
-              var newScheme = input.getAttribute('data-md-color-scheme');
-              var newPrimary = input.getAttribute('data-md-color-primary') || 'indigo';
-              var newAccent = input.getAttribute('data-md-color-accent') || 'indigo';
-              input.checked = true;
-              document.body.setAttribute('data-md-color-scheme', newScheme);
-              document.body.setAttribute('data-md-color-primary', newPrimary);
-              document.body.setAttribute('data-md-color-accent', newAccent);
-              setStoredPalette(inputs.indexOf(input), newScheme, newPrimary, newAccent);
-            }
-          }
-
-          function fixPaletteVisibility() {
-            var scheme = document.body.getAttribute('data-md-color-scheme') || 'default';
-            if (!paletteEl) return;
-            paletteEl.querySelectorAll('label').forEach(function(label) {
-              var target = document.getElementById(label.getAttribute('for'));
-              if (target) {
-                label.hidden = (target.getAttribute('data-md-color-scheme') === scheme);
-              }
-            });
-          }
-
-          function setupPaletteClickHandlers() {
-            if (!paletteEl) return;
-            // Only add if not already handled by bundle.js
-            if (paletteEl.dataset.fixedPalette) return;
-            paletteEl.dataset.fixedPalette = 'true';
-
-            paletteEl.querySelectorAll('label').forEach(function(label) {
-              label.addEventListener('click', function(e) {
-                e.preventDefault();
-                var target = document.getElementById(label.getAttribute('for'));
-                if (!target) return;
-
-                var newScheme = target.getAttribute('data-md-color-scheme');
-                var newPrimary = target.getAttribute('data-md-color-primary');
-                var newAccent = target.getAttribute('data-md-color-accent');
-
-                // Update body
-                document.body.setAttribute('data-md-color-scheme', newScheme);
-                document.body.setAttribute('data-md-color-primary', newPrimary);
-                document.body.setAttribute('data-md-color-accent', newAccent);
-
-                // Check the radio
-                target.checked = true;
-
-                // Persist without media query so the device theme cannot override it.
-                setStoredPalette(inputs.indexOf(target), newScheme, newPrimary, newAccent);
-
-                // Update label visibility
-                fixPaletteVisibility();
-              });
-            });
-          }
-
-          fixPaletteVisibility();
-          setupPaletteClickHandlers();
-
-          if (typeof document$ !== 'undefined' && document$.subscribe) {
-            document$.subscribe(function() {
-              fixPaletteVisibility();
-              setupPaletteClickHandlers();
-            });
-          }
-        })();
-      </script>
-      <script>
-        // DocsForge i18n: sync the user's preferred locale with the service
+</script>
+{% endblock %} {% block scripts %}
+<script>!function(){function t(){document.querySelectorAll(".tabbed-set:not([data-fixed])").forEach(function(t){var e=t.querySelectorAll(":scope > label");if(e.length&&!t.querySelector(".tabbed-labels")){var o=document.createElement("div");o.className="tabbed-labels",e.forEach(function(t){o.appendChild(t)}),t.insertBefore(o,t.firstChild),t.setAttribute("data-fixed","true")}})}t(),"undefined"!=typeof document$&&document$.subscribe&&document$.subscribe(function(){t()}),new MutationObserver(function(){t()}).observe(document.documentElement,{childList:!0,subtree:!0})}(),function(){var t="undefined"!=typeof __md_scope?__md_scope:new URL(".",location),e=t.pathname+".__palette",o=t.pathname+".__palette_chosen",c=document.querySelector('[data-md-component="palette"]'),r=c?Array.prototype.slice.call(c.querySelectorAll('input[name="__palette"]')):[];function a(){try{localStorage.setItem(o,"1")}catch(t){}}function n(t,o,c,r){try{localStorage.setItem(e,JSON.stringify({index:t,color:{scheme:o,primary:c,accent:r}})),a()}catch(t){}}if(function(){try{return JSON.parse(localStorage.getItem(e))||null}catch(t){return null}}()&&a(),!function(){try{return"1"===localStorage.getItem(o)}catch(t){return!1}}()){for(var d=window.matchMedia("(prefers-color-scheme: dark)").matches?"slate":"default",l=null,u=0;u<r.length;u++)if(r[u].getAttribute("data-md-color-scheme")===d){l=r[u];break}if(!l&&r.length&&(l=r[0]),l){var i=l.getAttribute("data-md-color-scheme"),m=l.getAttribute("data-md-color-primary")||"indigo",s=l.getAttribute("data-md-color-accent")||"indigo";l.checked=!0,document.body.setAttribute("data-md-color-scheme",i),document.body.setAttribute("data-md-color-primary",m),document.body.setAttribute("data-md-color-accent",s),n(r.indexOf(l),i,m,s)}}function b(){var t=document.body.getAttribute("data-md-color-scheme")||"default";c&&c.querySelectorAll("label").forEach(function(e){var o=document.getElementById(e.getAttribute("for"));o&&(e.hidden=o.getAttribute("data-md-color-scheme")===t)})}function f(){c&&(c.dataset.fixedPalette||(c.dataset.fixedPalette="true",c.querySelectorAll("label").forEach(function(t){t.addEventListener("click",function(e){e.preventDefault();var o=document.getElementById(t.getAttribute("for"));if(o){var c=o.getAttribute("data-md-color-scheme"),a=o.getAttribute("data-md-color-primary"),d=o.getAttribute("data-md-color-accent");document.body.setAttribute("data-md-color-scheme",c),document.body.setAttribute("data-md-color-primary",a),document.body.setAttribute("data-md-color-accent",d),o.checked=!0,n(r.indexOf(o),c,a,d),b()}})})))}b(),f(),"undefined"!=typeof document$&&document$.subscribe&&document$.subscribe(function(){b(),f()})}()</script>
+<script>
+// DocsForge i18n: sync the user's preferred locale with the service
         // worker. The SW reads this value from IndexedDB and serves the
         // matching locale sibling (e.g. index.zh.html) for every locale-agnostic
         // URL. We also mirror it to localStorage so the minified bundle can
@@ -495,150 +238,11 @@
             notifySW(preferred);
           }).catch(function() {});
         })();
-      </script>
-      <script src="{{ 'assets/javascripts/bundle.min.js' | url }}"></script>
-      <script src="{{ 'assets/katex/katex.min.js' | url }}"></script>
-      {% for script in config.extra_javascript %}
-        {{ script | script_tag }}
-      {% endfor %}
-      <script>
-        // KaTeX rendering — supports both generic \(...\) and legacy <script type="math/tex"> formats
-        function renderKaTeX() {
-          if (typeof katex === 'undefined') return;
-          document.querySelectorAll('.arithmatex').forEach(function(el) {
-            var tex = null;
-            var isDisplay = el.classList.contains('arithmatex--block') || el.tagName === 'DIV';
-
-            // 1. Generic format: \( ... \) or \[ ... \]
-            var text = el.textContent.trim();
-            if (text.startsWith('\\(') && text.endsWith('\\)')) {
-              tex = text.slice(2, -2);
-              isDisplay = false;
-            } else if (text.startsWith('\\[') && text.endsWith('\\]')) {
-              tex = text.slice(2, -2);
-              isDisplay = true;
-            }
-
-            // 2. Legacy format: inner <script type="math/tex">
-            if (!tex) {
-              var script = el.querySelector('script[type^="math/tex"]');
-              if (script) {
-                tex = script.textContent;
-                if (script.type.indexOf('display') !== -1) isDisplay = true;
-              }
-            }
-
-            // 3. Data attribute (fallback)
-            if (!tex) {
-              tex = el.getAttribute('data-tex');
-            }
-
-            if (!tex || !tex.trim()) return;
-
-            // Clean up legacy cruft before rendering
-            el.querySelectorAll('.MathJax_Preview').forEach(function(p) { p.remove(); });
-            el.querySelectorAll('script[type^="math/tex"]').forEach(function(s) { s.remove(); });
-
-            // Clear and render
-            el.innerHTML = '';
-            try {
-              katex.render(tex.trim(), el, {throwOnError: false, displayMode: isDisplay});
-            } catch(e) {
-              el.textContent = tex.trim();
-            }
-          });
-        }
-
-        // Render on initial load
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', renderKaTeX);
-        } else {
-          renderKaTeX();
-        }
-
-        // Re-render after instant navigation
-        if (typeof document$ !== 'undefined' && document$.subscribe) {
-          document$.subscribe(renderKaTeX);
-        }
-
-        // Prefetch internal links on hover/focus so the service worker caches
-        // the destination page before the click — instant page switches.
-        (function() {
-          if (!('fetch' in window)) return;
-          var prefetched = new Set();
-          function prefetch(url) {
-            if (prefetched.has(url)) return;
-            prefetched.add(url);
-            // Fire-and-forget: the SW's serveCurrentPage() fetches+caches it.
-            fetch(url, { headers: { 'Accept': 'text/html' } }).catch(function() {});
-          }
-          function handler(e) {
-            var a = e.target.closest && e.target.closest('a[href]');
-            if (!a) return;
-            var u;
-            try { u = new URL(a.href, location.href); } catch (err) { return; }
-            if (u.origin !== location.origin) return;
-            if (u.hash && u.pathname === location.pathname && u.search === location.search) return;
-            if (u.pathname === location.pathname && u.search === location.search) return;
-            prefetch(u.href);
-          }
-          document.addEventListener('mouseover', handler, { passive: true });
-          document.addEventListener('focusin', handler, { passive: true });
-        })();
-
-        // Register service worker for offline support
-        if ('serviceWorker' in navigator) {
-          var swUrl = "{{ 'sw.js' | url }}";
-          var swScope = new URL("{{ config.site_url or '/' }}", location.href).pathname;
-          if (!swScope.endsWith('/')) swScope += '/';
-          navigator.serviceWorker.register(swUrl, { scope: swScope }).catch(function(e){
-            console.warn('SW registration failed:', e.message);
-          });
-
-          // If this page load was a reload (F5/Ctrl+R), tell the service worker to
-          // refresh the manifest in the background so the next navigation uses the
-          // latest deployed content. Hard reload (Ctrl+Shift+R) bypasses the SW for
-          // the main document, so we rely on the Navigation Timing API here.
-          navigator.serviceWorker.ready.then(function(registration) {
-            var nav = performance.getEntriesByType('navigation')[0];
-            if (nav && nav.type === 'reload') {
-              var controller = navigator.serviceWorker.controller;
-              if (controller) {
-                controller.postMessage({ type: 'DOCSFORGE_RELOAD_DETECTED' });
-              }
-            }
-          });
-
-          // Log SW notifications once per page session to avoid console spam.
-          var swMessagesLogged = {};
-          function logSwOnce(type, msg) {
-            if (!swMessagesLogged[type]) {
-              swMessagesLogged[type] = true;
-              console.log(msg);
-            }
-          }
-
-          navigator.serviceWorker.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'DOCSFORGE_UPDATE_READY') {
-              logSwOnce('update', '[DocsForge] Update available, will refresh on next navigation');
-              // Silently refresh on next page navigation (no banner)
-              window.addEventListener('beforeunload', function() {
-                // Let browser handle normal navigation; SW will serve new version
-              });
-            }
-            if (event.data && event.data.type === 'DOCSFORGE_CACHE_COMPLETE') {
-              logSwOnce('cache-complete', '[DocsForge] All pages cached for offline use');
-            }
-          });
-
-          // Check for updates periodically (every 5 minutes)
-          setInterval(function() {
-            navigator.serviceWorker.ready.then(function(registration) {
-              registration.update();
-            });
-          }, 300000);
-        }
-      </script>
-    {% endblock %}
-  </body>
+</script>
+<script src="{{ 'assets/javascripts/bundle.min.js' | url }}"></script>
+<script src="{{ 'assets/katex/katex.min.js' | url }}"></script>
+{% for script in config.extra_javascript %} {{ script | script_tag }} {% endfor %}
+<script>function renderKaTeX(){"undefined"!=typeof katex&&document.querySelectorAll(".arithmatex").forEach(function(e){var t=null,r=e.classList.contains("arithmatex--block")||"DIV"===e.tagName,n=e.textContent.trim();if(n.startsWith("\\(")&&n.endsWith("\\)")?(t=n.slice(2,-2),r=!1):n.startsWith("\\[")&&n.endsWith("\\]")&&(t=n.slice(2,-2),r=!0),!t){var a=e.querySelector('script[type^="math/tex"]');a&&(t=a.textContent,-1!==a.type.indexOf("display")&&(r=!0))}if(t||(t=e.getAttribute("data-tex")),t&&t.trim()){e.querySelectorAll(".MathJax_Preview").forEach(function(e){e.remove()}),e.querySelectorAll('script[type^="math/tex"]').forEach(function(e){e.remove()}),e.innerHTML="";try{katex.render(t.trim(),e,{throwOnError:!1,displayMode:r})}catch(r){e.textContent=t.trim()}}})}if("loading"===document.readyState?document.addEventListener("DOMContentLoaded",renderKaTeX):renderKaTeX(),"undefined"!=typeof document$&&document$.subscribe&&document$.subscribe(renderKaTeX),function(){if("fetch"in window){var e=new Set;document.addEventListener("mouseover",t,{passive:!0}),document.addEventListener("focusin",t,{passive:!0})}function t(t){var r=t.target.closest&&t.target.closest("a[href]");if(r){var n,a;try{n=new URL(r.href,location.href)}catch(e){return}if(n.origin===location.origin)if(!n.hash||n.pathname!==location.pathname||n.search!==location.search)if(n.pathname!==location.pathname||n.search!==location.search)a=n.href,e.has(a)||(e.add(a),fetch(a,{headers:{Accept:"text/html"}}).catch(function(){}))}}}(),"serviceWorker"in navigator){var swUrl="{{ 'sw.js' | url }}",swScope=new URL("{{ config.site_url or '/' }}",location.href).pathname;swScope.endsWith("/")||(swScope+="/"),navigator.serviceWorker.getRegistrations().then(function(e){e.forEach(function(e){e.scope.startsWith(swScope)||(console.log("[DocsForge] Unregistering stale service worker at scope",e.scope),e.unregister())})}).catch(function(){}),navigator.serviceWorker.register(swUrl,{scope:swScope}).catch(function(e){console.warn("SW registration failed:",e.message)}),navigator.serviceWorker.ready.then(function(e){var t=performance.getEntriesByType("navigation")[0];if(t&&"reload"===t.type){var r=navigator.serviceWorker.controller;r&&r.postMessage({type:"DOCSFORGE_RELOAD_DETECTED"})}});var swMessagesLogged={};function logSwOnce(e,t){swMessagesLogged[e]||(swMessagesLogged[e]=!0,console.log(t))}navigator.serviceWorker.addEventListener("message",function(e){e.data&&"DOCSFORGE_UPDATE_READY"===e.data.type&&(logSwOnce("update","[DocsForge] Update available, will refresh on next navigation"),window.addEventListener("beforeunload",function(){})),e.data&&"DOCSFORGE_CACHE_COMPLETE"===e.data.type&&logSwOnce("cache-complete","[DocsForge] All pages cached for offline use")}),setInterval(function(){navigator.serviceWorker.ready.then(function(e){e.update()})},3e5)}</script>
+{% endblock %}
+</body>
 </html>

@@ -1,61 +1,22 @@
-{#-
-  Language switcher for the i18n plugin.
-
-  URLs are locale-agnostic; the service worker serves the correct locale
-  sibling based on the user's preferred locale stored in IndexedDB. Clicking
-  a language option only updates the stored preference and reloads the same
-  URL, so the switcher never needs to know the current path.
--#}
-{% if config.extra.i18n_languages and page.i18n_alternates %}
-  <div class="md-header__option" data-md-component="i18n">
-    <div class="md-select">
-      {% set icon = (config.theme.icon.i18n or "material/translate") | validate_icon_name %}
-      <button class="md-header__button md-icon" aria-label="{{ lang.t('select.language') }}">
-        {% if icon %}
-          {% include ".icons/" ~ icon ~ ".svg" %}
-        {% endif %}
-      </button>
-      <div class="md-select__inner">
-        <ul class="md-select__list">
-          {% for lang in config.extra.i18n_languages %}
-            <li class="md-select__item">
-              <a
-                href="#"
-                hreflang="{{ lang.locale }}"
-                class="md-select__link{% if lang.locale == page.i18n_locale %} md-select__link--active{% endif %}"
-              >
-                {{ lang.name }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-    </div>
-    <script>
-      (function() {
-        var switcher = document.querySelector('[data-md-component="i18n"]');
-        if (!switcher) return;
-        switcher.querySelectorAll('.md-select__link').forEach(function(link) {
-          link.addEventListener('click', function(event) {
-            // Fully isolate this click: prevent the default anchor action and
-            // stop propagation so instant navigation's body-level handler never
-            // sees it. Otherwise instant nav also intercepts the switcher click
-            // (href="#" resolves to the current URL, which is in the sitemap)
-            // and races this reload, sometimes navigating back to the page the
-            // session started on.
-            event.preventDefault();
-            event.stopPropagation();
-            var targetLocale = link.getAttribute('hreflang') || '';
-            if (window.docsforge && window.docsforge.setLocale) {
-              window.docsforge.setLocale(targetLocale).then(function() {
-                location.reload();
-              });
-            } else {
-              location.reload();
-            }
-          });
-        });
-      })();
-    </script>
-  </div>
+{#- Language switcher for the i18n plugin. URLs are locale-agnostic; the service worker serves the correct locale sibling based on the user's preferred locale stored in IndexedDB. Clicking a language option only updates the stored preference and reloads the same URL, so the switcher never needs to know the current path. -#} {% if config.extra.i18n_languages and page.i18n_alternates %}
+<div class="md-header__option" data-md-component="i18n">
+<div class="md-select">
+{% set icon = (config.theme.icon.i18n or "material/translate") | validate_icon_name %}
+<button class="md-header__button md-icon" aria-label="{{ lang.t('select.language') }}">
+{% if icon %} {% include ".icons/" ~ icon ~ ".svg" %} {% endif %}
+</button>
+<div class="md-select__inner">
+<ul class="md-select__list">
+{% for lang in config.extra.i18n_languages %}
+<li class="md-select__item">
+<a href="#" hreflang="{{ lang.locale }}" class="md-select__link{% if lang.locale == page.i18n_locale %} md-select__link--active{% endif %}">
+{{ lang.name }}
+</a>
+</li>
+{% endfor %}
+</ul>
+</div>
+</div>
+<script>!function(){var o=document.querySelector('[data-md-component="i18n"]');o&&o.querySelectorAll(".md-select__link").forEach(function(o){o.addEventListener("click",function(e){e.preventDefault(),e.stopPropagation();var t=o.getAttribute("hreflang")||"";window.docsforge&&window.docsforge.setLocale?window.docsforge.setLocale(t).then(function(){location.reload()}):location.reload()})})}()</script>
+</div>
 {% endif %}
