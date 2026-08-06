@@ -82,8 +82,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0(postcss@8.5.25)
       postcss-logical:
-        specifier: ^5.0.4
-        version: 5.0.4(postcss@8.5.25)
+        specifier: ^9.0.0
+        version: 9.0.0(postcss@8.5.25)
       postcss-pseudo-is:
         specifier: ^0.3.0
         version: 0.3.0(postcss@8.5.25)
@@ -808,9 +808,9 @@ packages:
       tsx:
         optional: true
 
-  postcss-logical@5.0.4:
-    resolution: {integrity: sha512-RHXxplCeLh9VjinvMrZONq7im4wjWGlRJAqmAVLXyZaXwfDWP73/oq4NdIp+OZwhQUMj0zjqDfM5Fj7qby+B4g==}
-    engines: {node: ^12 || ^14 || >=16}
+  postcss-logical@9.0.0:
+    resolution: {integrity: sha512-A4LNd9dk3q/juEUA9Gd8ALhBO3TeOeYurnyHLlf2aAToD94VHR8c5Uv7KNmf8YVRhTxvWsyug4c5fKtARzyIRQ==}
+    engines: {node: '>=20.19.0'}
     peerDependencies:
       postcss: ^8.4
 
@@ -1733,9 +1733,10 @@ snapshots:
     optionalDependencies:
       postcss: 8.5.25
 
-  postcss-logical@5.0.4(postcss@8.5.25):
+  postcss-logical@9.0.0(postcss@8.5.25):
     dependencies:
       postcss: 8.5.25
+      postcss-value-parser: 4.2.0
 
   postcss-merge-longhand@6.0.5(postcss@8.5.25):
     dependencies:
