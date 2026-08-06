@@ -8,9 +8,6 @@
 # committed as-is; the pipeline preserves them):
 assets/katex/
 assets/stylesheets/pygments.css
-
-# JS bundle still the pre-migration build — swapped in phase 3.7:
-assets/javascripts/bundle.min.js
 #
 # Examples:
 #   .icons/                          # svgo re-optimization of vendored icons
