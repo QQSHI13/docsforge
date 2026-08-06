@@ -592,21 +592,6 @@
           var swScope = new URL("{{ config.site_url or '/' }}", location.href).pathname;
           if (!swScope.endsWith('/')) swScope += '/';
 
-          // Unregister stale service workers from earlier deployments whose
-          // scope lies outside our mount path (e.g. a root-scope worker left
-          // behind from a time the site was served at '/'). They keep
-          // intercepting requests outside our scope and cause 404 storms for
-          // assets like '/assets/...'. Unregistering is safe: the worker below
-          // is registered with the correct scope immediately after.
-          navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            registrations.forEach(function(registration) {
-              if (!registration.scope.startsWith(swScope)) {
-                console.log('[DocsForge] Unregistering stale service worker at scope', registration.scope);
-                registration.unregister();
-              }
-            });
-          }).catch(function() {});
-
           navigator.serviceWorker.register(swUrl, { scope: swScope }).catch(function(e){
             console.warn('SW registration failed:', e.message);
           });
