@@ -40,6 +40,32 @@ class TestMinifyPlugin:
         assert "hi" in out
         assert "<!-- c -->" not in out
 
+    def test_minify_html_page_preserves_svg_viewbox(self):
+        # minify_html lowercases case-sensitive SVG attribute names (viewBox ->
+        # viewbox). The plugin must restore them after minification.
+        plugin = MinifyPlugin()
+        html = (
+            '<div><svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">'
+            '<path d="M3 6h18v2H3z"/></svg></div>'
+        )
+        out = plugin._minify_html_page(html)
+        assert out is not None
+        assert 'viewBox="0 0 24 24"' in out
+        assert 'preserveAspectRatio="xMidYMid meet"' in out
+
+    def test_restore_svg_case_ignores_inline_js_property(self):
+        # The re-case must not touch JS property access like `obj.viewbox = ...`
+        # or identifiers such as `_viewbox`, which are case-sensitive in JS.
+        plugin = MinifyPlugin()
+        html = (
+            '<script>var obj = { viewbox: 1 }; obj.viewbox = 2; '
+            'var _viewbox = 3;</script>'
+        )
+        out = plugin._minify_html_page(html)
+        assert out is not None
+        assert "viewbox" in out
+        assert "viewBox" not in out
+
 
 class TestExtraPathValidation:
     """Extra CSS/JS paths must stay inside docs_dir and site_dir."""
