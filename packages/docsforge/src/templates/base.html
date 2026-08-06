@@ -471,16 +471,23 @@
 
           function setPreferredLocale(locale) {
             return openDB().then(function(db) {
-              var tx = db.transaction(storeName, 'readwrite');
-              var store = tx.objectStore(storeName);
-              if (locale) store.put(locale, key);
-              else store.delete(key);
-
+              // Wait for the write to actually commit before resolving, so the
+              // caller's location.reload() doesn't race the service worker's
+              // IndexedDB read (which otherwise needs a second click).
+              return new Promise(function(resolve, reject) {
+                var tx = db.transaction(storeName, 'readwrite');
+                var store = tx.objectStore(storeName);
+                if (locale) store.put(locale, key);
+                else store.delete(key);
+                tx.oncomplete = resolve;
+                tx.onerror = function() { reject(tx.error); };
+                tx.onabort = function() { reject(tx.error); };
+              });
+            }).then(function() {
               try {
                 if (locale) localStorage.setItem(storageKey, locale);
                 else localStorage.removeItem(storageKey);
               } catch (e) {}
-
               notifySW(locale);
             }).catch(function() {});
           }
