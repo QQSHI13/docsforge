@@ -37,6 +37,7 @@ import {
  */
 interface Options {
   progress$?: Subject<number>          // Progress subject
+  headers?: Record<string, string>    // Extra request headers
 }
 
 /* ----------------------------------------------------------------------------
@@ -68,6 +69,8 @@ export function request(
     const req = new XMLHttpRequest()
     req.open("GET", `${url}`)
     req.responseType = "blob"
+    for (const [name, value] of Object.entries(options?.headers ?? {}))
+      req.setRequestHeader(name, value)
 
     // Handle response
     req.addEventListener("load", () => {
@@ -150,7 +153,17 @@ export function requestHTML(
   url: URL | string, options?: Options
 ): Observable<Document> {
   const dom = new DOMParser()
-  return request(url, options)
+  return request(url, {
+    ...options,
+    // DocsForge: let the service worker distinguish instant-navigation page
+    // fetches from asset fetches (XHR sends `Accept: */*` and has no
+    // `destination`), so servePage() picks the preferred-locale variant
+    // instead of serveAsset() returning the canonical (default-locale) file.
+    headers: {
+      ...(options?.headers ?? {}),
+      "X-DocsForge-Instant-Nav": "1"
+    }
+  })
     .pipe(
       switchMap(res => res.text()),
       map(res => dom.parseFromString(res, "text/html")),

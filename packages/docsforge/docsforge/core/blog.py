@@ -467,9 +467,14 @@ class Post(Page):
             # `on_files` but the meta plugin first runs in `on_page_markdown`.
             plugin: MetaPlugin = config.plugins.get("material/meta")
             if plugin:
-                self.markdown = plugin.on_page_markdown(
+                # `on_page_markdown` returns None to mean "keep the original
+                # markdown" (see the plugin event contract in plugin_base.py),
+                # so only replace the markdown when a string comes back.
+                result = plugin.on_page_markdown(
                     self.markdown, page = self, config = config, files = None
                 )
+                if result is not None:
+                    self.markdown = result
 
         # Initialize post configuration, but remove all keys that this plugin
         # doesn't care about, or they will be reported as invalid configuration

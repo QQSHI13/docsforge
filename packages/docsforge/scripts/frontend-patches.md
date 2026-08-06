@@ -51,6 +51,13 @@ whitelist these deltas; anything NOT listed here is a regression.
   - `handle()` skips clicks inside `[data-md-component="i18n"]` (language
     switcher owns its own navigation).
   - Updates the language-switcher active state after instant navigation.
+- `browser/request/index.ts` — `requestHTML()` sends
+  `X-DocsForge-Instant-Nav: 1` on every HTML fetch. XHR sends `Accept: */*`
+  with no `destination`/`mode: navigate`, so without the header the service
+  worker cannot tell instant-navigation page fetches from asset fetches and
+  would serve the canonical (default-locale) page via `serveAsset` instead of
+  the preferred-locale variant via `servePage`. (Sentinel-checked by the
+  parity harness.)
 - `integrations/alternate/index.ts` — upstream v9.7.7 selects **all**
   `link[rel=alternate]` (older bundles used `:not([hreflang])`). Safe now:
   `base.html` only ever emits `config.extra.alternate` links, so the per-page
