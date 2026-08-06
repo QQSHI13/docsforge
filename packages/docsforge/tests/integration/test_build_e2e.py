@@ -131,7 +131,8 @@ class TestBuildE2E:
         sw = tmp_project / "site" / "sw.js"
         assert sw.is_file()
         content = sw.read_text()
-        assert 'const BASE_URL = "/"' in content
+        # Minified worker: the injected base URL is a plain string literal.
+        assert 'BASE_URL="/"' in content
         assert "__DOCSFORGE_BASE_URL__" not in content
 
     def test_service_worker_base_url_respects_subpath(self, tmp_project, monkeypatch):
@@ -139,7 +140,7 @@ class TestBuildE2E:
         cfg.write_text(cfg.read_text() + "site_url: https://example.com/docs/\n")
         _build_once(monkeypatch, tmp_project)
         sw = tmp_project / "site" / "sw.js"
-        assert 'const BASE_URL = "/docs/"' in sw.read_text()
+        assert 'BASE_URL="/docs/"' in sw.read_text()
 
     def test_no_external_cdn_scripts_in_output(self, tmp_project, monkeypatch):
         """Hermetic check (privacy off): built HTML must not reference JS CDNs
