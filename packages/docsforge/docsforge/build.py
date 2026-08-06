@@ -641,13 +641,6 @@ def _finalize_build(
     # Run `post_build` plugin events.
     config.plugins.on_post_build(config=config)
 
-    # Generate PWA manifest and pre-cache all pages in the service worker.
-    # This runs after post_build so plugins can add outputs before the cache
-    # manifest walks site_dir. Skip when nothing changed: the existing files
-    # in site_dir are still valid.
-    if not nothing_changed:
-        _generate_pwa_manifest_and_precache(config, files, nav, planner)
-
     # Optimize static assets: remove unused files, source maps, old font
     # formats. Source-map stripping is incremental (skips unchanged JS files
     # using cached mtime+size). The expensive reference scan for unused assets
@@ -658,6 +651,15 @@ def _finalize_build(
         sources_changed=sources_changed,
         cache_dir=planner.cache.cache_dir,
     )
+
+    # Generate PWA manifest + pre-cache list + service worker build hash.
+    # Runs AFTER optimize_assets (so the manifest reflects the final file
+    # set) and on EVERY build — static assets (CSS, icons) can change without
+    # any page/source/nav change, and the service worker needs the updated
+    # hashes to re-sync them. The manifest version is deterministic (hash of
+    # file hashes), so an unchanged build produces the same version and causes
+    # no service-worker churn.
+    _generate_pwa_manifest_and_precache(config, files, nav, planner)
 
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
