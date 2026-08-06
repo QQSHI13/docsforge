@@ -350,10 +350,18 @@ async function syncCacheFromManifest(manifest) {
 
 async function respond404() {
   const cache = await caches.open(CACHE_NAME);
-  const cached404 = await cache.match(BASE_URL + '404.html').catch(() => null);
-  if (cached404) {
-    const body = await cached404.text();
-    return new Response(body, { status: 404, headers: { 'Content-Type': 'text/html' } });
+  const locale = await readPreferredLocale();
+  const candidates = [];
+  if (locale) {
+    candidates.push(BASE_URL + '404.' + locale + '.html');
+  }
+  candidates.push(BASE_URL + '404.html');
+  for (const url of candidates) {
+    const cached404 = await cache.match(url).catch(() => null);
+    if (cached404) {
+      const body = await cached404.text();
+      return new Response(body, { status: 404, headers: { 'Content-Type': 'text/html' } });
+    }
   }
   return new Response('<h1>404 Not Found</h1>', { status: 404, headers: { 'Content-Type': 'text/html' } });
 }

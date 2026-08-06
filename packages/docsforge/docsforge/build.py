@@ -152,6 +152,72 @@ def _build_theme_template(
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
 
+def _build_locale_static_templates(
+    env: jinja2.Environment,
+    files: Files,
+    config: DocsForgeConfig,
+    nav: Navigation,
+) -> None:
+    """Render HTML static templates (e.g. 404.html) once per non-default locale.
+
+    Error pages are rendered at build time without a page context, so without
+    this they would always show the default language. The locale variants are
+    written as sibling files (``404.zh.html``) and served by the service worker
+    based on the user's stored preference.
+    """
+    from docsforge.core.i18n import I18nPlugin
+    from urllib.parse import urlsplit
+
+    plugin = next(
+        (p for p in config.plugins.values() if isinstance(p, I18nPlugin)),
+        None,
+    )
+    if plugin is None or not plugin._languages:
+        return
+
+    base_url = urlsplit(config.site_url or '/').path
+    prev_language = config.theme.get('language')
+    try:
+        for template_name in config.theme.static_templates:
+            if not template_name.endswith('.html'):
+                continue
+            template = env.get_template(template_name)
+            for locale in plugin.locales:
+                if locale == plugin.default_locale:
+                    continue
+                locale_nav = plugin._locale_navs.get(locale)
+                if locale_nav is None:
+                    continue
+                # `page` stays None so the template renders like the default
+                # 404 (absolute base URL, no page fields). The language is
+                # switched via the theme language so partials/language.html
+                # resolves the right translations.
+                config.theme['language'] = locale
+                config.extra.i18n_current_locale = locale
+                plugin._fix_locale_nav_titles(locale_nav, locale)
+                context = get_context(
+                    locale_nav, files, config, page=None, base_url=base_url
+                )
+                context = config.plugins.on_template_context(
+                    context, template_name=template_name, config=config
+                )
+                output = template.render(context)
+                output = config.plugins.on_post_template(
+                    output, template_name=template_name, config=config
+                )
+                if output.strip():
+                    out_name = template_name.replace('.html', f'.{locale}.html')
+                    utils.write_file(
+                        output.encode('utf-8', errors='xmlcharrefreplace'),
+                        os.path.join(config.site_dir, out_name),
+                    )
+    finally:
+        if prev_language is not None:
+            config.theme['language'] = prev_language
+        else:
+            config.theme.pop('language', None)
+
+
 def _build_extra_template(
     template_name: str, env: jinja2.Environment, files: Files, config: DocsForgeConfig, nav: Navigation
 ):
@@ -550,6 +616,10 @@ def _write_outputs(
 
     for template in config.theme.static_templates:
         _build_theme_template(template, env, files, config, nav)
+
+    # Render per-locale static templates (e.g. 404.zh.html) so error pages show
+    # the correct language when the i18n plugin is configured.
+    _build_locale_static_templates(env, files, config, nav)
 
     for template in config.extra_templates:
         _build_extra_template(template, env, files, config, nav)
