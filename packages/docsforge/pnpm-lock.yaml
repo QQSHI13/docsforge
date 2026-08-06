@@ -76,8 +76,8 @@ importers:
         specifier: ^11.0.1
         version: 11.0.1(postcss@8.5.25)
       postcss-dir-pseudo-class:
-        specifier: ^9.0.1
-        version: 9.0.1(postcss@8.5.25)
+        specifier: ^10.0.0
+        version: 10.0.0(postcss@8.5.25)
       postcss-inline-svg:
         specifier: ^6.0.0
         version: 6.0.0(postcss@8.5.25)
@@ -758,9 +758,9 @@ packages:
     peerDependencies:
       postcss: ^8.4.31
 
-  postcss-dir-pseudo-class@9.0.1:
-    resolution: {integrity: sha512-tRBEK0MHYvcMUrAuYMEOa0zg9APqirBcgzi6P21OhxtJyJADo/SWBwY1CAwEohQ/6HDaa9jCjLRG7K3PVQYHEA==}
-    engines: {node: '>=18'}
+  postcss-dir-pseudo-class@10.0.0:
+    resolution: {integrity: sha512-DmtIzULpyC8XaH4b5AaUgt4Jic4QmrECqidNCdR7u7naQFdnxX80YI06u238a+ZVRXwURDxVzy0s/UQnWmpVeg==}
+    engines: {node: '>=20.19.0'}
     peerDependencies:
       postcss: ^8.4
 
@@ -1697,7 +1697,7 @@ snapshots:
       postcss: 8.5.25
       postcss-value-parser: 4.2.0
 
-  postcss-dir-pseudo-class@9.0.1(postcss@8.5.25):
+  postcss-dir-pseudo-class@10.0.0(postcss@8.5.25):
     dependencies:
       postcss: 8.5.25
       postcss-selector-parser: 7.1.4
