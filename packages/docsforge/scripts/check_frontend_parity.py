@@ -15,6 +15,10 @@ Usage:
   difference exists — this is the gate used per area during the Phase 3 swap.
 - ``--area`` limits comparison to one area (templates, css, js, sw, icons,
   lunr, katex) so each swap step is verified in isolation.
+- ``--baseline-snapshot FILE`` compares the fresh build against a pre-migration
+  sha256 snapshot instead of the committed templates, reporting EVERY delta
+  (no whitelist) so a swap cannot silently drop behavior that only existed in
+  the old compiled output.
 
 The baseline checksum snapshot (``scripts/parity/baseline-*.sha256``) is kept
 for reference; the primary comparison is the live committed templates dir.
@@ -76,9 +80,30 @@ def load_whitelist(path: Path | None) -> list[str]:
     ]
 
 
+def load_snapshot(path: Path) -> dict[str, str]:
+    """Load a sha256sum snapshot ({path: hash}) from a baseline checksum file."""
+    snap: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            snap[parts[1].strip()] = parts[0]
+    return snap
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", type=Path, default=COMMITTED)
+    parser.add_argument(
+        "--baseline-snapshot",
+        type=Path,
+        help="Compare the fresh build against a pre-migration sha256 snapshot "
+             "(e.g. scripts/parity/baseline-2026-08-05.sha256) instead of the "
+             "committed templates. Reports EVERY difference — no whitelist — so "
+             "a swap cannot silently drop old behavior.",
+    )
     parser.add_argument("--whitelist", type=Path)
     parser.add_argument("--area", choices=sorted(AREA_PREFIXES))
     parser.add_argument("--include-icons", action="store_true")
@@ -109,13 +134,32 @@ def main() -> int:
                         out[rel] = sha256(p)
             return out
 
-        committed = files(args.baseline)
         built = files(tmp)
 
-        added = sorted(set(built) - set(committed))
-        removed = sorted(set(committed) - set(built))
+        if args.baseline_snapshot is not None:
+            reference = load_snapshot(args.baseline_snapshot)
+            if args.area is None:
+                # Without an area filter, exclude icons unless requested: the
+                # default build skips them, so they would all report "removed".
+                reference = {
+                    rel: h for rel, h in reference.items()
+                    if args.include_icons or not rel.startswith(".icons/")
+                }
+            else:
+                reference = {
+                    rel: h for rel, h in reference.items()
+                    if area_match(rel, args.area)
+                }
+            # Snapshot mode ignores the whitelist by design: every delta against
+            # the pre-migration output is reported so nothing is silently lost.
+            whitelist = []
+        else:
+            reference = files(args.baseline)
+
+        added = sorted(set(built) - set(reference))
+        removed = sorted(set(reference) - set(built))
         changed = sorted(
-            rel for rel in set(committed) & set(built) if committed[rel] != built[rel]
+            rel for rel in set(reference) & set(built) if reference[rel] != built[rel]
         )
 
         def is_whitelisted(rel: str) -> bool:
