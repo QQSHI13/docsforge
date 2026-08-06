@@ -1,0 +1,9 @@
+# Frontend parity whitelist — intentional deltas between a fresh src build and
+# the committed output. fnmatch patterns, one per line, '#' = comment.
+#
+# Populate per area as each Phase-3 swap lands and its deltas are verified.
+# Anything listed here must also be documented in scripts/frontend-patches.md.
+#
+# Examples:
+#   .icons/                          # svgo re-optimization of vendored icons
+#   assets/javascripts/bundle.min.js # esbuild bundle vs previously committed bundle
