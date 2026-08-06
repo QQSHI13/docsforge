@@ -57,7 +57,11 @@ function openI18nDB() {
 }
 
 async function readPreferredLocale() {
-  if (_preferredLocale !== null) return _preferredLocale;
+  // Always read from IndexedDB instead of trusting the cached value: the page
+  // writes the preference BEFORE reloading, and the DOCSFORGE_SET_LOCALE
+  // message may not have been processed when the reload's fetch arrives.
+  // Caching (especially caching '') made the first locale switch serve the
+  // previous language until a later reload.
   try {
     const db = await openI18nDB();
     const tx = db.transaction(I18N_DB_STORE, 'readonly');
