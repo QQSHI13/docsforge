@@ -115,12 +115,11 @@ def build_styles() -> None:
             # the upstream migration land when we upgrade material.
             "--silence-deprecation=import,global-builtin",
         ])
-        # Apply autoprefixer.
+        # Apply autoprefixer + inline svg-load() icons (postcss.config.js).
         prefixed = tmp_css.with_suffix(".prefixed.css")
         run([
             str(find_binary("postcss")),
             str(tmp_css),
-            "--use", "autoprefixer",
             "--no-map",
             "--output", str(prefixed),
         ])
@@ -200,6 +199,20 @@ def copy_icons() -> None:
             "--quiet",
             "--config", str(ROOT / "svgo.config.js"),
         ])
+    # Copy the upstream license files alongside each optimized icon set so the
+    # vendored attribution ships with the build (svgo only emits .svg files).
+    extra_licenses = [
+        ("node_modules/@fortawesome/fontawesome-free/LICENSE.txt",
+         "src/templates/.icons/fontawesome/LICENSE.txt"),
+        ("node_modules/@primer/octicons/LICENSE",
+         "src/templates/.icons/octicons/LICENSE"),
+    ]
+    for src_file, dst_file in extra_licenses:
+        src_lic = ROOT / src_file
+        dst_lic = ROOT / dst_file
+        if src_lic.exists():
+            dst_lic.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_lic, dst_lic)
     # Preserve DocsForge-specific badges already in src/templates/.icons
 
 

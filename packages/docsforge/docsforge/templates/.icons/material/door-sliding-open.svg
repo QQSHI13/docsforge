@@ -1,1 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" id="mdi-door-sliding-open" viewBox="0 0 24 24"><path d="M6 11V13H4V11H6M22 5H17V19H22V5M7 5H2L2 19H7V5M22 3C23.11 3 24 3.89 24 5V21H0V5C0 3.89 .894 3 2 3H9V19H15V3H22M20 11H18V13H20V11Z" /></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 11v2H4v-2zm16-6h-5v14h5zM7 5H2v14h5zm15-2c1.11 0 2 .89 2 2v16H0V5c0-1.11.894-2 2-2h7v16h6V3zm-2 8h-2v2h2z"/></svg>

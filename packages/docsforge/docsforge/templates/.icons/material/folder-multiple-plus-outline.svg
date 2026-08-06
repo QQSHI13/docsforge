@@ -1,1 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" id="mdi-folder-multiple-plus-outline" viewBox="0 0 24 24"><path d="M22 4C23.1 4 24 4.9 24 6V16C24 17.1 23.1 18 22 18H6C4.9 18 4 17.1 4 16V4C4 2.9 4.9 2 6 2H12L14 4H22M2 6V20H20V22H2C.9 22 0 21.1 0 20V6H2M6 6V16H22V6H6M14 10H16V8H18V10H20V12H18V14H16V12H14V10Z" /></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M22 4c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h6l2 2zM2 6v14h18v2H2c-1.1 0-2-.9-2-2V6zm4 0v10h16V6zm8 4h2V8h2v2h2v2h-2v2h-2v-2h-2z"/></svg>
