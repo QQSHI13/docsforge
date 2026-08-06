@@ -1,3 +1,9 @@
+# pnpm workspace config (single package: this directory).
+# allowBuilds: approve postinstall scripts for packages that need them
+# (esbuild downloads its platform binary; @parcel/watcher builds a native one).
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
+# Dependabot bumps to freshly published versions are merged immediately; the
+# default minimumReleaseAge gate would reject them (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION).
+minimumReleaseAge: 0
