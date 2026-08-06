@@ -1,0 +1,51 @@
+name: Frontend
+
+# Builds the frontend from src/ and verifies the pipeline is reproducible.
+# Per-area parity gates (check_frontend_parity.py --area ...) become enforced
+# during the Phase-3 swap; until then this job only proves the build succeeds
+# and the Python suite stays green.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+        working-directory: packages/docsforge
+
+      - name: Build frontend (temp dir, icons skipped for speed)
+        run: python scripts/check_frontend_parity.py --report-only
+        working-directory: packages/docsforge
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install DocsForge (editable) + test deps
+        run: |
+          pip install -e packages/docsforge
+          pip install pytest pytest-mock
+
+      - name: Run tests
+        run: python -m pytest tests/unit -q
+        working-directory: packages/docsforge

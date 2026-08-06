@@ -1,0 +1,14 @@
+# Frontend parity whitelist — intentional deltas between a fresh src build and
+# the committed output. fnmatch patterns, one per line, '#' = comment.
+#
+# Populate per area as each Phase-3 swap lands and its deltas are verified.
+# Anything listed here must also be documented in scripts/frontend-patches.md.
+#
+# Vendored third-party assets, NOT produced by the frontend pipeline (they are
+# committed as-is; the pipeline preserves them):
+assets/katex/
+assets/stylesheets/pygments.css
+#
+# Examples:
+#   .icons/                          # svgo re-optimization of vendored icons
+#   assets/javascripts/bundle.min.js # esbuild bundle vs previously committed bundle

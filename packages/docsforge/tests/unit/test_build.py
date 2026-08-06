@@ -211,10 +211,24 @@ class TestFinalizeBuildOptimizesAssets:
 
 
 class TestInstantNavigationBundleIgnoresI18nAlternates:
-    """The vendored instant-navigation bundle must not treat i18n hreflang
-    alternates as version bases (which causes subdirectory sitemap.xml 404s)."""
+    """i18n hreflang alternates must never reach the bundle's alternate
+    integration: for every locale they share the same locale-agnostic URL, and
+    duplicate <link rel=alternate> entries would make it fetch a per-page
+    sitemap.xml (404s). The suppression is template-side — base.html only
+    emits config.extra.alternate links — so the upstream selector is safe."""
 
-    def test_bundle_selector_excludes_hreflang_alternates(self):
+    def test_template_does_not_emit_i18n_alternates(self):
+        from docsforge import utils
+
+        theme_dir = utils.get_theme_dir('material')
+        base = Path(theme_dir) / 'base.html'
+        content = base.read_text(encoding='utf-8', errors='ignore')
+        # Only explicitly configured versioned alternates are emitted.
+        assert 'config.extra.alternate is iterable' in content
+        # The i18n alternate suppression is documented in the template.
+        assert 'i18n alternates are deliberately NOT emitted' in content
+
+    def test_bundle_uses_upstream_alternate_selector(self):
         from docsforge import utils
 
         theme_dir = utils.get_theme_dir('material')
@@ -223,10 +237,9 @@ class TestInstantNavigationBundleIgnoresI18nAlternates:
             pytest.skip('Vendored bundle not present')
 
         content = bundle_path.read_text(encoding='utf-8', errors='ignore')
-        # The upstream selector would be M("link[rel=alternate]"); DocsForge
-        # patches it to exclude hreflang alternates used by the i18n plugin.
-        assert 'link[rel=alternate]:not([hreflang])' in content
-        assert 'M("link[rel=alternate]")' not in content
+        # Upstream v9.7.7 selector (all link[rel=alternate]). Safe because
+        # base.html never emits i18n alternates (see test above).
+        assert 'link[rel=alternate]' in content
 
 
 class TestBuildPageLock:

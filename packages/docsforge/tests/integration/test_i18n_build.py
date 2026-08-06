@@ -87,11 +87,16 @@ class TestI18nBuild:
         assert re.search(r'<a[^>]+href="second/"[^>]*>第二页</a>', zh_html) or \
                re.search(r'<a[^>]+href=second/[^>]*>第二页</a>', zh_html)
 
-    def test_emits_alternate_head_links(self, tmp_path):
+    def test_no_alternate_head_links(self, tmp_path):
+        """i18n alternates are deliberately not emitted: suffix-mode locales
+        share one locale-agnostic URL, so duplicate <link rel=alternate> entries
+        would be invalid HTML and make the bundle's alternate integration fetch
+        a per-page sitemap.xml (404s)."""
         site = _build_i18n_site(tmp_path)
         zh_html = (site / "index.zh.html").read_text()
-        assert 'hreflang=en' in zh_html
-        assert 'hreflang=zh' in zh_html
+        en_html = (site / "index.html").read_text()
+        assert re.search(r'rel=["\']?alternate["\']?', zh_html) is None
+        assert re.search(r'rel=["\']?alternate["\']?', en_html) is None
 
     def test_emits_language_switcher(self, tmp_path):
         site = _build_i18n_site(tmp_path)
@@ -181,12 +186,41 @@ class TestI18nBuild:
             href = href.strip('"').strip("'")
             assert "zh/" not in href
 
-    def test_locale_alternate_links_are_canonical(self, tmp_path):
-        site = _build_i18n_site(tmp_path)
-        zh_html = (site / "index.zh.html").read_text()
-        # Alternate links from a locale sibling should point to the same canonical URL.
-        assert re.search(r'<link[^>]+rel=["\']?alternate["\']?[^>]*href=["\']?(?:\.|\./)["\'\s>]', zh_html) or \
-               re.search(r'<link[^>]+href=["\']?(?:\.|\./)["\'\s>][^>]*rel=["\']?alternate["\']?', zh_html)
+    def test_config_alternates_still_emitted(self, tmp_path):
+        """config.extra.alternate (version alternates) are still emitted as
+        <link rel=alternate>; only the per-locale i18n alternates were removed."""
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "index.md").write_text("---\ntitle: Home\n---\n# Home\n")
+        (docs / "index.zh.md").write_text("---\ntitle: 首页\n---\n# 首页\n")
+        config = {
+            "site_name": "I18n Test",
+            "docs_dir": "docs",
+            "site_url": "https://example.com/",
+            "theme": {"name": "material", "font": False},
+            "nav": ["index.md"],
+            "extra": {
+                "i18n_languages": [
+                    {"locale": "en", "name": "English", "default": True},
+                    {"locale": "zh", "name": "中文"},
+                ],
+                "alternate": [{"link": "https://v1.example.com/", "lang": "en"}],
+            },
+        }
+        import yaml
+
+        (tmp_path / "docsforge.yml").write_text(yaml.safe_dump(config))
+
+        cfg = load_config(config_file=str(tmp_path / "docsforge.yml"))
+        cfg.plugins.on_startup(command="build", dirty=True)
+        try:
+            build(cfg, dirty=True)
+        finally:
+            cfg.plugins.on_shutdown()
+
+        html = (tmp_path / "site" / "index.html").read_text()
+        assert 'href="https://v1.example.com/"' in html
+        assert re.search(r'rel=["\']?alternate["\']?', html) is not None
 
 
 class TestI18nNoFrontmatterTitles:

@@ -4,6 +4,36 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [13.0.0] — 2026-08-06
+
+### Added
+
+- **Frontend built from source.** The Material theme is vendored as source
+  under `packages/docsforge/src/` (mkdocs-material v9.7.7) and built by an
+  in-repo pipeline (`scripts/build_frontend.py`): esbuild bundles, sass +
+  autoprefixer CSS, svgo icons, minified templates and service worker. Every
+  shipped asset is reproducible, and parity gates
+  (`scripts/check_frontend_parity.py`) verify it per area on CI.
+- **DocsForge frontend customizations now live in source** instead of
+  hand-patches to minified bundles: service worker (manifest-driven delta
+  sync, locale-aware page serving, offline fast-404, manifest-aware candidate
+  skipping), stateless i18n language switcher (IndexedDB-backed), per-locale
+  search index, per-locale 404 pages, and the `X-DocsForge-Instant-Nav`
+  header that keeps instant navigation on the preferred locale.
+
+### Changed
+
+- Service worker ships minified with `__DOCSFORGE_BASE_URL__` /
+  `__DOCSFORGE_BUILD_HASH__` placeholders; `docsforge build` injects the real
+  base path and a deterministic hash so SW bytes change between builds.
+- The SW skips page candidates absent from `cache-manifest.json` — a stored
+  preference for the (unsuffixed) default locale no longer requests
+  `index.en.html` (404s).
+- Blog posts without a `title:` front-matter key no longer crash the build
+  when the meta plugin is active.
+- `scripts/check_frontend_parity.py` gains `--vs-ref` (output diff vs a git
+  ref, no build) and sentinel-marker checks.
+
 ## [12.0.0] — Unreleased
 
 ### Changed

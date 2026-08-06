@@ -1,39 +1,19 @@
-{#-
-  This file was automatically generated - do not edit
--#}
-{% macro render_updated(date) %}
-  <span class="md-source-file__fact">
-    <span class="md-icon" title="{{ lang.t('source.file.date.updated') }}">
-      {% include ".icons/material/clock-edit-outline.svg" %}
-    </span>
-    {{ date }}
-  </span>
-{% endmacro %}
-{% macro render_created(date) %}
-  <span class="md-source-file__fact">
-    <span class="md-icon" title="{{ lang.t('source.file.date.created') }}">
-      {% include ".icons/material/clock-plus-outline.svg" %}
-    </span>
-    {{ date }}
-  </span>
-{% endmacro %}
-{% if page.meta %}
-  {% if page.meta.git_revision_date_localized %}
-    {% set updated = page.meta.git_revision_date_localized %}
-  {% elif page.meta.revision_date %}
-    {% set updated = page.meta.revision_date %}
-  {% endif %}
-  {% if page.meta.git_creation_date_localized %}
-    {% set created = page.meta.git_creation_date_localized %}
-  {% endif %}
-{% endif %}
-{% if updated or created %}
-  <aside class="md-source-file">
-    {% if updated %}
-      {{ render_updated(updated) }}
-    {% endif %}
-    {% if created %}
-      {{ render_created(created) }}
-    {% endif %}
-  </aside>
+{#- This file was automatically generated - do not edit -#} {% macro render_updated(date) %}
+<span class="md-source-file__fact">
+<span class="md-icon" title="{{ lang.t('source.file.date.updated') }}">
+{% include ".icons/material/clock-edit-outline.svg" %}
+</span>
+{{ date }}
+</span>
+{% endmacro %} {% macro render_created(date) %}
+<span class="md-source-file__fact">
+<span class="md-icon" title="{{ lang.t('source.file.date.created') }}">
+{% include ".icons/material/clock-plus-outline.svg" %}
+</span>
+{{ date }}
+</span>
+{% endmacro %} {% if page.meta %} {% if page.meta.git_revision_date_localized %} {% set updated = page.meta.git_revision_date_localized %} {% elif page.meta.revision_date %} {% set updated = page.meta.revision_date %} {% endif %} {% if page.meta.git_creation_date_localized %} {% set created = page.meta.git_creation_date_localized %} {% endif %} {% endif %} {% if updated or created %}
+<aside class="md-source-file">
+{% if updated %} {{ render_updated(updated) }} {% endif %} {% if created %} {{ render_created(created) }} {% endif %}
+</aside>
 {% endif %}

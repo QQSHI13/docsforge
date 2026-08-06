@@ -1,0 +1,10 @@
+{#-
+  This file was automatically generated - do not edit
+-#}
+<button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  {% set icon = (config.theme.icon.top or "material/arrow-up") | validate_icon_name %}
+  {% if icon %}
+    {% include ".icons/" ~ icon ~ ".svg" %}
+  {% endif %}
+  {{ lang.t("top") }}
+</button>

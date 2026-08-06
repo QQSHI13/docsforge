@@ -1,0 +1,13 @@
+{#-
+  This file was automatically generated - do not edit
+-#}
+{% set page_lang = config.theme.language %}
+{% if page is defined %}
+  {% set locale = page.i18n_locale | default(none) %}
+  {% if locale %}
+    {% set page_lang = locale %}
+  {% endif %}
+{% endif %}
+{% import "partials/languages/" ~ page_lang ~ ".html" as lang %}
+{% import "partials/languages/en.html" as fallback %}
+{% macro t(key) %}{{ lang.t(key) or fallback.t(key) or key }}{% endmacro %}
