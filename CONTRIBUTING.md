@@ -38,38 +38,20 @@ npm test
 ## Frontend development
 
 The Material theme ships as **source** under `packages/docsforge/src/` and is
-built into `packages/docsforge/docsforge/templates/` by the in-repo pipeline
-(esbuild bundles, sass + autoprefixer CSS, svgo icons, html-minifier-terser
-templates, minified service worker):
+built into `packages/docsforge/docsforge/templates/` by the pipeline at
+`packages/docsforge/build_frontend.py` (esbuild bundles, sass + autoprefixer
+CSS, svgo icons, html-minifier-terser templates, minified service worker):
 
 ```bash
 cd packages/docsforge
 pnpm install   # esbuild, sass, svgo, ... (committed lockfile)
-python scripts/build_frontend.py --clean
+python build_frontend.py --clean
 ```
 
-`scripts/frontend-patches.md` is the living inventory of every intentional
+`.review-notes/frontend-patches.md` is the inventory of every intentional
 deviation from upstream mkdocs-material (v9.7.7) — keep it in sync when you
-touch `src/`.
-
-Every change to `src/` must keep the committed output reproducible. Run the
-per-area parity gates before pushing:
-
-```bash
-cd packages/docsforge
-for area in templates css js sw lunr; do
-  python scripts/check_frontend_parity.py --area "$area"
-done
-python scripts/check_frontend_parity.py --vs-ref main   # fast output diff vs main
-```
-
-- `--area X` — fresh build vs the committed output for area X (the gate).
-- `--vs-ref REF` — committed output vs the same dir at git ref REF, no build.
-- `--baseline-snapshot scripts/parity/baseline-*.sha256` — every delta vs the
-  pre-migration output (no whitelist).
-- `SENTINEL_MARKERS` in the parity script fail the gate if a DocsForge
-  customization string (e.g. `X-DocsForge-Instant-Nav`) disappears from a
-  fresh build — hash parity alone cannot see a lost customization.
+touch `src/`. The frontend CI job (`frontend.yml`) builds the frontend and
+runs the full Python test suite on every push/PR.
 
 ## Submitting changes
 

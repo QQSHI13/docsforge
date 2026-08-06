@@ -20,7 +20,7 @@ from pathlib import Path
 
 log = logging.getLogger("build_frontend")
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 OUT = ROOT / "docsforge" / "templates"
 NODE_MODULES = ROOT / "node_modules"

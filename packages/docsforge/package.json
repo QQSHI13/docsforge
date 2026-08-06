@@ -4,8 +4,8 @@
   "private": true,
   "description": "DocsForge frontend build dependencies",
   "scripts": {
-    "build": "python scripts/build_frontend.py",
-    "watch": "python scripts/build_frontend.py --watch"
+    "build": "python build_frontend.py",
+    "watch": "python build_frontend.py --watch"
   },
   "dependencies": {
     "clipboard": "^2.0.11",
