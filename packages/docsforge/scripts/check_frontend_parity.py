@@ -108,6 +108,7 @@ def main() -> int:
     parser.add_argument("--area", choices=sorted(AREA_PREFIXES))
     parser.add_argument("--include-icons", action="store_true")
     parser.add_argument("--report-only", action="store_true")
+    parser.add_argument("--full", action="store_true", help="Print every difference (default: first 10 per category)")
     args = parser.parse_args()
 
     whitelist = load_whitelist(args.whitelist)
@@ -139,11 +140,16 @@ def main() -> int:
         if args.baseline_snapshot is not None:
             reference = load_snapshot(args.baseline_snapshot)
             if args.area is None:
-                # Without an area filter, exclude icons unless requested: the
-                # default build skips them, so they would all report "removed".
+                # Without an area filter, exclude vendored assets the pipeline
+                # intentionally doesn't produce (icons unless requested, katex,
+                # pygments stylesheet, static images) — otherwise they would all
+                # report as "removed" and drown the signal.
                 reference = {
                     rel: h for rel, h in reference.items()
-                    if args.include_icons or not rel.startswith(".icons/")
+                    if (args.include_icons or not rel.startswith(".icons/"))
+                    and not rel.startswith("assets/katex/")
+                    and rel != "assets/stylesheets/pygments.css"
+                    and not rel.startswith("assets/images/")
                 }
             else:
                 reference = {
@@ -182,10 +188,11 @@ def main() -> int:
               f"removed={len(removed)} changed={len(changed)} "
               f"unexpected={len(unexpected)}")
         for label, items in (("added", added), ("removed", removed), ("changed", changed)):
-            for rel in items[:10]:
+            shown = items if args.full else items[:10]
+            for rel in shown:
                 mark = "OK " if is_whitelisted(rel) else "!! "
                 print(f"  {mark}{label}: {rel}")
-            if len(items) > 10:
+            if not args.full and len(items) > 10:
                 print(f"  ... and {len(items) - 10} more {label}")
 
         if args.report_only:

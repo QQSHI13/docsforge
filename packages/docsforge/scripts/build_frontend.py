@@ -86,6 +86,10 @@ def build_typescript() -> None:
             "--platform=browser",
             "--jsx-factory=h",
             "--jsx-fragment=Fragment",
+            # material imports mermaid's index.css as a string (themeCSS option);
+            # without the text loader it gets extracted to a stray bundle.min.css
+            # and mermaid theming breaks.
+            "--loader:.css=text",
         ])
 
 
@@ -162,7 +166,11 @@ def minify_html_file(src: Path, dst: Path) -> None:
 
 
 def copy_templates() -> None:
-    """Copy and minify HTML templates."""
+    """Copy and minify HTML templates; copy non-HTML static templates verbatim.
+
+    Non-HTML static templates (docsforge_theme.yml, sitemap.xml, ...) are part
+    of the installed theme and must ship alongside the HTML templates.
+    """
     template_src = SRC / "templates"
     if not template_src.exists():
         log.warning("Template source does not exist: %s", template_src)
@@ -171,6 +179,17 @@ def copy_templates() -> None:
         rel = src.relative_to(template_src)
         dst = OUT / rel
         minify_html_file(src, dst)
+    for src in template_src.rglob("*"):
+        if not src.is_file() or src.suffix.lower() == ".html":
+            continue
+        rel = src.relative_to(template_src)
+        # .icons/ is a 14k-file set synced separately by copy_icons_to_out();
+        # copying it here doubles the work and duplicates the output.
+        if rel.parts[0] == ".icons":
+            continue
+        dst = OUT / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
 
 
 def copy_icons() -> None:

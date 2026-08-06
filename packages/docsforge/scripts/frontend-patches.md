@@ -31,8 +31,15 @@ whitelist these deltas; anything NOT listed here is a regression.
     scoped one.
   - `DOCSFORGE_UPDATE_READY` / `DOCSFORGE_CACHE_COMPLETE` once-per-session logs.
   - Per-locale `search_index_url` (suffix-mode i18n: `search_index.zh.json`).
-  - i18n alternate `<link rel=alternate>` loop with duplicate locale-agnostic
-    hrefs (needs the alternate-integration fix, see JS section).
+  - i18n alternate `<link rel=alternate>` entries are deliberately NOT emitted
+    (see the comment in `base.html`): suffix-mode i18n gives every locale the
+    same locale-agnostic URL, so duplicate alternates are invalid HTML and
+    would make the alternate integration fetch a per-page `sitemap.xml` (404s).
+- `fragments/tags/default/listing.html` + `tag.html` are NOT shipped: DocsForge
+  reimplements the tags plugin in `docsforge/core/tags.py`, which resolves
+  `{layout}-listing.html` / `{layout}-tag.html` as flat files
+  (`default-listing.html` / `default-tag.html`, DocsForge-customized with
+  `| safe`). The nested upstream variants are dead weight.
 - `partials/i18n.html` — stateless language switcher: links are `href="#"`,
   click does `preventDefault()` + `stopPropagation()` (so instant navigation
   never sees the click), `setLocale(locale)` then `location.reload()` with no
@@ -45,10 +52,9 @@ whitelist these deltas; anything NOT listed here is a regression.
     switcher owns its own navigation).
   - Updates the language-switcher active state after instant navigation.
 - `integrations/alternate/index.ts` — upstream v9.7.7 selects **all**
-  `link[rel=alternate]` (older bundles used `:not([hreflang])`). Under
-  suffix-mode i18n the alternates are duplicate hrefs, so this integration
-  fetches per-page `sitemap.xml` (404s). Must be disabled or the duplicate
-  links suppressed when i18n is active.
+  `link[rel=alternate]` (older bundles used `:not([hreflang])`). Safe now:
+  `base.html` only ever emits `config.extra.alternate` links, so the per-page
+  `sitemap.xml` fetch only fires for genuinely versioned alternates.
 - `sw.js` — DocsForge service worker: manifest-driven delta sync, locale-aware
   `servePage` (IndexedDB `preferred_locale`), `keyToUrl`/`urlToKey` inverse for
   `./`, orphan eviction only for previously-manifest-tracked entries.
