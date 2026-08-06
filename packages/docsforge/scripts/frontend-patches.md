@@ -64,7 +64,13 @@ whitelist these deltas; anything NOT listed here is a regression.
   `sitemap.xml` fetch only fires for genuinely versioned alternates.
 - `sw.js` — DocsForge service worker: manifest-driven delta sync, locale-aware
   `servePage` (IndexedDB `preferred_locale`), `keyToUrl`/`urlToKey` inverse for
-  `./`, orphan eviction only for previously-manifest-tracked entries.
+  `./`, orphan eviction only for previously-manifest-tracked entries. Shipped
+  minified by `copy_sw()` with the `__DOCSFORGE_BASE_URL__` /
+  `__DOCSFORGE_BUILD_HASH__` placeholders left intact — `docsforge/build.py`
+  injects the real base path and a deterministic hash at site-build time so the
+  SW bytes change between builds (browser SW-update detection + rotating
+  `CACHE_NAME`). The old `__PRE_CACHE_PAGES__` baked precache list is gone
+  (manifest sync replaces it); build.py's precache substitution is a no-op.
 - Preact JSX factory (`--jsx-factory=h`, `--jsx-fragment=Fragment`) so the
   bundle never references a global `React`.
 

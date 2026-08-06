@@ -265,7 +265,17 @@ def copy_lunr() -> None:
 
 
 def copy_sw() -> None:
-    """Minify and copy the service worker, replacing placeholders."""
+    """Minify and copy the service worker, keeping the build placeholders.
+
+    The __DOCSFORGE_BASE_URL__ and __DOCSFORGE_BUILD_HASH__ placeholders are
+    deliberately left in place: docsforge/build.py replaces them at site-build
+    time with the real base path and a deterministic hash (see build.py's SW
+    injection). Replacing them here (e.g. with 'dev'/'') would make the SW
+    bytes identical across builds, defeat the browser's SW-update check, and
+    leave build.py's injection dead. The new SW no longer uses
+    __PRE_CACHE_PAGES__ (manifest-driven sync replaces the baked precache
+    list), so build.py's precache substitution is a no-op.
+    """
     src = SRC / "assets" / "javascripts" / "sw.js"
     if not src.exists():
         log.warning("Service worker source missing")
@@ -275,7 +285,7 @@ def copy_sw() -> None:
 
     # Minify with esbuild so the shipped worker has no comments/whitespace, like
     # every other JS asset. The __DOCSFORGE_*__ placeholders are string literals
-    # and survive minification, so the build-time substitution below still works.
+    # and survive minification for build.py to substitute.
     tmp = ROOT / ".tmp" / "sw.min.js"
     tmp.parent.mkdir(parents=True, exist_ok=True)
     run([
@@ -285,18 +295,7 @@ def copy_sw() -> None:
         "--target=es2020",
         f"--outfile={tmp}",
     ])
-    content = tmp.read_text(encoding="utf-8")
-
-    # Build hash from manifest or git
-    build_hash = "dev"
-    manifest = OUT.parent / "cache-manifest.json"
-    if manifest.exists():
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-        build_hash = data.get("version", "dev")
-    content = content.replace("__DOCSFORGE_BUILD_HASH__", build_hash)
-    # Base URL from docsforge config would be injected at runtime; use placeholder
-    content = content.replace("__DOCSFORGE_BASE_URL__", "")
-    dst.write_text(content, encoding="utf-8")
+    shutil.copy2(tmp, dst)
 
 
 def main(argv: list[str] | None = None) -> int:
