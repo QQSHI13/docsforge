@@ -35,7 +35,7 @@
     "postcss-dir-pseudo-class": "^9.0.1",
     "preact": "^10.28.2",
     "postcss-inline-svg": "^6.0.0",
-    "postcss-logical": "^5.0.4",
+    "postcss-logical": "^9.0.0",
     "postcss-pseudo-is": "^0.3.0",
     "sass": "^1.97.2",
     "simple-icons": "^16.4.0",
