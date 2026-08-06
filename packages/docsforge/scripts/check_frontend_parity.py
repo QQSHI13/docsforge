@@ -119,7 +119,14 @@ def main() -> int:
         )
 
         def is_whitelisted(rel: str) -> bool:
-            return any(fnmatch.fnmatch(rel, pat) for pat in whitelist)
+            for pat in whitelist:
+                # Patterns ending in '/' are directory prefixes.
+                if pat.endswith("/"):
+                    if rel.startswith(pat):
+                        return True
+                elif fnmatch.fnmatch(rel, pat):
+                    return True
+            return False
 
         unexpected = (
             [r for r in added if not is_whitelisted(r)]

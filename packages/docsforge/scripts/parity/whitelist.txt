@@ -6,8 +6,8 @@
 #
 # Vendored third-party assets, NOT produced by the frontend pipeline (they are
 # committed as-is; the pipeline preserves them):
-#   assets/katex/                          # KaTeX (math rendering) vendored
-#   assets/stylesheets/pygments.css        # Pygments stylesheet vendored
+assets/katex/
+assets/stylesheets/pygments.css
 #
 # Examples:
 #   .icons/                          # svgo re-optimization of vendored icons
