@@ -25,7 +25,7 @@
     "@types/fuzzaldrin-plus": "^0.6.5",
     "@types/lunr": "^2.3.7",
     "autoprefixer": "^10.4.23",
-    "cssnano": "^6.1.2",
+    "cssnano": "^8.0.2",
     "esbuild": "^0.28.1",
     "html-minifier-terser": "^7.2.0",
     "material-design-color": "^2.3.2",
