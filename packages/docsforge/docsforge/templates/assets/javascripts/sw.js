@@ -389,6 +389,11 @@ async function servePage(request) {
 
   // Fetch the first candidate that exists on the server. Start with the
   // locale-specific file so translated HTML is cached under its real path.
+  // When offline, skip the network attempts entirely — they can only fail —
+  // and serve the cached 404 page immediately.
+  if (navigator.onLine === false) {
+    return respond404();
+  }
   for (const candidate of candidates) {
     log('Fetching page candidate:', candidate);
     try {
