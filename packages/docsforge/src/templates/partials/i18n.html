@@ -40,6 +40,11 @@
             event.preventDefault();
             event.stopPropagation();
             var targetLocale = link.getAttribute('hreflang') || '';
+            // Selecting the current language is a no-op: avoids the pointless
+            // reload that races the service-worker locale sync when the same
+            // language is clicked repeatedly.
+            var currentLocale = document.documentElement.lang || '';
+            if (targetLocale === currentLocale) return;
             if (window.docsforge && window.docsforge.setLocale) {
               window.docsforge.setLocale(targetLocale).then(function() {
                 location.reload();
