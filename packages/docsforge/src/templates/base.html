@@ -32,11 +32,11 @@
           <link rel="alternate" href="{{ alt.link | url }}" hreflang="{{ alt.lang | d(lang.t('language')) }}">
         {% endfor %}
       {% endif %}
-      {% if page.i18n_alternates is iterable %}
-        {% for alt in page.i18n_alternates %}
-          <link rel="alternate" href="{{ alt.url | url }}" hreflang="{{ alt.locale }}">
-        {% endfor %}
-      {% endif %}
+      {# i18n alternates are deliberately NOT emitted: suffix-mode i18n gives every
+         locale the same locale-agnostic URL, so duplicate <link rel=alternate>
+         entries are invalid HTML and trigger the material alternate integration
+         to fetch a per-page sitemap.xml (404s). The language switcher handles
+         locale switching instead. #}
       <link rel="icon" href="{{ config.theme.favicon | url }}">
       <link rel="manifest" href="{{ 'manifest.json' | url }}">
       {% set palette = config.theme.palette %}

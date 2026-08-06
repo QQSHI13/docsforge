@@ -98,6 +98,7 @@ export interface Config {
   features: Flag[]                     /* Feature flags */
   translations: Translations           /* Translations */
   search: string                       /* Search worker URL */
+  search_index?: string                /* Search index URL (per locale) */
   annotate?: Record<string, string[]>  /* Annotation mappings */
   tags?: Record<string, string>        /* Tags mapping */
   version?: Versioning                 /* Versioning */

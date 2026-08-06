@@ -112,7 +112,7 @@ function fetchSearchIndex(): Observable<SearchIndex> {
       )
   } else {
     return requestJSON<SearchIndex>(
-      new URL("search/search_index.json", config.base)
+      new URL(config.search_index || "search/search_index.json", config.base)
     )
   }
 }
