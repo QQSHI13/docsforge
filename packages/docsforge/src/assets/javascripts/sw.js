@@ -225,6 +225,19 @@ function urlToKey(url) {
   return key || './';
 }
 
+// Does the build ship the file for this candidate URL? The manifest lists
+// every output; a candidate absent from it cannot exist on the server. The
+// manifest stores directory-index pages under their directory URL
+// ('reference/'), not the 'reference/index.html' form, so normalize that.
+// Returns true when no manifest is available (first load) to never block.
+function manifestHasFile(manifest, url) {
+  if (!manifest || !manifest.files) return true;
+  let key = urlToKey(url);
+  if (key === null) return true;
+  if (key.endsWith('/index.html')) key = key.slice(0, -'index.html'.length) || './';
+  return Object.prototype.hasOwnProperty.call(manifest.files, key);
+}
+
 async function makeSpaceIfNeeded(requiredBytes = 0) {
   if (!navigator.storage || !navigator.storage.estimate) return;
   let estimate;
@@ -391,6 +404,7 @@ async function servePage(request) {
   const cache = await caches.open(CACHE_NAME);
   const url = new URL(request.url);
   const preferredLocale = await readPreferredLocale();
+  const manifest = await loadManifestFromCache();
 
   const candidates = buildPageCandidates(url, preferredLocale);
 
@@ -411,6 +425,12 @@ async function servePage(request) {
     return respond404();
   }
   for (const candidate of candidates) {
+    // Skip candidates the build never ships (e.g. index.en.html when 'en' is
+    // the unsuffixed default locale): requesting them 404s on the server.
+    if (!manifestHasFile(manifest, candidate)) {
+      log('Skipping page candidate not in manifest:', candidate);
+      continue;
+    }
     log('Fetching page candidate:', candidate);
     try {
       const resp = await fetch(candidate);

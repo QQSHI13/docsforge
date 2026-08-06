@@ -71,6 +71,9 @@ whitelist these deltas; anything NOT listed here is a regression.
   SW bytes change between builds (browser SW-update detection + rotating
   `CACHE_NAME`). The old `__PRE_CACHE_PAGES__` baked precache list is gone
   (manifest sync replaces it); build.py's precache substitution is a no-op.
+  `servePage` skips network candidates whose manifest key is absent — e.g.
+  `index.en.html` when the default locale is unsuffixed — so stale/stored
+  default-locale preferences never 404 on the server.
 - Preact JSX factory (`--jsx-factory=h`, `--jsx-fragment=Fragment`) so the
   bundle never references a global `React`.
 
