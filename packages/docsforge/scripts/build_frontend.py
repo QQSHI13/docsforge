@@ -109,6 +109,11 @@ def build_styles() -> None:
             "--load-path=node_modules/material-design-color",
             "--load-path=node_modules/material-shadows",
             "--load-path=src/assets/stylesheets",
+            # The SCSS is vendored from mkdocs-material and still uses the
+            # classic @import/global-builtin style. Dart Sass deprecates these
+            # (removal in 3.0); silencing keeps output byte-identical and lets
+            # the upstream migration land when we upgrade material.
+            "--silence-deprecation=import,global-builtin",
         ])
         # Apply autoprefixer.
         prefixed = tmp_css.with_suffix(".prefixed.css")
