@@ -4,6 +4,28 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.3.0] — 2026-08-06
+
+### Changed
+
+- **Repository flattened.** The monorepo `packages/` level is gone: the core
+  package, `pyproject.toml`, `src/`, `tests/`, and the frontend pipeline live
+  at the repo root; the docs site is `docsforge-docs/` and the VS Code
+  extension is `vscode-docsforge/`. All workflows, Dockerfile, dependabot
+  config, and docs links updated; the full package README is now the root
+  README.
+- **svgo 4.** The icon pipeline now uses svgo 4 (config migrated; `viewBox`
+  preservation unchanged). Verified byte-reproducible build output.
+- **pnpm 11** for the frontend build (the workspace file uses pnpm 10+ syntax
+  that pnpm 9 rejected), with the `minimumReleaseAge` supply-chain gate
+  disabled so dependabot bumps to freshly published versions pass CI.
+- **Frontend CI is reproducible again**: `frontend.yml` fails if the build
+  output differs from the committed `docsforge/templates/`, and the release
+  workflow rebuilds the frontend from `src/` before publishing the wheel.
+- The transition-time parity harness and baseline snapshot were removed
+  (their job is done); `build_frontend.py` moved to the repo root.
+- CI runs the full test suite, including a dedicated Playwright e2e job.
+
 ## [12.2.0] — 2026-08-06
 
 ### Added
