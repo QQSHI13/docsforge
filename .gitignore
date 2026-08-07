@@ -27,6 +27,3 @@ venv/
 # Build output (also remove tracked pdf/ artifacts)
 packages/docsforge-docs/pdf/
 .docsforge/
-
-# Review tracking notes
-.review-notes/

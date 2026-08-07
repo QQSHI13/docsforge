@@ -48,10 +48,11 @@ pnpm install   # esbuild, sass, svgo, ... (committed lockfile)
 python build_frontend.py --clean
 ```
 
-`.review-notes/frontend-patches.md` is the inventory of every intentional
-deviation from upstream mkdocs-material (v9.7.7) — keep it in sync when you
-touch `src/`. The frontend CI job (`frontend.yml`) builds the frontend and
-runs the full Python test suite on every push/PR.
+The pipeline is documented in `build_frontend.py` itself. Keep `src/` close to
+upstream mkdocs-material (v9.7.7) and comment any intentional deviation where
+you make it. The frontend CI job (`frontend.yml`) builds the frontend and
+fails if the committed templates don't match the build, then runs the full
+Python test suite on every push/PR.
 
 ## Submitting changes
 
