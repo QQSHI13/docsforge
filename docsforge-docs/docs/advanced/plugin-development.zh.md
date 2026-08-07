@@ -86,7 +86,7 @@ dependencies = ["docsforge >= 11.0"]
 
 ```bash
 # 在 monorepo 中
-pip install -e packages/docsforge/examples/plugins/reading-time
+pip install -e examples/plugins/reading-time
 
 # 在你的文档项目中
 docsforge serve          # 编辑插件，保存，实时重载会重新构建
@@ -137,6 +137,6 @@ twine upload dist/*        # 或：使用 GitHub Actions 进行可信发布
 
 ## API 参考
 
-- [插件基类](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/core/plugin_base.py)
-- [配置选项](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/config_options.py)
-- [内置插件](https://github.com/QQSHI13/docsforge/tree/main/packages/docsforge/docsforge/core/) — `search`、`blog`、`tags`、`meta`、`privacy`、`minify`、`info` 均为生产级参考实现。
+- [插件基类](https://github.com/QQSHI13/docsforge/blob/main/docsforge/core/plugin_base.py)
+- [配置选项](https://github.com/QQSHI13/docsforge/blob/main/docsforge/config_options.py)
+- [内置插件](https://github.com/QQSHI13/docsforge/tree/main/docsforge/core/) — `search`、`blog`、`tags`、`meta`、`privacy`、`minify`、`info` 均为生产级参考实现。

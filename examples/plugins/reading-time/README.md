@@ -6,7 +6,7 @@ page and exposes it to templates as `{{ reading_time }}`.
 ## Install (editable, from the monorepo)
 
 ```bash
-pip install -e packages/docsforge/examples/plugins/reading-time
+pip install -e examples/plugins/reading-time
 ```
 
 ## Use

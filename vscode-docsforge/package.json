@@ -168,6 +168,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/QQSHI13/docsforge",
-    "directory": "packages/vscode-docsforge"
+    "directory": "vscode-docsforge"
   }
 }

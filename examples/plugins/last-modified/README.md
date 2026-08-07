@@ -6,7 +6,7 @@ with a configurable date format, so templates can render a "last updated" date.
 ## Install
 
 ```bash
-pip install -e packages/docsforge/examples/plugins/last-modified
+pip install -e examples/plugins/last-modified
 ```
 
 ## Use

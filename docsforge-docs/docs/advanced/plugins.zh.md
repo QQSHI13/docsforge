@@ -159,6 +159,6 @@ class AnalyticsPlugin(BasePlugin):
 
 完整的 API 请参见：
 
-- [Plugin base class](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/core/plugin_base.py)
-- [Config options](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/config_options.py)
-- [Built-in plugins](https://github.com/QQSHI13/docsforge/tree/main/packages/docsforge/docsforge/core/) 作为参考实现
+- [Plugin base class](https://github.com/QQSHI13/docsforge/blob/main/docsforge/core/plugin_base.py)
+- [Config options](https://github.com/QQSHI13/docsforge/blob/main/docsforge/config_options.py)
+- [Built-in plugins](https://github.com/QQSHI13/docsforge/tree/main/docsforge/core/) 作为参考实现

@@ -16,10 +16,10 @@ git clone https://github.com/QQSHI13/docsforge.git
 cd docsforge
 
 # Python package
-pip install -e packages/docsforge
+pip install -e .
 
 # VS Code extension
-cd packages/vscode-docsforge
+cd vscode-docsforge
 npm install
 ```
 
@@ -27,23 +27,21 @@ npm install
 
 ```bash
 # Python unit / regression / integration tests
-cd packages/docsforge
 python -m pytest tests/unit tests/regression tests/integration -q
 
 # VS Code extension pure-helper tests
-cd packages/vscode-docsforge
+cd vscode-docsforge
 npm test
 ```
 
 ## Frontend development
 
-The Material theme ships as **source** under `packages/docsforge/src/` and is
-built into `packages/docsforge/docsforge/templates/` by the pipeline at
-`packages/docsforge/build_frontend.py` (esbuild bundles, sass + autoprefixer
+The Material theme ships as **source** under `src/` and is
+built into `docsforge/templates/` by the pipeline at
+`build_frontend.py` (esbuild bundles, sass + autoprefixer
 CSS, svgo icons, html-minifier-terser templates, minified service worker):
 
 ```bash
-cd packages/docsforge
 pnpm install   # esbuild, sass, svgo, ... (committed lockfile)
 python build_frontend.py --clean
 ```

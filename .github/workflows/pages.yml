@@ -5,8 +5,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/docsforge-docs/**'
-      - 'packages/docsforge/**'
+      - 'docsforge-docs/**'
+      - 'docsforge/**'
+      - 'src/**'
+      - 'build_frontend.py'
+      - 'pyproject.toml'
   workflow_dispatch:
 
 permissions:
@@ -31,15 +34,15 @@ jobs:
           python-version: '3.12'
 
       - name: Install DocsForge
-        run: pip install ./packages/docsforge
+        run: pip install .
 
       - name: Build site
-        run: cd packages/docsforge-docs && docsforge build
+        run: cd docsforge-docs && docsforge build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: packages/docsforge-docs/site/
+          path: docsforge-docs/site/
 
   deploy:
     needs: build

@@ -6,20 +6,20 @@ updates:
     schedule:
       interval: "weekly"
 
-  # Frontend build dependencies (pnpm workspace under packages/docsforge).
+  # Frontend build dependencies (pnpm workspace at the repo root).
   - package-ecosystem: "npm"
-    directory: "/packages/docsforge"
+    directory: "/"
     schedule:
       interval: "weekly"
 
   # VS Code extension dependencies.
   - package-ecosystem: "npm"
-    directory: "/packages/vscode-docsforge"
+    directory: "/vscode-docsforge"
     schedule:
       interval: "weekly"
 
-  # Python package dependencies (pyproject.toml).
+  # Python package dependencies (pyproject.toml at the repo root).
   - package-ecosystem: "pip"
-    directory: "/packages/docsforge"
+    directory: "/"
     schedule:
       interval: "weekly"

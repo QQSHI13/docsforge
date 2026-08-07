@@ -29,12 +29,12 @@ jobs:
           python-version: '3.12'
       - name: Install DocsForge + test deps + Playwright
         run: |
-          pip install -e packages/docsforge
+          pip install -e .
           pip install pytest pytest-mock playwright
       - name: Install Chromium for Playwright
         run: python -m playwright install --with-deps chromium
       - name: Run all tests
-        run: cd packages/docsforge && python -m pytest -q
+        run: python -m pytest -q
 
   release:
     needs: test
@@ -93,14 +93,14 @@ jobs:
       - name: Bump version in main code
         run: |
           VERSION="${{ steps.versions.outputs.pypi }}"
-          FILE="packages/docsforge/docsforge/__init__.py"
+          FILE="docsforge/__init__.py"
           sed -i "s/^__version__ = .*/__version__ = \"$VERSION\"/" "$FILE"
           echo "Updated $FILE: $(grep __version__ $FILE)"
 
       - name: Bump version in VS Code extension
         run: |
           VERSION="${{ steps.versions.outputs.vsix }}"
-          FILE="packages/vscode-docsforge/package.json"
+          FILE="vscode-docsforge/package.json"
           node -e "
             const pkg = require('./$FILE');
             pkg.version = '$VERSION';
@@ -110,7 +110,7 @@ jobs:
 
       - name: Bump version in VS Code extension lockfile
         run: |
-          LOCK="packages/vscode-docsforge/package-lock.json"
+          LOCK="vscode-docsforge/package-lock.json"
           if [ -f "$LOCK" ]; then
             node -e "
               const fs = require('fs');
@@ -133,11 +133,11 @@ jobs:
           TAG="${{ steps.versions.outputs.tag }}"
           git config user.name "docsforge-bot"
           git config user.email "bot@docsforge.dev"
-          git add packages/docsforge/docsforge/__init__.py packages/vscode-docsforge/package.json
+          git add docsforge/__init__.py vscode-docsforge/package.json
           # package-lock.json is gitignored, but if it exists we want it committed
           # so the lockfile version stays in sync with package.json.
-          if [ -f packages/vscode-docsforge/package-lock.json ]; then
-            git add -f packages/vscode-docsforge/package-lock.json
+          if [ -f vscode-docsforge/package-lock.json ]; then
+            git add -f vscode-docsforge/package-lock.json
           fi
 
           if ! git diff --cached --quiet; then
@@ -155,7 +155,7 @@ jobs:
         id: notes
         run: |
           VERSION="${{ steps.versions.outputs.version }}"
-          CHANGELOG="packages/docsforge-docs/docs/changelog/index.md"
+          CHANGELOG="docsforge-docs/docs/changelog/index.md"
           # Extract the "## [VERSION] ..." section up to the next "## [" header.
           # Use index() (string search) instead of a regex so bracket escaping
           # can't differ between awk implementations (mawk vs gawk).
@@ -218,26 +218,26 @@ jobs:
         uses: actions/setup-node@v7
 
       - name: Install extension dependencies
-        run: cd packages/vscode-docsforge && npm install
+        run: cd vscode-docsforge && npm install
 
       - name: Compile extension
-        run: cd packages/vscode-docsforge && npm run compile
+        run: cd vscode-docsforge && npm run compile
 
       - name: Lint extension
-        run: cd packages/vscode-docsforge && npm run lint
+        run: cd vscode-docsforge && npm run lint
 
       - name: Test extension
-        run: cd packages/vscode-docsforge && npm test
+        run: cd vscode-docsforge && npm test
 
       - name: Package extension
         run: |
-          cd packages/vscode-docsforge
+          cd vscode-docsforge
           npm install -g @vscode/vsce
           vsce package --out "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix"
 
       - name: Generate VSIX checksum
         run: |
-          cd packages/vscode-docsforge
+          cd vscode-docsforge
           sha256sum "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix" \
             > "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix.sha256"
 
@@ -248,8 +248,8 @@ jobs:
           VSIX_VERSION="${{ needs.release.outputs.vsix_version }}"
           TAG="${{ needs.release.outputs.tag }}"
           gh release upload "$TAG" \
-            "packages/vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix" \
-            "packages/vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix.sha256" \
+            "vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix" \
+            "vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix.sha256" \
             --clobber
 
   build-docker:
@@ -324,20 +324,20 @@ jobs:
 
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
-        working-directory: packages/docsforge
+        working-directory: .
 
       - name: Build frontend from src
         run: python build_frontend.py
-        working-directory: packages/docsforge
+        working-directory: .
 
       - name: Install Python build deps
         run: pip install build
 
       - name: Build Python package
-        run: cd packages/docsforge && python -m build
+        run: python -m build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
-          packages-dir: packages/docsforge/dist/
+          packages-dir: dist/

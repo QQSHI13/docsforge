@@ -155,6 +155,6 @@ There are two ways to make a custom plugin available — see [Plugin Development
 
 For the complete API, see:
 
-- [Plugin base class](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/core/plugin_base.py)
-- [Config options](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/config_options.py)
-- [Built-in plugins](https://github.com/QQSHI13/docsforge/tree/main/packages/docsforge/docsforge/core/) for reference implementations
+- [Plugin base class](https://github.com/QQSHI13/docsforge/blob/main/docsforge/core/plugin_base.py)
+- [Config options](https://github.com/QQSHI13/docsforge/blob/main/docsforge/config_options.py)
+- [Built-in plugins](https://github.com/QQSHI13/docsforge/tree/main/docsforge/core/) for reference implementations

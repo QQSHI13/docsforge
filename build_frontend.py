@@ -2,7 +2,7 @@
 """Build DocsForge frontend from source.
 
 Copies mkdocs-material-style source files and builds them into
-packages/docsforge/docsforge/templates/.
+docsforge/templates/.
 """
 
 from __future__ import annotations

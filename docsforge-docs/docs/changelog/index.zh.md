@@ -250,8 +250,8 @@
 ### 变更
 
 - **仓库卫生——从 git 中移除未跟踪的构建产物：**
-  - 移除了 `packages/docsforge-docs/pdf/` 下 42 个已提交的 PDF 构建输出；该目录现在被 gitignore。
-  - `docs/blog/index.md`（由博客插件自动生成）取消跟踪并在包级别正确 gitignore。此前根级别的 `docs/blog/index.md` 模式是斜杠锚定的，从未匹配到 `packages/docsforge-docs/` 下的实际路径。
+  - 移除了 `docsforge-docs/pdf/` 下 42 个已提交的 PDF 构建输出；该目录现在被 gitignore。
+  - `docs/blog/index.md`（由博客插件自动生成）取消跟踪并在包级别正确 gitignore。此前根级别的 `docs/blog/index.md` 模式是斜杠锚定的，从未匹配到 `docsforge-docs/` 下的实际路径。
   - 从磁盘删除了陈旧的 `docsforge-vscode-11.0.0-beta.2.vsix`。
 
 ## [11.0.0b1] — 2026-06-19

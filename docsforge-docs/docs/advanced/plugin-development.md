@@ -86,7 +86,7 @@ The entry-point **name** (`"reading-time"`) is what users put in `plugins:`. The
 
 ```bash
 # from the monorepo
-pip install -e packages/docsforge/examples/plugins/reading-time
+pip install -e examples/plugins/reading-time
 
 # in your docs project
 docsforge serve          # edit the plugin, save, livereload rebuilds
@@ -137,6 +137,6 @@ Name your package `docsforge-*` so it's discoverable. List it in your plugin's R
 
 ## API reference
 
-- [Plugin base class](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/core/plugin_base.py)
-- [Config options](https://github.com/QQSHI13/docsforge/blob/main/packages/docsforge/docsforge/config_options.py)
-- [Built-in plugins](https://github.com/QQSHI13/docsforge/tree/main/packages/docsforge/docsforge/core/) — `search`, `blog`, `tags`, `meta`, `privacy`, `minify`, `info` are production-grade reference implementations.
+- [Plugin base class](https://github.com/QQSHI13/docsforge/blob/main/docsforge/core/plugin_base.py)
+- [Config options](https://github.com/QQSHI13/docsforge/blob/main/docsforge/config_options.py)
+- [Built-in plugins](https://github.com/QQSHI13/docsforge/tree/main/docsforge/core/) — `search`, `blog`, `tags`, `meta`, `privacy`, `minify`, `info` are production-grade reference implementations.

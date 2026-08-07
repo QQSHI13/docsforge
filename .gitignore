@@ -23,7 +23,12 @@ venv/
 
 # Runtime artifacts
 .cache/
+.tmp/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Build output (also remove tracked pdf/ artifacts)
-packages/docsforge-docs/pdf/
+site/
+docsforge-docs/pdf/
 .docsforge/

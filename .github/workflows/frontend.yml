@@ -26,14 +26,14 @@ jobs:
 
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
-        working-directory: packages/docsforge
+        working-directory: .
 
       - name: Build frontend
         run: python build_frontend.py
-        working-directory: packages/docsforge
+        working-directory: .
 
       - name: Verify committed templates match the build
-        run: git diff --exit-code -- packages/docsforge/docsforge/templates
+        run: git diff --exit-code -- docsforge/templates
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -42,9 +42,9 @@ jobs:
 
       - name: Install DocsForge (editable) + test deps
         run: |
-          pip install -e packages/docsforge
+          pip install -e .
           pip install pytest pytest-mock
 
       - name: Run tests
         run: python -m pytest tests/unit tests/regression tests/integration -q
-        working-directory: packages/docsforge
+        working-directory: .

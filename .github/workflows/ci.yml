@@ -18,10 +18,10 @@ jobs:
           python-version: '3.12'
       - name: Install DocsForge (editable) + test deps
         run: |
-          pip install -e packages/docsforge
+          pip install -e .
           pip install pytest pytest-mock
       - name: Run tests
-        run: cd packages/docsforge && python -m pytest tests/unit tests/regression tests/integration -q
+        run: python -m pytest tests/unit tests/regression tests/integration -q
 
   e2e:
     runs-on: ubuntu-latest
@@ -34,9 +34,9 @@ jobs:
           python-version: '3.12'
       - name: Install DocsForge (editable) + test deps + Playwright
         run: |
-          pip install -e packages/docsforge
+          pip install -e .
           pip install pytest pytest-mock playwright
       - name: Install Chromium for Playwright
         run: python -m playwright install --with-deps chromium
       - name: Run E2E browser tests
-        run: cd packages/docsforge && python -m pytest -m e2e -q
+        run: python -m pytest -m e2e -q
