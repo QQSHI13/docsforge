@@ -26,17 +26,71 @@ OUT = ROOT / "docsforge" / "templates"
 NODE_MODULES = ROOT / "node_modules"
 
 
+def _bin_path(pkg_dir: Path, name: str) -> Path | None:
+    """Resolve the executable for a package's declared ``bin`` field.
+
+    The bin path is not predictable (svgo 3 ships ``bin/svgo``, svgo 4 ships
+    ``bin/svgo.js``), so read it from each candidate's package.json.
+    """
+    pkg_file = pkg_dir / "package.json"
+    if not pkg_file.is_file():
+        return None
+    try:
+        data = json.loads(pkg_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    bin_field = data.get("bin")
+    if isinstance(bin_field, str):
+        path = pkg_dir / bin_field
+    elif isinstance(bin_field, dict) and name in bin_field:
+        path = pkg_dir / bin_field[name]
+    else:
+        return None
+    return path if path.is_file() else None
+
+
 def find_binary(name: str) -> Path:
     """Find a Node binary.
 
     Some pnpm .bin shims (e.g. esbuild) run `node` on a native executable,
-    which fails. We prefer the actual binary in the pnpm virtual store when
-    available.
+    which fails. We prefer the actual binary in the pnpm virtual store.
+
+    The virtual store can hold several versions of the same package (e.g.
+    svgo 3 pulled in transitively by postcss-svgo alongside the svgo 4 direct
+    dependency), so we resolve the version via the top-level `node_modules`
+    symlink and pick the matching store entry — otherwise a transitive copy
+    can shadow the tool the pipeline actually declared.
     """
-    # Prefer the actual binary in the pnpm virtual store.
-    for path in NODE_MODULES.glob(f".pnpm/{name}@*/node_modules/{name}/bin/{name}"):
-        if path.is_file():
-            return path
+    # Version of the direct dependency, resolved through pnpm's top-level
+    # symlink (node_modules/<name> -> .pnpm/<name>@<version>/node_modules/<name>).
+    want: str | None = None
+    direct_pkg = NODE_MODULES / name / "package.json"
+    if direct_pkg.is_file():
+        try:
+            want = json.loads(direct_pkg.read_text(encoding="utf-8")).get("version")
+        except (OSError, ValueError):
+            want = None
+
+    candidates: list[tuple[str, Path]] = []
+    for pkg_dir in sorted(NODE_MODULES.glob(f".pnpm/{name}@*/node_modules/{name}")):
+        version = None
+        for part in pkg_dir.parts:
+            if part.startswith(f"{name}@"):
+                # Store dirs are <name>@<version> or <name>@<version>_<peer>...
+                version = part[len(name) + 1:].split("_", 1)[0]
+        if version is None:
+            continue
+        path = _bin_path(pkg_dir, name)
+        if path is not None:
+            candidates.append((version, path))
+
+    if want:
+        for version, path in candidates:
+            if version == want:
+                return path
+
+    for _, path in candidates:
+        return path
 
     # Fallback to the .bin wrapper.
     shim = NODE_MODULES / ".bin" / name
