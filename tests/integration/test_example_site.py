@@ -40,3 +40,7 @@ def test_example_site_builds(tmp_path, monkeypatch):
     assert (site / "tags" / "index.html").is_file()
     assert (site / "sw.js").is_file()
     assert (site / "cache-manifest.json").is_file()
+    # The custom_dir override (overrides/main.html announce banner) rendered.
+    assert "the official example site" in (site / "index.html").read_text(
+        encoding="utf-8", errors="ignore"
+    )

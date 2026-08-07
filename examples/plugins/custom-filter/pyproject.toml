@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "docsforge-custom-filter"
+version = "0.1.0"
+description = "Example DocsForge plugin: register a custom Jinja filter."
+requires-python = ">=3.10"
+dependencies = ["docsforge >= 11.0"]
+
+[project.entry-points."docsforge.plugins"]
+"custom-filter" = "custom_filter:CustomFilterPlugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["custom_filter"]

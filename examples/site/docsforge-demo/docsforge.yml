@@ -5,6 +5,7 @@ site_author: QQ
 
 theme:
   name: material
+  custom_dir: overrides
   favicon: images/favicon.png
   logo: images/docsforge.png
   palette:

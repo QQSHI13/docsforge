@@ -81,3 +81,22 @@ def test_hook_draft_banner():
     # Non-draft path -> unchanged.
     page_final = SimpleNamespace(file=SimpleNamespace(src_uri="guide/intro.md"))
     assert mod.on_page_markdown("body", page=page_final, config=None, files=None) == "body"
+
+
+def test_custom_filter_plugin():
+    from jinja2 import Environment
+
+    mod = _load_module(
+        "custom_filter_ex",
+        EXAMPLES / "custom-filter" / "custom_filter" / "__init__.py",
+    )
+    p = mod.CustomFilterPlugin()
+    p.load_config({})
+    env = Environment()
+    p.on_env(env, config=None, files=None)
+    assert env.filters["pluralize"](1, "comment") == "comment"
+    assert env.filters["pluralize"](3, "comment") == "comments"
+    assert env.filters["pluralize"](3, "person", "people") == "people"
+    # Renders through a real template.
+    tmpl = env.from_string("{{ n }} {{ n | pluralize('comment') }}")
+    assert tmpl.render(n=5) == "5 comments"

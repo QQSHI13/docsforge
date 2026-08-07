@@ -9,8 +9,9 @@ Curated examples and links for DocsForge. Everything under `examples/` is
 |---|---|---|
 | [`plugins/reading-time`](plugins/reading-time/) | A complete plugin: `BasePlugin` + `Config` options, exposing `{{ reading_time }}` to templates | `pip install -e examples/plugins/reading-time` |
 | [`plugins/last-modified`](plugins/last-modified/) | `on_page_markdown` pattern: set `page.meta['last_modified']` from the source mtime | `pip install -e examples/plugins/last-modified` |
+| [`plugins/custom-filter`](plugins/custom-filter/) | `on_env` pattern: register a custom Jinja filter (`{{ n | pluralize("comment") }}`) | `pip install -e examples/plugins/custom-filter` |
 | [`hooks/hook_draft_banner.py`](hooks/hook_draft_banner.py) | Single-file hook (no packaging) via the `hooks:` config key | see the file header |
-| [`site/docsforge-demo`](site/docsforge-demo/) | A complete site: config, nav, blog, tags, TikZ diagrams, math | `docsforge build` in that directory |
+| [`site/docsforge-demo`](site/docsforge-demo/) | A complete site: config, nav, blog, tags, TikZ diagrams, math, **and a `custom_dir` override** | `docsforge build` in that directory |
 
 The plugin API is documented in
 [`docsforge-docs/docs/advanced/plugin-development.md`](../docsforge-docs/docs/advanced/plugin-development.md).

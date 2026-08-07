@@ -1,0 +1,12 @@
+{#-
+  Example override: extend base.html and fill the Material `announce` block.
+  Enabled via `theme.custom_dir: overrides` in docsforge.yml — any template
+  in this directory shadows the one with the same name in the theme.
+-#}
+{% extends "base.html" %}
+
+{% block announce %}
+  <a href="https://qqshi13.github.io/docsforge/">
+    DocsForge Demo — the official example site
+  </a>
+{% endblock %}
