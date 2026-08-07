@@ -1,0 +1,99 @@
+site_name: DocsForge Demo
+site_url: https://docsforge-demo.pages.dev/
+site_description: Documentation for DocsForge Demo
+site_author: QQ
+
+theme:
+  name: material
+  favicon: images/favicon.png
+  logo: images/docsforge.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - content.code.copy
+    - content.action.edit
+
+repo_url: https://github.com/QQSHI13/docsforge
+repo_name: QQSHI13/docsforge
+edit_uri: edit/main/examples/site/docsforge-demo/docs/
+
+# search, tags, blog, and privacy are built-in core plugins and load
+# automatically — no need to declare them under `plugins:`.
+nav:
+  - title: Home
+    path: index.md
+  - title: Diagram Demo
+    path: diagram-demo.md
+  - title: Features
+    path: features.md
+  - title: Theme Playground
+    path: theme-playground.md
+  - title: Tags
+    path: tags.md
+  - title: Blog
+    children:
+      - path: blog/index.md
+  - title: Shannon Paper
+    children:
+      - path: shannon-paper/index.md
+      - title: Part I — Discrete Noiseless
+        children:
+          - path: shannon-paper/part-i/01-discrete-noiseless-channel.md
+          - path: shannon-paper/part-i/02-discrete-source.md
+          - path: shannon-paper/part-i/03-approximations-to-english.md
+          - path: shannon-paper/part-i/04-markoff-process-graphs.md
+          - path: shannon-paper/part-i/05-ergodic-mixed-sources.md
+          - path: shannon-paper/part-i/06-choice-uncertainty-entropy.md
+          - path: shannon-paper/part-i/07-entropy-of-source.md
+          - path: shannon-paper/part-i/08-encoding-decoding.md
+          - path: shannon-paper/part-i/09-fundamental-theorem-noiseless.md
+          - path: shannon-paper/part-i/10-discussion-examples.md
+      - title: Part II — Discrete with Noise
+        children:
+          - path: shannon-paper/part-ii/11-noisy-channel-representation.md
+          - path: shannon-paper/part-ii/12-equivocation-capacity.md
+          - path: shannon-paper/part-ii/13-fundamental-theorem-noise.md
+          - path: shannon-paper/part-ii/14-discussion.md
+          - path: shannon-paper/part-ii/15-example-channel-capacity.md
+          - path: shannon-paper/part-ii/16-special-cases.md
+          - path: shannon-paper/part-ii/17-efficient-coding-example.md
+      - title: Part III — Math Preliminaries
+        children:
+          - path: shannon-paper/part-iii/18-sets-and-ensembles.md
+          - path: shannon-paper/part-iii/19-band-limited-ensembles.md
+          - path: shannon-paper/part-iii/20-entropy-continuous-distribution.md
+          - path: shannon-paper/part-iii/21-entropy-ensemble-functions.md
+          - path: shannon-paper/part-iii/22-entropy-loss-filters.md
+          - path: shannon-paper/part-iii/23-entropy-sum-two-ensembles.md
+      - title: Part IV — Continuous Channel
+        children:
+          - path: shannon-paper/part-iv/24-capacity-of-continuous-channel.md
+          - path: shannon-paper/part-iv/25-average-power-limitation.md
+          - path: shannon-paper/part-iv/26-peak-power-limitation.md
+      - title: Part V — Continuous Source Rate
+        children:
+          - path: shannon-paper/part-v/27-fidelity-evaluation.md
+          - path: shannon-paper/part-v/28-rate-relative-to-fidelity.md
+          - path: shannon-paper/part-v/29-calculation-of-rates.md
+      - title: Appendices
+        children:
+          - path: shannon-paper/appendices/appendix-1.md
+          - path: shannon-paper/appendices/appendix-2.md
+          - path: shannon-paper/appendices/appendix-3.md
+          - path: shannon-paper/appendices/appendix-4.md
+          - path: shannon-paper/appendices/appendix-5.md
+          - path: shannon-paper/appendices/appendix-6.md

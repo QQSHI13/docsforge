@@ -30,6 +30,9 @@ venv/
 
 # Build output (also remove tracked pdf/ artifacts)
 site/
+# ...but the examples/site/ directory is real content, not build output.
+!examples/site/
+!examples/site/**
 docsforge-docs/pdf/
 .docsforge/
 

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/P1057-analysis/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/diagram-demo/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/features/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/latex-equations/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/tags/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/theme-playground/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/blog/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/blog/2026/05/09/code-highlighting-with-pygments/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/blog/2026/05/10/introducing-docsforge/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/blog/2026/05/10/math-rendering-in-docsforge/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/appendices/appendix-1/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/appendices/appendix-2/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/appendices/appendix-3/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/appendices/appendix-4/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/appendices/appendix-5/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/appendices/appendix-6/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/01-discrete-noiseless-channel/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/02-discrete-source/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/03-approximations-to-english/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/04-markoff-process-graphs/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/05-ergodic-mixed-sources/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/06-choice-uncertainty-entropy/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/07-entropy-of-source/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/08-encoding-decoding/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/09-fundamental-theorem-noiseless/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-i/10-discussion-examples/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-ii/11-noisy-channel-representation/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-ii/12-equivocation-capacity/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-ii/13-fundamental-theorem-noise/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-ii/14-discussion/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-ii/15-example-channel-capacity/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-ii/16-special-cases/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-ii/17-efficient-coding-example/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iii/18-sets-and-ensembles/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iii/19-band-limited-ensembles/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iii/20-entropy-continuous-distribution/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iii/21-entropy-ensemble-functions/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iii/22-entropy-loss-filters/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iii/23-entropy-sum-two-ensembles/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iv/24-capacity-of-continuous-channel/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iv/25-average-power-limitation/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-iv/26-peak-power-limitation/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-v/27-fidelity-evaluation/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-v/28-rate-relative-to-fidelity/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/shannon-paper/part-v/29-calculation-of-rates/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+    
+    <url>
+         <loc>https://docsforge-demo.pages.dev/blog/archive/2026/</loc>
+         <lastmod>2026-08-07</lastmod>
+    </url>
+</urlset>
