@@ -314,6 +314,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Node
+        uses: actions/setup-node@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+        working-directory: packages/docsforge
+
+      - name: Build frontend from src
+        run: python build_frontend.py
+        working-directory: packages/docsforge
+
       - name: Install Python build deps
         run: pip install build
 

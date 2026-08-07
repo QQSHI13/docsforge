@@ -32,6 +32,9 @@ jobs:
         run: python build_frontend.py
         working-directory: packages/docsforge
 
+      - name: Verify committed templates match the build
+        run: git diff --exit-code -- packages/docsforge/docsforge/templates
+
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
