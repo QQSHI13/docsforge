@@ -32,3 +32,10 @@ venv/
 site/
 docsforge-docs/pdf/
 .docsforge/
+
+# Blog plugin auto-generates this index at build time
+docsforge-docs/docs/blog/index.md
+
+# VS Code extension compiled test output
+vscode-docsforge/test/**/*.js
+vscode-docsforge/test/**/*.js.map
