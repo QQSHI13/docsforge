@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples" / "plugins"
+HOOKS = Path(__file__).resolve().parents[2] / "examples" / "hooks"
 
 # Module names injected into sys.modules by this test file.
 _LOADED_MODULE_NAMES: list[str] = []
@@ -72,7 +73,7 @@ def test_last_modified_plugin(tmp_path: Path):
 
 
 def test_hook_draft_banner():
-    mod = _load_module("draft_banner_ex", EXAMPLES / "hook_draft_banner.py")
+    mod = _load_module("draft_banner_ex", HOOKS / "hook_draft_banner.py")
     # Draft path -> banner prepended.
     page_draft = SimpleNamespace(file=SimpleNamespace(src_uri="drafts/wip.md"))
     out = mod.on_page_markdown("body", page=page_draft, config=None, files=None)

@@ -33,6 +33,13 @@ site/
 docsforge-docs/pdf/
 .docsforge/
 
+# Example demo site — regenerable build outputs
+examples/site/docsforge-demo/pdf/
+examples/site/docsforge-demo/docs/assets/tikz/*.aux
+examples/site/docsforge-demo/docs/assets/tikz/*.dvi
+examples/site/docsforge-demo/docs/assets/tikz/*.pdf
+examples/site/docsforge-demo/docs/assets/tikz/*.svg
+
 # Blog plugin auto-generates this index at build time
 docsforge-docs/docs/blog/index.md
 
