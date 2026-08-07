@@ -533,6 +533,14 @@ self.addEventListener('fetch', (e) => {
 
   if (isPageRequest(request)) {
     e.respondWith((async () => {
+      // Real page loads (destination 'document' / mode 'navigate', per the
+      // Fetch spec) revalidate the manifest so a redeployed site is picked up
+      // without a hard refresh — the next load then serves the new build.
+      // Instant navigation (the X-DocsForge-Instant-Nav XHR) is cache-first
+      // and skips this.
+      if (request.destination === 'document' || request.mode === 'navigate') {
+        refreshManifest().catch(() => {});
+      }
       await getManifest(request);
       return servePage(request);
     })());
