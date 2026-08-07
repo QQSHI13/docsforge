@@ -33,6 +33,8 @@ site/
 # ...but the examples/site/ directory is real content, not build output.
 !examples/site/
 !examples/site/**
+# ...except the demo's own build output, which stays ignored.
+examples/site/docsforge-demo/site/
 docsforge-docs/pdf/
 .docsforge/
 
