@@ -9,6 +9,7 @@ import os
 import os.path
 import pathlib
 import posixpath
+import re
 import socket
 import socketserver
 import sys
@@ -373,6 +374,14 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             # Prevent directory traversal - normalize the path.
             rel_file_path = posixpath.normpath("/" + rel_file_path).lstrip("/")
             file_path = os.path.join(self.root, rel_file_path)
+
+            # Defense in depth: the leading-"/" normpath above clamps ".." to
+            # the site root, but verify the resolved path stays inside it so
+            # the open() below can never escape the served directory.
+            root_real = os.path.realpath(self.root)
+            file_real = os.path.realpath(file_path)
+            if file_real != root_real and not file_real.startswith(root_real + os.sep):
+                return None
         elif path == "/":
             start_response("302 Found", [("Location", urllib.parse.quote(self.mount_path))])
             return []
@@ -394,6 +403,10 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         content_length = os.path.getsize(file_path)
 
         content_type = self._guess_type(file_path)
+        # Never emit a user-influenced header value that could smuggle CR/LF
+        # or other header syntax (HTTP response splitting).
+        if not re.fullmatch(r"[\w.+-]+(?:/[\w.+-]+)?", content_type):
+            content_type = "application/octet-stream"
         start_response(
             "200 OK", [("Content-Type", content_type), ("Content-Length", str(content_length))]
         )

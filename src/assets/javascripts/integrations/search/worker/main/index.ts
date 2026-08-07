@@ -92,8 +92,9 @@ async function setupSearchLanguages(
     const worker = getElement<HTMLScriptElement>("script[src]")
     const [path] = worker.src.split("/worker")
 
-    /* Prefix base with path */
-    base = base.replace("..", path)
+    /* Prefix base with path — anchor to the leading ".." so a later ".."
+       sequence can never be replaced unintentionally */
+    base = base.replace(/^\.\./, path)
   }
 
   /* Add scripts for languages */
