@@ -358,6 +358,11 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         # https://github.com/bottlepy/bottle/blob/f9b1849db4/bottle.py#L984
         path = environ["PATH_INFO"].encode("latin-1").decode("utf-8", "ignore")
 
+        # The request path is reflected into response headers; reject CR/LF so
+        # it can never split them (HTTP response splitting).
+        if "\r" in path or "\n" in path:
+            return None
+
         # Handle browser probes before mount path routing
         if path.startswith("/.well-known/"):
             # Chrome DevTools, etc. — return empty JSON silently
@@ -369,13 +374,14 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
             if path.endswith("/"):
                 rel_file_path += "index.html"
-            # Prevent directory traversal: normalize against the root, then
-            # verify the resolved file stays inside the served directory. The
-            # guarded value is what the file operations below use.
+            # Prevent directory traversal: resolve against the site root and
+            # verify the result stays inside it. The guard needs the separator
+            # so a sibling directory sharing the root's name prefix can never
+            # pass; the guarded value is what the file operations use.
             rel_file_path = posixpath.normpath("/" + rel_file_path).lstrip("/")
-            root_real = os.path.realpath(self.root)
-            file_path = os.path.realpath(os.path.join(self.root, rel_file_path))
-            if file_path != root_real and not file_path.startswith(root_real + os.sep):
+            base = os.path.realpath(self.root)
+            file_path = os.path.realpath(os.path.join(base, rel_file_path))
+            if file_path != base and not file_path.startswith(base + os.sep):
                 return None
         elif path == "/":
             start_response("302 Found", [("Location", urllib.parse.quote(self.mount_path))])
