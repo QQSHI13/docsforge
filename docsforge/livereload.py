@@ -4,12 +4,10 @@ import contextlib
 import functools
 import ipaddress
 import logging
-import mimetypes
 import os
 import os.path
 import pathlib
 import posixpath
-import re
 import socket
 import socketserver
 import sys
@@ -371,16 +369,13 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
             if path.endswith("/"):
                 rel_file_path += "index.html"
-            # Prevent directory traversal - normalize the path.
+            # Prevent directory traversal: normalize against the root, then
+            # verify the resolved file stays inside the served directory. The
+            # guarded value is what the file operations below use.
             rel_file_path = posixpath.normpath("/" + rel_file_path).lstrip("/")
-            file_path = os.path.join(self.root, rel_file_path)
-
-            # Defense in depth: the leading-"/" normpath above clamps ".." to
-            # the site root, but verify the resolved path stays inside it so
-            # the open() below can never escape the served directory.
             root_real = os.path.realpath(self.root)
-            file_real = os.path.realpath(file_path)
-            if file_real != root_real and not file_real.startswith(root_real + os.sep):
+            file_path = os.path.realpath(os.path.join(self.root, rel_file_path))
+            if file_path != root_real and not file_path.startswith(root_real + os.sep):
                 return None
         elif path == "/":
             start_response("302 Found", [("Location", urllib.parse.quote(self.mount_path))])
@@ -396,35 +391,59 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             file: BinaryIO = open(file_path, "rb")
         except OSError:
             if not path.endswith("/") and os.path.isfile(os.path.join(file_path, "index.html")):
-                start_response("302 Found", [("Location", urllib.parse.quote(path) + "/")])
+                # Percent-encode everything (safe="") so the header value can
+                # never carry CR/LF or other header syntax.
+                start_response("302 Found", [("Location", urllib.parse.quote(path, safe="") + "/")])
                 return []
             return None  # Not found
 
         content_length = os.path.getsize(file_path)
 
         content_type = self._guess_type(file_path)
-        # Never emit a user-influenced header value that could smuggle CR/LF
-        # or other header syntax (HTTP response splitting).
-        if not re.fullmatch(r"[\w.+-]+(?:/[\w.+-]+)?", content_type):
-            content_type = "application/octet-stream"
         start_response(
             "200 OK", [("Content-Type", content_type), ("Content-Length", str(content_length))]
         )
         return wsgiref.util.FileWrapper(file)
 
+    # Hermetic content-type map. Values are constants — the request path only
+    # ever selects a key, so the emitted header can't be influenced by the URL
+    # (no response splitting) and the server has no OS mime database to depend on.
+    _CONTENT_TYPES = {
+        ".js": "application/javascript",
+        ".mjs": "application/javascript",
+        ".gz": "application/gzip",
+        ".html": "text/html",
+        ".htm": "text/html",
+        ".css": "text/css",
+        ".json": "application/json",
+        ".map": "application/json",
+        ".xml": "application/xml",
+        ".txt": "text/plain",
+        ".md": "text/markdown",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2",
+        ".ttf": "font/ttf",
+        ".otf": "font/otf",
+        ".eot": "application/vnd.ms-fontobject",
+        ".pdf": "application/pdf",
+        ".zip": "application/zip",
+        ".wasm": "application/wasm",
+        ".mp3": "audio/mpeg",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+    }
+
     @classmethod
     def _guess_type(cls, path):
-        # DocsForge only ensures a few common types (as seen in livereload_tests.py::test_mime_types).
-        # Other uncommon types will not be accepted.
-        if path.endswith((".js", ".JS", ".mjs")):
-            return "application/javascript"
-        if path.endswith(".gz"):
-            return "application/gzip"
-
-        guess, _ = mimetypes.guess_type(path)
-        if guess:
-            return guess
-        return "application/octet-stream"
+        suffix = os.path.splitext(path)[1].lower()
+        return cls._CONTENT_TYPES.get(suffix, "application/octet-stream")
 
 
 class _Handler(wsgiref.simple_server.WSGIRequestHandler):
