@@ -638,13 +638,6 @@
               logSwOnce('cache-complete', '[DocsForge] All pages cached for offline use');
             }
           });
-
-          // Check for updates periodically (every 5 minutes)
-          setInterval(function() {
-            navigator.serviceWorker.ready.then(function(registration) {
-              registration.update();
-            });
-          }, 300000);
         }
       </script>
     {% endblock %}
