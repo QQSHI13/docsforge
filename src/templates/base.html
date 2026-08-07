@@ -609,7 +609,7 @@
           // the main document, so we rely on the Navigation Timing API here.
           navigator.serviceWorker.ready.then(function(registration) {
             var nav = performance.getEntriesByType('navigation')[0];
-            if (nav && nav.type === 'reload') {
+            if (nav && (nav.type === 'reload' || nav.type === 'navigate')) {
               var controller = navigator.serviceWorker.controller;
               if (controller) {
                 controller.postMessage({ type: 'DOCSFORGE_RELOAD_DETECTED' });

@@ -139,19 +139,8 @@ async function refreshManifest() {
   return _manifestRefresh;
 }
 
-function isHardRefresh(request) {
-  // Hard reload (Ctrl/Cmd+Shift+R or Ctrl/Cmd+F5) sets cache to 'reload' or
-  // 'no-store'. Normal link clicks and new-tab navigations use 'default'.
-  return request && ['reload', 'no-store'].includes(request.cache);
-}
-
-async function getManifest(request) {
+async function getManifest() {
   const cached = await loadManifestFromCache();
-  // Refresh the manifest only on hard refresh, not on normal navigation or
-  // instant navigation. This keeps network usage minimal.
-  if (isHardRefresh(request)) {
-    refreshManifest().catch(() => {});
-  }
   return cached;
 }
 
@@ -533,15 +522,7 @@ self.addEventListener('fetch', (e) => {
 
   if (isPageRequest(request)) {
     e.respondWith((async () => {
-      // Real page loads (destination 'document' / mode 'navigate', per the
-      // Fetch spec) revalidate the manifest so a redeployed site is picked up
-      // without a hard refresh — the next load then serves the new build.
-      // Instant navigation (the X-DocsForge-Instant-Nav XHR) is cache-first
-      // and skips this.
-      if (request.destination === 'document' || request.mode === 'navigate') {
-        refreshManifest().catch(() => {});
-      }
-      await getManifest(request);
+      await getManifest();
       return servePage(request);
     })());
     return;
