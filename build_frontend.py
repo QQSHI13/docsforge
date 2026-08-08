@@ -253,6 +253,7 @@ def copy_icons() -> None:
         ("node_modules/@primer/octicons/build/svg", "src/templates/.icons/octicons"),
         ("node_modules/@fortawesome/fontawesome-free/svgs", "src/templates/.icons/fontawesome"),
         ("node_modules/simple-icons/icons", "src/templates/.icons/simple"),
+        ("node_modules/lucide-static/icons", "src/templates/.icons/lucide"),
     ]
     for src_dir, dst_dir in icon_sets:
         src = ROOT / src_dir
