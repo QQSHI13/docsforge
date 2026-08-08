@@ -23,65 +23,20 @@ Click any button below to instantly change the site's color theme.
   if (window.__themePlaygroundInit) return;
   window.__themePlaygroundInit = true;
 
-  function getMaterialScope() {
-    // Use Material's __md_scope when available (site-wide), fallback to per-page
-    if (typeof __md_scope !== 'undefined') return __md_scope;
-    return new URL(".", location);
-  }
-
-  function getPaletteKey() {
-    return getMaterialScope().pathname + ".__palette";
-  }
-
-  function getSavedTheme() {
-    var key = getPaletteKey();
-    // Try Material's scoped key
-    try {
-      var mat = JSON.parse(localStorage.getItem(key));
-      if (mat && mat.color) return mat.color;
-    } catch(e) {}
-    // Fall back to fixed backup key
-    try {
-      var bak = JSON.parse(localStorage.getItem("docsforge-theme"));
-      if (bak) return bak;
-    } catch(e) {}
-    return null;
-  }
-
-  function saveTheme(scheme, primary, accent) {
-    var color = {
-      media: "(prefers-color-scheme: " + (scheme === 'slate' ? 'dark' : 'light') + ")",
-      scheme: scheme,
-      primary: primary,
-      accent: accent
-    };
-    // Save to Material's scoped key
-    var key = getPaletteKey();
-    var palette = {};
-    try { palette = JSON.parse(localStorage.getItem(key)) || {}; } catch(e) {}
-    palette.color = color;
-    try { localStorage.setItem(key, JSON.stringify(palette)); } catch(e) {}
-    // Backup to fixed key for cross-page safety
-    try { localStorage.setItem("docsforge-theme", JSON.stringify(color)); } catch(e) {}
-  }
-
-  function applyTheme(scheme, primary, accent, skipSave) {
-    document.body.setAttribute("data-md-color-scheme", scheme);
-    document.body.setAttribute("data-md-color-primary", primary);
-    document.body.setAttribute("data-md-color-accent", accent);
-
-    // Sync radio inputs
+  function applyTheme(scheme, primary, accent) {
+    // Persist via the documented DocsForge API — applies the colors AND saves
+    // them, including combinations that have no matching header radio.
+    if (window.docsforge && window.docsforge.setPalette) {
+      window.docsforge.setPalette({ scheme: scheme, primary: primary, accent: accent });
+    } else {
+      document.body.setAttribute("data-md-color-scheme", scheme);
+      document.body.setAttribute("data-md-color-primary", primary);
+      document.body.setAttribute("data-md-color-accent", accent);
+    }
+    // Sync the header radio and button highlight state.
     document.querySelectorAll('input[name="__palette"]').forEach(function(input) {
       input.checked = (input.getAttribute("data-md-color-scheme") === scheme);
     });
-
-    // Sync palette label visibility
-    document.querySelectorAll('[data-md-component="palette"] label').forEach(function(label) {
-      var target = document.getElementById(label.getAttribute("for"));
-      if (target) label.hidden = (target.getAttribute("data-md-color-scheme") === scheme);
-    });
-
-    if (!skipSave) saveTheme(scheme, primary, accent);
     updateButtonStates();
   }
 
@@ -95,7 +50,6 @@ Click any button below to instantly change the site's color theme.
     });
   }
 
-  // Button clicks
   document.querySelectorAll('.theme-buttons button[data-theme]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var parts = btn.getAttribute('data-theme').split(':');
@@ -103,20 +57,7 @@ Click any button below to instantly change the site's color theme.
     });
   });
 
-  // Listen for built-in palette toggle changes
-  document.querySelectorAll('input[name="__palette"]').forEach(function(radio) {
-    radio.addEventListener('change', function() {
-      if (radio.checked) {
-        applyTheme(
-          radio.getAttribute('data-md-color-scheme'),
-          radio.getAttribute('data-md-color-primary'),
-          radio.getAttribute('data-md-color-accent')
-        );
-      }
-    });
-  });
-
-  // Watch body attribute changes (from built-in toggle or other scripts)
+  // Sync the highlight on any external theme change (header toggle, other scripts).
   var observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(mutation) {
       if (mutation.type === 'attributes' && mutation.attributeName === 'data-md-color-scheme') {
@@ -126,13 +67,8 @@ Click any button below to instantly change the site's color theme.
   });
   observer.observe(document.body, { attributes: true, attributeFilter: ['data-md-color-scheme'] });
 
-  // Initialize: apply saved theme on load, or just sync buttons
-  var saved = getSavedTheme();
-  if (saved) {
-    applyTheme(saved.scheme, saved.primary, saved.accent, true);
-  } else {
-    updateButtonStates();
-  }
+  // The saved theme is restored by docsforge itself; just sync the highlight.
+  updateButtonStates();
 })();
 </script>
 
@@ -166,9 +102,9 @@ Click any button below to instantly change the site's color theme.
 
 ## How It Works
 
-The inline theme switcher uses the same `localStorage` key that Material's built-in palette toggle uses. This means:
+The inline switcher calls the documented **`window.docsforge.setPalette({ scheme, primary, accent })`** API, which applies the colors to the page and persists them using the same scoped `localStorage` key as the header toggle. That means:
 
-- Your choice **persists across page loads**
+- Your choice **persists across page loads** — including combinations like red/green that have no header toggle
 - It **syncs with the header toggle** automatically
 - It works with **instant navigation** without page reloads
 

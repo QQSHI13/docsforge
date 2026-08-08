@@ -93,6 +93,7 @@ export function watchPalette(
 
   /* Emit changes in color palette */
   const index = Math.max(0, Math.min(current.index, inputs.length - 1))
+  let first = true
   return of(...inputs)
     .pipe(
       mergeMap(input => fromEvent(input, "change").pipe(map(() => input))),
@@ -106,6 +107,19 @@ export function watchPalette(
           accent:  input.getAttribute("data-md-color-accent")
         }
       } as Palette)),
+      // On the initial emission, prefer the persisted color over the radio's:
+      // inline scripts (e.g. a theme playground) can save combinations that
+      // have no matching header radio, and reloading must restore them
+      // instead of snapping back to the radio's colors.
+      map(palette => {
+        if (first) {
+          first = false
+          if (current?.color) {
+            palette.color = { ...palette.color, ...current.color }
+          }
+        }
+        return palette
+      }),
       shareReplay(1)
     )
 }

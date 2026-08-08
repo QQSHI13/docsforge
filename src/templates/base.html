@@ -342,6 +342,14 @@
           var stored = getStoredPalette();
           if (stored) {
             markChosen();
+            // Apply the stored colors immediately so inline-script themes (e.g.
+            // a playground saving a combination with no matching header radio)
+            // survive reloads without flashing the default theme.
+            if (stored.color) {
+              if (stored.color.scheme)  document.body.setAttribute('data-md-color-scheme', stored.color.scheme);
+              if (stored.color.primary) document.body.setAttribute('data-md-color-primary', stored.color.primary);
+              if (stored.color.accent)  document.body.setAttribute('data-md-color-accent', stored.color.accent);
+            }
           }
 
           if (!isChosen()) {
@@ -423,6 +431,26 @@
               setupPaletteClickHandlers();
             });
           }
+
+          // DocsForge: programmatic palette API for inline scripts and embeds.
+          // window.docsforge.setPalette({ scheme, primary, accent }) applies and
+          // persists a theme — including combinations that have no matching
+          // header radio (e.g. a theme playground). Omit a key to keep the
+          // current value for it.
+          window.docsforge = window.docsforge || {};
+          window.docsforge.setPalette = function(colors) {
+            var c = colors || {};
+            var scheme  = c.scheme  || document.body.getAttribute('data-md-color-scheme')  || 'default';
+            var primary = c.primary || document.body.getAttribute('data-md-color-primary') || 'indigo';
+            var accent  = c.accent  || document.body.getAttribute('data-md-color-accent')  || 'indigo';
+            document.body.setAttribute('data-md-color-scheme', scheme);
+            document.body.setAttribute('data-md-color-primary', primary);
+            document.body.setAttribute('data-md-color-accent', accent);
+            var stored = getStoredPalette() || {};
+            var idx = (typeof stored.index === 'number') ? stored.index : 0;
+            setStoredPalette(idx, scheme, primary, accent);
+            fixPaletteVisibility();
+          };
         })();
       </script>
       <script>
