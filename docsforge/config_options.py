@@ -1075,7 +1075,7 @@ class Plugins(OptionallyRequired[PluginCollection]):
         
         # Always load core plugins that are built-in features.
         # These are always enabled and don't require user configuration.
-        core_plugins = ['meta', 'tags', 'blog', 'info', 'minify', 'i18n']
+        core_plugins = ['meta', 'tags', 'blog', 'info', 'minify', 'i18n', 'social']
         for name in core_plugins:
             if name not in self._instance_counter:
                 self.load_plugin_with_namespace(name, {})

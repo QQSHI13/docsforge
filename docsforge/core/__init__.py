@@ -1,5 +1,6 @@
 """Core plugins package.
 
 All core plugins are flattened into single .py files for simplicity:
-  blog.py, info.py, meta.py, minify.py, search.py, tags.py, privacy.py
+  blog.py, info.py, meta.py, minify.py, search.py, social.py, tags.py,
+  privacy.py
 """

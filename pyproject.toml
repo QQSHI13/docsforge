@@ -53,8 +53,9 @@ dependencies = [
 
 [project.optional-dependencies]
 chinese = ["jieba>=0.42"]
-all = ["playwright>=1.50", "jieba>=0.42", "docsforge[pdf]"]
+all = ["playwright>=1.50", "jieba>=0.42", "docsforge[pdf]", "docsforge[social]"]
 pdf = ["playwright>=1.50", "pypdf>=5.0"]
+social = ["pillow>=9.0", "cairosvg>=2.5"]
 
 [project.urls]
 Documentation = "https://qqshi13.github.io/docsforge"
@@ -74,6 +75,7 @@ docsforge = "docsforge.__main__:cli"
 "material/search" = "docsforge.core.search:SearchPlugin"
 "material/tags" = "docsforge.core.tags:TagsPlugin"
 "material/minify" = "docsforge.core.minify:MinifyPlugin"
+"material/social" = "docsforge.core.social:SocialPlugin"
 
 [project.entry-points."docsforge.themes"]
 material = "docsforge.templates"
