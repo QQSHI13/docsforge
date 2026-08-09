@@ -595,6 +595,36 @@ def _populate_changed_pages(
     return to_populate
 
 
+def _serialize_validation(page: Page) -> dict:
+    """Serialize a page's link/anchor validation data for the build cache."""
+    return {
+        "warnings": [[level, msg] for level, msg in page.link_warnings],
+        "links": {
+            to_file.src_uri: links
+            for to_file, links in (page.links_to_anchors or {}).items()
+        },
+        "anchors": sorted(page.present_anchor_ids or []),
+    }
+
+
+def _restore_validation(page: Page, data: dict | None, files: Files) -> None:
+    """Restore a page's link/anchor data from the build cache (not re-rendered).
+
+    Lets the validation pass report the page's problems on incremental builds
+    exactly like a fresh build would, without re-rendering it.
+    """
+    if not data:
+        return
+    page.link_warnings = [tuple(w) for w in data.get("warnings", [])]
+    page.present_anchor_ids = set(data.get("anchors", []))
+    links: dict[File, dict[str, str]] = {}
+    for src_uri, anchors in (data.get("links") or {}).items():
+        to_file = files.get_file_from_path(src_uri)
+        if to_file is not None:
+            links[to_file] = anchors
+    page.links_to_anchors = links or None
+
+
 def _write_outputs(
     config: DocsForgeConfig,
     files: Files,
@@ -639,6 +669,7 @@ def _write_outputs(
             pages_to_build.append((file.page, source_path, output_path))
 
     built_any = False
+    built_sources: set[str] = set()
     if pages_to_build:
         max_workers = min(32, os.cpu_count() or 1)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -681,9 +712,13 @@ def _write_outputs(
                     base_paths=[Path(config.docs_dir)],
                 )
                 planner.update_cache(source_path, output_path, deps)
+                # Persist link/anchor validation data so skipped pages can be
+                # re-validated on later incremental builds.
+                planner.validation[page.file.src_uri] = _serialize_validation(page)
+                built_sources.add(page.file.src_uri)
                 built_any = True
 
-    return built_any
+    return built_any, built_sources
 
 
 def _finalize_build(
@@ -693,6 +728,7 @@ def _finalize_build(
     planner: BuildPlanner,
     warning_counter: utils.CountHandler,
     built_any: bool,
+    built_sources: set[str],
     sources_changed: bool,
     nav_changed: bool,
     config_path: Path,
@@ -702,11 +738,25 @@ def _finalize_build(
     """Generate PWA assets, validate links, run post-build events, and save cache."""
     nothing_changed = not built_any and not sources_changed and not nav_changed
 
-    if not nothing_changed:
-        log_level = config.validation.links.anchors
-        for file in files.documentation_pages():
-            assert file.page is not None
-            file.page.validate_anchor_links(files=files, log_level=log_level)
+    # Restore link/anchor data for pages not re-rendered this build, so the
+    # validation pass below reports every page's problems on EVERY build, not
+    # just the first one (a broken cross-link used to surface only when the
+    # linking page itself was rebuilt).
+    for file in files.documentation_pages():
+        page = file.page
+        if page is None or file.src_uri in built_sources:
+            continue
+        _restore_validation(page, planner.validation.get(file.src_uri), files)
+
+    # Re-emit collected link warnings (fresh from render, or restored above)
+    # and validate anchors — always, regardless of what changed this build.
+    log_level = config.validation.links.anchors
+    for file in files.documentation_pages():
+        page = file.page
+        assert page is not None
+        for level, msg in page.link_warnings:
+            log.log(level, msg)
+        page.validate_anchor_links(files=files, log_level=log_level)
 
     # Run `post_build` plugin events.
     config.plugins.on_post_build(config=config)
@@ -770,12 +820,12 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         _populate_changed_pages(
             config, files, planner, all_doc_files, inclusion, serve_url, force_all=nav_changed
         )
-        built_any = _write_outputs(
+        built_any, built_sources = _write_outputs(
             config, files, nav, env, planner, all_doc_files, inclusion, force_all=nav_changed
         )
         _finalize_build(
             config, files, nav, planner, warning_counter,
-            built_any, sources_changed, nav_changed, config_path, theme_sig, start,
+            built_any, built_sources, sources_changed, nav_changed, config_path, theme_sig, start,
         )
 
     except Exception as e:

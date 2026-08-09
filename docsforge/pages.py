@@ -343,6 +343,12 @@ class Page(StructureItem):
     """Anchor IDs that this page contains (can be linked to in this page)."""
 
     links_to_anchors: dict[File, dict[str, str]] | None = None
+    """Resolved relative links with anchors, keyed by target file."""
+
+    link_warnings: list[tuple[int, str]] = []
+    """Link validation warnings (level, message), collected during render so
+    they can be re-emitted on incremental builds for pages that are not
+    re-rendered."""
     """Links to anchors in other files that this page contains.
 
     The structure is: `{file_that_is_linked_to: {'anchor': 'original_link/to/some_file.md#anchor'}}`.
@@ -559,7 +565,14 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                         suggest_url = f'mailto:{url}'
                 if suggest_url:
                     warning += f" Did you mean '{suggest_url}'?"
-            log.log(warning_level, warning)
+            # Collect instead of logging inline so the validation pass can
+            # re-emit the same warning on later incremental builds (pages that
+            # are not re-rendered keep their warnings in the build cache).
+            page = getattr(self.file, "page", None)
+            if page is not None:
+                page.link_warnings.append((warning_level, warning))
+            else:
+                log.log(warning_level, warning)
             return url
 
         assert target_uri is not None
@@ -577,7 +590,11 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                 f"Doc file '{self.file.src_uri}' contains a link to "
                 f"'{target_uri}' which is excluded from the built site."
             )
-            log.log(warning_level, warning)
+            page = getattr(self.file, "page", None)
+            if page is not None:
+                page.link_warnings.append((warning_level, warning))
+            else:
+                log.log(warning_level, warning)
         path = utils.get_relative_url(self.file.url, target_file.url)
         return urlunsplit(('', '', path, query, anchor))
 

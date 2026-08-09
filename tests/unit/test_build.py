@@ -154,6 +154,7 @@ class TestFinalizeBuildOrder:
                 nav_changed=False,
                 config_path=Path("docsforge.yml"),
                 theme_sig="",
+                built_sources=set(),
                 start=0.0,
             )
 
@@ -195,6 +196,7 @@ class TestFinalizeBuildOptimizesAssets:
                     nav_changed=False,
                     config_path=Path("docsforge.yml"),
                     theme_sig="",
+                    built_sources=set(),
                     start=0.0,
                 )
 
@@ -277,7 +279,7 @@ class TestWriteOutputsSuccessTracking:
         monkeypatch.setattr(build_mod, "_build_page", _bad_build_page)
 
         result = _write_outputs(cfg, files, nav, env, planner, [file], lambda level: True)
-        assert result is False
+        assert result == (False, set())
 
 
 class TestRemoveOrphanedOutput:

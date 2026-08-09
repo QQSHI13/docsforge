@@ -56,6 +56,7 @@ class CacheManager:
         self.pkg_version_file = cache_dir / "pkg_version"
         self.theme_sig_file = cache_dir / "theme_sig"
         self.nav_sig_file = cache_dir / "nav_sig"
+        self.validation_file = cache_dir / "validation.json"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -129,6 +130,19 @@ class CacheManager:
     def set_meta(self, meta: dict[str, dict]) -> None:
         """Save the mtime/size/hash metadata."""
         self._write_json(self.meta_file, meta)
+
+    def get_validation(self) -> dict[str, dict]:
+        """Get the per-source link/anchor validation cache.
+
+        Each entry: {warnings: [[level, msg], ...], links: {target_uri:
+        {anchor: url}}, anchors: [id, ...]} — persisted so link problems are
+        re-reported on incremental builds even when a page isn't re-rendered.
+        """
+        return self._read_json(self.validation_file)
+
+    def set_validation(self, validation: dict[str, dict]) -> None:
+        """Save the per-source link/anchor validation cache."""
+        self._write_json(self.validation_file, validation)
 
     def get_pkg_version(self) -> str | None:
         """Get the docsforge version that produced this cache."""
@@ -275,6 +289,9 @@ class BuildPlanner:
         # {path: {mtime, size, hash}} — lets us skip re-reading+hashing a file
         # whose mtime+size are unchanged since last build.
         self.meta = cache.get_meta()
+        # {source: {warnings, links, anchors}} — link/anchor validation data
+        # persisted so problems are re-reported on incremental builds.
+        self.validation = cache.get_validation()
 
     def theme_signature(self, dirs) -> str:
         """Stat-only signature of all .html/.xml templates in the theme dirs.
@@ -479,6 +496,7 @@ class BuildPlanner:
         self.cache.set_hashes(self.hashes)
         self.cache.set_deps(self.deps)
         self.cache.set_meta(self.meta)
+        self.cache.set_validation(self.validation)
         if config_hash:
             self.cache.set_config_hash(config_hash)
             self.config_hash = config_hash
