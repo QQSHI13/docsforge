@@ -4,6 +4,39 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.4.0] — 2026-08-09
+
+### Added
+
+- **Social cards plugin** (`social`): vendored port of mkdocs-material's
+  social plugin, flattened into `docsforge/core/social.py` (OpenGraph card
+  generation with two-stage parallel rendering, cache + manifest, font
+  download). Each i18n locale page gets its own card. Needs
+  `pip install "docsforge[social]"` (pillow + cairosvg).
+- **Lucide icon set**: 2022 icons, usable as `:lucide-name:` inline or in
+  theme icon configs; stroke-based rendering support for `.md-icon`.
+- **Link/anchor validation on every build**: link and anchor problems are now
+  reported on every build, not only the first — validation data is persisted
+  per page in the build cache and re-checked for pages that are not re-rendered.
+- **Programmatic palette API**: `window.docsforge.setPalette({scheme, primary,
+  accent})` applies and persists themes from inline scripts/embeds (e.g. the
+  theme playground), including combinations with no header toggle.
+- Examples: the demo site now lives in-repo (`examples/site/docsforge-demo`),
+  with a `custom_dir` override, a custom-filter plugin example, a hooks
+  example, and a CI build test; the demo deploys to Cloudflare Pages via
+  GitHub Actions (with TeX Live for TikZ).
+
+### Changed
+
+- **Repository hygiene**: all vendored mkdocs-material MIT headers removed
+  (attribution consolidated in the license page); parity tooling removed;
+  frontend reproducibility enforced in CI and at release time.
+- The service worker revalidates the manifest on every real page load
+  (Navigation Timing API) — a redeployed site is picked up without a hard
+  refresh; the 5-minute update poll and the hard-refresh monitor were removed.
+- Sidebar height uses `dvh` so the left (nav) and right (TOC) sidebars
+  scroll identically on iOS/iPadOS.
+
 ## [12.3.0] — 2026-08-06
 
 ### Changed
