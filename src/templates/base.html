@@ -100,10 +100,17 @@
       /* DocsForge: Fix sidebar height to prevent content overlapping footer */
       @media screen and (min-width: 60em) {
         .md-sidebar .md-sidebar__scrollwrap {
+          /* 100vh is the *large* viewport on iOS/iPadOS (includes the browser
+             chrome), so a tall sidebar's bottom ends up below the fold and gets
+             clipped instead of scrolling away like the short TOC sidebar.
+             100dvh tracks the visible viewport — both sidebars then behave
+             identically. */
           max-height: calc(100vh - 2.4rem);
+          max-height: calc(100dvh - 2.4rem);
         }
         .md-header--lifted ~ .md-container .md-sidebar .md-sidebar__scrollwrap {
           max-height: calc(100vh - 4.8rem);
+          max-height: calc(100dvh - 4.8rem);
         }
       }
     </style>

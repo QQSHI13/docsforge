@@ -52,7 +52,7 @@ entries are invalid HTML and trigger the material alternate integration to fetch
 {% endfor %}
 <style>.MathJax_Preview{display:none!important}</style>
 {% include "partials/javascripts/base.html" %} {% block analytics %} {% include "partials/integrations/analytics.html" %} {% endblock %} {% block extrahead %}{% endblock %}
-<style>.md-header__source{width:auto}.md-source{display:inline-flex;align-items:center;gap:.5rem;width:auto}.md-source__repository{max-width:none}@media screen and (min-width:60em){.md-sidebar .md-sidebar__scrollwrap{max-height:calc(100vh - 2.4rem)}.md-header--lifted~.md-container .md-sidebar .md-sidebar__scrollwrap{max-height:calc(100vh - 4.8rem)}}</style>
+<style>.md-header__source{width:auto}.md-source{display:inline-flex;align-items:center;gap:.5rem;width:auto}.md-source__repository{max-width:none}@media screen and (min-width:60em){.md-sidebar .md-sidebar__scrollwrap{max-height:calc(100vh - 2.4rem);max-height:calc(100dvh - 2.4rem)}.md-header--lifted~.md-container .md-sidebar .md-sidebar__scrollwrap{max-height:calc(100vh - 4.8rem);max-height:calc(100dvh - 4.8rem)}}</style>
 </head>
 {% set direction = config.theme.direction or lang.t("direction") %} {% if config.theme.palette %} {% set palette = config.theme.palette %} {% if not palette is mapping %} {% set palette = palette | first %} {% endif %} {% set scheme = palette.scheme | d("default", true) %} {% set primary = palette.primary | d("indigo", true) %} {% set accent = palette.accent | d("indigo", true) %}
 <body dir="{{ direction }}" data-md-color-scheme="{{ scheme | replace(' ', '-') }}" data-md-color-primary="{{ primary | replace(' ', '-') }}" data-md-color-accent="{{ accent | replace(' ', '-') }}">
