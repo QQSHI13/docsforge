@@ -1,7 +1,3 @@
-# Copyright (c) 2016-2025 Martin Donath <martin.donath@squidfunk.com>
-# Copyright (c) 2025-2026 DocsForge contributors
-# License: MIT
-
 """Material Icons emoji extension for DocsForge.
 
 Provides :material-icon-name: syntax using vendored SVG icons.
