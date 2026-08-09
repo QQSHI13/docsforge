@@ -1,0 +1,54 @@
+name: Demo
+
+# Build the example site in GitHub Actions (Cloudflare Pages' build image
+# cannot install TeX Live for TikZ) and deploy the result to Cloudflare
+# Pages. Turn OFF the Cloudflare-side auto-build to avoid double deploys.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/site/docsforge-demo/**'
+      - 'docsforge/**'
+      - 'src/**'
+      - 'build_frontend.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install TeX Live (TikZ only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base \
+            texlive-pictures \
+            texlive-latex-extra \
+            dvisvgm
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Install DocsForge
+        run: pip install .
+
+      - name: Build demo site
+        run: docsforge build
+        working-directory: examples/site/docsforge-demo
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy examples/site/docsforge-demo/site --project-name=docsforge-demo
