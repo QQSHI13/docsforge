@@ -89,3 +89,9 @@
 
 @import "main/modifiers/grid";
 @import "main/modifiers/inline";
+
+// DocsForge: stroke-based icon sets (e.g. Lucide) must render as outlines,
+// not be forced solid by the fill-based `.md-icon` default above.
+.md-icon svg[stroke] {
+  fill: none;
+}
