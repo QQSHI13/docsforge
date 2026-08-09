@@ -40,6 +40,8 @@ docsforge-docs/pdf/
 
 # Example demo site — regenerable build outputs
 examples/site/docsforge-demo/pdf/
+examples/site/docsforge-demo/.cache/
+examples/site/docsforge-demo/.docsforge/
 examples/site/docsforge-demo/docs/assets/tikz/*.aux
 examples/site/docsforge-demo/docs/assets/tikz/*.dvi
 examples/site/docsforge-demo/docs/assets/tikz/*.pdf
