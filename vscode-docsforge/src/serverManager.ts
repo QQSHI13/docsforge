@@ -3,11 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import { findConfig as findConfigPure, hasConfig as hasConfigPure, extractServerUrl } from './pure';
+import { DocsForgeLogPanel } from './logPanel';
+import { detectEnvironment, ensureDocsforge } from './environment';
 
 export class ServerManager {
   private process: ChildProcess | null = null;
   private buildProcess: ChildProcess | null = null;
-  private outputChannel: vscode.OutputChannel;
+  private logPanel: DocsForgeLogPanel;
   private statusBarItem: vscode.StatusBarItem;
   private _serverUrl: string | null = null;
   private _startProgressResolve: (() => void) | null = null;
@@ -31,7 +33,7 @@ export class ServerManager {
       ServerManager.instance.dispose();
     }
     ServerManager.instance = this;
-    this.outputChannel = vscode.window.createOutputChannel('DocsForge');
+    this.logPanel = DocsForgeLogPanel.get();
     this.statusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Left,
       100
@@ -137,10 +139,6 @@ export class ServerManager {
     return this._serverUrl;
   }
 
-  private get pythonPath(): string {
-    return vscode.workspace.getConfiguration('docsforge').get('pythonPath', 'python');
-  }
-
   private get workspaceRoot(): string | undefined {
     return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   }
@@ -148,9 +146,23 @@ export class ServerManager {
   private showError(message: string) {
     vscode.window.showErrorMessage(message, 'Show Output').then((choice) => {
       if (choice === 'Show Output') {
-        this.outputChannel.show();
+        this.logPanel.show();
       }
     });
+  }
+
+  /** Resolve a usable Python interpreter, installing docsforge if needed.
+   *  Returns null when no interpreter is available or the user cancelled. */
+  private async resolveEnvironment(): Promise<string | null> {
+    const root = this.workspaceRoot;
+    if (!root) {
+      return null;
+    }
+    const state = await detectEnvironment(root);
+    if (state.docsforgeVersion) {
+      return state.python;
+    }
+    return ensureDocsforge(root, state, (line) => this.logPanel.append(line));
   }
 
   private updateStatusBar() {
@@ -189,7 +201,7 @@ export class ServerManager {
     }
   }
 
-  start() {
+  async start() {
     // Prevent double-start: if already running (own process or pidfile), just open browser
     if (this.process || this._serverUrl) {
       vscode.window.showWarningMessage('DocsForge server is already running');
@@ -213,6 +225,11 @@ export class ServerManager {
       return;
     }
 
+    const python = await this.resolveEnvironment();
+    if (!python) {
+      return;
+    }
+
     const lan = vscode.workspace.getConfiguration('docsforge').get('lan', false);
     const openBrowser = vscode.workspace.getConfiguration('docsforge').get('openBrowser', true);
 
@@ -222,9 +239,9 @@ export class ServerManager {
       args.push('--lan');
     }
 
-    this.outputChannel.show();
-    this.outputChannel.appendLine(`$ ${this.pythonPath} ${args.join(' ')}`);
-    this.outputChannel.appendLine('');
+    this.logPanel.show();
+    this.logPanel.appendLine(`$ ${python} ${args.join(' ')}`);
+    this.logPanel.appendLine('');
     this._serverUrl = null;
     this.updateStatusBar();
 
@@ -258,20 +275,20 @@ export class ServerManager {
       })
     );
 
-    this.process = spawn(this.pythonPath, args, {
+    this.process = spawn(python, args, {
       cwd: workspaceRoot,
       env: { ...process.env, FORCE_COLOR: '1' },
     });
 
     this.process.stdout?.on('data', (data: Buffer) => {
       const text = data.toString();
-      this.outputChannel.append(text);
+      this.logPanel.append(text);
       this.detectServerUrl(text);
     });
 
     this.process.stderr?.on('data', (data: Buffer) => {
       const text = data.toString();
-      this.outputChannel.append(text);
+      this.logPanel.append(text);
       this.detectServerUrl(text);
     });
 
@@ -285,7 +302,7 @@ export class ServerManager {
     const onClose = (code: number | null) => {
       this.cleanupAfterStop();
       if (code !== 0 && code !== null) {
-        this.outputChannel.appendLine(`Server exited with code ${code}`);
+        this.logPanel.appendLine(`Server exited with code ${code}`);
         this.showError(`DocsForge server exited with code ${code}`);
       }
     };
@@ -415,7 +432,7 @@ export class ServerManager {
     return this.buildProcess !== null;
   }
 
-  build() {
+  async build() {
     const workspaceRoot = this.workspaceRoot;
     if (!workspaceRoot) {
       vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
@@ -434,9 +451,14 @@ export class ServerManager {
       return;
     }
 
-    this.outputChannel.show();
-    this.outputChannel.appendLine(`$ ${this.pythonPath} -m docsforge build`);
-    this.outputChannel.appendLine('');
+    const python = await this.resolveEnvironment();
+    if (!python) {
+      return;
+    }
+
+    this.logPanel.show();
+    this.logPanel.appendLine(`$ ${python} -m docsforge build`);
+    this.logPanel.appendLine('');
 
     vscode.window.withProgress(
       {
@@ -446,7 +468,7 @@ export class ServerManager {
       },
       async () => {
         return new Promise<void>((resolve, reject) => {
-          const proc = spawn(this.pythonPath, ['-m', 'docsforge', 'build'], {
+          const proc = spawn(python, ['-m', 'docsforge', 'build'], {
             cwd: workspaceRoot,
             env: { ...process.env, FORCE_COLOR: '1' },
           });
@@ -456,10 +478,10 @@ export class ServerManager {
           ServerManager.emitStateChange();
 
           proc.stdout?.on('data', (data: Buffer) => {
-            this.outputChannel.append(data.toString());
+            this.logPanel.append(data.toString());
           });
           proc.stderr?.on('data', (data: Buffer) => {
-            this.outputChannel.append(data.toString());
+            this.logPanel.append(data.toString());
           });
 
           proc.on('error', (err: Error) => {
@@ -480,7 +502,7 @@ export class ServerManager {
             } else {
               vscode.window
                 .showErrorMessage('DocsForge build failed', 'Show Output')
-                .then(() => this.outputChannel.show());
+                .then(() => this.logPanel.show());
               reject();
             }
           });
@@ -499,7 +521,6 @@ export class ServerManager {
   dispose() {
     this._clearStartSafetyTimeout();
     this.stop(/* silent */ true);
-    this.outputChannel.dispose();
     this.statusBarItem.dispose();
   }
 }

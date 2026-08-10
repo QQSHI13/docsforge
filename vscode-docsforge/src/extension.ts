@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ServerManager } from './serverManager';
 import { InitWizard } from './initWizard';
 import { DocsForgeSidebarProvider } from './sidebarProvider';
+import { DocsForgeLogPanel } from './logPanel';
+import { detectEnvironment, ensureDocsforge } from './environment';
 
 let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
@@ -33,6 +35,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('docsforge.openServer', () => serverManager.openBrowser()),
     vscode.commands.registerCommand('docsforge.build', () => serverManager.build()),
     vscode.commands.registerCommand('docsforge.refreshSidebar', () => sidebarProvider.refresh()),
+    vscode.commands.registerCommand('docsforge.openLog', () => DocsForgeLogPanel.get().show()),
+    vscode.commands.registerCommand('docsforge.setupEnvironment', () => setupEnvironment()),
     vscode.commands.registerCommand('docsforge.openDocs', () => {
       vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse('https://qqshi13.github.io/docsforge/'));
     })
@@ -53,4 +57,29 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   serverManager?.dispose();
+}
+
+/** Detect the Python environment and install docsforge if missing. */
+async function setupEnvironment(): Promise<void> {
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!workspaceRoot) {
+    vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
+    return;
+  }
+  const logPanel = DocsForgeLogPanel.get();
+  const state = await detectEnvironment(workspaceRoot);
+  if (state.docsforgeVersion) {
+    vscode.window.showInformationMessage(
+      `DocsForge ${state.docsforgeVersion} is ready (${state.installKind}).`
+    );
+    return;
+  }
+  const python = await ensureDocsforge(workspaceRoot, state, (line) => logPanel.append(line));
+  if (!python) {
+    return;
+  }
+  const version = await detectEnvironment(workspaceRoot);
+  vscode.window.showInformationMessage(
+    `DocsForge ${version.docsforgeVersion ?? ''} installed successfully.`
+  );
 }

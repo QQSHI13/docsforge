@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { CONFIG_FILES, findConfig, hasConfig, extractServerUrl } from '../src/pure';
+import { CONFIG_FILES, findConfig, hasConfig, extractServerUrl, stripAnsi, venvPythonPath, parseDocsforgeVersion } from '../src/pure';
 
 describe('pure helpers', () => {
   describe('findConfig / hasConfig', () => {
@@ -72,6 +72,47 @@ describe('pure helpers', () => {
 
     it('does not match bare http without the marker', () => {
       assert.strictEqual(extractServerUrl('see http://example.com for info'), null);
+    });
+  });
+
+  describe('stripAnsi', () => {
+    it('strips ANSI color codes', () => {
+      assert.strictEqual(
+        stripAnsi('\u001b[31mred\u001b[0m and \u001b[1mbold\u001b[0m'),
+        'red and bold'
+      );
+    });
+
+    it('leaves plain text unchanged', () => {
+      assert.strictEqual(stripAnsi('Building documentation...'), 'Building documentation...');
+    });
+
+    it('strips cursor/position sequences', () => {
+      assert.strictEqual(stripAnsi('\u001b[2K\u001b[Ginfo'), 'info');
+    });
+  });
+
+  describe('venvPythonPath', () => {
+    it('returns the bin/python path on posix', () => {
+      const expected = process.platform === 'win32'
+        ? path.join('root', '.venv', 'Scripts', 'python.exe')
+        : path.join('root', '.venv', 'bin', 'python');
+      assert.strictEqual(venvPythonPath('root'), expected);
+    });
+  });
+
+  describe('parseDocsforgeVersion', () => {
+    it('parses a plain version', () => {
+      assert.strictEqual(parseDocsforgeVersion('12.4.0'), '12.4.0');
+    });
+
+    it('parses a dev/suffixed version', () => {
+      assert.strictEqual(parseDocsforgeVersion('12.4.0+dev.1\n'), '12.4.0');
+    });
+
+    it('returns null for garbage', () => {
+      assert.strictEqual(parseDocsforgeVersion('Traceback (most recent call last)'), null);
+      assert.strictEqual(parseDocsforgeVersion(''), null);
     });
   });
 });

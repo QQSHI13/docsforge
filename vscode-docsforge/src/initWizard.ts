@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import { findConfig } from './pure';
+import { DocsForgeLogPanel } from './logPanel';
+import { detectEnvironment, ensureDocsforge } from './environment';
 
 const THEME_COLORS = [
   'teal',
@@ -23,6 +25,21 @@ const LANGUAGES = [
 ];
 
 export class InitWizard {
+  /** Resolve a usable Python (installing docsforge if missing), or null. */
+  private static async resolvePython(workspaceRoot: string): Promise<string | null> {
+    const state = await detectEnvironment(workspaceRoot);
+    if (!state.docsforgeVersion) {
+      const ok = await ensureDocsforge(
+        workspaceRoot, state,
+        (line) => DocsForgeLogPanel.get().append(line),
+      );
+      if (!ok) {
+        return null;
+      }
+    }
+    return state.python;
+  }
+
   /** Run the interactive project initialization wizard, matching the CLI
    *  `docsforge init` flow. Accepts a ServerManager so the user can
    *  immediately start the server after creation. */
@@ -120,7 +137,8 @@ export class InitWizard {
     if (privacyPick === undefined) { return; }
 
     // --- Run init via Python CLI ---
-    const pythonPath = vscode.workspace.getConfiguration('docsforge').get('pythonPath', 'python');
+    const pythonPath = await this.resolvePython(workspaceRoot);
+    if (!pythonPath) { return; }
 
     const initArgs = JSON.stringify({
       project_directory: workspaceRoot,
@@ -146,11 +164,11 @@ export class InitWizard {
       'init.init(**args)',
     ].join('\n');
 
-    const outputChannel = vscode.window.createOutputChannel('DocsForge Init');
-    outputChannel.show();
-    outputChannel.appendLine('Creating DocsForge project...');
-    outputChannel.appendLine(`$ ${pythonPath} -c "<init script>"`);
-    outputChannel.appendLine('');
+    const logPanel = DocsForgeLogPanel.get();
+    logPanel.show();
+    logPanel.appendLine('Creating DocsForge project...');
+    logPanel.appendLine(`$ ${pythonPath} -c "<init script>"`);
+    logPanel.appendLine('');
 
     await vscode.window.withProgress(
       {
@@ -164,28 +182,28 @@ export class InitWizard {
           });
 
           proc.stdout?.on('data', (data: Buffer) => {
-            outputChannel.append(data.toString());
+            logPanel.append(data.toString());
           });
 
           let stderr = '';
           proc.stderr?.on('data', (data: Buffer) => {
             stderr += data.toString();
-            outputChannel.append(data.toString());
+            logPanel.append(data.toString());
           });
 
           proc.on('error', (err: Error) => {
             const msg = `Failed to run python: ${err.message}. Check "docsforge.pythonPath" in settings.`;
-            outputChannel.appendLine(msg);
+            logPanel.appendLine(msg);
             reject(new Error(msg));
           });
 
           proc.on('close', (code: number | null) => {
             if (code === 0) {
-              outputChannel.appendLine('Project created successfully.');
+              logPanel.appendLine('Project created successfully.');
               resolve();
             } else {
               const msg = stderr.trim() || `docsforge init exited with code ${code}`;
-              outputChannel.appendLine(`Init failed: ${msg}`);
+              logPanel.appendLine(`Init failed: ${msg}`);
               reject(new Error(msg));
             }
           });

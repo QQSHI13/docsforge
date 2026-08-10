@@ -27,6 +27,8 @@
     "onCommand:docsforge.openServer",
     "onCommand:docsforge.openDocs",
     "onCommand:docsforge.stopBuild",
+    "onCommand:docsforge.openLog",
+    "onCommand:docsforge.setupEnvironment",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
@@ -83,6 +85,18 @@
         "title": "Stop Build",
         "icon": "$(debug-stop)",
         "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.openLog",
+        "title": "Open Output",
+        "icon": "$(output)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.setupEnvironment",
+        "title": "Check Python Environment",
+        "icon": "$(tools)",
+        "category": "DocsForge"
       }
     ],
     "viewsContainers": {
@@ -130,6 +144,11 @@
           "type": "boolean",
           "default": true,
           "description": "Open the DocsForge site in VS Code's Simple Browser when the server detects its URL. The CLI always runs with --no-open so the extension manages browser access."
+        },
+        "docsforge.rememberedPython": {
+          "type": "string",
+          "default": "",
+          "description": "Python interpreter the extension resolved (e.g. a project .venv). Managed automatically; set docsforge.pythonPath to override."
         }
       }
     },

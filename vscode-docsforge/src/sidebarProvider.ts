@@ -56,6 +56,18 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     icon: 'preview',
     tooltip: 'Open the DocsForge documentation site',
   },
+  {
+    label: 'Open Output',
+    command: 'docsforge.openLog',
+    icon: 'output',
+    tooltip: 'Show the DocsForge build/serve output panel',
+  },
+  {
+    label: 'Check Python Environment',
+    command: 'docsforge.setupEnvironment',
+    icon: 'tools',
+    tooltip: 'Detect Python and install DocsForge if missing',
+  },
 ];
 
 function evalWhen(
