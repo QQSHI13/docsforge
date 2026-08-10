@@ -1174,7 +1174,7 @@ class SocialConfig(Config):
 
     # Settings for caching
     cache = Type(bool, default = True)
-    cache_dir = Type(str, default = ".cache/plugin/social")
+    cache_dir = Type(str, default = ".docsforge/cache/social")
 
     # Settings for logging
     log = Type(bool, default = True)

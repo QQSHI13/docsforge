@@ -51,7 +51,7 @@ class TestConfig:
             "enabled": True,
             "concurrency": 4,
             "cache": True,
-            "cache_dir": ".cache/plugin/social",
+            "cache_dir": ".docsforge/cache/social",
             "log": True,
             "log_level": "info",
             "cards": True,
@@ -80,7 +80,7 @@ class TestConfig:
         assert warnings == []
         assert plugin.config.enabled is True
         assert plugin.config.cache is True
-        assert plugin.config.cache_dir == ".cache/plugin/social"
+        assert plugin.config.cache_dir == ".docsforge/cache/social"
         assert plugin.config.log is True
         assert plugin.config.log_level == "warn"
         assert plugin.config.cards_layout == "default"
