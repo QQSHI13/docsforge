@@ -61,7 +61,7 @@ jobs:
           # Ensure the Pages project exists (first run on a fresh account).
           # `|| true` swallows the "already exists" error on subsequent runs.
           preCommands: |
-            pages project create docsforge-demo --production-branch=main || true
+            wrangler pages project create docsforge-demo --production-branch=main || true
           # --branch: explicit (detached HEAD in CI confuses git detection);
           # --commit-dirty: the build just wrote site/, so the tree is dirty.
           command: >-
