@@ -41,7 +41,6 @@ jobs:
             texlive-pictures \
             texlive-latex-extra \
             dvisvgm
-          rm -rf /var/lib/apt/lists/*
 
       - name: Install DocsForge
         run: pip install .

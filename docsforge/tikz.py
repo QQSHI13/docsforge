@@ -177,10 +177,15 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     """
     docs_dir = Path(config.docs_dir)
     site_dir = Path(config.site_dir)
-    # Always write generated SVGs to the build directory; never mutate the
-    # source docs tree. The output_to_docs flag is kept for API compatibility
-    # but no longer affects the output location.
-    output_dir = site_dir / "assets" / "tikz"
+    # When output_to_docs is set, SVGs must be written into the docs tree so
+    # they become documentation files: relative links like `assets/tikz/foo.svg`
+    # in Markdown then resolve to a real file and get rewritten correctly for
+    # the output page (and the build copies them into site_dir automatically).
+    # Without the docs-tree write, links stay raw and 404 on the deployed site.
+    if output_to_docs:
+        output_dir = docs_dir / "assets" / "tikz"
+    else:
+        output_dir = site_dir / "assets" / "tikz"
 
     # Check if tikz config is enabled
     tikz_config = getattr(config, "tikz", None)
@@ -235,11 +240,22 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
             nonlocal skipped
             skipped += 1
             log.debug(f"Skipping {tex_file.name} (SVG up to date)")
+            if output_to_docs:
+                site_output = site_dir / "assets" / "tikz" / svg_name
+                if not site_output.exists():
+                    site_output.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(output_path, site_output)
+                    log.debug(f"Copied TikZ SVG to site: {site_output}")
             return output_path
 
         if _compile_tex_to_svg(tex_file, output_path):
             nonlocal newly_compiled
             newly_compiled += 1
+            if output_to_docs:
+                site_output = site_dir / "assets" / "tikz" / svg_name
+                site_output.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(output_path, site_output)
+                log.debug(f"Copied TikZ SVG to site: {site_output}")
             return output_path
         return None
 
