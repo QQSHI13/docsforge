@@ -109,6 +109,13 @@ class Page(StructureItem):
         self.content = None
         self.toc = []  # type: ignore[assignment]
         self.meta = {}
+        # Per-instance link/anchor validation state. The class-level defaults
+        # below are only annotations; without this explicit instance init the
+        # mutable default would be SHARED across all pages, so every page's
+        # warnings would end up in one list.
+        self.present_anchor_ids: set[str] | None = None
+        self.links_to_anchors: dict[File, dict[str, str]] | None = None
+        self.link_warnings: list[tuple[int, str]] = []
 
     def __eq__(self, other) -> bool:
         return (
@@ -339,13 +346,13 @@ class Page(StructureItem):
         )
         self.links_to_anchors = relative_path_ext.links_to_anchors
 
-    present_anchor_ids: set[str] | None = None
+    present_anchor_ids: set[str] | None
     """Anchor IDs that this page contains (can be linked to in this page)."""
 
-    links_to_anchors: dict[File, dict[str, str]] | None = None
+    links_to_anchors: dict[File, dict[str, str]] | None
     """Resolved relative links with anchors, keyed by target file."""
 
-    link_warnings: list[tuple[int, str]] = []
+    link_warnings: list[tuple[int, str]]
     """Link validation warnings (level, message), collected during render so
     they can be re-emitted on incremental builds for pages that are not
     re-rendered."""
