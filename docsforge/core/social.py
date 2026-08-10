@@ -2015,14 +2015,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # URLs to font files, as we're going to rename them anyway. This should
         # be more resilient than trying to correct the JSON syntax.
         url = f"https://fonts.google.com/download/list?family={family}"
-        try:
-            res = requests.get(url, timeout=(5, 30))
-        except requests.RequestException as e:
-            raise PluginError(
-                f"Couldn't download font family '{family}' from Google Fonts "
-                f"({type(e).__name__}: {e}). "
-                f"Check your network connection or configure 'cards_font'."
-            ) from e
+        res = requests.get(url)
 
         # Ensure that the download succeeded
         if res.status_code != 200:
@@ -2035,15 +2028,8 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         for match in re.findall(
             r"\"(https:(?:.*?)\.[ot]tf)\"", str(res.content)
         ):
-            try:
-                with requests.get(match, timeout=(5, 30)) as res:
-                    res.raise_for_status()
-            except requests.RequestException as e:
-                raise PluginError(
-                    f"Couldn't download font file for family '{family}' "
-                    f"({type(e).__name__}: {e}). "
-                    f"Check your network connection or configure 'cards_font'."
-                ) from e
+            with requests.get(match) as res:
+                res.raise_for_status()
 
                 # Construct image font for analysis by directly reading the
                 # contents from the response without priorily writing to a
