@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: demo
+  cancel-in-progress: true
+
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
@@ -51,4 +55,18 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy examples/site/docsforge-demo/site --project-name=docsforge-demo
+          # Pin to the wrangler version used locally to avoid drift.
+          wranglerVersion: '4.118.0'
+          # Run all wrangler commands from the demo dir so paths stay relative.
+          workingDirectory: examples/site/docsforge-demo
+          # Ensure the Pages project exists (first run on a fresh account).
+          # `|| true` swallows the "already exists" error on subsequent runs.
+          preCommands: |
+            pages project create docsforge-demo --production-branch=main || true
+          # --branch: explicit (detached HEAD in CI confuses git detection);
+          # --commit-dirty: the build just wrote site/, so the tree is dirty.
+          command: >-
+            pages deploy site
+            --project-name=docsforge-demo
+            --branch=${{ github.head_ref || github.ref_name }}
+            --commit-dirty=true
