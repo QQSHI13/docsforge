@@ -20,6 +20,14 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider('docsforge.sidebar', sidebarProvider)
   );
 
+  // Register the output log webview inside the DocsForge sidebar panel.
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      'docsforge.output',
+      DocsForgeLogPanel.get()
+    )
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand('docsforge.init', () => {
       if (!vscode.workspace.workspaceFolders?.length) {

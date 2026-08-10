@@ -34,6 +34,9 @@ edit_uri: edit/main/examples/site/docsforge-demo/docs/
 
 # search, tags, blog, and privacy are built-in core plugins and load
 # automatically — no need to declare them under `plugins:`.
+# social is opt-in: it needs pillow + cairosvg.
+plugins:
+  - social
 nav:
   - title: Home
     path: index.md

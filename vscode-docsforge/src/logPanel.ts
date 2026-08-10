@@ -1,24 +1,24 @@
 /**
- * DocsForge Output panel — a webview that shows build/serve logs inside the
- * editor area, instead of VS Code's bottom Output tab.
+ * DocsForge Output view — a WebviewView living inside the DocsForge sidebar
+ * panel (activity bar), instead of a separate editor tab or the bottom
+ * Output tab. Streams build/serve/init logs.
  *
- * Usage: get a singleton via `DocsForgeLogPanel.get()`, then `append`
- * or `appendLine`. The panel auto-reveals the first time output arrives; a
- * command ("docsforge.openLog") shows it on demand.
+ * Usage: get the singleton via `DocsForgeLogPanel.get()`, then `append` or
+ * `appendLine`. The view is revealed automatically when output arrives; the
+ * "docsforge.openLog" command shows it on demand.
  */
 import * as vscode from 'vscode';
 import { stripAnsi } from './pure';
 
-const VIEW_TYPE = 'docsforge.log';
-const TITLE = 'DocsForge Output';
+const VIEW_ID = 'docsforge.output';
 
-/** Max lines kept in the panel's scrollback buffer. */
+/** Max lines kept in the view's scrollback buffer. */
 const MAX_LINES = 5000;
 
-export class DocsForgeLogPanel {
+export class DocsForgeLogPanel implements vscode.WebviewViewProvider {
   private static singleton: DocsForgeLogPanel | undefined;
 
-  private panel: vscode.WebviewPanel | undefined;
+  private view: vscode.WebviewView | undefined;
   private buffer: string[] = [];
 
   private constructor() {}
@@ -31,15 +31,17 @@ export class DocsForgeLogPanel {
     return DocsForgeLogPanel.singleton;
   }
 
-  /** Reveal the panel (create it if needed). */
+  /** Reveal the output view in the sidebar. */
   show(): void {
-    this.ensurePanel();
-    this.panel?.reveal(vscode.ViewColumn.Beside, true);
+    // Focus the view; if it doesn't exist yet (never opened), creating the
+    // webview triggers resolveWebviewView, which replays the buffer.
+    void vscode.commands.executeCommand(`${VIEW_ID}.focus`);
   }
 
   /** Append raw text (may contain newlines and ANSI escapes). */
   append(text: string): void {
-    this.pushLines(stripAnsi(text).split('\n'));
+    const lines = stripAnsi(text).split('\n');
+    this.pushLines(lines);
   }
 
   /** Append a single line (no trailing newline needed). */
@@ -49,46 +51,41 @@ export class DocsForgeLogPanel {
 
   clear(): void {
     this.buffer = [];
-    this.panel?.webview.postMessage({ type: 'clear' });
+    this.view?.webview.postMessage({ type: 'clear' });
   }
 
-  private ensurePanel(): vscode.WebviewPanel {
-    if (this.panel) {
-      return this.panel;
-    }
-    const panel = vscode.window.createWebviewPanel(
-      VIEW_TYPE,
-      TITLE,
-      { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
-      { enableScripts: true, retainContextWhenHidden: true },
-    );
-    panel.webview.html = this.html();
-    panel.onDidDispose(() => {
-      if (this.panel === panel) {
-        this.panel = undefined;
-      }
-    });
-    this.panel = panel;
-    // Replay buffered output into the fresh webview.
-    panel.webview.onDidReceiveMessage((msg) => {
+  /* ------------------------------------------------------------------ */
+  /* WebviewViewProvider                                                */
+  /* ------------------------------------------------------------------ */
+
+  resolveWebviewView(webviewView: vscode.WebviewView): void {
+    this.view = webviewView;
+    webviewView.webview.options = { enableScripts: true };
+    webviewView.webview.html = this.html();
+    webviewView.webview.onDidReceiveMessage((msg) => {
       if (msg.type === 'ready') {
-        panel.webview.postMessage({ type: 'replace', lines: this.buffer });
+        webviewView.webview.postMessage({ type: 'replace', lines: this.buffer });
       }
     });
-    return panel;
+    // When hidden and reshown, the webview may be re-created — replay buffer.
+    webviewView.onDidDispose(() => {
+      if (this.view === webviewView) {
+        this.view = undefined;
+      }
+    });
   }
 
   private pushLines(lines: string[]): void {
-    const panel = this.ensurePanel();
-    const nonEmpty = lines.length && lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
-    if (!nonEmpty.length) {
+    // Drop the trailing empty element produced by a final newline.
+    const content = lines.length && lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
+    if (!content.length) {
       return;
     }
-    this.buffer.push(...nonEmpty);
+    this.buffer.push(...content);
     if (this.buffer.length > MAX_LINES) {
       this.buffer = this.buffer.slice(-MAX_LINES);
     }
-    panel.webview.postMessage({ type: 'append', lines: nonEmpty });
+    this.view?.webview.postMessage({ type: 'append', lines: content });
   }
 
   private html(): string {

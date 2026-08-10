@@ -11,6 +11,12 @@ edit_uri: edit/main/docsforge-docs/docs/
 
 copyright: Copyright © 2025–2026 QQ
 
+# Social cards are opt-in (requires pillow + cairosvg). The other core
+# plugins (search, tags, blog, meta, info, minify, privacy, i18n) load
+# automatically and don't need to be declared.
+plugins:
+  - social
+
 theme:
   name: material
   features:

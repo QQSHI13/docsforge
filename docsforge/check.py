@@ -15,7 +15,7 @@ from docsforge.exceptions import Abort, ConfigurationError
 log = logging.getLogger(__name__)
 
 
-BUILTIN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy', 'i18n'}
+BUILTIN_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy', 'i18n', 'social'}
 AUTOLOAD_PLUGINS = {'search', 'tags', 'blog', 'meta', 'info', 'minify', 'privacy', 'i18n'}
 
 

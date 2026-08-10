@@ -114,6 +114,12 @@
           "id": "docsforge.sidebar",
           "name": "Actions",
           "when": "workspaceFolderCount >= 1"
+        },
+        {
+          "id": "docsforge.output",
+          "name": "Output",
+          "type": "webview",
+          "when": "workspaceFolderCount >= 1"
         }
       ]
     },

@@ -102,12 +102,35 @@ class TestConfig:
         # Deprecated options are reported as warnings
         assert any(key == "cards_font" for key, _ in warnings)
 
-    def test_registerable_as_core_plugin(self, tmp_path):
-        # The plugin must resolve under the material/ namespace, like the other
-        # core plugins, so it can be loaded automatically by DocsForge.
+    def test_not_auto_loaded(self, tmp_path):
+        # Social has heavy optional deps (Pillow, cairosvg), so it must NOT
+        # auto-load like the other core plugins — only when declared under
+        # `plugins:`.
         cfg = _load_config(tmp_path)
-        assert "material/social" in cfg.plugins
-        assert isinstance(cfg.plugins["material/social"], SocialPlugin)
+        assert "material/social" not in cfg.plugins
+
+    def test_loads_when_declared(self, tmp_path):
+        (tmp_path / "docs").mkdir(exist_ok=True)
+        (tmp_path / "docs" / "index.md").write_text("# Home\n")
+        cfg = tmp_path / "docsforge.yml"
+        cfg.write_text(
+            textwrap.dedent(
+                """
+                site_name: Test
+                docs_dir: docs
+                site_dir: site
+                site_url: https://example.com/
+                theme:
+                  name: material
+                plugins:
+                  - social
+                """
+            ).strip()
+            + "\n"
+        )
+        loaded = load_config(config_file=str(cfg))
+        assert "material/social" in loaded.plugins
+        assert isinstance(loaded.plugins["material/social"], SocialPlugin)
 
 
 class TestMissingDeps:
