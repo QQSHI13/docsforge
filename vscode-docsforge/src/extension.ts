@@ -4,9 +4,13 @@ import { InitWizard } from './initWizard';
 import { DocsForgeSidebarProvider } from './sidebarProvider';
 import { DocsForgeLogPanel } from './logPanel';
 import { detectEnvironment, ensureDocsforge } from './environment';
+import { DocsForgeDiagnostics } from './diagnostics';
+import { registerProviders } from './providers';
+import { registerRenameCommand } from './rename';
 
 let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
+let diagnostics: DocsForgeDiagnostics | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
@@ -14,6 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   serverManager = new ServerManager();
   sidebarProvider = new DocsForgeSidebarProvider();
+
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
   // Register tree data provider for the sidebar view (declared in package.json)
   context.subscriptions.push(
@@ -27,6 +33,21 @@ export function activate(context: vscode.ExtensionContext) {
       DocsForgeLogPanel.get()
     )
   );
+
+  // Editor intelligence (symbols, folding, definition, hover, completion,
+  // references) + diagnostics from the build's validation.json.
+  if (workspaceRoot && ServerManager.hasConfig(workspaceRoot)) {
+    diagnostics = new DocsForgeDiagnostics(workspaceRoot);
+    context.subscriptions.push(diagnostics);
+    registerProviders(context, workspaceRoot);
+    registerRenameCommand(context, workspaceRoot);
+    // Refresh diagnostics right after a build finishes.
+    ServerManager.onStateChange(() => {
+      if (!serverManager.isBuilding()) {
+        diagnostics?.refresh();
+      }
+    });
+  }
 
   context.subscriptions.push(
     vscode.commands.registerCommand('docsforge.init', () => {
@@ -45,6 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('docsforge.refreshSidebar', () => sidebarProvider.refresh()),
     vscode.commands.registerCommand('docsforge.openLog', () => DocsForgeLogPanel.get().show()),
     vscode.commands.registerCommand('docsforge.setupEnvironment', () => setupEnvironment()),
+    vscode.commands.registerCommand('docsforge.refreshDiagnostics', () => diagnostics?.refresh()),
     vscode.commands.registerCommand('docsforge.openDocs', () => {
       vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse('https://qqshi13.github.io/docsforge/'));
     })
@@ -56,7 +78,6 @@ export function activate(context: vscode.ExtensionContext) {
     sidebarProvider.refresh();
   });
 
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (workspaceRoot && ServerManager.hasConfig(workspaceRoot)) {
     vscode.window.showInformationMessage('DocsForge project detected. Start dev server?', 'Yes', 'Later')
       .then(choice => { if (choice === 'Yes') serverManager.start(); });
@@ -65,6 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   serverManager?.dispose();
+  diagnostics?.dispose();
 }
 
 /** Detect the Python environment and install docsforge if missing. */

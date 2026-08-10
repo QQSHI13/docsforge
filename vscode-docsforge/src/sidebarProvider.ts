@@ -68,6 +68,18 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     icon: 'tools',
     tooltip: 'Detect Python and install DocsForge if missing',
   },
+  {
+    label: 'Rename Document',
+    command: 'docsforge.renameDocument',
+    icon: 'symbol-rename',
+    tooltip: 'Rename a document and update all links to it',
+  },
+  {
+    label: 'Refresh Diagnostics',
+    command: 'docsforge.refreshDiagnostics',
+    icon: 'refresh',
+    tooltip: 'Re-read the build validation cache and refresh squiggles',
+  },
 ];
 
 function evalWhen(

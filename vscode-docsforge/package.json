@@ -29,6 +29,8 @@
     "onCommand:docsforge.stopBuild",
     "onCommand:docsforge.openLog",
     "onCommand:docsforge.setupEnvironment",
+    "onCommand:docsforge.renameDocument",
+    "onCommand:docsforge.refreshDiagnostics",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
@@ -96,6 +98,18 @@
         "command": "docsforge.setupEnvironment",
         "title": "Check Python Environment",
         "icon": "$(tools)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.renameDocument",
+        "title": "Rename Document",
+        "icon": "$(symbol-rename)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.refreshDiagnostics",
+        "title": "Refresh Diagnostics",
+        "icon": "$(refresh)",
         "category": "DocsForge"
       }
     ],
