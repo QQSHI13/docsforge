@@ -750,13 +750,30 @@ def _finalize_build(
 
     # Re-emit collected link warnings (fresh from render, or restored above)
     # and validate anchors — always, regardless of what changed this build.
+    # validate_anchor_links appends to page.link_warnings, so it must run
+    # BEFORE the emission loop below, or the fresh anchor problems would be
+    # logged only on the next build (and lost entirely for unbuilt pages,
+    # which are never re-serialized).
     log_level = config.validation.links.anchors
     for file in files.documentation_pages():
         page = file.page
         assert page is not None
+        page.validate_anchor_links(files=files, log_level=log_level)
+
+    # Re-serialize validation for ALL pages now that anchor warnings have been
+    # appended — the serialization inside _write_outputs happened before the
+    # anchor pass, and restored pages only carry cache data, so without this
+    # the anchor problems would never reach validation.json (and thus never
+    # reach the VS Code extension).
+    for file in files.documentation_pages():
+        page = file.page
+        if page is not None:
+            planner.validation[file.src_uri] = _serialize_validation(page)
+
+    for file in files.documentation_pages():
+        page = file.page
         for level, msg in page.link_warnings:
             log.log(level, msg)
-        page.validate_anchor_links(files=files, log_level=log_level)
 
     # Run `post_build` plugin events.
     config.plugins.on_post_build(config=config)

@@ -358,6 +358,7 @@ class Page(StructureItem):
     def validate_anchor_links(self, *, files: Files, log_level: int) -> None:
         if not self.links_to_anchors:
             return
+        existing = {msg for _, msg in self.link_warnings}
         for to_file, links in self.links_to_anchors.items():
             for anchor, original_link in links.items():
                 page = to_file.page
@@ -374,10 +375,17 @@ class Page(StructureItem):
                         context = " This seems to be a footnote that is never referenced."
                 else:
                     problem = f"the doc '{to_file.src_uri}' does not contain an anchor '#{anchor}'"
-                log.log(
-                    log_level,
-                    f"Doc file '{self.file.src_uri}' contains a link '{original_link}', but {problem}.{context}",
+                message = (
+                    f"Doc file '{self.file.src_uri}' contains a link '{original_link}', "
+                    f"but {problem}.{context}"
                 )
+                # Collect instead of logging inline so the problems persist to
+                # validation.json (consumed by the VS Code extension) and are
+                # re-emitted on incremental builds for pages not re-rendered.
+                # Dedupe against warnings restored from the build cache.
+                if message not in existing:
+                    self.link_warnings.append((log_level, message))
+                    existing.add(message)
 
 
 class _ExtractAnchorsTreeprocessor(markdown.treeprocessors.Treeprocessor):

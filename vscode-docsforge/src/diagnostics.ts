@@ -22,26 +22,58 @@ import {
 export class DocsForgeDiagnostics {
   private collection: vscode.DiagnosticCollection;
   private watcher: fs.FSWatcher | null = null;
+  private pollTimer: NodeJS.Timeout | null = null;
+  private lastMtimeMs = 0;
   private root: string;
   private docsDir: string;
   private validationPath: string;
+  private cacheDir: string;
 
   constructor(root: string) {
     this.root = root;
     this.docsDir = docsDirFromConfig(root);
     this.validationPath = path.join(root, '.docsforge', 'cache', 'validation.json');
+    this.cacheDir = path.dirname(this.validationPath);
+    this.lastMtimeMs = this.mtimeMs();
     this.collection = vscode.languages.createDiagnosticCollection('docsforge');
     this.watch();
   }
 
-  /** Watch validation.json for changes (serve rebuilds rewrite it). */
-  private watch(): void {
-    if (!fs.existsSync(this.validationPath)) {
-      return;
+  private mtimeMs(): number {
+    try {
+      return fs.statSync(this.validationPath).mtimeMs;
+    } catch {
+      return 0;
     }
-    this.watcher = fs.watch(this.validationPath, () => {
-      this.refresh();
-    });
+  }
+
+  /** Watch for validation.json changes.
+   *
+   * The build writes atomically (tmp + rename), which replaces the inode, so
+   * watching the file path can miss events. We watch the cache directory and
+   * also poll mtime as a reliable fallback.
+   */
+  private watch(): void {
+    try {
+      if (fs.existsSync(this.cacheDir)) {
+        this.watcher = fs.watch(this.cacheDir, (_event, filename) => {
+          if (filename === 'validation.json') {
+            this.refresh();
+          }
+        });
+      }
+    } catch {
+      this.watcher = null;
+    }
+    // Poll mtime every 2s as a fallback (directory watchers are unreliable
+    // across platforms for atomic renames).
+    this.pollTimer = setInterval(() => {
+      const mtime = this.mtimeMs();
+      if (mtime !== this.lastMtimeMs) {
+        this.lastMtimeMs = mtime;
+        this.refresh();
+      }
+    }, 2000);
   }
 
   /** Re-read validation.json and publish diagnostics. */
@@ -93,6 +125,9 @@ export class DocsForgeDiagnostics {
 
   dispose(): void {
     this.watcher?.close();
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+    }
     this.collection.dispose();
   }
 }
