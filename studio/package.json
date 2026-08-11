@@ -1,8 +1,8 @@
 {
   "name": "docsforge-studio",
   "displayName": "DocsForge Studio",
-  "description": "Write, validate and refactor DocsForge documentation \u2014 no language server required",
-  "version": "12.4.0",
+  "description": "Write, validate and refactor DocsForge documentation — no language server required",
+  "version": "12.5.0",
   "publisher": "QQSHI",
   "license": "Apache-2.0",
   "engines": {
