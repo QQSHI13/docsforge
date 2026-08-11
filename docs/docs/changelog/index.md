@@ -4,6 +4,59 @@ All notable changes to DocsForge are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.5.0] — 2026-08-11
+
+### Added
+
+- **DocsForge Studio** (VS Code extension, `studio/`): renamed from
+  `vscode-docsforge`. Full editor intelligence without a language server —
+  diagnostics from the build's `validation.json` (broken links/anchors,
+  footnotes), outline, folding, definition (ctrl+click), hover with
+  broken-link notices, completion (`:material-`/`:lucide-` icons + doc
+  paths), Find All References, and "Rename Document"/"Rename Anchor" that
+  rewrite every inbound link (anchor-aware, translation-aware — renaming a
+  `.zh` file renames its base + all locale variants). Explorer renames are
+  intercepted automatically. "Fix all broken links (N)" code action, open
+  link target, "Open Built Page" at the serve URL, format-on-save
+  (opt-in), output panel inside the sidebar view.
+- **Python environment management** in Studio: detects an interpreter
+  (setting → remembered venv → `.venv` → PATH), checks pip + docsforge,
+  offers venv / user / global installs.
+- **Apache-2.0 license**: switched from LGPL-3.0-or-later; `NOTICE` with
+  upstream attribution (ProperDocs/MkDocs BSD-2, Material MIT, icons).
+- **Vendored KaTeX + Mermaid** as manifest-tracked devDependencies
+  (previously frozen / hardcoded CDN): `copy_katex()` + `copy_mermaid()` in
+  the frontend build; Mermaid loads from the local asset with a CDN fallback.
+- **pygments.css generated at build time** from the installed Pygments
+  (was a frozen snapshot).
+- **Studio CI coverage**: `ci.yml` gained a `studio` job (npm ci + compile +
+  lint + test) and absorbed `frontend.yml` as a `frontend` job.
+
+### Changed
+
+- **Social plugin is opt-in**: removed from the always-loaded core plugins
+  (it needs pillow + cairosvg); enable via `plugins: [social]`. Docs and
+  demo configs updated accordingly.
+- **Link/anchor validation fixes**: anchor problems are now persisted to
+  `validation.json` (they were logged but never stored — the Studio
+  diagnostics had nothing to show); fixed a shared class-level
+  `link_warnings` list that duplicated warnings across every page.
+- **Renamed directories**: `vscode-docsforge/` → `studio/`,
+  `docsforge-docs/` → `docs/`, `examples/site/` → `examples/sites/`
+  (gitignore negation removed — the global `site/` rule covers it now).
+- **TypeScript 6.0.3** in Studio (TS 7 is outside the typescript-eslint
+  peer range).
+- **Demo deploy**: wrangler-action v4 (no pinned wrangler version).
+
+### Fixed
+
+- **Social card font fetch could hang builds**: Google Fonts requests had no
+  timeout (reverted, upstream-style). The default cache moved to
+  `.docsforge/cache/social`.
+- **Demo pipeline**: fixed the unprivileged `rm -rf /var/lib/apt/lists/*`
+  that failed every run; `neural-network.tex` needed `amssymb`; added the
+  missing `shannon-state-machine.tex`.
+
 ## [12.4.0] — 2026-08-09
 
 ### Added
