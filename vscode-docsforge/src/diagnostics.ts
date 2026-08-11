@@ -15,7 +15,7 @@ import {
   docAbsPath,
   severityForLevel,
   linkFromWarning,
-  lineOfLink,
+  linesOfLink,
   docsDirFromConfig,
 } from './links';
 
@@ -94,7 +94,6 @@ export class DocsForgeDiagnostics {
       let sourceText: string | null = null;
       const diags: vscode.Diagnostic[] = [];
       for (const [level, message] of warnings) {
-        let line = 0;
         const dest = linkFromWarning(String(message));
         if (dest) {
           if (sourceText === null) {
@@ -104,16 +103,29 @@ export class DocsForgeDiagnostics {
               sourceText = '';
             }
           }
-          line = lineOfLink(sourceText, dest) ?? 0;
+          // A broken link may appear multiple times (e.g. the same anchor in
+          // several rows of a table) — squiggle at every occurrence.
+          const lines = linesOfLink(sourceText, dest);
+          const targets = lines.length ? lines : [0];
+          for (const line of targets) {
+            const range = new vscode.Range(line, 0, line, 1000);
+            const diag = new vscode.Diagnostic(
+              range,
+              String(message),
+              severityForLevel(Number(level)),
+            );
+            diag.source = 'docsforge';
+            diags.push(diag);
+          }
+        } else {
+          const diag = new vscode.Diagnostic(
+            new vscode.Range(0, 0, 0, 1000),
+            String(message),
+            severityForLevel(Number(level)),
+          );
+          diag.source = 'docsforge';
+          diags.push(diag);
         }
-        const range = new vscode.Range(line, 0, line, 1000);
-        const diag = new vscode.Diagnostic(
-          range,
-          String(message),
-          severityForLevel(Number(level)),
-        );
-        diag.source = 'docsforge';
-        diags.push(diag);
       }
       byFile.set(absPath, diags);
     }

@@ -75,6 +75,12 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     tooltip: 'Rename a document and update all links to it',
   },
   {
+    label: 'Rename Anchor',
+    command: 'docsforge.renameAnchor',
+    icon: 'symbol-rename',
+    tooltip: 'Rename a heading and update all links to its anchor',
+  },
+  {
     label: 'Refresh Diagnostics',
     command: 'docsforge.refreshDiagnostics',
     icon: 'refresh',

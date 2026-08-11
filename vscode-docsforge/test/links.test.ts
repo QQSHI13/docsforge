@@ -9,11 +9,17 @@ import {
   splitAnchor,
   resolveLinkTarget,
   lineOfLink,
+  linesOfLink,
   linkFromWarning,
   severityForLevel,
   docsDirFromConfig,
   loadValidation,
   docAbsPath,
+  slugifyHeading,
+  computeAnchorRenameEdits,
+  computeDocumentRename,
+  computeRenameEdits,
+  stripLocaleSuffix,
 } from '../src/links';
 
 describe('links helpers', () => {
@@ -88,6 +94,25 @@ describe('links helpers', () => {
     });
   });
 
+  describe('linesOfLink', () => {
+    it('finds every matching line', () => {
+      const src = '[a](#x)\nno\n[a](#x)\n';
+      assert.deepStrictEqual(linesOfLink(src, '#x'), [0, 2]);
+    });
+    it('returns empty when absent', () => {
+      assert.deepStrictEqual(linesOfLink('nothing', '#x'), []);
+    });
+  });
+
+  describe('stripLocaleSuffix', () => {
+    it('strips 2-letter locale', () => {
+      assert.strictEqual(stripLocaleSuffix('foo.zh.md'), 'foo');
+    });
+    it('keeps base name', () => {
+      assert.strictEqual(stripLocaleSuffix('foo.md'), 'foo');
+    });
+  });
+
   describe('linkFromWarning', () => {
     it('extracts the link from a validation warning', () => {
       assert.strictEqual(
@@ -158,6 +183,89 @@ describe('links helpers', () => {
         docAbsPath('/w', 'docs', 'a/b.md'),
         path.join('/w', 'docs', 'a', 'b.md'),
       );
+    });
+  });
+
+  describe('slugifyHeading', () => {
+    it('lowercases and dashes', () => {
+      assert.strictEqual(slugifyHeading('My Heading!'), 'my-heading');
+      assert.strictEqual(slugifyHeading('Section Title?'), 'section-title');
+      assert.strictEqual(slugifyHeading('A B C'), 'a-b-c');
+    });
+  });
+
+  describe('rename edits', () => {
+    let tmp: string;
+    beforeEach(() => {
+      tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-vscode-'));
+      fs.mkdirSync(path.join(tmp, 'docs'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'docsforge.yml'), 'site_name: T\ndocs_dir: docs\n');
+    });
+    afterEach(() => {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('computeRenameEdits rewrites links to a renamed doc', () => {
+      fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# A\n\n[Sec](b.md#x)\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
+      const edits = computeRenameEdits(tmp, 'b.md', 'c.md');
+      assert.strictEqual(edits.size, 1);
+      const fileEdits = edits.get(path.join(tmp, 'docs', 'a.md'))!;
+      assert.strictEqual(fileEdits.length, 1);
+      assert.strictEqual(fileEdits[0].text, './c.md#x');
+    });
+
+    it('computeDocumentRename renames base + translations', () => {
+      fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# A\n\n[Sec](b.md#x)\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.zh.md'), '# B 中文\n');
+      const { files, edits } = computeDocumentRename(tmp, 'b.md', 'c');
+      // Both variants renamed.
+      assert.strictEqual(files.size, 2);
+      assert.strictEqual(files.get(path.join(tmp, 'docs', 'b.md')), path.join(tmp, 'docs', 'c.md'));
+      assert.strictEqual(files.get(path.join(tmp, 'docs', 'b.zh.md')), path.join(tmp, 'docs', 'c.zh.md'));
+      // Link to base rewritten.
+      const fileEdits = edits.get(path.join(tmp, 'docs', 'a.md'))!;
+      assert.strictEqual(fileEdits[0].text, './c.md#x');
+    });
+
+    it('computeDocumentRename works when editing a translation file', () => {
+      fs.writeFileSync(path.join(tmp, 'docs', 'a.zh.md'), '# A\n\n[Sec](b.zh.md#x)\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.zh.md'), '# B 中文\n');
+      const { files, edits } = computeDocumentRename(tmp, 'b.zh.md', 'c');
+      assert.strictEqual(files.size, 2);
+      assert.strictEqual(files.get(path.join(tmp, 'docs', 'b.zh.md')), path.join(tmp, 'docs', 'c.zh.md'));
+      // Link to the zh variant rewritten to the new zh name.
+      const fileEdits = edits.get(path.join(tmp, 'docs', 'a.zh.md'))!;
+      assert.strictEqual(fileEdits[0].text, './c.zh.md#x');
+    });
+
+    it('computeDocumentRename leaves unrelated variants alone', () => {
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.fr.md'), '# B FR\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'other.md'), '# O\n');
+      const { files } = computeDocumentRename(tmp, 'b.md', 'c');
+      assert.strictEqual(files.size, 2); // b.md + b.fr.md only
+      assert.ok(!files.has(path.join(tmp, 'docs', 'other.md')));
+    });
+
+    it('computeAnchorRenameEdits rewrites links with the old anchor', () => {
+      fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# A\n\n[Sec](b.md#old-anchor)\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n\n## Old Anchor\n');
+      const edits = computeAnchorRenameEdits(tmp, 'b.md', 'old-anchor', 'new-anchor');
+      assert.strictEqual(edits.size, 1);
+      const fileEdits = edits.get(path.join(tmp, 'docs', 'a.md'))!;
+      assert.strictEqual(fileEdits.length, 1);
+      assert.strictEqual(fileEdits[0].text, 'new-anchor');
+    });
+
+    it('computeAnchorRenameEdits ignores links to other docs', () => {
+      fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# A\n\n[Sec](c.md#old-anchor)\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'c.md'), '# C\n\n## Old Anchor\n');
+      const edits = computeAnchorRenameEdits(tmp, 'b.md', 'old-anchor', 'new-anchor');
+      assert.strictEqual(edits.size, 0);
     });
   });
 });

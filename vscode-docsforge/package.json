@@ -30,6 +30,7 @@
     "onCommand:docsforge.openLog",
     "onCommand:docsforge.setupEnvironment",
     "onCommand:docsforge.renameDocument",
+    "onCommand:docsforge.renameAnchor",
     "onCommand:docsforge.refreshDiagnostics",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
@@ -103,6 +104,12 @@
       {
         "command": "docsforge.renameDocument",
         "title": "Rename Document",
+        "icon": "$(symbol-rename)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.renameAnchor",
+        "title": "Rename Anchor",
         "icon": "$(symbol-rename)",
         "category": "DocsForge"
       },

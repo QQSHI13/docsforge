@@ -6,7 +6,7 @@ import { DocsForgeLogPanel } from './logPanel';
 import { detectEnvironment, ensureDocsforge } from './environment';
 import { DocsForgeDiagnostics } from './diagnostics';
 import { registerProviders } from './providers';
-import { registerRenameCommand } from './rename';
+import { registerRenameCommands } from './rename';
 
 let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
     diagnostics = new DocsForgeDiagnostics(workspaceRoot);
     context.subscriptions.push(diagnostics);
     registerProviders(context, workspaceRoot);
-    registerRenameCommand(context, workspaceRoot);
+    registerRenameCommands(context, workspaceRoot);
     // Refresh diagnostics right after a build finishes.
     ServerManager.onStateChange(() => {
       if (!serverManager.isBuilding()) {

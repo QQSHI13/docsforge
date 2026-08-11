@@ -107,15 +107,241 @@ export function linkFromWarning(message: string): string | null {
   return m ? m[1] : null;
 }
 
-/** Find the line number of a link destination within a source file. */
-export function lineOfLink(source: string, dest: string): number | null {
+/** Find ALL line numbers of a link destination within a source file.
+ *  Returns empty array when absent. */
+export function linesOfLink(source: string, dest: string): number[] {
   const escaped = dest.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const re = new RegExp(`\\(\\s*${escaped}[\\s)]`);
   const lines = source.split('\n');
+  const hits: number[] = [];
   for (let i = 0; i < lines.length; i++) {
     if (re.test(lines[i])) {
-      return i;
+      hits.push(i);
+    }
+  }
+  return hits;
+}
+
+/** First matching line (kept for compatibility). */
+export function lineOfLink(source: string, dest: string): number | null {
+  const hits = linesOfLink(source, dest);
+  return hits.length ? hits[0] : null;
+}
+
+/** Slugify a heading title the way docsforge/markdown-toc does:
+ *  lowercase, strip punctuation, whitespace → '-'. */
+export function slugifyHeading(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/** Walk all .md files under docs_dir, yielding {absPath, srcUri}. */
+export function walkDocs(
+  docsDirAbs: string,
+): Array<{ absPath: string; srcUri: string }> {
+  const out: Array<{ absPath: string; srcUri: string }> = [];
+  const walk = (dir: string, prefix: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(p, `${prefix}${entry.name}/`);
+      } else if (entry.name.endsWith('.md')) {
+        out.push({ absPath: p, srcUri: `${prefix}${entry.name}` });
+      }
+    }
+  };
+  walk(docsDirAbs, '');
+  return out;
+}
+
+/**
+ * Rename a DOCUMENT (base + all locale variants): oldSrcUri may be the base
+ * (foo.md) or any variant (foo.zh.md). Computes the set of files to rename
+ * and the edits for every link that resolves to any of them.
+ *
+ * Returns { files: Map<absPath, newAbsPath>, edits: Map<absPath, edits> }.
+ */
+export function computeDocumentRename(
+  workspaceRoot: string, oldSrcUri: string, newBaseName: string,
+): {
+  files: Map<string, string>;
+  edits: Map<string, Array<{ start: number; end: number; text: string }>>;
+} {
+  const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+  const files = new Map<string, string>();
+  const edits = new Map<string, Array<{ start: number; end: number; text: string }>>();
+  if (!fs.existsSync(docsDirAbs)) {
+    return { files, edits };
+  }
+
+  // Old variant names: base + each locale suffix found on disk.
+  const oldBase = stripLocaleSuffix(oldSrcUri);
+  const oldVariants = [`${oldBase}.md`];
+  for (const doc of walkDocs(docsDirAbs)) {
+    const variant = localeVariantOf(doc.srcUri, oldBase);
+    if (variant !== null && !oldVariants.includes(variant)) {
+      oldVariants.push(variant);
+    }
+  }
+
+  // Old -> new name map.
+  const newBase = stripLocaleSuffix(newBaseName);
+  const renameMap = new Map<string, string>();
+  for (const variant of oldVariants) {
+    const locale = variant === oldBase ? null : variant.slice(oldBase.length + 1, -3);
+    const newName = locale ? `${newBase}.${locale}.md` : `${newBase}.md`;
+    renameMap.set(variant, newName);
+    const oldAbs = path.join(docsDirAbs, ...variant.split('/'));
+    const newAbs = path.join(docsDirAbs, ...newName.split('/'));
+    if (fs.existsSync(oldAbs)) {
+      files.set(oldAbs, newAbs);
+    }
+  }
+
+  // Rewrite links that resolve to any old variant.
+  for (const doc of walkDocs(docsDirAbs)) {
+    const source = fs.readFileSync(doc.absPath, 'utf-8');
+    const fileEdits: Array<{ start: number; end: number; text: string }> = [];
+    for (const link of extractLinks(source)) {
+      const { target, anchor } = splitAnchor(link.dest);
+      if (!target) {
+        continue;
+      }
+      const resolved = resolveLinkTarget(docsDirAbs, doc.srcUri, target);
+      if (!resolved || !renameMap.has(resolved.srcUri)) {
+        continue;
+      }
+      // New relative target from the same source file.
+      let newTarget = path.posix.relative(
+        path.posix.dirname(doc.srcUri), renameMap.get(resolved.srcUri)!,
+      );
+      if (!newTarget.startsWith('.')) {
+        newTarget = `./${newTarget}`;
+      }
+      if (anchor) {
+        newTarget += `#${anchor}`;
+      }
+      fileEdits.push({
+        start: link.offset + 1, // skip '('
+        end: link.offset + 1 + link.dest.length,
+        text: newTarget,
+      });
+    }
+    if (fileEdits.length) {
+      edits.set(doc.absPath, fileEdits);
+    }
+  }
+
+  return { files, edits };
+}
+
+/** Strip the locale suffix from a doc name: foo.zh.md -> foo, foo.md -> foo. */
+export function stripLocaleSuffix(srcUri: string): string {
+  return srcUri.replace(/(\.[a-z]{2}(?:-[a-z]{2})?)?\.md$/, '');
+}
+
+/** Given a base doc name, return the variant name if srcUri is one.
+ *  e.g. localeVariantOf('foo.zh.md', 'foo') -> 'foo.zh.md'; null otherwise. */
+export function localeVariantOf(srcUri: string, base: string): string | null {
+  const prefix = `${base}.`;
+  if (srcUri.startsWith(prefix) && srcUri.endsWith('.md')) {
+    const locale = srcUri.slice(prefix.length, -3);
+    if (/^[a-z]{2}(-[a-z]{2})?$/.test(locale)) {
+      return srcUri;
     }
   }
   return null;
+}
+
+/**
+ * Compute the edits needed to rename oldSrcUri → newSrcUri: rewrite every
+ * link across all docs that resolves to oldSrcUri. Returns a map of
+ * absolute file path → (start offset, end offset, new text) edits.
+ */
+export function computeRenameEdits(
+  workspaceRoot: string, oldSrcUri: string, newSrcUri: string,
+): Map<string, Array<{ start: number; end: number; text: string }>> {
+  const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+  const edits = new Map<string, Array<{ start: number; end: number; text: string }>>();
+  if (!fs.existsSync(docsDirAbs)) {
+    return edits;
+  }
+  for (const doc of walkDocs(docsDirAbs)) {
+    const source = fs.readFileSync(doc.absPath, 'utf-8');
+    const fileEdits: Array<{ start: number; end: number; text: string }> = [];
+    for (const link of extractLinks(source)) {
+      const { target, anchor } = splitAnchor(link.dest);
+      if (!target) {
+        continue;
+      }
+      const resolved = resolveLinkTarget(docsDirAbs, doc.srcUri, target);
+      if (!resolved || resolved.srcUri !== oldSrcUri) {
+        continue;
+      }
+      // New relative target from the same source file.
+      let newTarget = path.posix.relative(
+        path.posix.dirname(doc.srcUri), newSrcUri,
+      );
+      if (!newTarget.startsWith('.')) {
+        newTarget = `./${newTarget}`;
+      }
+      if (anchor) {
+        newTarget += `#${anchor}`;
+      }
+      fileEdits.push({
+        start: link.offset + 1, // skip '('
+        end: link.offset + 1 + link.dest.length,
+        text: newTarget,
+      });
+    }
+    if (fileEdits.length) {
+      edits.set(doc.absPath, fileEdits);
+    }
+  }
+  return edits;
+}
+
+/**
+ * Compute edits for renaming a heading anchor: rewrite every link across the
+ * docs tree whose anchor slug matches oldSlug into newSlug, when the link
+ * resolves to docSrcUri.
+ */
+export function computeAnchorRenameEdits(
+  workspaceRoot: string,
+  docSrcUri: string,
+  oldSlug: string,
+  newSlug: string,
+): Map<string, Array<{ start: number; end: number; text: string }>> {
+  const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+  const edits = new Map<string, Array<{ start: number; end: number; text: string }>>();
+  if (!fs.existsSync(docsDirAbs)) {
+    return edits;
+  }
+  for (const doc of walkDocs(docsDirAbs)) {
+    const source = fs.readFileSync(doc.absPath, 'utf-8');
+    const fileEdits: Array<{ start: number; end: number; text: string }> = [];
+    for (const link of extractLinks(source)) {
+      const { target, anchor } = splitAnchor(link.dest);
+      if (!target || !anchor || anchor !== oldSlug) {
+        continue;
+      }
+      const resolved = resolveLinkTarget(docsDirAbs, doc.srcUri, target);
+      if (!resolved || resolved.srcUri !== docSrcUri) {
+        continue;
+      }
+      fileEdits.push({
+        start: link.offset + 1 + link.dest.indexOf('#') + 1,
+        end: link.offset + 1 + link.dest.length,
+        text: newSlug,
+      });
+    }
+    if (fileEdits.length) {
+      edits.set(doc.absPath, fileEdits);
+    }
+  }
+  return edits;
 }
