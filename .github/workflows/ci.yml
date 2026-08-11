@@ -64,12 +64,15 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      - name: Install pygments (for pygments.css generation)
-        # Pin the exact version: GitHub's runner ships pygments 2.17.2
-        # system-wide (emits #FF0000), but the committed file is generated
-        # with 2.19.2 (emits #F00). Without the pin the parity check would
-        # fail against the runner's preinstalled version.
-        run: pip install --user pygments==2.19.2
+      - name: Install DocsForge (pygments for pygments.css generation)
+        # Install from the declared requirements (pyproject.toml) rather than
+        # a pinned version: pygments>=2.16 resolves to the current release,
+        # which shadows the runner's preinstalled system pygments (2.17.2 —
+        # its HtmlFormatter emits #FF0000 for .err, the current one emits
+        # #F00). The committed pygments.css is regenerated with whatever the
+        # constraint resolves to; when dependabot bumps pygments and the
+        # output changes, this parity check surfaces it for a re-commit.
+        run: pip install -e .
 
       - name: Build frontend
         run: python build_frontend.py
