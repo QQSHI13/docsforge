@@ -64,14 +64,18 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
       - name: Install DocsForge (pygments for pygments.css generation)
-        # Install from the declared requirements (pyproject.toml) rather than
-        # a pinned version: pygments>=2.16 resolves to the current release,
-        # which shadows the runner's preinstalled system pygments (2.17.2 —
-        # its HtmlFormatter emits #FF0000 for .err, the current one emits
-        # #F00). The committed pygments.css is regenerated with whatever the
-        # constraint resolves to; when dependabot bumps pygments and the
-        # output changes, this parity check surfaces it for a re-commit.
+        # setup-python puts us on a toolcache Python whose site-packages is
+        # writable, so pip resolves pygments>=2.16 from pyproject.toml to the
+        # current release and installs it there, shadowing the runner image's
+        # system pygments (2.17.2 — its HtmlFormatter emits #FF0000 for .err,
+        # the current one emits #F00). Without setup-python, pip installs into
+        # the user site but the system dist-packages copy still wins on import.
         run: pip install -e .
 
       - name: Build frontend
