@@ -33,6 +33,7 @@
     "onCommand:docsforge.renameAnchor",
     "onCommand:docsforge.refreshDiagnostics",
     "onCommand:docsforge.openLinkTarget",
+    "onCommand:docsforge.openPage",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
@@ -125,6 +126,12 @@
         "title": "Open Link Target",
         "icon": "$(link)",
         "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.openPage",
+        "title": "Open Built Page",
+        "icon": "$(globe)",
+        "category": "DocsForge"
       }
     ],
     "viewsContainers": {
@@ -183,6 +190,11 @@
           "type": "string",
           "default": "",
           "description": "Python interpreter the extension resolved (e.g. a project .venv). Managed automatically; set docsforge.pythonPath to override."
+        },
+        "docsforge.formatOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Format the markdown document on save (trailing whitespace, blank-line runs). Off by default; enables automatically once set."
         }
       }
     },

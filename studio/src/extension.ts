@@ -62,6 +62,54 @@ export function activate(context: vscode.ExtensionContext) {
         }
       })
     );
+    // Open the built page for the current document in the Simple Browser
+    // (feature #1): resolves docs/<path>.md -> <serve-url>/<path>/.
+    context.subscriptions.push(
+      vscode.commands.registerCommand('docsforge.openPage', async () => {
+        const { docsDirFromConfig } = await import('./links.js');
+        const serverUrl = serverManager.serverUrl;
+        if (!serverUrl) {
+          vscode.window.showWarningMessage('DocsForge: start the server first (docsforge.serve).');
+          return;
+        }
+        const editor = vscode.window.activeTextEditor;
+        const docPath = editor?.document.uri.fsPath;
+        if (!editor || !docPath) {
+          return;
+        }
+        const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+        const rel = path.relative(docsDirAbs, docPath);
+        if (rel.startsWith('..') || path.isAbsolute(rel) || !rel.endsWith('.md')) {
+          vscode.window.showWarningMessage('DocsForge: the document is not inside the docs directory.');
+          return;
+        }
+        // Strip the locale suffix + .md, then map to the page URL.
+        const base = rel.replace(/\.md$/, '').replace(/(\.[a-z]{2}(?:-[a-z]{2})?)$/, '');
+        const url = new URL(base + '/', serverUrl.endsWith('/') ? serverUrl : serverUrl + '/');
+        await vscode.commands.executeCommand('simpleBrowser.api.open', url);
+      })
+    );
+    // Format-on-save (feature #2, opt-in via docsforge.formatOnSave).
+    context.subscriptions.push(
+      vscode.workspace.onWillSaveTextDocument(async (e) => {
+        const enabled = vscode.workspace.getConfiguration('docsforge').get<boolean>('formatOnSave', false);
+        if (!enabled || e.document.languageId !== 'markdown') {
+          return;
+        }
+        const { formatMarkdown } = await import('./links.js');
+        const text = e.document.getText();
+        const formatted = formatMarkdown(text);
+        if (formatted !== text) {
+          const edit = new vscode.WorkspaceEdit();
+          edit.replace(
+            e.document.uri,
+            new vscode.Range(0, 0, e.document.lineCount, 0),
+            formatted,
+          );
+          e.waitUntil(vscode.workspace.applyEdit(edit));
+        }
+      })
+    );
     // Refresh diagnostics right after a build finishes.
     ServerManager.onStateChange(() => {
       if (!serverManager.isBuilding()) {

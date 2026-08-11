@@ -447,27 +447,35 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
   constructor(private root: string) {}
 
   provideCodeActions(
-    document: vscode.TextDocument, _range: vscode.Range,
+    document: vscode.TextDocument, range: vscode.Range,
     context: vscode.CodeActionContext,
   ): vscode.CodeAction[] {
     const actions: vscode.CodeAction[] = [];
     const text = document.getText();
     const lines = text.split('\n');
     const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
-    for (const diag of context.diagnostics) {
-      const line = lines[diag.range.start.line];
+    const srcUriOf = (doc: vscode.TextDocument) =>
+      doc.uri.fsPath.slice(docsDirAbs.length + 1).split(path.sep).join('/');
+    // Track which link destinations we've already offered actions for, so a
+    // repeated anchor doesn't produce duplicate actions on the same line.
+    const seen = new Set<string>();
+    const handleLine = (lineNo: number, force: boolean) => {
+      const line = lines[lineNo];
       if (!line) {
-        continue;
+        return;
       }
       const linkMatch = line.match(/\[[^\]]*\]\(([^)\s]+)\)/);
-      if (!linkMatch) {
-        continue;
+      if (!linkMatch || seen.has(linkMatch[1])) {
+        return;
       }
+      seen.add(linkMatch[1]);
       const dest = linkMatch[1];
       const { target } = splitAnchor(dest);
       if (!target) {
-        continue;
+        // Anchor-only links (e.g. [#section]) — nothing to open/fix.
+        return;
       }
+      void force;
       // Suggest a fix that points to an existing file with the same name.
       const wanted = path.posix.basename(target);
       const candidates: string[] = [];
@@ -499,7 +507,7 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
         fix.edit = new vscode.WorkspaceEdit();
         fix.edit.replace(
           document.uri,
-          new vscode.Range(diag.range.start.line, at, diag.range.start.line, at + dest.length),
+          new vscode.Range(lineNo, at, lineNo, at + dest.length),
           newTarget,
         );
         actions.push(fix);
@@ -512,6 +520,77 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
         arguments: [{ uri: document.uri.toString(), dest }],
       };
       actions.push(open);
+    };
+
+    // Diagnostic-driven: every broken link occurrence gets its own actions
+    // (repeated anchors emit a diagnostic per line, so all lightbulbs show).
+    for (const diag of context.diagnostics) {
+      handleLine(diag.range.start.line, true);
+    }
+    // Also handle the line under the cursor even without a diagnostic, so the
+    // lightbulb appears on any link (e.g. before the first build writes
+    // validation.json, or for a link not covered by validation).
+    handleLine(range.start.line, false);
+    // Feature #3: "Fix all broken links in file" — one action that applies
+    // every auto-fixable link correction across the document.
+    const fixes: Array<{ uri: vscode.Uri; range: vscode.Range; newText: string }> = [];
+    const seenAll = new Set<string>();
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/\[[^\]]*\]\(([^)\s]+)\)/);
+      if (!m) {
+        continue;
+      }
+      const dest = m[1];
+      const { target } = splitAnchor(dest);
+      if (!target || seenAll.has(dest)) {
+        continue;
+      }
+      seenAll.add(dest);
+      const srcUri = srcUriOf(document);
+      const resolved = resolveLinkTarget(docsDirAbs, srcUri, target);
+      if (resolved && fs.existsSync(resolved.absPath)) {
+        continue; // not broken
+      }
+      const wanted = path.posix.basename(target);
+      const candidates: string[] = [];
+      const walkAll = (dir: string, prefix: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            walkAll(p, `${prefix}${entry.name}/`);
+          } else if (entry.name === wanted) {
+            candidates.push(`${prefix}${entry.name}`);
+          }
+        }
+      };
+      if (fs.existsSync(docsDirAbs)) {
+        walkAll(docsDirAbs, '');
+      }
+      if (!candidates.length || candidates.includes(target)) {
+        continue;
+      }
+      let newTarget = path.posix.relative(path.posix.dirname(srcUri), candidates[0]);
+      if (!newTarget.startsWith('.')) {
+        newTarget = `./${newTarget}`;
+      }
+      const at = lines[i].indexOf(dest);
+      fixes.push({
+        uri: document.uri,
+        range: new vscode.Range(i, at, i, at + dest.length),
+        newText: newTarget,
+      });
+    }
+    if (fixes.length > 1) {
+      const fixAll = new vscode.CodeAction(
+        `Fix all broken links (${fixes.length})`,
+        vscode.CodeActionKind.QuickFix,
+      );
+      const edit = new vscode.WorkspaceEdit();
+      for (const f of fixes) {
+        edit.replace(f.uri, f.range, f.newText);
+      }
+      fixAll.edit = edit;
+      actions.push(fixAll);
     }
     return actions;
   }

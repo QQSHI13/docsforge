@@ -191,6 +191,30 @@ export function registerAutoRename(
             edit.replace(uri, new vscode.Range(doc.positionAt(e.start), doc.positionAt(e.end)), e.text);
           }
         }
+        // Rename companion translation files (base + other locales). VS Code
+        // already moved the file the user renamed, so only rename the variants
+        // that still exist at their old path.
+        if (!isFolder) {
+          const renamedCompanions: string[] = [];
+          for (const [oldAbs, newAbs] of result.files) {
+            if (oldAbs === f.oldUri.fsPath || !fs.existsSync(oldAbs)) {
+              continue; // the file VS Code moved, or already gone
+            }
+            if (fs.existsSync(newAbs)) {
+              vscode.window.showWarningMessage(
+                `DocsForge: cannot rename ${path.relative(docsDirAbs, oldAbs)} — ` +
+                `${path.relative(docsDirAbs, newAbs)} already exists.`,
+              );
+              continue;
+            }
+            fs.mkdirSync(path.dirname(newAbs), { recursive: true });
+            fs.renameSync(oldAbs, newAbs);
+            renamedCompanions.push(path.relative(docsDirAbs, newAbs));
+          }
+          if (renamedCompanions.length) {
+            messages.push(`companions: ${renamedCompanions.join(', ')}`);
+          }
+        }
         if (result.edits.size) {
           messages.push(`${oldSrc} → ${newSrc}: ${result.edits.size} file(s) updated`);
         }

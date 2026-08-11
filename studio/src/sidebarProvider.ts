@@ -45,6 +45,13 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     when: 'docsforge.serverRunning',
   },
   {
+    label: 'Open Built Page',
+    command: 'docsforge.openPage',
+    icon: 'globe',
+    tooltip: 'Open the built page for the current document',
+    when: 'docsforge.serverRunning',
+  },
+  {
     label: 'Initialize Project',
     command: 'docsforge.init',
     icon: 'new-folder',

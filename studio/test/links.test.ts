@@ -321,3 +321,28 @@ describe('computeFolderRename', () => {
     assert.strictEqual(fileEdits[0].text, './ref/a.md');
   });
 });
+
+describe('companion rename (auto-rename semantics)', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-vscode-'));
+    fs.mkdirSync(path.join(tmp, 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'docsforge.yml'), 'site_name: T\ndocs_dir: docs\n');
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('renaming a .zh file renames the base companion too', () => {
+    fs.writeFileSync(path.join(tmp, 'docs', 'migration.md'), '# M\n');
+    fs.writeFileSync(path.join(tmp, 'docs', 'migration.zh.md'), '# M 中文\n');
+    // Simulate VS Code already having moved the renamed file.
+    fs.renameSync(path.join(tmp, 'docs', 'migration.zh.md'), path.join(tmp, 'docs', 'migratdsfion.zh.md'));
+    const { files, edits } = computeDocumentRename(tmp, 'publishing/migration.zh.md'.replace('publishing/', ''), 'migratdsfion');
+    // The base companion (still at old path) must be in the map.
+    const baseOld = path.join(tmp, 'docs', 'migration.md');
+    assert.ok(files.has(baseOld), 'base companion should be renamed');
+    assert.strictEqual(files.get(baseOld), path.join(tmp, 'docs', 'migratdsfion.md'));
+    void edits;
+  });
+});
