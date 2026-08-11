@@ -46,8 +46,11 @@ let sequence = 0
  * @returns Mermaid scripts observable
  */
 function fetchScripts(): Observable<void> {
+  const local = (window as any).docsforge?.mermaidUrl
+  const url = typeof local === "string" && local ? local
+    : "https://unpkg.com/mermaid@11/dist/mermaid.min.js"
   return typeof mermaid === "undefined" || mermaid instanceof Element
-    ? watchScript("https://unpkg.com/mermaid@11/dist/mermaid.min.js")
+    ? watchScript(url)
     : of(undefined)
 }
 

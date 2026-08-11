@@ -64,6 +64,9 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
+      - name: Install pygments (for pygments.css generation)
+        run: pip install pygments
+
       - name: Build frontend
         run: python build_frontend.py
 

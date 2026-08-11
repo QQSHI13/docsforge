@@ -529,6 +529,9 @@
 
           window.docsforge = window.docsforge || {};
           window.docsforge.setLocale = setPreferredLocale;
+          // Vendored Mermaid script (offline / SW-cacheable); the bundle reads
+          // this and only falls back to the unpkg CDN if it is absent.
+          window.docsforge.mermaidUrl = "{{ 'assets/javascripts/mermaid.min.js' | url }}";
 
           getPreferredLocale().then(function(preferred) {
             if (!preferred) return;

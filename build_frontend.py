@@ -319,6 +319,77 @@ def copy_lunr() -> None:
             shutil.copy2(f, out)
 
 
+def copy_katex() -> None:
+    """Copy KaTeX (min.js, min.css, fonts) from node_modules.
+
+    KaTeX is vendored so math renders offline and no CDN is referenced. It is
+    a manifest-tracked devDependency (package.json), so dependabot can bump it.
+    """
+    src = NODE_MODULES / "katex" / "dist"
+    dst = OUT / "assets" / "katex"
+    if not src.exists():
+        log.warning("katex missing from node_modules")
+        return
+    if dst.exists():
+        shutil.rmtree(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    for name in ["katex.min.js", "katex.min.css", "contrib"]:
+        s = src / name
+        if s.exists():
+            shutil.copytree(s, dst / name) if s.is_dir() else shutil.copy2(s, dst / name)
+    # Fonts referenced by katex.min.css
+    fonts = src / "fonts"
+    if fonts.exists():
+        shutil.copytree(fonts, dst / "fonts")
+    log.info("Copied KaTeX %s", _pkg_version("katex"))
+
+
+def copy_mermaid() -> None:
+    """Copy Mermaid (min.js) from node_modules.
+
+    Vendored so diagrams render offline and the SW can cache the script. The
+    theme's base.html exposes the local URL via window.docsforge.mermaidUrl;
+    the bundle falls back to a CDN only if that global is missing.
+    """
+    src = NODE_MODULES / "mermaid" / "dist" / "mermaid.min.js"
+    dst = OUT / "assets" / "javascripts" / "mermaid.min.js"
+    if not src.exists():
+        log.warning("mermaid missing from node_modules")
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    log.info("Copied Mermaid %s", _pkg_version("mermaid"))
+
+
+def _pkg_version(name: str) -> str:
+    try:
+        pkg = json.loads((NODE_MODULES / name / "package.json").read_text())
+        return pkg.get("version", "?")
+    except Exception:
+        return "?"
+
+
+def generate_pygments_css() -> None:
+    """Regenerate assets/stylesheets/pygments.css from the installed Pygments.
+
+    The file is the Pygments 'default' style rendered as class rules for
+    .highlight (pymdownx.highlight emits class-based spans). It was previously
+    a frozen committed snapshot; generating it keeps it in sync with the
+    declared `pygments` dependency. Skips with a warning if Pygments is not
+    importable (e.g. running the frontend build in an env without Python deps).
+    """
+    dst = OUT / "assets" / "stylesheets" / "pygments.css"
+    try:
+        from pygments.formatters import HtmlFormatter
+    except ImportError:
+        log.warning("pygments not installed; leaving pygments.css unchanged")
+        return
+    css = HtmlFormatter(style="default").get_style_defs(".highlight")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(css)
+    log.info("Regenerated pygments.css (%d bytes)", len(css))
+
+
 def copy_sw() -> None:
     """Minify and copy the service worker, keeping the build placeholders.
 
@@ -383,7 +454,10 @@ def main(argv: list[str] | None = None) -> int:
         copy_templates()
     build_typescript()
     build_styles()
+    generate_pygments_css()
     copy_lunr()
+    copy_katex()
+    copy_mermaid()
     copy_sw()
 
     if args.watch:
