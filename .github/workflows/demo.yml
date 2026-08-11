@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'examples/site/docsforge-demo/**'
+      - 'examples/sites/docsforge-demo/**'
       - 'docsforge/**'
       - 'src/**'
       - 'build_frontend.py'
@@ -47,7 +47,7 @@ jobs:
 
       - name: Build demo site
         run: docsforge build
-        working-directory: examples/site/docsforge-demo
+        working-directory: examples/sites/docsforge-demo
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
@@ -55,7 +55,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Run all wrangler commands from the demo dir so paths stay relative.
-          workingDirectory: examples/site/docsforge-demo
+          workingDirectory: examples/sites/docsforge-demo
           # Ensure the Pages project exists (first run on a fresh account).
           # `|| true` swallows the "already exists" error on subsequent runs.
           preCommands: |

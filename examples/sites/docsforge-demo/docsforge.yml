@@ -30,7 +30,7 @@ theme:
 
 repo_url: https://github.com/QQSHI13/docsforge
 repo_name: QQSHI13/docsforge
-edit_uri: edit/main/examples/site/docsforge-demo/docs/
+edit_uri: edit/main/examples/sites/docsforge-demo/docs/
 
 # search, tags, blog, and privacy are built-in core plugins and load
 # automatically — no need to declare them under `plugins:`.

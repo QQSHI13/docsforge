@@ -1,4 +1,4 @@
-"""Build the official example site (examples/site/docsforge-demo).
+"""Build the official example site (examples/sites/docsforge-demo).
 
 The example must never rot: this test runs a real build and asserts the key
 outputs exist. The TikZ/latex steps warn (texlive is not required) and the

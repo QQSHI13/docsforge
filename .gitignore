@@ -30,22 +30,17 @@ venv/
 
 # Build output (also remove tracked pdf/ artifacts)
 site/
-# ...but the examples/site/ directory is real content, not build output.
-!examples/site/
-!examples/site/**
-# ...except the demo's own build output, which stays ignored.
-examples/site/docsforge-demo/site/
 docs/pdf/
 .docsforge/
 
 # Example demo site — regenerable build outputs
-examples/site/docsforge-demo/pdf/
-examples/site/docsforge-demo/.cache/
-examples/site/docsforge-demo/.docsforge/
-examples/site/docsforge-demo/docs/assets/tikz/*.aux
-examples/site/docsforge-demo/docs/assets/tikz/*.dvi
-examples/site/docsforge-demo/docs/assets/tikz/*.pdf
-examples/site/docsforge-demo/docs/assets/tikz/*.svg
+# (the demo's site/ dir is covered by the global site/ pattern above;
+# .cache/ and .docsforge/ by their global patterns)
+examples/sites/docsforge-demo/pdf/
+examples/sites/docsforge-demo/docs/assets/tikz/*.aux
+examples/sites/docsforge-demo/docs/assets/tikz/*.dvi
+examples/sites/docsforge-demo/docs/assets/tikz/*.pdf
+examples/sites/docsforge-demo/docs/assets/tikz/*.svg
 
 # Blog plugin auto-generates this index at build time
 docs/docs/blog/index.md
