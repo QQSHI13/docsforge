@@ -1,0 +1,62 @@
+DocsForge
+Copyright (C) 2025-2026 QQ
+
+This product includes software developed as part of DocsForge.
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+----------------------------------------------------------------------
+Third-party notices
+----------------------------------------------------------------------
+
+The DocsForge engine is a fork of ProperDocs, itself a fork of MkDocs.
+
+ProperDocs
+  Copyright (c) 2014-present, Tom Christie. All rights reserved.
+  Modifications Copyright (c) 2026-present, ProperDocs contributors.
+  Licensed under the BSD 2-Clause License.
+
+MkDocs
+  Copyright (c) 2014-present, Tom Christie. All rights reserved.
+  Licensed under the BSD 2-Clause License.
+
+Material for MkDocs
+  Copyright (c) 2016-2024 Martin Donath (squidfunk)
+  Licensed under the MIT License.
+
+Python-Markdown
+  Copyright (c) 2007-2023 The Python Markdown Project (and Contributors)
+  Licensed under the BSD 3-Clause License.
+
+Pymdown Extensions
+  Copyright (c) 2014-2024 Isaac Muse
+  Licensed under the MIT License.
+
+Pygments
+  Copyright (c) 2006-2023 by the respective authors
+  Licensed under the BSD 2-Clause License.
+
+Lunr.js
+  Copyright (c) 2013-2021 Oliver Nightingale
+  Licensed under the MIT License.
+
+Mermaid.js
+  Copyright (c) 2014-2024 Knut Sveidqvist
+  Licensed under the MIT License.
+
+Material Design Icons
+  Copyright (c) 2014-2024 Austin Andrews
+  Licensed under the Apache License 2.0.
+
+Lucide Icons
+  Copyright (c) Lucide contributors
+  Licensed under the ISC License.
+
+Octicons
+  Copyright (c) 2012-2024 GitHub, Inc.
+  Licensed under the MIT License.
+
+Simple Icons
+  Licensed under the CC0 1.0 Universal License.
+
+Font Awesome Icons
+  Licensed under the CC BY 4.0 License (icons) and the SIL OFL 1.1 (fonts).

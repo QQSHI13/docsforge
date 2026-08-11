@@ -1,28 +1,31 @@
 # License
 
-DocsForge and its documentation are released under the **GNU Lesser General Public License v3 or later (LGPL-3.0-or-later)**.
+DocsForge and its documentation are released under the **Apache License, Version 2.0 (Apache-2.0)**.
 
 ## DocsForge License
 
 ```
-GNU LESSER GENERAL PUBLIC LICENSE
-Version 3, 29 June 2007
+Apache License
+Version 2.0, January 2004
+http://www.apache.org/licenses/
 
-Copyright (C) 2025–2026 QQ
+Copyright (C) 2025-2026 QQ
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Lesser General Public License for more details.
+    http://www.apache.org/licenses/LICENSE-2.0
 
-You should have received a copy of the GNU Lesser General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 ```
+
+The full license text is in the repository root (`LICENSE`), with upstream
+attributions in `NOTICE`.
 
 ## Vendored Components
 
@@ -30,6 +33,7 @@ DocsForge bundles the following open source components, each under their respect
 
 | Component | License |
 |-----------|---------|
+| ProperDocs (engine base) | BSD-2-Clause |
 | MkDocs | BSD-2-Clause |
 | Material for MkDocs | MIT |
 | Python Markdown | BSD-3-Clause |
@@ -38,6 +42,10 @@ DocsForge bundles the following open source components, each under their respect
 | Lunr.js | MIT |
 | Mermaid.js | MIT |
 | Material Design Icons | Apache-2.0 |
+| Lucide Icons | ISC |
+| Octicons | MIT |
+| Simple Icons | CC0-1.0 |
+| Font Awesome Icons | CC-BY-4.0 |
 | Twemoji | CC-BY-4.0 |
 
 All vendored components are permissively licensed and compatible with commercial use.

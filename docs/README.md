@@ -44,7 +44,7 @@ Live URL: **https://qqshi13.github.io/docsforge/**
 
 ## 📄 License
 
-[LGPL v3](docs/license.md)
+[Apache-2.0](docs/license.md)
 
 ## 🤝 Contributing
 

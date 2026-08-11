@@ -9,7 +9,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/docsforge)](https://pypi.org/project/docsforge/)
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge/)
-[![License](https://img.shields.io/badge/license-LGPL%20v3-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 **DocsForge** is a self-contained, actively-maintained documentation engine. If you use MkDocs, Material for MkDocs, or are looking for a modern alternative, you're in the right place.
 
@@ -217,7 +217,7 @@ Recent highlights:
 
 ## License
 
-LGPL v3-or-later
+Apache-2.0
 
 ---
 

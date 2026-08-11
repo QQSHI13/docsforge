@@ -4,7 +4,7 @@
   "description": "Write, validate and refactor DocsForge documentation \u2014 no language server required",
   "version": "12.4.0",
   "publisher": "QQSHI",
-  "license": "LGPL-3.0-or-later",
+  "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.85.0"
   },

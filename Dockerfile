@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 LABEL org.opencontainers.image.source="https://github.com/QQSHI13/docsforge"
 LABEL org.opencontainers.image.description="DocsForge - documentation engine with Material theme"
-LABEL org.opencontainers.image.licenses="LGPL-3.0-or-later"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # Install system deps for Playwright, TikZ, and common tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
