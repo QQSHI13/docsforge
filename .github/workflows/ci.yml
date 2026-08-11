@@ -65,7 +65,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install pygments (for pygments.css generation)
-        run: pip install pygments
+        # Pin the exact version: GitHub's runner ships pygments 2.17.2
+        # system-wide (emits #FF0000), but the committed file is generated
+        # with 2.19.2 (emits #F00). Without the pin the parity check would
+        # fail against the runner's preinstalled version.
+        run: pip install --user pygments==2.19.2
 
       - name: Build frontend
         run: python build_frontend.py
