@@ -9,7 +9,7 @@ zero CDN calls.
 
 This file is the entry point for contributors **and** for AI agents working in
 this repository (`AGENTS.md` is a symlink to this file). For a deep dive into
-what each part of the codebase does, read [`technical.md`](technical.md).
+what each part of the codebase does, read [`TECHNICAL.md`](TECHNICAL.md).
 
 ## Repository layout
 
