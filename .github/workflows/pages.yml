@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docsforge-docs/**'
+      - 'docs/**'
       - 'docsforge/**'
       - 'src/**'
       - 'build_frontend.py'
@@ -37,12 +37,12 @@ jobs:
         run: pip install .
 
       - name: Build site
-        run: cd docsforge-docs && docsforge build
+        run: cd docs && docsforge build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: docsforge-docs/site/
+          path: docs/site/
 
   deploy:
     needs: build

@@ -298,4 +298,4 @@ DocsForge 将静态 HTML 输出到 `site/` — 可部署到任何静态主机。
 ## 获取帮助
 
 - GitHub Issues：[github.com/QQSHI13/docsforge/issues](https://github.com/QQSHI13/docsforge/issues)
-- 文档：[qqshi13.github.io/docsforge-docs](https://qqshi13.github.io/docsforge-docs/)
+- 文档：[qqshi13.github.io/docsforge](https://qqshi13.github.io/docsforge/)

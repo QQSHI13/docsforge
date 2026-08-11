@@ -825,7 +825,7 @@ theme:
 
 If you encounter issues not covered in this guide:
 
-1. Read the [DocsForge documentation](https://qqshi13.github.io/docsforge-docs/)
+1. Read the [DocsForge documentation](https://qqshi13.github.io/docsforge/)
 2. Search existing [GitHub issues](https://github.com/QQSHI13/docsforge/issues)
 3. Open a new issue with:
    - Your original `mkdocs.yml`

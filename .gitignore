@@ -35,7 +35,7 @@ site/
 !examples/site/**
 # ...except the demo's own build output, which stays ignored.
 examples/site/docsforge-demo/site/
-docsforge-docs/pdf/
+docs/pdf/
 .docsforge/
 
 # Example demo site — regenerable build outputs
@@ -48,8 +48,8 @@ examples/site/docsforge-demo/docs/assets/tikz/*.pdf
 examples/site/docsforge-demo/docs/assets/tikz/*.svg
 
 # Blog plugin auto-generates this index at build time
-docsforge-docs/docs/blog/index.md
+docs/docs/blog/index.md
 
 # VS Code extension compiled test output
-vscode-docsforge/test/**/*.js
-vscode-docsforge/test/**/*.js.map
+studio/test/**/*.js
+studio/test/**/*.js.map

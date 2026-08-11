@@ -100,7 +100,7 @@ jobs:
       - name: Bump version in VS Code extension
         run: |
           VERSION="${{ steps.versions.outputs.vsix }}"
-          FILE="vscode-docsforge/package.json"
+          FILE="studio/package.json"
           node -e "
             const pkg = require('./$FILE');
             pkg.version = '$VERSION';
@@ -110,7 +110,7 @@ jobs:
 
       - name: Bump version in VS Code extension lockfile
         run: |
-          LOCK="vscode-docsforge/package-lock.json"
+          LOCK="studio/package-lock.json"
           if [ -f "$LOCK" ]; then
             node -e "
               const fs = require('fs');
@@ -133,11 +133,11 @@ jobs:
           TAG="${{ steps.versions.outputs.tag }}"
           git config user.name "docsforge-bot"
           git config user.email "bot@docsforge.dev"
-          git add docsforge/__init__.py vscode-docsforge/package.json
+          git add docsforge/__init__.py studio/package.json
           # package-lock.json is gitignored, but if it exists we want it committed
           # so the lockfile version stays in sync with package.json.
-          if [ -f vscode-docsforge/package-lock.json ]; then
-            git add -f vscode-docsforge/package-lock.json
+          if [ -f studio/package-lock.json ]; then
+            git add -f studio/package-lock.json
           fi
 
           if ! git diff --cached --quiet; then
@@ -155,7 +155,7 @@ jobs:
         id: notes
         run: |
           VERSION="${{ steps.versions.outputs.version }}"
-          CHANGELOG="docsforge-docs/docs/changelog/index.md"
+          CHANGELOG="docs/docs/changelog/index.md"
           # Extract the "## [VERSION] ..." section up to the next "## [" header.
           # Use index() (string search) instead of a regex so bracket escaping
           # can't differ between awk implementations (mawk vs gawk).
@@ -218,26 +218,26 @@ jobs:
         uses: actions/setup-node@v7
 
       - name: Install extension dependencies
-        run: cd vscode-docsforge && npm install
+        run: cd studio && npm install
 
       - name: Compile extension
-        run: cd vscode-docsforge && npm run compile
+        run: cd studio && npm run compile
 
       - name: Lint extension
-        run: cd vscode-docsforge && npm run lint
+        run: cd studio && npm run lint
 
       - name: Test extension
-        run: cd vscode-docsforge && npm test
+        run: cd studio && npm test
 
       - name: Package extension
         run: |
-          cd vscode-docsforge
+          cd studio
           npm install -g @vscode/vsce
           vsce package --out "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix"
 
       - name: Generate VSIX checksum
         run: |
-          cd vscode-docsforge
+          cd studio
           sha256sum "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix" \
             > "docsforge-vscode-${{ needs.release.outputs.vsix_version }}.vsix.sha256"
 
@@ -248,8 +248,8 @@ jobs:
           VSIX_VERSION="${{ needs.release.outputs.vsix_version }}"
           TAG="${{ needs.release.outputs.tag }}"
           gh release upload "$TAG" \
-            "vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix" \
-            "vscode-docsforge/docsforge-vscode-${VSIX_VERSION}.vsix.sha256" \
+            "studio/docsforge-vscode-${VSIX_VERSION}.vsix" \
+            "studio/docsforge-vscode-${VSIX_VERSION}.vsix.sha256" \
             --clobber
 
   build-docker:

@@ -14,7 +14,7 @@ Curated examples and links for DocsForge. Everything under `examples/` is
 | [`site/docsforge-demo`](site/docsforge-demo/) | A complete site: config, nav, blog, tags, TikZ diagrams, math, **and a `custom_dir` override** | `docsforge build` in that directory |
 
 The plugin API is documented in
-[`docsforge-docs/docs/advanced/plugin-development.md`](../docsforge-docs/docs/advanced/plugin-development.md).
+[`docs/docs/advanced/plugin-development.md`](../docs/docs/advanced/plugin-development.md).
 
 ## Community showcase
 

@@ -19,7 +19,7 @@ cd docsforge
 pip install -e .
 
 # VS Code extension
-cd vscode-docsforge
+cd studio
 npm install
 ```
 
@@ -30,7 +30,7 @@ npm install
 python -m pytest tests/unit tests/regression tests/integration -q
 
 # VS Code extension pure-helper tests
-cd vscode-docsforge
+cd studio
 npm test
 ```
 

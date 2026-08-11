@@ -825,7 +825,7 @@ theme:
 
 如果你遇到本指南未涵盖的问题：
 
-1. 阅读 [DocsForge 文档](https://qqshi13.github.io/docsforge-docs/)
+1. 阅读 [DocsForge 文档](https://qqshi13.github.io/docsforge/)
 2. 搜索现有的 [GitHub issues](https://github.com/QQSHI13/docsforge/issues)
 3. 提交新 issue，并附上：
    - 你原来的 `mkdocs.yml`

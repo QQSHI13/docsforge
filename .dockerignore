@@ -1,10 +1,10 @@
 # Docker build context excludes
 .git
 node_modules
-docsforge-docs/site
-docsforge-docs/.docsforge
-docsforge-docs/pdf
-docsforge-docs/docs/blog/index.md
+docs/site
+docs/.docsforge
+docs/pdf
+docs/docs/blog/index.md
 .docsforge
 .tmp
 .pytest_cache
@@ -15,5 +15,5 @@ __pycache__
 dist
 build
 *.egg-info
-vscode-docsforge/node_modules
-vscode-docsforge/out
+studio/node_modules
+studio/out

@@ -298,4 +298,4 @@ DocsForge outputs static HTML to `site/` — deploy to any static host. See [Dep
 ## Getting Help
 
 - GitHub Issues: [github.com/QQSHI13/docsforge/issues](https://github.com/QQSHI13/docsforge/issues)
-- Docs: [qqshi13.github.io/docsforge-docs](https://qqshi13.github.io/docsforge-docs/)
+- Docs: [qqshi13.github.io/docsforge](https://qqshi13.github.io/docsforge/)

@@ -108,7 +108,7 @@ markdown_extensions:
   - pymdownx.magiclink:
       repo_url_shorthand: true
       user: QQSHI13
-      repo: docsforge-docs
+      repo: docsforge
 ```
 
 ## Link preview tooltips

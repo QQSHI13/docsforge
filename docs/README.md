@@ -7,8 +7,8 @@ The official documentation site for **DocsForge** — a self-contained documenta
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/QQSHI13/docsforge-docs.git
-cd docsforge-docs
+git clone https://github.com/QQSHI13/docsforge.git
+cd docsforge/docs
 pip install docsforge
 docsforge serve
 ```
@@ -40,7 +40,7 @@ The static site is generated in the `site/` directory.
 
 This site auto-deploys to GitHub Pages via [GitHub Actions](.github/workflows/pages.yml) on every push to `main`.
 
-Live URL: **https://qqshi13.github.io/docsforge-docs/**
+Live URL: **https://qqshi13.github.io/docsforge/**
 
 ## 📄 License
 
@@ -52,4 +52,4 @@ This documentation is open source. Feel free to open issues or pull requests for
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/chart?repos=QQSHI13/docsforge-docs&type=date&legend=top-left)](https://www.star-history.com/?repos=QQSHI13%2Fdocsforge-docs&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/chart?repos=QQSHI13/docsforge&type=date&legend=top-left)](https://www.star-history.com/?repos=QQSHI13%2Fdocsforge&type=date&legend=top-left)
