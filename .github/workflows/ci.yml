@@ -43,3 +43,58 @@ jobs:
         run: python -m playwright install --with-deps chromium
       - name: Run E2E browser tests
         run: python -m pytest -m e2e -q
+
+  # Builds the frontend from src/ into the committed templates and verifies
+  # the committed output matches, so a frontend change can't land broken on
+  # main. (Formerly .github/workflows/frontend.yml.)
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: python build_frontend.py
+
+      - name: Verify committed templates match the build
+        run: git diff --exit-code -- docsforge/templates
+
+  # The VS Code extension has its own npm workspace; a PR can break its
+  # install (e.g. an incompatible toolchain peer range) without touching any
+  # Python or root-workspace file. Compile + lint + test it here so
+  # dependabot PRs against /studio are actually validated.
+  studio:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+
+      - name: Install studio deps
+        run: npm ci
+        working-directory: studio
+
+      - name: Compile
+        run: npm run compile
+        working-directory: studio
+
+      - name: Lint
+        run: npm run lint
+        working-directory: studio
+
+      - name: Test
+        run: npm test
+        working-directory: studio

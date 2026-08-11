@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # GitHub Actions used by every workflow (ci, frontend, pages, release).
+  # GitHub Actions used by every workflow (ci, pages, release).
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
