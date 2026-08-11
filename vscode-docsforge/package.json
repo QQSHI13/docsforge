@@ -32,6 +32,7 @@
     "onCommand:docsforge.renameDocument",
     "onCommand:docsforge.renameAnchor",
     "onCommand:docsforge.refreshDiagnostics",
+    "onCommand:docsforge.openLinkTarget",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",
@@ -117,6 +118,12 @@
         "command": "docsforge.refreshDiagnostics",
         "title": "Refresh Diagnostics",
         "icon": "$(refresh)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.openLinkTarget",
+        "title": "Open Link Target",
+        "icon": "$(link)",
         "category": "DocsForge"
       }
     ],

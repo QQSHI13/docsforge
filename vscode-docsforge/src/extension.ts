@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ServerManager } from './serverManager';
 import { InitWizard } from './initWizard';
 import { DocsForgeSidebarProvider } from './sidebarProvider';
@@ -6,7 +8,7 @@ import { DocsForgeLogPanel } from './logPanel';
 import { detectEnvironment, ensureDocsforge } from './environment';
 import { DocsForgeDiagnostics } from './diagnostics';
 import { registerProviders } from './providers';
-import { registerRenameCommands } from './rename';
+import { registerRenameCommands, registerAutoRename } from './rename';
 
 let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
@@ -41,6 +43,25 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(diagnostics);
     registerProviders(context, workspaceRoot);
     registerRenameCommands(context, workspaceRoot);
+    registerAutoRename(context, workspaceRoot);
+    // Command used by the "Open link target" code action.
+    context.subscriptions.push(
+      vscode.commands.registerCommand('docsforge.openLinkTarget', async (arg?: { uri: string; dest: string }) => {
+        if (!arg) {
+          return;
+        }
+        const { resolveLinkTarget, docsDirFromConfig } = await import('./links.js');
+        const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+        const srcUri = vscode.Uri.parse(arg.uri).fsPath.slice(docsDirAbs.length + 1)
+          .split(path.sep).join('/');
+        const resolved = resolveLinkTarget(docsDirAbs, srcUri, arg.dest.split('#')[0]);
+        if (resolved && fs.existsSync(resolved.absPath)) {
+          await vscode.window.showTextDocument(vscode.Uri.file(resolved.absPath));
+        } else {
+          vscode.window.showWarningMessage(`DocsForge: link target not found: ${arg.dest}`);
+        }
+      })
+    );
     // Refresh diagnostics right after a build finishes.
     ServerManager.onStateChange(() => {
       if (!serverManager.isBuilding()) {

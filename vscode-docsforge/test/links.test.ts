@@ -19,7 +19,10 @@ import {
   computeAnchorRenameEdits,
   computeDocumentRename,
   computeRenameEdits,
+  computeFolderRename,
   stripLocaleSuffix,
+  checkFootnotes,
+  formatMarkdown,
 } from '../src/links';
 
 describe('links helpers', () => {
@@ -267,5 +270,54 @@ describe('links helpers', () => {
       const edits = computeAnchorRenameEdits(tmp, 'b.md', 'old-anchor', 'new-anchor');
       assert.strictEqual(edits.size, 0);
     });
+  });
+});
+
+describe('footnote diagnostics', () => {
+  it('flags unresolved footnotes', () => {
+    const src = 'Text[^a] and [^b].\n\n[^a]: defined\n';
+    const w = checkFootnotes(src);
+    assert.deepStrictEqual(w.map((x) => x.kind), ['unresolved']);
+    assert.ok(w[0].message.includes('Unresolved footnote: [^b]'));
+  });
+
+  it('flags duplicate definitions', () => {
+    const src = '[^a]: one\n\n[^a]: two\n';
+    const w = checkFootnotes(src);
+    assert.ok(w.some((x) => x.kind === 'duplicate'));
+  });
+
+  it('no warnings for well-formed footnotes', () => {
+    assert.deepStrictEqual(checkFootnotes('Text[^a]\n\n[^a]: def\n'), []);
+  });
+});
+
+describe('formatMarkdown', () => {
+  it('strips trailing whitespace and collapses blank runs', () => {
+    const src = '# H  \n\n\n\nbody  \n\n';
+    assert.strictEqual(formatMarkdown(src), '# H\n\nbody\n');
+  });
+});
+
+describe('computeFolderRename', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-vscode-'));
+    fs.mkdirSync(path.join(tmp, 'docs', 'guide'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'docsforge.yml'), 'site_name: T\ndocs_dir: docs\n');
+  });
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('renames links into a moved folder', () => {
+    fs.writeFileSync(path.join(tmp, 'docs', 'guide', 'a.md'), '# A\n');
+    fs.writeFileSync(path.join(tmp, 'docs', 'index.md'), '# I\n\n[See](guide/a.md)\n');
+    const { files, edits } = computeFolderRename(tmp, 'guide', 'ref');
+    assert.strictEqual(files.size, 1);
+    assert.strictEqual(files.get(path.join(tmp, 'docs', 'guide', 'a.md')),
+      path.join(tmp, 'docs', 'ref', 'a.md'));
+    const fileEdits = edits.get(path.join(tmp, 'docs', 'index.md'))!;
+    assert.strictEqual(fileEdits[0].text, './ref/a.md');
   });
 });

@@ -345,3 +345,121 @@ export function computeAnchorRenameEdits(
   }
   return edits;
 }
+
+/* ------------------------------------------------------------------ */
+/* Footnote / formatting diagnostics (Zensical-style breadth)         */
+/* ------------------------------------------------------------------ */
+
+/** Footnote references `[^label]` and definitions `[^label]: …`. */
+export function checkFootnotes(
+  source: string,
+): Array<{ line: number; message: string; kind: 'unresolved' | 'duplicate' }> {
+  const warnings: Array<{ line: number; message: string; kind: 'unresolved' | 'duplicate' }> = [];
+  const refs = new Map<string, number>();   // label -> first line
+  const defs = new Map<string, number>();   // label -> first line
+  const lines = source.split('\n');
+  const refRe = /\[\^([^\]]+)\](?!:)/g;
+  const defRe = /^\[\^([^\]]+)\]:\s*/;
+  for (let i = 0; i < lines.length; i++) {
+    let m: RegExpExecArray | null;
+    while ((m = refRe.exec(lines[i])) !== null) {
+      if (!refs.has(m[1])) {
+        refs.set(m[1], i);
+      }
+    }
+    const d = defRe.exec(lines[i]);
+    if (d) {
+      if (!defs.has(d[1])) {
+        defs.set(d[1], i);
+      } else {
+        warnings.push({ line: i, message: `Duplicate footnote definition: [^${d[1]}]`, kind: 'duplicate' });
+      }
+    }
+  }
+  for (const [label, line] of refs) {
+    if (!defs.has(label)) {
+      warnings.push({ line, message: `Unresolved footnote: [^${label}]`, kind: 'unresolved' });
+    }
+  }
+  return warnings;
+}
+
+/** Minimal markdown formatting: normalize trailing whitespace + blank lines. */
+export function formatMarkdown(source: string): string {
+  const lines = source.split('\n');
+  const out: string[] = [];
+  let blank = 0;
+  for (const line of lines) {
+    const trimmed = line.replace(/[ \t]+$/, '');
+    if (trimmed === '') {
+      blank++;
+      if (blank > 1) {
+        continue; // collapse runs of blank lines
+      }
+    } else {
+      blank = 0;
+    }
+    out.push(trimmed);
+  }
+  // Ensure the file ends with exactly one trailing newline.
+  while (out.length && out[out.length - 1] === '') {
+    out.pop();
+  }
+  return out.join('\n') + '\n';
+}
+
+/** Rename a folder (and everything under it) plus all links into it. */
+export function computeFolderRename(
+  workspaceRoot: string, oldDirSrc: string, newDirSrc: string,
+): {
+  files: Map<string, string>;
+  edits: Map<string, Array<{ start: number; end: number; text: string }>>;
+} {
+  const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+  const files = new Map<string, string>();
+  const edits = new Map<string, Array<{ start: number; end: number; text: string }>>();
+  if (!fs.existsSync(docsDirAbs)) {
+    return { files, edits };
+  }
+  const oldPrefix = `${oldDirSrc}/`;
+  const renameMap = new Map<string, string>();
+  for (const doc of walkDocs(docsDirAbs)) {
+    if (doc.srcUri === oldDirSrc || doc.srcUri.startsWith(oldPrefix)) {
+      const newName = newDirSrc + doc.srcUri.slice(oldDirSrc.length);
+      renameMap.set(doc.srcUri, newName);
+      files.set(doc.absPath, path.join(docsDirAbs, ...newName.split('/')));
+    }
+  }
+  for (const doc of walkDocs(docsDirAbs)) {
+    const source = fs.readFileSync(doc.absPath, 'utf-8');
+    const fileEdits: Array<{ start: number; end: number; text: string }> = [];
+    for (const link of extractLinks(source)) {
+      const { target, anchor } = splitAnchor(link.dest);
+      if (!target) {
+        continue;
+      }
+      const resolved = resolveLinkTarget(docsDirAbs, doc.srcUri, target);
+      if (!resolved || !renameMap.has(resolved.srcUri)) {
+        continue;
+      }
+      let newTarget = path.posix.relative(
+        path.posix.dirname(doc.srcUri), renameMap.get(resolved.srcUri)!,
+      );
+      if (!newTarget.startsWith('.')) {
+        newTarget = `./${newTarget}`;
+      }
+      if (anchor) {
+        newTarget += `#${anchor}`;
+      }
+      fileEdits.push({
+        start: link.offset + 1,
+        end: link.offset + 1 + link.dest.length,
+        text: newTarget,
+      });
+    }
+    if (fileEdits.length) {
+      edits.set(doc.absPath, fileEdits);
+    }
+  }
+  return { files, edits };
+}

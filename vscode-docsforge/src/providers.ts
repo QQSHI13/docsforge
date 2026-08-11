@@ -13,6 +13,7 @@ import {
   splitAnchor,
   resolveLinkTarget,
   docsDirFromConfig,
+  formatMarkdown,
 } from './links';
 
 /** Whether a document is a markdown doc inside the project's docs dir. */
@@ -361,6 +362,173 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
   }
 }
 
+/** Highlight repeated occurrences of the token under the cursor, and all
+ *  links sharing the same destination (Zensical-style "spot repeated"). */
+class DocsForgeHighlightProvider implements vscode.DocumentHighlightProvider {
+  provideDocumentHighlights(
+    document: vscode.TextDocument, position: vscode.Position,
+  ): vscode.DocumentHighlight[] {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const line = lines[position.line] ?? '';
+    const wordRe = /[A-Za-z0-9_\-.:/]+/g;
+    let m: RegExpExecArray | null;
+    let word: string | null = null;
+    while ((m = wordRe.exec(line)) !== null) {
+      if (position.character >= m.index && position.character <= m.index + m[0].length) {
+        word = m[0];
+        break;
+      }
+    }
+    if (!word) {
+      return [];
+    }
+    const highlights: vscode.DocumentHighlight[] = [];
+    // Repeated word occurrences.
+    const wRe = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    for (let i = 0; i < lines.length; i++) {
+      let mm: RegExpExecArray | null;
+      wRe.lastIndex = 0;
+      while ((mm = wRe.exec(lines[i])) !== null) {
+        highlights.push(new vscode.DocumentHighlight(
+          new vscode.Range(i, mm.index, i, mm.index + mm[0].length),
+        ));
+      }
+    }
+    // Same destination links (e.g. the same anchor linked in many rows).
+    if (word.startsWith('#')) {
+      for (const link of extractLinks(text)) {
+        if (link.dest === word) {
+          highlights.push(new vscode.DocumentHighlight(
+            new vscode.Range(link.line, link.offset, link.line, link.offset + link.dest.length + 2),
+            vscode.DocumentHighlightKind.Text,
+          ));
+        }
+      }
+    }
+    return highlights;
+  }
+}
+
+/** Decorate markdown links with their resolved target (documentLink). */
+class DocsForgeDocumentLinkProvider implements vscode.DocumentLinkProvider {
+  constructor(private root: string) {}
+
+  provideDocumentLinks(document: vscode.TextDocument): vscode.DocumentLink[] {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+    const srcUri = document.uri.fsPath.slice(docsDirAbs.length + 1)
+      .split(path.sep).join('/');
+    const links: vscode.DocumentLink[] = [];
+    for (const link of extractLinks(text)) {
+      const { target, anchor } = splitAnchor(link.dest);
+      const resolved = target ? resolveLinkTarget(docsDirAbs, srcUri, target) : null;
+      const startChar = lines[link.line].indexOf('(', link.offset) + 1;
+      const endChar = startChar + link.dest.length;
+      const range = new vscode.Range(link.line, startChar, link.line, endChar);
+      const dl = new vscode.DocumentLink(
+        range,
+        resolved && fs.existsSync(resolved.absPath)
+          ? vscode.Uri.file(resolved.absPath)
+          : undefined,
+      );
+      dl.tooltip = resolved
+        ? `${resolved.srcUri}${anchor ? `#${anchor}` : ''}${fs.existsSync(resolved.absPath) ? '' : ' (broken)'}`
+        : (target ? `target escapes docs dir` : 'anchor link');
+      links.push(dl);
+    }
+    return links;
+  }
+}
+
+/** Quick fixes for broken links (code actions on diagnostics). */
+class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
+  constructor(private root: string) {}
+
+  provideCodeActions(
+    document: vscode.TextDocument, _range: vscode.Range,
+    context: vscode.CodeActionContext,
+  ): vscode.CodeAction[] {
+    const actions: vscode.CodeAction[] = [];
+    const text = document.getText();
+    const lines = text.split('\n');
+    const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+    for (const diag of context.diagnostics) {
+      const line = lines[diag.range.start.line];
+      if (!line) {
+        continue;
+      }
+      const linkMatch = line.match(/\[[^\]]*\]\(([^)\s]+)\)/);
+      if (!linkMatch) {
+        continue;
+      }
+      const dest = linkMatch[1];
+      const { target } = splitAnchor(dest);
+      if (!target) {
+        continue;
+      }
+      // Suggest a fix that points to an existing file with the same name.
+      const wanted = path.posix.basename(target);
+      const candidates: string[] = [];
+      const walk = (dir: string, prefix: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            walk(p, `${prefix}${entry.name}/`);
+          } else if (entry.name === wanted) {
+            candidates.push(`${prefix}${entry.name}`);
+          }
+        }
+      };
+      if (fs.existsSync(docsDirAbs)) {
+        walk(docsDirAbs, '');
+      }
+      if (candidates.length && !candidates.includes(target)) {
+        const fix = new vscode.CodeAction(
+          `Fix link: use ${candidates[0]}`,
+          vscode.CodeActionKind.QuickFix,
+        );
+        const srcUri = document.uri.fsPath.slice(docsDirAbs.length + 1)
+          .split(path.sep).join('/');
+        let newTarget = path.posix.relative(path.posix.dirname(srcUri), candidates[0]);
+        if (!newTarget.startsWith('.')) {
+          newTarget = `./${newTarget}`;
+        }
+        const at = line.indexOf(dest);
+        fix.edit = new vscode.WorkspaceEdit();
+        fix.edit.replace(
+          document.uri,
+          new vscode.Range(diag.range.start.line, at, diag.range.start.line, at + dest.length),
+          newTarget,
+        );
+        actions.push(fix);
+      }
+      // Offer to open the target in the editor.
+      const open = new vscode.CodeAction('Open link target', vscode.CodeActionKind.QuickFix);
+      open.command = {
+        command: 'docsforge.openLinkTarget',
+        title: 'Open link target',
+        arguments: [{ uri: document.uri.toString(), dest }],
+      };
+      actions.push(open);
+    }
+    return actions;
+  }
+}
+
+/** Format markdown: normalize trailing whitespace and blank-line runs. */
+class DocsForgeFormattingProvider implements vscode.DocumentFormattingEditProvider {
+  provideDocumentFormattingEdits(document: vscode.TextDocument): vscode.TextEdit[] {
+    const formatted = formatMarkdown(document.getText());
+    if (formatted === document.getText()) {
+      return [];
+    }
+    const full = new vscode.Range(0, 0, document.lineCount, 0);
+    return [vscode.TextEdit.replace(full, formatted)];
+  }
+}
+
 /** Register all providers for a workspace root. */
 export function registerProviders(context: vscode.ExtensionContext, root: string): void {
   const sel: vscode.DocumentSelector = {
@@ -376,5 +544,9 @@ export function registerProviders(context: vscode.ExtensionContext, root: string
     vscode.languages.registerHoverProvider(sel, new DocsForgeHoverProvider(root)),
     vscode.languages.registerReferenceProvider(sel, new DocsForgeReferenceProvider(root)),
     vscode.languages.registerCompletionItemProvider(sel, new DocsForgeCompletionProvider(root), ':'),
+    vscode.languages.registerDocumentHighlightProvider(sel, new DocsForgeHighlightProvider()),
+    vscode.languages.registerDocumentLinkProvider(sel, new DocsForgeDocumentLinkProvider(root)),
+    vscode.languages.registerCodeActionsProvider(sel, new DocsForgeCodeActionProvider(root)),
+    vscode.languages.registerDocumentFormattingEditProvider(sel, new DocsForgeFormattingProvider()),
   );
 }

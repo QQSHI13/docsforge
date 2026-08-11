@@ -14,6 +14,7 @@ import {
   docsDirFromConfig,
   slugifyHeading,
   computeDocumentRename,
+  computeFolderRename,
   computeAnchorRenameEdits,
 } from './links';
 
@@ -154,6 +155,50 @@ export function registerRenameCommands(
       vscode.window.showInformationMessage(
         `Renamed anchor #${oldSlug} → #${newSlug} in ${docSrcUri} (${affected} edit${affected === 1 ? '' : 's'}).`,
       );
+    }),
+  );
+}
+
+/** Register automatic link/translation updates when the user renames a doc
+ *  or folder in the Explorer (Zensical-style: no separate command). */
+export function registerAutoRename(
+  context: vscode.ExtensionContext, workspaceRoot: string,
+): void {
+  context.subscriptions.push(
+    vscode.workspace.onDidRenameFiles(async (event) => {
+      const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+      const edit = new vscode.WorkspaceEdit();
+      const messages: string[] = [];
+      for (const f of event.files) {
+        const oldRel = path.relative(docsDirAbs, f.oldUri.fsPath);
+        const newRel = path.relative(docsDirAbs, f.newUri.fsPath);
+        const oldIsDoc = !oldRel.startsWith('..') && !path.isAbsolute(oldRel);
+        const newIsDoc = !newRel.startsWith('..') && !path.isAbsolute(newRel);
+        if (!oldIsDoc || !newIsDoc) {
+          continue;
+        }
+        const oldSrc = oldRel.split(path.sep).join('/');
+        const newSrc = newRel.split(path.sep).join('/');
+        // Folder rename: everything under it moves.
+        const isFolder = fs.existsSync(f.oldUri.fsPath) && fs.statSync(f.oldUri.fsPath).isDirectory();
+        const result = isFolder
+          ? computeFolderRename(workspaceRoot, oldSrc, newSrc)
+          : computeDocumentRename(workspaceRoot, oldSrc, newSrc.replace(/\.md$/, ''));
+        for (const [absPath, fileEdits] of result.edits) {
+          const uri = vscode.Uri.file(absPath);
+          const doc = await vscode.workspace.openTextDocument(uri);
+          for (const e of fileEdits) {
+            edit.replace(uri, new vscode.Range(doc.positionAt(e.start), doc.positionAt(e.end)), e.text);
+          }
+        }
+        if (result.edits.size) {
+          messages.push(`${oldSrc} → ${newSrc}: ${result.edits.size} file(s) updated`);
+        }
+      }
+      if (messages.length) {
+        await vscode.workspace.applyEdit(edit);
+        vscode.window.showInformationMessage(`DocsForge: ${messages.join('; ')}`);
+      }
     }),
   );
 }

@@ -17,6 +17,7 @@ import {
   linkFromWarning,
   linesOfLink,
   docsDirFromConfig,
+  checkFootnotes,
 } from './links';
 
 export class DocsForgeDiagnostics {
@@ -126,6 +127,23 @@ export class DocsForgeDiagnostics {
           diag.source = 'docsforge';
           diags.push(diag);
         }
+      }
+      // Footnote diagnostics (extension-side, no build needed).
+      if (sourceText === null) {
+        try {
+          sourceText = fs.readFileSync(absPath, 'utf-8');
+        } catch {
+          sourceText = '';
+        }
+      }
+      for (const fn of checkFootnotes(sourceText)) {
+        const diag = new vscode.Diagnostic(
+          new vscode.Range(fn.line, 0, fn.line, 1000),
+          fn.message,
+          vscode.DiagnosticSeverity.Warning,
+        );
+        diag.source = 'docsforge';
+        diags.push(diag);
       }
       byFile.set(absPath, diags);
     }
