@@ -257,6 +257,20 @@ class BasePlugin(Generic[SomeConfig]):
             error: exception raised
         """
 
+    def on_build_done(self, *, config: DocsForgeConfig) -> None:
+        """
+        The `build_done` event runs once at the very end of a successful
+        build, after **everything** — page rendering, link/anchor validation,
+        `post_build` plugins, asset optimization, the PWA manifest and the
+        service worker generation, and the cache save. Use this event to
+        inspect or modify the final build output (e.g. post-process `sw.js`
+        or `cache-manifest.json` in `config.site_dir`). It does not run when
+        the build is aborted (e.g. strict mode); use `build_error` for that.
+
+        Args:
+            config: global configuration object
+        """
+
     # Template events
 
     def on_pre_template(
@@ -614,6 +628,9 @@ class PluginCollection(dict, MutableMapping[str, BasePlugin]):
 
     def on_build_error(self, *, error: Exception) -> None:
         return self.run_event('build_error', error=error)
+
+    def on_build_done(self, *, config: DocsForgeConfig) -> None:
+        return self.run_event('build_done', config=config)
 
     def on_pre_template(
         self, template: jinja2.Template, *, template_name: str, config: DocsForgeConfig

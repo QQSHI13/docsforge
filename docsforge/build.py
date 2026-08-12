@@ -812,6 +812,12 @@ def _finalize_build(
         msg = ', '.join(f'{v} {k.lower()}s' for k, v in counts)
         raise Abort(f'Aborted with {msg} in strict mode!')
 
+    # Run `build_done` plugin events — after EVERYTHING (validation,
+    # post-build plugins, asset optimization, PWA manifest + service worker
+    # generation, cache save) so hooks can inspect or modify the final build
+    # output. Skipped when the build is aborted in strict mode.
+    config.plugins.on_build_done(config=config)
+
     log.info(f'Documentation built in {time.monotonic() - start:.2f} seconds')
 
 

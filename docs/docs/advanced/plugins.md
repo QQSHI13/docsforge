@@ -60,6 +60,7 @@ plugins:
 | `on_serve` | Dev server starts | `(server, *, config, builder)` | `server` |
 | `on_shutdown` | Build/serve ends | `()` | `None` |
 | `on_build_error` | Build error occurs | `(error)` | `None` |
+| `on_build_done` | After everything (incl. SW/manifests) — successful builds only | `(config)` | `None` |
 
 ## Event Details
 

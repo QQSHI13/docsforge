@@ -216,3 +216,58 @@ class TestBuildE2E:
         assert len(updated["docs"]) == len(original["docs"]), (
             "search index lost entries for unchanged pages"
         )
+
+
+class TestBuildDoneHook:
+    """The `on_build_done` hook event fires after ALL build outputs exist."""
+
+    def test_build_done_runs_after_sw_and_manifests(self, tmp_project, monkeypatch):
+        import json
+        hook = tmp_project / "hook_build_done.py"
+        hook.write_text(
+            "import json\n"
+            "from pathlib import Path\n"
+            "def on_build_done(config, **kwargs):\n"
+            "    site = Path(config.site_dir)\n"
+            "    Path(site / 'build_done_marker.json').write_text(json.dumps({\n"
+            "        'sw': (site / 'sw.js').is_file(),\n"
+            "        'cache_manifest': (site / 'cache-manifest.json').is_file(),\n"
+            "        'pwa_manifest': (site / 'manifest.json').is_file(),\n"
+            "        'sitemap': (site / 'sitemap.xml').is_file(),\n"
+            "    }))\n"
+        )
+        cfg_path = tmp_project / "docsforge.yml"
+        cfg_path.write_text(cfg_path.read_text() + "\nhooks:\n  - hook_build_done.py\n")
+
+        _build_once(monkeypatch, tmp_project)
+
+        marker = tmp_project / "site" / "build_done_marker.json"
+        assert marker.is_file(), "on_build_done hook did not run"
+        data = json.loads(marker.read_text())
+        assert data["sw"] is True
+        assert data["cache_manifest"] is True
+        assert data["pwa_manifest"] is True
+        assert data["sitemap"] is True
+
+    def test_build_done_skipped_on_strict_abort(self, tmp_project, monkeypatch):
+        hook = tmp_project / "hook_build_done.py"
+        hook.write_text(
+            "def on_build_done(config, **kwargs):\n"
+            "    from pathlib import Path\n"
+            "    Path(config.site_dir, 'build_done_marker.json').write_text('x')\n"
+        )
+        cfg_path = tmp_project / "docsforge.yml"
+        cfg = cfg_path.read_text()
+        cfg_path.write_text(cfg + "\nhooks:\n  - hook_build_done.py\nstrict: true\n")
+
+        # A broken link produces a warning -> strict mode aborts the build.
+        (tmp_project / "docs" / "broken.md").write_text("[bad](missing.md)\n")
+
+        from docsforge.build import Abort, build
+        from docsforge.config_base import load_config
+        monkeypatch.chdir(tmp_project)
+        cfg = load_config(config_file=str(tmp_project / "docsforge.yml"))
+        with pytest.raises(Abort):
+            build(cfg, dirty=True)
+
+        assert not (tmp_project / "site" / "build_done_marker.json").exists()

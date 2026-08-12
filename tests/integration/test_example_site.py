@@ -17,7 +17,7 @@ from docsforge.config_base import load_config
 pytestmark = pytest.mark.slow
 
 DEMO_DIR = (
-    Path(__file__).resolve().parents[2] / "examples" / "site" / "docsforge-demo"
+    Path(__file__).resolve().parents[2] / "examples" / "sites" / "docsforge-demo"
 )
 
 

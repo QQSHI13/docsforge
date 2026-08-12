@@ -60,6 +60,7 @@ plugins:
 | `on_serve` | 开发服务器启动时 | `(server, *, config, builder)` | `server` |
 | `on_shutdown` | 构建/服务结束时 | `()` | `None` |
 | `on_build_error` | 发生构建错误时 | `(error)` | `None` |
+| `on_build_done` | 所有输出（含 SW/清单）完成后 —— 仅成功构建 | `(config)` | `None` |
 
 ## 事件详情
 
