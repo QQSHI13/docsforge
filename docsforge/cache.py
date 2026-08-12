@@ -383,6 +383,15 @@ class BuildPlanner:
 
         return False
 
+    def deps_changed(self, source: Path, current_deps: list[str]) -> bool:
+        """Return True when the recorded dependency set differs from the current one.
+
+        Catches added/removed dependencies. A dependency whose *content*
+        changed is detected by `should_rebuild`'s per-dep hash check, but a
+        newly-added or removed dep is only visible as a set difference here.
+        """
+        return set(self.deps.get(str(source), [])) != set(current_deps)
+
     def should_full_rebuild(self, config_path: Path, pkg_version: str | None = None, theme_sig: str | None = None) -> bool:
         """Check if config/global changes require full rebuild.
         

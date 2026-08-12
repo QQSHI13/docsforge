@@ -57,6 +57,7 @@ plugins:
 | `on_page_content` | 每页渲染后的 HTML | `(html, *, page, config, files)` | `str` |
 | `on_page_context` | 模板上下文 | `(context, *, page, config)` | `None` |
 | `on_post_build` | 所有页面构建完成后 | `(config)` | `None` |
+| `on_page_deps` | 每页渲染前 | `(deps, *, page, files, config)` | `list` |
 | `on_serve` | 开发服务器启动时 | `(server, *, config, builder)` | `server` |
 | `on_shutdown` | 构建/服务结束时 | `()` | `None` |
 | `on_build_error` | 发生构建错误时 | `(error)` | `None` |

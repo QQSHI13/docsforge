@@ -557,7 +557,16 @@ def _populate_changed_pages(
         source_path = Path(file.abs_src_path)
         output_path = Path(file.abs_dest_path)
 
-        if not force_all and not planner.should_rebuild(source_path, output_path):
+        # Let plugins declare render dependencies (e.g. a blog entrypoint
+        # whose listing derives from every post). An added/removed dependency
+        # forces a re-render even when the page's own source is unchanged.
+        extra_deps = config.plugins.on_page_deps([], page=file.page, files=files, config=config)
+
+        if (
+            not force_all
+            and not planner.should_rebuild(source_path, output_path)
+            and not planner.deps_changed(source_path, extra_deps)
+        ):
             log.debug(f"Skipping unchanged page: {file.src_uri}")
             continue
 
@@ -665,7 +674,11 @@ def _write_outputs(
         assert file.page is not None
         source_path = Path(file.abs_src_path)
         output_path = Path(file.abs_dest_path)
-        if force_all or planner.should_rebuild(source_path, output_path):
+        # Same freshness rule as _populate_changed_pages: plugins may declare
+        # render dependencies (e.g. a blog entrypoint that lists every post),
+        # so an added/removed dependency must force a rebuild here too.
+        extra_deps = config.plugins.on_page_deps([], page=file.page, files=files, config=config)
+        if force_all or planner.should_rebuild(source_path, output_path) or planner.deps_changed(source_path, extra_deps):
             pages_to_build.append((file.page, source_path, output_path))
 
     built_any = False
@@ -711,6 +724,10 @@ def _write_outputs(
                     page.markdown or "",
                     base_paths=[Path(config.docs_dir)],
                 )
+                # Merge plugin-declared render dependencies (blog views list
+                # their posts) so they are recorded for future incremental
+                # builds.
+                deps = config.plugins.on_page_deps(deps, page=page, files=files, config=config)
                 planner.update_cache(source_path, output_path, deps)
                 # Persist link/anchor validation data so skipped pages can be
                 # re-validated on later incremental builds.

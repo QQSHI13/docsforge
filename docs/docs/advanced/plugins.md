@@ -57,6 +57,7 @@ plugins:
 | `on_page_content` | Each page's rendered HTML | `(html, *, page, config, files)` | `str` |
 | `on_page_context` | Template context | `(context, *, page, config)` | `None` |
 | `on_post_build` | After all pages built | `(config)` | `None` |
+| `on_page_deps` | Per page, before render | `(deps, *, page, files, config)` | `list` |
 | `on_serve` | Dev server starts | `(server, *, config, builder)` | `server` |
 | `on_shutdown` | Build/serve ends | `()` | `None` |
 | `on_build_error` | Build error occurs | `(error)` | `None` |

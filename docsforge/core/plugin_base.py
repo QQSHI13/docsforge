@@ -273,6 +273,27 @@ class BasePlugin(Generic[SomeConfig]):
 
     # Template events
 
+    def on_page_deps(self, deps: list[str], /, *, page, files, config) -> list[str]:
+        """
+        The `page_deps` event is called for every page on each build and
+        receives the list of file dependencies that the page's rendered
+        output depends on (snippet includes by default). Plugins may append
+        additional paths — a change to any dependency re-renders the page
+        even when its own source is unchanged. This is how views whose
+        content is derived from other pages (e.g. blog entrypoints that list
+        every post) stay fresh on incremental builds.
+
+        Args:
+            page: the Page (or View) being built
+            deps: current dependency list (relative or absolute paths)
+            files: global files collection
+            config: global configuration object
+
+        Returns:
+            the (possibly extended) dependency list
+        """
+        return deps
+
     def on_pre_template(
         self, template: jinja2.Template, /, *, template_name: str, config: DocsForgeConfig
     ) -> jinja2.Template | None:
@@ -616,6 +637,9 @@ class PluginCollection(dict, MutableMapping[str, BasePlugin]):
 
     def on_files(self, files: Files, *, config: DocsForgeConfig) -> Files:
         return self.run_event('files', files, config=config)
+
+    def on_page_deps(self, deps: list[str], /, *, page, files, config) -> list[str]:
+        return self.run_event('page_deps', deps, page=page, files=files, config=config)
 
     def on_nav(self, nav: Navigation, *, config: DocsForgeConfig, files: Files) -> Navigation:
         return self.run_event('nav', nav, config=config, files=files)
