@@ -19,7 +19,7 @@ Modern docs tools require too much setup. What should be "write Markdown, get a 
 
 **Everything you need works without configuration.**
 
-Write `$$...$$` → math renders. Write `!!! note` → admonition appears. Write ` ```python ` → code highlights. All 31 Markdown extensions and 7 plugins are loaded by default.
+Write `$$...$$` → math renders. Write `!!! note` → admonition appears. Write ` ```python ` → code highlights. All 36 Markdown extensions and 8 core plugins are loaded by default.
 
 You configure only what you want to customize, not what you need to exist.
 
@@ -47,7 +47,7 @@ We didn't reinvent the theme. We took the world's most popular documentation the
 |---------|-------------|
 | `typeset` | Users can write Unicode directly |
 | `optimize` | Requires external `pngquant` binary |
-| `social` | Requires Pillow + CairoSVG |
+| `social` | Requires Pillow + CairoSVG — now back as an opt-in plugin (`plugins: [social]`) |
 | `projects` | Niche multi-project feature |
 | `offline` | Privacy plugin covers most use cases |
 | `group` | Plugin orchestrator (niche) |
@@ -58,8 +58,8 @@ We didn't reinvent the theme. We took the world's most popular documentation the
 |---------------------------|-------------------|
 | Config file `docsforge.yml` | `docsforge.yml` |
 | Theme via `mkdocs.themes` | `docsforge.themes` |
-| Manually list all extensions | 31 loaded by default |
-| Manually list all plugins | 7 loaded by default |
+| Manually list all extensions | 36 loaded by default |
+| Manually list all plugins | 8 loaded by default |
 | `extra_javascript` for KaTeX | KaTeX vendored, zero config |
 | Client-side JS for highlighting | Pygments at build time |
 

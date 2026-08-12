@@ -109,7 +109,7 @@ markdown_extensions:
   # ... 所有现有扩展均可保持不变
 ```
 
-31 个最常用的扩展已经默认启用 — 只有需要自定义配置时才需要列出它们。
+36 个最常用的扩展已经默认启用 — 只有需要自定义配置时才需要列出它们。
 
 ### 配置键迁移
 
@@ -174,21 +174,21 @@ OI Wiki 使用了一些高级功能。以下是每个功能的映射方式：
 - **构建后流程**：4–8 小时
 - **完整的 OI Wiki 迁移**：熟悉两个系统的开发者约需 1–2 天
 
-## 功能对比：Material vs DocsForge
+## 功能对比：Material vs DocsForge {#feature-parity-material-vs-docsforge}
 
 | 功能 | Material | DocsForge |
 |---------|----------|-----------|
 | Material 主题 | :material-check-bold: | :material-check-bold:（已包含） |
 | 搜索 | :material-check-bold: | :material-check-bold:（内置） |
 | 标签 | :material-check-bold: | :material-check-bold:（内置） |
-| 社交卡片 | :material-check-bold:（Insiders） | ❌ 非内置 |
+| 社交卡片 | :material-check-bold:（Insiders） | :material-check-bold:（内置，可选启用） |
 | 博客 | :material-check-bold:（Insiders） | :material-check-bold:（内置） |
 | Privacy 插件 | :material-check-bold:（Insiders） | :material-check-bold:（内置） |
 | Optimize 插件 | :material-check-bold:（Insiders） | :material-check-bold:（构建后自动） |
 | PWA / 离线 | :material-check-bold:（Insiders） | :material-check-bold:（内置） |
 | Git 修订日期 | :material-check-bold:（插件） | :material-check-bold:（内置） |
 | 压缩 | :material-check-bold:（Insiders） | :material-check-bold:（自动） |
-| 内置图标 | :material-check-bold: | :material-check-bold:（捆绑 58MB） |
+| 内置图标 | :material-check-bold: | :material-check-bold:（16,500+ 已捆绑） |
 | 即时导航 | :material-check-bold: | :material-check-bold: |
 | 自定义提示框 | :material-check-bold: | :material-check-bold: |
 | Mermaid 图表 | :material-check-bold:（插件） | :material-check-bold:（内置） |

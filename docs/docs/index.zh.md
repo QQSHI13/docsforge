@@ -31,7 +31,7 @@ docsforge serve
 
     ---
 
-    只需 `site_name:` 即可开始。全部 7 个插件和 31 个 Markdown 扩展会自动加载。仅在需要时进行自定义。
+    只需 `site_name:` 即可开始。全部 8 个核心插件和 36 个 Markdown 扩展会自动加载；社交卡片为可选启用。仅在需要时进行自定义。
 
 -   :material-function-variant:{ .lg .middle } &nbsp; **数学公式可用**
 
@@ -61,7 +61,7 @@ docsforge serve
 
     ---
 
-    直接在 Markdown 中编写 TikZ。构建时自动编译为 SVG。
+    将 TikZ 编写为 `.tex` 文件。构建时自动编译为 SVG（需要 LaTeX 工具链）。
 
 -   :material-rss-box:{ .lg .middle } &nbsp; **博客**
 

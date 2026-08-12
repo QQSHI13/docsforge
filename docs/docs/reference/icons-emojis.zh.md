@@ -1,6 +1,6 @@
 # 图标与表情
 
-DocsForge 开箱即用，内置 **8,000 多个 Material Design 图标** 和 **3,000 多个 Twemoji 表情**。无需外部下载。
+DocsForge 开箱即用，内置五大图标家族的 **16,500+ 个图标** —— Material Design、Lucide、Font Awesome、Octicons 和 Simple Icons —— 以及 **3,800+ 个 Twemoji 表情**。无需外部下载。
 
 ---
 

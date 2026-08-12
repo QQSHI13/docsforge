@@ -49,6 +49,84 @@
   `rm -rf /var/lib/apt/lists/*` 权限问题；`neural-network.tex` 缺少
   `amssymb`；补充缺失的 `shannon-state-machine.tex`。
 
+## [12.4.0] — 2026-08-09
+
+### 新增
+
+- **社交卡片插件**（`social`）：移植自 mkdocs-material 的 social 插件，扁平化为
+  `docsforge/core/social.py`（OpenGraph 卡片生成，两阶段并行渲染，缓存 + 清单，
+  字体下载）。每个 i18n 语言页面生成独立卡片。需要
+  `pip install "docsforge[social]"`（pillow + cairosvg）。
+- **Lucide 图标集**：2022 个图标，可通过 `:lucide-name:` 内联使用或用于主题
+  图标配置；`.md-icon` 支持描边渲染。
+- **每次构建都进行链接/锚点校验**：链接与锚点问题现在每次构建都会报告，
+  而不仅仅是首次 —— 校验数据按页面持久化到构建缓存中，对未重新渲染的
+  页面也会重新检查。
+- **编程式配色 API**：`window.docsforge.setPalette({scheme, primary,
+  accent})` 可从内联脚本/嵌入（如主题游乐场）应用并持久化主题，包括
+  没有页眉切换的组合。
+- 示例：演示站点现在位于仓库内（`examples/site/docsforge-demo`），带有
+  `custom_dir` 覆盖、自定义过滤插件示例、hooks 示例和 CI 构建测试；
+  演示通过 GitHub Actions 部署到 Cloudflare Pages（带 TeX Live 以支持 TikZ）。
+
+### 变更
+
+- **仓库卫生**：移除所有 vendored mkdocs-material MIT 头部（署名统一到
+  许可证页面）；移除 parity 工具；在 CI 和发布时强制执行前端可复现性。
+- 服务工作者在每次真实页面加载时重新校验清单（Navigation Timing API）——
+  重新部署的站点无需硬刷新即可被感知；移除了 5 分钟更新轮询和硬刷新
+  监视器。
+- 侧边栏高度改用 `dvh`，使左侧（导航）和右侧（TOC）侧边栏在
+  iOS/iPadOS 上滚动一致。
+
+## [12.3.0] — 2026-08-06
+
+### 变更
+
+- **仓库扁平化。** monorepo 的 `packages/` 层级已移除：核心包、
+  `pyproject.toml`、`src/`、`tests/` 和前端流水线位于仓库根目录；
+  文档站点为 `docsforge-docs/`，VS Code 扩展为 `vscode-docsforge/`。
+  所有工作流、Dockerfile、dependabot 配置和文档链接均已更新；
+  完整包 README 现在是根 README。
+- **svgo 4。** 图标流水线现在使用 svgo 4（配置已迁移；`viewBox` 保留不变）。
+  已验证字节级可复现的构建输出。
+- **pnpm 11** 用于前端构建（workspace 文件使用 pnpm 10+ 语法，pnpm 9 会
+  拒绝），并禁用了 `minimumReleaseAge` 供应链门控，使 dependabot 对刚
+  发布版本的升级能通过 CI。
+- **前端 CI 重新可复现**：`frontend.yml` 在构建输出与已提交的
+  `docsforge/templates/` 不一致时失败，发布工作流在发布 wheel 前会从
+  `src/` 重新构建前端。
+- 移除了过渡期 parity 测试工具和基线快照（其任务已完成）；
+  `build_frontend.py` 移至仓库根目录。
+- CI 运行完整测试套件，包括专用的 Playwright e2e 任务。
+
+## [12.2.0] — 2026-08-06
+
+### 新增
+
+- **前端从源码构建。** Material 主题以源码形式 vendored 到 `src/`
+  （mkdocs-material v9.7.7），由仓库内流水线（`scripts/build_frontend.py`）
+  构建：esbuild 打包、sass + autoprefixer CSS、svgo 图标、压缩模板和
+  服务工作者。每个发布的资源都可复现，parity 门控
+  （`scripts/check_frontend_parity.py`）在 CI 上按区域验证。
+- **DocsForge 前端自定义现在位于源码中**，而不是手工修补压缩 bundle：
+  服务工作者（清单驱动增量同步、语言感知页面服务、离线快速 404、
+  清单感知候选跳过）、无状态 i18n 语言切换器（IndexedDB 支持）、按语言
+  搜索索引、按语言 404 页面，以及保持即时导航在首选语言上的
+  `X-DocsForge-Instant-Nav` 头。
+
+### 变更
+
+- 服务工作者以压缩形式发布，带有 `__DOCSFORGE_BASE_URL__` /
+  `__DOCSFORGE_BUILD_HASH__` 占位符；`docsforge build` 注入真实基础路径
+  和确定性哈希，使 SW 字节在构建之间变化。
+- SW 跳过 `cache-manifest.json` 中不存在的页面候选 —— 对（无后缀）
+  默认语言的存储偏好不再请求 `index.en.html`（404）。
+- 当 meta 插件激活时，没有 `title:` front-matter 键的博客文章不再导致
+  构建崩溃。
+- `scripts/check_frontend_parity.py` 新增 `--vs-ref`（与 git ref 输出差异，
+  无需构建）和哨兵标记检查。
+
 ## [12.0.0] — 未发布
 
 ### 变更

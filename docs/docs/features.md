@@ -16,7 +16,7 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     ---
 
-    Start with a working site in seconds. 7 plugins and 31 Markdown extensions load automatically. Customize only what you need.
+    Start with a working site in seconds. 8 core plugins and 36 Markdown extensions load automatically; social cards are opt-in. Customize only what you need.
 
 -   :material-theme-light-dark:{ .lg .middle } &nbsp; **Light & Dark Mode**
 
@@ -46,7 +46,7 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     ---
 
-    Write TikZ diagrams directly in Markdown. Automatically compiled to SVG at build time. No LaTeX install needed.
+    Write TikZ diagrams as `.tex` files. Automatically compiled to SVG at build time (requires a LaTeX toolchain; skipped gracefully when unavailable).
 
 -   :material-rss-box:{ .lg .middle } &nbsp; **Blogging**
 
@@ -70,15 +70,16 @@ All enabled by default. No configuration needed.
 |----------|-----------|
 | **Structure** | `toc`, `tables`, `fenced_code`, `def_list`, `footnotes`, `md_in_html`, `meta` |
 | **Text** | `admonition`, `abbr`, `attr_list`, `nl2br`, `sane_lists`, `wikilinks` |
-| **pymdownx** | `arithmatex`, `betterem`, `caret`, `critic`, `details`, `emoji`, `escapeall`, `extra`, `fancylists`, `highlight`, `inlinehilite`, `keys`, `magiclink`, `mark`, `pathconverter`, `progressbar`, `quotes`, `saneheaders`, `smartsymbols`, `snippets`, `striphtml`, `superfences`, `tabbed`, `tasklist`, `tilde` |
+| **pymdownx** | `arithmatex`, `b64`, `betterem`, `caret`, `critic`, `details`, `emoji`, `escapeall`, `extra`, `fancylists`, `highlight`, `inlinehilite`, `keys`, `magiclink`, `mark`, `pathconverter`, `progressbar`, `quotes`, `saneheaders`, `smartsymbols`, `snippets`, `striphtml`, `superfences`, `tabbed`, `tasklist`, `tilde` |
 
 ## Plugins
 
-All enabled by default. No `plugins:` config needed.
+8 core plugins auto-load — no `plugins:` config needed. Social cards are opt-in (`plugins: [social]`).
 
 | Plugin | What it does |
 |--------|-----------|
 | `blog` | Blogging with authors, categories, archives, pagination, RSS |
+| `i18n` | Multi-language sites (suffix-mode locale variants) |
 | `info` | Admonition callouts (note, tip, warning, danger) |
 | `meta` | OpenGraph metadata |
 | `minify` | Compress HTML/CSS/JS output |

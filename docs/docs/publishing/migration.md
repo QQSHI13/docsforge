@@ -181,14 +181,14 @@ OI Wiki uses several advanced features. Here's how each maps:
 | Material theme | :material-check-bold: | :material-check-bold: (included) |
 | Search | :material-check-bold: | :material-check-bold: (built-in) |
 | Tags | :material-check-bold: | :material-check-bold: (built-in) |
-| Social cards | :material-check-bold: (Insiders) | ❌ Not built-in |
+| Social cards | :material-check-bold: (Insiders) | :material-check-bold: (built-in, opt-in) |
 | Blog | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
 | Privacy plugin | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
 | Optimize plugin | :material-check-bold: (Insiders) | :material-check-bold: (auto post-build) |
 | PWA / Offline | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
 | Git revision dates | :material-check-bold: (plugin) | :material-check-bold: (built-in) |
 | Minification | :material-check-bold: (Insiders) | :material-check-bold: (auto) |
-| Built-in icons | :material-check-bold: | :material-check-bold: (58MB bundled) |
+| Built-in icons | :material-check-bold: | :material-check-bold: (16,500+ bundled) |
 | Instant navigation | :material-check-bold: | :material-check-bold: |
 | Custom admonitions | :material-check-bold: | :material-check-bold: |
 | Mermaid diagrams | :material-check-bold: (plugin) | :material-check-bold: (built-in) |

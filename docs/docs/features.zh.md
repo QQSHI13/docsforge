@@ -16,7 +16,7 @@ DocsForge 包含编写和发布文档所需的一切。无需额外安装，无�
 
     ---
 
-    几秒钟内即可拥有一个可运行的站点。7 个插件和 31 个 Markdown 扩展会自动加载。仅自定义你需要的部分。
+    几秒钟内即可拥有一个可运行的站点。8 个核心插件和 36 个 Markdown 扩展会自动加载；社交卡片为可选启用。仅自定义你需要的部分。
 
 -   :material-theme-light-dark:{ .lg .middle } &nbsp; **浅色与深色模式**
 
@@ -46,7 +46,7 @@ DocsForge 包含编写和发布文档所需的一切。无需额外安装，无�
 
     ---
 
-    直接在 Markdown 中编写 TikZ 图表。构建时自动编译为 SVG。无需安装 LaTeX。
+    将 TikZ 图表编写为 `.tex` 文件。构建时自动编译为 SVG（需要 LaTeX 工具链；不可用时优雅跳过）。
 
 -   :material-rss-box:{ .lg .middle } &nbsp; **博客**
 
@@ -70,15 +70,16 @@ DocsForge 包含编写和发布文档所需的一切。无需额外安装，无�
 |----------|-----------|
 | **结构** | `toc`、`tables`、`fenced_code`、`def_list`、`footnotes`、`md_in_html`、`meta` |
 | **文本** | `admonition`、`abbr`、`attr_list`、`nl2br`、`sane_lists`、`wikilinks` |
-| **pymdownx** | `arithmatex`、`betterem`、`caret`、`critic`、`details`、`emoji`、`escapeall`、`extra`、`fancylists`、`highlight`、`inlinehilite`、`keys`、`magiclink`、`mark`、`pathconverter`、`progressbar`、`quotes`、`saneheaders`、`smartsymbols`、`snippets`、`striphtml`、`superfences`、`tabbed`、`tasklist`、`tilde` |
+| **pymdownx** | `arithmatex`、`b64`、`betterem`、`caret`、`critic`、`details`、`emoji`、`escapeall`、`extra`、`fancylists`、`highlight`、`inlinehilite`、`keys`、`magiclink`、`mark`、`pathconverter`、`progressbar`、`quotes`、`saneheaders`、`smartsymbols`、`snippets`、`striphtml`、`superfences`、`tabbed`、`tasklist`、`tilde` |
 
 ## 插件
 
-全部默认启用。无需 `plugins:` 配置。
+8 个核心插件自动加载 —— 无需 `plugins:` 配置。社交卡片为可选启用（`plugins: [social]`）。
 
 | 插件 | 作用 |
 |--------|-----------|
 | `blog` | 博客，支持作者、分类、归档、分页、RSS |
+| `i18n` | 多语言站点（后缀式语言变体） |
 | `info` | 提示框标注（note、tip、warning、danger） |
 | `meta` | OpenGraph 元数据 |
 | `minify` | 压缩 HTML/CSS/JS 输出 |

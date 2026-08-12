@@ -31,7 +31,7 @@ docsforge serve
 
     ---
 
-    Start with just `site_name:`. All 7 plugins and 31 Markdown extensions load automatically. Customize only when you need to.
+    Start with just `site_name:`. All 8 core plugins and 36 Markdown extensions load automatically; social cards are opt-in. Customize only when you need to.
 
 -   :material-function-variant:{ .lg .middle } &nbsp; **Math Works**
 
@@ -61,7 +61,7 @@ docsforge serve
 
     ---
 
-    Write TikZ directly in Markdown. Auto-compiled to SVG at build time.
+    Write TikZ diagrams as `.tex` files. Auto-compiled to SVG at build time (requires a LaTeX toolchain).
 
 -   :material-rss-box:{ .lg .middle } &nbsp; **Blogging**
 

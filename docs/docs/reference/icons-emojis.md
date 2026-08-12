@@ -1,6 +1,6 @@
 # Icons & Emojis
 
-DocsForge includes **8,000+ Material Design icons** and **3,000+ Twemoji emojis** out of the box. No external downloads needed.
+DocsForge includes **16,500+ icons** across five families — Material Design, Lucide, Font Awesome, Octicons, and Simple Icons — plus **3,800+ Twemoji emojis**, out of the box. No external downloads needed.
 
 ---
 

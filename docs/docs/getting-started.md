@@ -51,19 +51,19 @@ That's it. All plugins, extensions, and theme settings use sensible defaults. Ad
 | Feature | Default |
 |---------|---------|
 | Theme | Material (built-in) |
-| Plugins | search, tags, blog, info, meta, minify, privacy |
-| Markdown extensions | 31 total — all pymdownx + python-markdown |
+| Plugins | search, tags, blog, info, meta, minify, privacy, i18n |
+| Markdown extensions | 36 total — all pymdownx + python-markdown (+ 3 built-ins: toc, tables, fenced_code) |
 | Math | KaTeX (vendored, `$$...$$` works) |
 | Code highlighting | Pygments (colored syntax) |
 | Dark mode | Light/dark toggle in header |
 | Fonts | Self-hosted (privacy plugin downloads Google Fonts) |
-| Diagrams | TikZ support (auto-compiled to SVG) |
+| Diagrams | TikZ support (`.tex` → SVG at build; needs a LaTeX toolchain) |
 | Offline | Service worker caches all assets |
 
 ## What's built in
 
 ### :material-file-document-edit: Documentation
-- Write Markdown with 31 extensions
+- Write Markdown with 36 extensions
 - Admonitions, tabs, task lists, footnotes
 - Mermaid and TikZ diagrams
 - KaTeX math rendering
@@ -78,7 +78,7 @@ That's it. All plugins, extensions, and theme settings use sensible defaults. Ad
 ### :material-palette: Theming
 - Material theme with light/dark mode
 - Customizable colors and fonts
-- 14,000+ icons (Material, FontAwesome, Octicons)
+- 16,500+ icons (Material, Lucide, FontAwesome, Octicons, Simple Icons)
 
 ### :material-file-document-edit: Blogging
 - Author profiles

@@ -51,19 +51,19 @@ site_name: My Project
 | 功能 | 默认值 |
 |---------|---------|
 | 主题 | Material（内置） |
-| 插件 | search、tags、blog、info、meta、minify、privacy |
-| Markdown 扩展 | 共 31 个 —— 全部 pymdownx + python-markdown |
+| 插件 | search、tags、blog、info、meta、minify、privacy、i18n |
+| Markdown 扩展 | 共 36 个 —— 全部 pymdownx + python-markdown（另有 3 个内置：toc、tables、fenced_code） |
 | 数学公式 | KaTeX（已内置，`$$...$$` 可用） |
 | 代码高亮 | Pygments（彩色语法） |
 | 深色模式 | 页眉中的浅色/深色切换 |
 | 字体 | 自托管（privacy 插件下载 Google Fonts） |
-| 图表 | TikZ 支持（自动编译为 SVG） |
+| 图表 | TikZ 支持（`.tex` → SVG，构建时编译；需要 LaTeX 工具链） |
 | 离线 | 服务工作者缓存所有资源 |
 
 ## 内置功能
 
 ### :material-file-document-edit: 文档
-- 使用 31 个扩展编写 Markdown
+- 使用 36 个扩展编写 Markdown
 - 提示框、标签页、任务列表、脚注
 - Mermaid 和 TikZ 图表
 - KaTeX 数学渲染
@@ -78,7 +78,7 @@ site_name: My Project
 ### :material-palette: 主题
 - 支持浅色/深色模式的 Material 主题
 - 可自定义颜色和字体
-- 14,000+ 图标（Material、FontAwesome、Octicons）
+- 16,500+ 图标（Material、Lucide、FontAwesome、Octicons、Simple Icons）
 
 ### :material-file-document-edit: 博客
 - 作者资料
