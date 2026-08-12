@@ -24,7 +24,6 @@
 | **自定义钩子** | :material-alert: 适配 | 重写为 DocsForge 插件，或如果兼容则使用 `hooks:` |
 | **自定义插件** | :material-alert: 适配 | 检查 DocsForge 是否有等效功能；否则重写 |
 | **自定义模板** | :material-alert: 适配 | 模板路径不同；请检查 `docsforge/templates/` |
-| **Insiders 功能** | :material-alert: 适配 | 许多功能已包含在 DocsForge 中；请检查[功能对比](#feature-parity-material-vs-docsforge) |
 | **Privacy 插件** | :material-alert: 内置 | DocsForge 默认包含隐私功能 |
 | **Optimize 插件** | :material-alert: 内置 | 资源优化在构建后自动运行 |
 | **标签布局** | :material-alert: 已更改 | 自定义标签模板从 `fragments/tags/{layout}/` 移动到 `fragments/tags/{layout}-tag.html` 和 `fragments/tags/{layout}-listing.html`（扁平化目录结构） |
@@ -181,18 +180,18 @@ OI Wiki 使用了一些高级功能。以下是每个功能的映射方式：
 | Material 主题 | :material-check-bold: | :material-check-bold:（已包含） |
 | 搜索 | :material-check-bold: | :material-check-bold:（内置） |
 | 标签 | :material-check-bold: | :material-check-bold:（内置） |
-| 社交卡片 | :material-check-bold:（Insiders） | :material-check-bold:（内置，可选启用） |
-| 博客 | :material-check-bold:（Insiders） | :material-check-bold:（内置） |
-| Privacy 插件 | :material-check-bold:（Insiders） | :material-check-bold:（内置） |
-| Optimize 插件 | :material-check-bold:（Insiders） | :material-check-bold:（构建后自动） |
-| PWA / 离线 | :material-check-bold:（Insiders） | :material-check-bold:（内置） |
+| 社交卡片 | :material-check-bold: | :material-check-bold:（内置，可选启用） |
+| 博客 | :material-check-bold: | :material-check-bold:（内置） |
+| Privacy 插件 | :material-check-bold: | :material-check-bold:（内置） |
+| Optimize 插件 | :material-check-bold: | :material-check-bold:（构建后自动） |
+| PWA / 离线 | :material-check-bold: | :material-check-bold:（内置） |
 | Git 修订日期 | :material-check-bold:（插件） | :material-check-bold:（内置） |
-| 压缩 | :material-check-bold:（Insiders） | :material-check-bold:（自动） |
+| 压缩 | :material-check-bold: | :material-check-bold:（自动） |
 | 内置图标 | :material-check-bold: | :material-check-bold:（16,500+ 已捆绑） |
 | 即时导航 | :material-check-bold: | :material-check-bold: |
 | 自定义提示框 | :material-check-bold: | :material-check-bold: |
 | Mermaid 图表 | :material-check-bold:（插件） | :material-check-bold:（内置） |
-| 代码注释 | :material-check-bold:（Insiders） | :material-check-bold:（内置） |
+| 代码注释 | :material-check-bold: | :material-check-bold:（内置） |
 | 内容标签页 | :material-check-bold: | :material-check-bold: |
 | 数据表格 | :material-check-bold: | :material-check-bold: |
 | 工具提示 | :material-check-bold: | :material-check-bold: |

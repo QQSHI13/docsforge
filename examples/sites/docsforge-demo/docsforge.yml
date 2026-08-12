@@ -44,6 +44,8 @@ nav:
     path: diagram-demo.md
   - title: Features
     path: features.md
+  - title: LaTeX Equations
+    path: latex-equations.md
   - title: Theme Playground
     path: theme-playground.md
   - title: Tags

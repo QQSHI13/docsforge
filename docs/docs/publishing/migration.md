@@ -24,7 +24,6 @@ Moving from MkDocs/Material to DocsForge is straightforward for most sites. This
 | **Custom hooks** | :material-alert: Adapt | Rewrite as DocsForge plugins or use `hooks:` if compatible |
 | **Custom plugins** | :material-alert: Adapt | Check if DocsForge has equivalent; otherwise rewrite |
 | **Custom templates** | :material-alert: Adapt | Template paths differ; check `docsforge/templates/` |
-| **Insiders features** | :material-alert: Adapt | Many are included in DocsForge; check [feature parity](#feature-parity-material-vs-docsforge) |
 | **Privacy plugin** | :material-alert: Built-in | DocsForge includes privacy features by default |
 | **Optimize plugin** | :material-alert: Built-in | Asset optimization runs automatically post-build |
 | **Tags layout** | :material-alert: Changed | Custom tag templates moved from `fragments/tags/{layout}/` to `fragments/tags/{layout}-tag.html` and `fragments/tags/{layout}-listing.html` (flattened directory structure) |
@@ -181,18 +180,18 @@ OI Wiki uses several advanced features. Here's how each maps:
 | Material theme | :material-check-bold: | :material-check-bold: (included) |
 | Search | :material-check-bold: | :material-check-bold: (built-in) |
 | Tags | :material-check-bold: | :material-check-bold: (built-in) |
-| Social cards | :material-check-bold: (Insiders) | :material-check-bold: (built-in, opt-in) |
-| Blog | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
-| Privacy plugin | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
-| Optimize plugin | :material-check-bold: (Insiders) | :material-check-bold: (auto post-build) |
-| PWA / Offline | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
+| Social cards | :material-check-bold: | :material-check-bold: (built-in, opt-in) |
+| Blog | :material-check-bold: | :material-check-bold: (built-in) |
+| Privacy plugin | :material-check-bold: | :material-check-bold: (built-in) |
+| Optimize plugin | :material-check-bold: | :material-check-bold: (auto post-build) |
+| PWA / Offline | :material-check-bold: | :material-check-bold: (built-in) |
 | Git revision dates | :material-check-bold: (plugin) | :material-check-bold: (built-in) |
-| Minification | :material-check-bold: (Insiders) | :material-check-bold: (auto) |
+| Minification | :material-check-bold: | :material-check-bold: (auto) |
 | Built-in icons | :material-check-bold: | :material-check-bold: (16,500+ bundled) |
 | Instant navigation | :material-check-bold: | :material-check-bold: |
 | Custom admonitions | :material-check-bold: | :material-check-bold: |
 | Mermaid diagrams | :material-check-bold: (plugin) | :material-check-bold: (built-in) |
-| Code annotations | :material-check-bold: (Insiders) | :material-check-bold: (built-in) |
+| Code annotations | :material-check-bold: | :material-check-bold: (built-in) |
 | Content tabs | :material-check-bold: | :material-check-bold: |
 | Data tables | :material-check-bold: | :material-check-bold: |
 | Tooltips | :material-check-bold: | :material-check-bold: |
