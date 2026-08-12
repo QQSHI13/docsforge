@@ -57,7 +57,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   that failed every run; `neural-network.tex` needed `amssymb`; added the
   missing `shannon-state-machine.tex`.
 
-## [12.5.1] — 2026-08-12
+## [12.5.2] — 2026-08-12
+
+### Added
+
+- **Blog RSS/Atom feeds**: the blog plugin now generates
+  `feed_rss_created.xml`, `feed_rss_updated.xml`, and `feed_atom.xml` into
+  the built site on every build (drafts excluded) — no more hand-maintained
+  feed files. Disable with `plugins: [blog: {feed: false}]`.
+- **Docs reference expansion**: 9 previously undocumented config keys
+  (`exclude_docs`, `draft_docs`, `not_in_nav`, `extra_templates`, `tikz`,
+  `hooks`, `watch`, legacy `remote_branch`/`remote_name`), `social` + `i18n`
+  plugin option tables, a Lucide icon section, social-cards plugin docs, and
+  the zero-config `extra.i18n_languages` form (en + zh).
+
+### Fixed
+
+- **Blog entrypoint stayed stale on incremental builds**: adding, editing, or
+  removing a post did not re-render the blog index when the entrypoint's own
+  source was unchanged. New `on_page_deps` plugin event + dependency-set
+  change detection keep blog views fresh; no-op builds still skip.
+- **Duplicate built-in plugin loading**: declaring a built-in plugin
+  (`plugins: [blog: {...}]`) loaded a second auto-loaded instance with
+  default config because the dedup check compared the un-namespaced name
+  against the namespaced instance counter. Every declared core plugin was
+  silently duplicated — now deduplicated correctly.
+- **Demo content**: stale "31 extensions / 7 plugins" claims corrected;
+  `i18n` added to the plugin list in the launch post.
+
+### Changed
+
+- **Dependency floor raised to current releases**: click 8.4.2, Jinja2 3.1.6,
+  Markdown 3.10.3, PyYAML 6.0.3, watchdog 6.0.0, pymdown-extensions 11.0.1,
+  backrefs 8.0, Pygments `>=2.20.0` (its `default` style output matches the
+  committed `pygments.css`), and all other runtime deps; extras include
+  playwright 1.62.0, pypdf 6.15.0, pillow 12.3.0, cairosvg 2.9.0.
 
 ### Added
 

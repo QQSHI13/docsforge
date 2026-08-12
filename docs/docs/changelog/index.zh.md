@@ -53,6 +53,40 @@
 
 ### 新增
 
+- **博客 RSS/Atom 订阅源**：博客插件现在在每次构建时为站点生成
+  `feed_rss_created.xml`、`feed_rss_updated.xml` 和 `feed_atom.xml`（草稿
+  除外）—— 不再需要手工维护订阅源文件。可通过
+  `plugins: [blog: {feed: false}]` 关闭。
+- **文档参考扩展**：补全 9 个此前未记录的配置键（`exclude_docs`、
+  `draft_docs`、`not_in_nav`、`extra_templates`、`tikz`、`hooks`、`watch`、
+  旧版 `remote_branch`/`remote_name`）、`social` + `i18n` 插件选项表、
+  Lucide 图标章节、社交卡片插件文档，以及零配置的
+  `extra.i18n_languages` 形式（中英文）。
+
+### 修复
+
+- **博客入口页在增量构建时保持过期**：当入口页自身源文件未变化时，添加、
+  编辑或删除文章不会重新渲染博客列表。新增 `on_page_deps` 插件事件与依赖
+  集合变化检测，使博客视图保持最新；无变更的构建仍会跳过。
+- **内置插件重复加载**：声明内置插件（`plugins: [blog: {...}]`）时会以默认
+  配置再加载一个自动加载实例，因为去重检查将未加命名空间的名称与带命名空间
+  的实例计数器（`material/blog`）比较。每个声明的核心插件都被静默重复
+  —— 现已正确去重。
+- **演示内容**：修正过时的“31 个扩展 / 7 个插件”描述；启动文章中的插件
+  列表补上 `i18n`。
+
+### 变更
+
+- **依赖下限提升到当前最新版本**：click 8.4.2、Jinja2 3.1.6、Markdown
+  3.10.3、PyYAML 6.0.3、watchdog 6.0.0、pymdown-extensions 11.0.1、backrefs
+  8.0、Pygments `>=2.20.0`（其 `default` 风格输出与已提交的 `pygments.css`
+  一致），以及所有其他运行时依赖；可选依赖包括 playwright 1.62.0、pypdf
+  6.15.0、pillow 12.3.0、cairosvg 2.9.0。
+
+## [12.5.1] — 2026-08-12
+
+### 新增
+
 - **增量 PDF 导出缓存**：`docsforge build --pdf` 现在会跳过自上次导出以来
   构建产物未变化的页面（按页内容哈希存储于 `.docsforge/cache/pdf.json`，
   与站点构建使用相同的机制）。单页修改只会重新渲染该页；孤儿 PDF 会被
