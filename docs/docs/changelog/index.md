@@ -57,6 +57,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   that failed every run; `neural-network.tex` needed `amssymb`; added the
   missing `shannon-state-machine.tex`.
 
+## [12.5.1] — 2026-08-12
+
+### Added
+
+- **Incremental PDF export cache**: `docsforge build --pdf` now skips pages
+  whose built HTML is unchanged since the last export (per-page content
+  hashes in `.docsforge/cache/pdf.json`, the same mechanism as the site
+  build). A single edited page re-renders only itself; orphaned PDFs are
+  removed; only successfully rendered pages are recorded as cached.
+- **`on_build_done` hook event**: runs once at the very end of a successful
+  build — after page rendering, link/anchor validation, `on_post_build`
+  plugins, asset optimization, PWA manifest + service worker generation, and
+  the cache save — so hooks can inspect or post-process the final build
+  output (e.g. `sw.js`, `cache-manifest.json`). Skipped when the build is
+  aborted in strict mode.
+
+### Changed
+
+- **E2E tests honor `PLAYWRIGHT_CHROMIUM_EXECUTABLE`**: browser launch sites
+  now use the same env var as `docsforge.pdf`, so a system browser can run
+  the e2e suite locally without Playwright's bundled Chromium. Unset, the
+  suite falls back to the bundled browser (CI) and skips gracefully when
+  neither is available.
+
+### Fixed
+
+- **Docs corrections**: plugin count (8 core auto-load + social opt-in) and
+  Markdown extension count (36 default + 3 built-ins) now match the engine;
+  TikZ claims corrected (`.tex` files compiled at build, requires a LaTeX
+  toolchain); stale "Insiders" references removed from the migration guide
+  (mkdocs-material is migrating to Zensical); zh changelog backfilled for
+  12.2.0–12.4.0; broken zh self-anchor fixed; icon counts corrected
+  (16,500+ icons across five families).
+- **Example-site integration test** pointed at the pre-12.5.0 `examples/site`
+  path and silently skipped — now runs against `examples/sites/docsforge-demo`.
+- **Demo site**: three new blog posts (TikZ diagrams, suffix-mode i18n,
+  DocsForge Studio diagnostics); removed an orphaned page; `latex-equations.md`
+  added to the nav; TikZ figures now resolve correctly.
+
 ## [12.4.0] — 2026-08-09
 
 ### Added

@@ -49,6 +49,39 @@
   `rm -rf /var/lib/apt/lists/*` 权限问题；`neural-network.tex` 缺少
   `amssymb`；补充缺失的 `shannon-state-machine.tex`。
 
+## [12.5.1] — 2026-08-12
+
+### 新增
+
+- **增量 PDF 导出缓存**：`docsforge build --pdf` 现在会跳过自上次导出以来
+  构建产物未变化的页面（按页内容哈希存储于 `.docsforge/cache/pdf.json`，
+  与站点构建使用相同的机制）。单页修改只会重新渲染该页；孤儿 PDF 会被
+  清理；仅成功渲染的页面会被记录为已缓存。
+- **`on_build_done` 钩子事件**：在成功构建的最末尾运行一次 —— 在页面渲染、
+  链接/锚点校验、`on_post_build` 插件、资源优化、PWA 清单与服务工作者
+  生成、缓存保存之后 —— 钩子可以检查或后处理最终的构建产物（例如
+  `sw.js`、`cache-manifest.json`）。严格模式下构建中止时不运行。
+
+### 变更
+
+- **E2E 测试支持 `PLAYWRIGHT_CHROMIUM_EXECUTABLE`**：浏览器启动点现在使用
+  与 `docsforge.pdf` 相同的环境变量，本地无需安装 Playwright 自带的
+  Chromium 即可用系统浏览器运行 e2e 测试。未设置时回退到自带浏览器
+  （CI），两者都不可用时优雅跳过。
+
+### 修复
+
+- **文档修正**：插件数量（8 个核心自动加载 + social 可选）与 Markdown 扩展
+  数量（36 个默认 + 3 个内置）现已与引擎一致；TikZ 描述修正（`.tex` 文件
+  在构建时编译，需要 LaTeX 工具链）；迁移指南中移除过时的 "Insiders" 引用
+  （mkdocs-material 正在迁移到 Zensical）；补齐 zh 更新日志 12.2.0–12.4.0；
+  修复 zh 页面失效的自锚点；修正图标数量（五大图标家族共 16,500+）。
+- **示例站点集成测试**指向 12.5.0 之前的 `examples/site` 路径而静默跳过
+  —— 现改为运行 `examples/sites/docsforge-demo`。
+- **演示站点**：新增三篇博客文章（TikZ 图表、后缀式 i18n、DocsForge Studio
+  诊断）；移除一个孤儿页面；`latex-equations.md` 加入导航；TikZ 图现在可
+  正确解析。
+
 ## [12.4.0] — 2026-08-09
 
 ### 新增
