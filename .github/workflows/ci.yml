@@ -71,7 +71,7 @@ jobs:
 
       - name: Install DocsForge (pygments for pygments.css generation)
         # setup-python puts us on a toolcache Python whose site-packages is
-        # writable, so pip resolves pygments>=2.16 from pyproject.toml to the
+        # writable, so pip resolves pygments>=2.20.0 from pyproject.toml to the
         # current release and installs it there, shadowing the runner image's
         # system pygments (2.17.2 — its HtmlFormatter emits #FF0000 for .err,
         # the current one emits #F00). Without setup-python, pip installs into
