@@ -118,12 +118,14 @@ plugins:
 
 ## RSS 订阅源
 
-博客插件自动生成 RSS 订阅源：
+博客插件在每次构建时自动生成订阅源（草稿除外）：
 
-- `feed_rss_created.xml` —— 所有文章，最新的在前
-- `feed_rss_updated.xml` —— 最近更新的文章
+- `feed_rss_created.xml` —— RSS 2.0，所有文章，最新的在前
+- `feed_rss_updated.xml` —— RSS 2.0，按更新时间排序
+- `feed_atom.xml` —— Atom 订阅源
 
-通过 `/{blog_dir}/feed_rss_created.xml` 访问。
+通过 `/{blog_dir}/feed_rss_created.xml` 访问。可通过
+`plugins: [blog: {feed: false}]` 关闭。
 
 ## 归档
 

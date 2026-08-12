@@ -118,12 +118,14 @@ plugins:
 
 ## RSS feeds
 
-The blog plugin automatically generates RSS feeds:
+The blog plugin automatically generates feeds on every build (drafts excluded):
 
-- `feed_rss_created.xml` — All posts, newest first
-- `feed_rss_updated.xml` — Recently updated posts
+- `feed_rss_created.xml` — RSS 2.0, all posts newest first
+- `feed_rss_updated.xml` — RSS 2.0, sorted by update date
+- `feed_atom.xml` — Atom feed
 
-Access them at `/{blog_dir}/feed_rss_created.xml`.
+Access them at `/{blog_dir}/feed_rss_created.xml`. Disable with
+`plugins: [blog: {feed: false}]`.
 
 ## Archive
 

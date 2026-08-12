@@ -1077,9 +1077,13 @@ class Plugins(OptionallyRequired[PluginCollection]):
         # These are always enabled and don't require user configuration.
         # Note: 'social' is intentionally NOT here — it has heavy optional
         # dependencies (Pillow, cairosvg) and is opt-in via `plugins:`.
+        # Dedup against the user-declared names (un-namespaced) — the
+        # instance counter keys are namespaced (e.g. 'material/blog'), so
+        # checking the counter would load a duplicate for every declared
+        # built-in plugin.
         core_plugins = ['meta', 'tags', 'blog', 'info', 'minify', 'i18n']
         for name in core_plugins:
-            if name not in self._instance_counter:
+            if name not in user_plugin_names:
                 self.load_plugin_with_namespace(name, {})
         
         # Search plugin: only auto-load if user didn't specify it
@@ -1090,7 +1094,7 @@ class Plugins(OptionallyRequired[PluginCollection]):
         # Privacy is loaded only if enabled in config (privacy: true)
         # It's the only optional core plugin.
         if self._config and getattr(self._config, 'privacy', False):
-            if 'privacy' not in self._instance_counter:
+            if 'privacy' not in user_plugin_names:
                 self.load_plugin_with_namespace('privacy', {})
         
         return self.plugins

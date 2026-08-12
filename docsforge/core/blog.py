@@ -7,6 +7,10 @@ import os
 import posixpath
 import re
 import yaml
+from email.utils import format_datetime as _email_format_datetime
+from pathlib import Path
+from urllib.parse import urljoin
+from xml.sax.saxutils import escape
 
 from collections.abc import Callable
 from copy import copy
@@ -314,6 +318,9 @@ class BlogConfig(Config):
     draft = Type(bool, default = False)
     draft_on_serve = Type(bool, default = True)
     draft_if_future_date = Type(bool, default = False)
+
+    # Settings for feeds
+    feed = Type(bool, default = True)
 
     # Deprecated settings
     pagination_template = Deprecated(moved_to = "pagination_format")
@@ -858,6 +865,158 @@ class BlogPlugin(BasePlugin[BlogConfig]):
                 if os.path.isfile(authors_path):
                     deps.append(authors_path)
         return deps
+
+    def on_post_build(self, config):
+        """Generate RSS and Atom feeds for the blog.
+
+        Writes `{blog}/feed_rss_created.xml` and `{blog}/feed_atom.xml` into
+        the built site on every build, listing all published posts (drafts
+        excluded) sorted by creation date, newest first.
+        """
+        if not self.config.enabled or not self.config.feed:
+            return
+        if getattr(self, "blog", None) is None or not getattr(self.blog, "posts", None):
+            return
+
+        root = posixpath.normpath(self.config.blog_dir)
+        rss_path = Path(config.site_dir) / root / "feed_rss_created.xml"
+        rss_updated_path = Path(config.site_dir) / root / "feed_rss_updated.xml"
+        atom_path = Path(config.site_dir) / root / "feed_atom.xml"
+        rss_path.parent.mkdir(parents=True, exist_ok=True)
+
+        posts = [p for p in self.blog.posts if not p.config.draft]
+        if not posts:
+            return
+
+        # _feed_posts needs the site URL to build absolute post links.
+        self._feed_site_url = config.site_url or ""
+        title, link, description, language = self._feed_meta(config)
+        rss_path.write_text(self._render_rss(title, link, description, language, posts), encoding="utf-8")
+        # "Recently updated" feed: posts sorted by update date, newest first.
+        updated_posts = sorted(
+            posts,
+            key=lambda p: getattr(p.config.date, "updated", None) or p.config.date.created,
+            reverse=True,
+        )
+        rss_updated_path.write_text(
+            self._render_rss(title, link, description, language, updated_posts, updated=True),
+            encoding="utf-8",
+        )
+        atom_path.write_text(self._render_atom(title, link, description, posts), encoding="utf-8")
+        log.info(
+            f"Generated blog feeds: {rss_path.name}, {rss_updated_path.name}, {atom_path.name} ({len(posts)} posts)"
+        )
+
+    def _feed_meta(self, config):
+        """Return (title, link, description, language) for the blog feeds."""
+        title = self.blog.title or config.site_name or "Blog"
+        base = (config.site_url or "").rstrip("/")
+        blog_url = self.blog.url or f"{self.config.blog_dir}/"
+        link = urljoin(base + "/", blog_url) if base else blog_url
+        description = config.site_description or f"{title} — latest posts"
+        language = config.theme.get("language", "en") or "en"
+        return title, link, description, language
+
+    def _feed_posts(self, posts):
+        """Yield (title, url, created, updated, author, description) per post."""
+        base = getattr(self, "_feed_site_url", "").rstrip("/")
+        authors = getattr(self, "authors", {}) or {}
+        for post in posts:
+            link = urljoin(base + "/", post.url) if base else post.url
+            created = post.config.date.created
+            updated = getattr(post.config.date, "updated", None) or created
+            author = None
+            if post.config.authors:
+                key = post.config.authors[0]
+                author = (authors.get(key) or {}).get("name") if isinstance(authors.get(key), dict) else None
+                if author is None and hasattr(authors.get(key), "name"):
+                    author = authors[key].name
+                if author is None:
+                    author = key
+            description = ""
+            if post.excerpt and post.excerpt.content:
+                # Excerpts are rendered in a view context; drop the heading
+                # permalink wrappers they pick up there.
+                description = re.sub(r"<a class=[\"']?toclink[\"']?[^>]*>(.*?)</a>", r"\1", post.excerpt.content)
+            else:
+                text = re.sub(r"[#*`>\[\]!_-]+", " ", post.markdown or "")
+                text = re.sub(r"\s+", " ", text).strip()
+                description = escape(text[:400])
+            yield post.title, link, created, updated, author, description
+
+    def _render_rss(self, title, link, description, language, posts, updated=False):
+        """Render the RSS 2.0 feed.
+
+        `updated=True` uses each post's update date for pubDate/lastBuildDate
+        (the "recently updated" feed); otherwise creation dates are used.
+        """
+        def _date(post):
+            if updated:
+                return getattr(post.config.date, "updated", None) or post.config.date.created
+            return post.config.date.created
+        items = []
+        for post_title, url, created, updated_dt, author, desc in self._feed_posts(posts):
+            item = [
+                "  <item>",
+                f"    <title>{escape(post_title)}</title>",
+                f"    <link>{escape(url)}</link>",
+                f"    <pubDate>{_email_format_datetime(updated_dt if updated else created, usegmt=True)}</pubDate>",
+                f"    <guid>{escape(url)}</guid>",
+            ]
+            if author:
+                item.append(f"    <author>{escape(author)}</author>")
+            if desc:
+                item.append(f"    <description><![CDATA[{desc}]]></description>")
+            item.append("  </item>")
+            items.append("\n".join(item))
+        return "\n".join([
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">',
+            "  <channel>",
+            f"    <title>{escape(title)}</title>",
+            f"    <link>{escape(link)}</link>",
+            f"    <description>{escape(description)}</description>",
+            f"    <language>{escape(language)}</language>",
+            f"    <lastBuildDate>{_email_format_datetime(_date(posts[0]), usegmt=True)}</lastBuildDate>",
+            f"    <atom:link href=\"{escape(link)}feed_rss_created.xml\" rel=\"self\" type=\"application/rss+xml\"/>",
+            *items,
+            "  </channel>",
+            "</rss>",
+            "",
+        ])
+
+    def _render_atom(self, title, link, description, posts):
+        """Render the Atom feed (by creation date)."""
+        def _iso(dt):
+            return dt.isoformat().replace("+00:00", "Z")
+        entries = []
+        for post_title, url, created, updated, author, desc in self._feed_posts(posts):
+            entry = [
+                "  <entry>",
+                f"    <title>{escape(post_title)}</title>",
+                f"    <link href=\"{escape(url)}\"/>",
+                f"    <id>{escape(url)}</id>",
+                f"    <updated>{_iso(updated)}</updated>",
+                f"    <published>{_iso(created)}</published>",
+            ]
+            if author:
+                entry.append(f"    <author><name>{escape(author)}</name></author>")
+            if desc:
+                entry.append(f"    <content type=\"html\"><![CDATA[{desc}]]></content>")
+            entry.append("  </entry>")
+            entries.append("\n".join(entry))
+        return "\n".join([
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<feed xmlns="http://www.w3.org/2005/Atom">',
+            f"  <title>{escape(title)}</title>",
+            f"  <link href=\"{escape(link)}\" rel=\"alternate\"/>",
+            f"  <link href=\"{escape(link)}feed_atom.xml\" rel=\"self\" type=\"application/atom+xml\"/>",
+            f"  <id>{escape(link)}</id>",
+            f"  <updated>{_iso(posts[0].config.date.created)}</updated>",
+            *entries,
+            "</feed>",
+            "",
+        ])
 
     # Attach posts and views to navigation (run later) - again, we allow other
     # plugins to alter the navigation before we start to attach posts and views
