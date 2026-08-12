@@ -144,6 +144,27 @@ Use standard emoji shortcodes:
 
 ---
 
+## Lucide icons
+
+DocsForge also bundles the complete [Lucide](https://lucide.dev) icon set (2,000+ stroke-based icons). Use them with the `:lucide-name:` prefix:
+
+``` markdown
+:lucide-rocket: Launch
+:lucide-github: GitHub
+:lucide-cloud: Cloud
+:lucide-terminal: Terminal
+```
+
+:lucide-rocket: Launch  :lucide-github: GitHub  :lucide-cloud: Cloud  :lucide-terminal: Terminal
+
+Browse the [Lucide gallery](https://lucide.dev/icons) to find the exact name — replace spaces with hyphens: `arrow-right` → `:lucide-arrow-right:`.
+
+!!! tip "Stroke-based icons"
+    Lucide icons are drawn with strokes. DocsForge renders them as outlines
+    (unlike filled Material icons), which pairs well with clean UI text.
+
+---
+
 ## Font Awesome icons
 
 Font Awesome brand icons are also available:

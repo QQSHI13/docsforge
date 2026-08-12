@@ -30,7 +30,42 @@ description: Custom description for this page
 
 ## Social card image
 
-DocsForge does not automatically generate social card images. To add a custom card image, place the image in your `docs/` folder and reference it with an absolute URL in your site metadata or custom templates:
+By default DocsForge does not generate a card image — it emits OpenGraph and
+Twitter metadata only. Two ways to get a card image:
+
+### Option 1: the social plugin (recommended)
+
+DocsForge bundles mkdocs-material's **social cards** plugin: it renders a
+1200×630 PNG per page at build time, no design work needed. Enable it
+(opt-in — it needs `pillow` + `cairosvg`):
+
+``` bash
+pip install "docsforge[social]"
+```
+
+``` yaml
+plugins:
+  - social
+```
+
+Cards are generated into `assets/images/social/` in the built site and
+cached under `.docsforge/cache/social`. The card shows the site name,
+description, and your `extra.social` footer links.
+
+Tune the layout with `cards_layout_options` (see [Configuration → `extra.social`](../reference/configuration.md)):
+
+``` yaml
+plugins:
+  - social:
+      cards_layout_options:
+        background_color: "#0b57d0"
+        color: "#ffffff"
+        font_family: "Roboto"
+```
+
+### Option 2: manual image
+
+Add a custom card image and reference it with an absolute URL:
 
 ``` yaml
 site_name: My Project Docs

@@ -226,6 +226,110 @@ extra_javascript:
 !!! warning "Remove vendored assets"
     Do not include KaTeX, Mermaid, or Material Icons here. They are built-in.
 
+### `extra_templates`
+
+Additional Jinja2 templates (HTML or XML) from `docs_dir` to build with the global context.
+
+```yaml
+extra_templates:
+  - sitemap-custom.xml
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `list` | `[]` | No |
+
+---
+
+### `exclude_docs`
+
+Gitignore-style patterns (relative to `docs_dir`) of files to exclude from the site entirely.
+
+```yaml
+exclude_docs: |
+  private/notes.md
+  drafts/**
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `string` (gitignore) | — | No |
+
+---
+
+### `draft_docs`
+
+Gitignore-style patterns of files to mark as drafts. Drafts are built but flagged, so they are not linked from the navigation; `docsforge serve` still renders them.
+
+| Type | Default | Required |
+|------|---------|----------|
+| `string` (gitignore) | — | No |
+
+---
+
+### `not_in_nav`
+
+Gitignore-style patterns of files that are intentionally not in the navigation. Suppresses the "not included in nav" warning for those files.
+
+| Type | Default | Required |
+|------|---------|----------|
+| `string` (gitignore) | — | No |
+
+---
+
+### `tikz`
+
+Enable TikZ diagram compilation. `.tex` files under `docs_dir` containing `\begin{tikzpicture}` (or in a `tikz/` directory) are compiled to SVG during the build. Requires a LaTeX toolchain (`latex`/`pdflatex` + `dvisvgm`/`pdf2svg`); when unavailable the build warns and skips compilation.
+
+```yaml
+tikz: true
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `boolean` | `null` (auto) | No |
+
+---
+
+### `hooks`
+
+Python module files loaded as plugins. Each hook receives the full plugin event API (see [Custom Plugins](../advanced/plugins.md)) — e.g. `on_build_done` to post-process `site/sw.js` after the build.
+
+```yaml
+hooks:
+  - my_hook.py
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `list` | `[]` | No |
+
+---
+
+### `watch`
+
+Extra paths (files or directories) to watch while running `docsforge serve`.
+
+```yaml
+watch:
+  - ../shared-content
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `list` | `[]` | No |
+
+---
+
+### `remote_branch` / `remote_name`
+
+Legacy MkDocs options kept for config compatibility. DocsForge has no `gh-deploy` command — deploy with GitHub Actions instead (see [Publishing your site](../publishing-your-site.md)). They are accepted but unused.
+
+| Key | Default |
+|-----|---------|
+| `remote_branch` | `gh-pages` |
+| `remote_name` | `origin` |
+
 ---
 
 ## Theme settings
@@ -536,11 +640,39 @@ The minify plugin is always enabled and has no configuration options. It minifie
 | `meta_file` | `string` | `.meta.yml` | Metadata file |
 | `enabled` | `boolean` | `true` | Enable plugin |
 
+#### `i18n` plugin
+
+Multi-language sites (suffix-mode locale variants). The plugin auto-loads; it can also be configured under `extra.i18n_languages` (see [Multi-language sites](../setup/i18n.md)).
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `languages` | `list` | `[]` | Locales: `locale`, `name`, `default`, optional `site_name`, `site_description`, `nav_translations` |
+| `enabled` | `boolean` | `true` | Enable plugin |
+
+#### `social` plugin
+
+Opt-in social card generation (OpenGraph PNG per page). Needs `pip install docsforge[social]` (pillow + cairosvg); see [Setting up social cards](../setup/setting-up-social-cards.md).
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Enable plugin |
+| `concurrency` | `integer` | CPU count - 1 | Parallel card rendering |
+| `cache` | `boolean` | `true` | Cache generated cards |
+| `cache_dir` | `string` | `.docsforge/cache/social` | Card cache directory |
+| `cards` | `boolean` | `true` | Generate cards |
+| `cards_dir` | `string` | `assets/images/social` | Card output directory |
+| `cards_layout` | `string` | `default` | Card layout |
+| `cards_layout_dir` | `string` | `layouts` | Custom layout directory |
+| `cards_layout_options` | `dict` | `{}` | `background_color`, `color`, `font_family`, ... |
+| `cards_include` | `list` | `[]` | Page globs to include |
+| `cards_exclude` | `list` | `[]` | Page globs to exclude |
+
 ---
 
 ## Markdown extensions
 
-DocsForge enables most common extensions by default. Only configure if you need custom behavior.
+DocsForge enables most common extensions by default — 36 default + 3 built-ins
+(`toc`, `tables`, `fenced_code`). Only configure if you need custom behavior.
 
 ### `markdown_extensions`
 
@@ -557,6 +689,8 @@ markdown_extensions:
 | `admonition` | Yes | Callout boxes (`!!! note`) |
 | `pymdownx.details` | Yes | Collapsible details (`??? question`) |
 | `pymdownx.superfences` | Yes | Fenced code blocks with custom fences |
+| `fenced_code` | Yes | Standard fenced code blocks |
+| `pymdownx.betterem` | Yes | Smarter emphasis handling |
 | `pymdownx.highlight` | Yes | Code syntax highlighting |
 | `pymdownx.inlinehilite` | Yes | Inline code highlighting |
 | `pymdownx.snippets` | Yes | Content inclusion (`--8<--`) |

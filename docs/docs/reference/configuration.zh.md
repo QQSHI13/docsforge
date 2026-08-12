@@ -226,6 +226,110 @@ extra_javascript:
 !!! warning "不要包含已内置的资源"
     不要在此处包含 KaTeX、Mermaid 或 Material Icons。它们已内置。
 
+### `extra_templates`
+
+来自 `docs_dir` 的额外 Jinja2 模板（HTML 或 XML），使用全局上下文构建。
+
+```yaml
+extra_templates:
+  - sitemap-custom.xml
+```
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `list` | `[]` | 否 |
+
+---
+
+### `exclude_docs`
+
+相对于 `docs_dir` 的 gitignore 风格模式，完全排除这些文件。
+
+```yaml
+exclude_docs: |
+  private/notes.md
+  drafts/**
+```
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `string`（gitignore） | — | 否 |
+
+---
+
+### `draft_docs`
+
+标记为草稿的 gitignore 风格模式。草稿会构建但不会出现在导航中；`docsforge serve` 仍会渲染它们。
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `string`（gitignore） | — | 否 |
+
+---
+
+### `not_in_nav`
+
+有意不放在导航中的文件的 gitignore 风格模式。可为这些文件抑制“未包含在导航中”的警告。
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `string`（gitignore） | — | 否 |
+
+---
+
+### `tikz`
+
+启用 TikZ 图表编译。`docs_dir` 下包含 `\begin{tikzpicture}`（或位于 `tikz/` 目录）的 `.tex` 文件会在构建时编译为 SVG。需要 LaTeX 工具链（`latex`/`pdflatex` + `dvisvgm`/`pdf2svg`）；不可用时构建会警告并跳过编译。
+
+```yaml
+tikz: true
+```
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `boolean` | `null`（自动） | 否 |
+
+---
+
+### `hooks`
+
+作为插件加载的 Python 模块文件。每个钩子都拥有完整的插件事件 API（参见[自定义插件](../advanced/plugins.md)）—— 例如用 `on_build_done` 在构建后处理 `site/sw.js`。
+
+```yaml
+hooks:
+  - my_hook.py
+```
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `list` | `[]` | 否 |
+
+---
+
+### `watch`
+
+运行 `docsforge serve` 时额外监视的路径（文件或目录）。
+
+```yaml
+watch:
+  - ../shared-content
+```
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `list` | `[]` | 否 |
+
+---
+
+### `remote_branch` / `remote_name`
+
+为兼容配置而保留的旧版 MkDocs 选项。DocsForge 没有 `gh-deploy` 命令 —— 请改用 GitHub Actions 部署（参见[发布你的站点](../publishing-your-site.md)）。它们会被接受但不会使用。
+
+| 键 | 默认值 |
+|-----|---------|
+| `remote_branch` | `gh-pages` |
+| `remote_name` | `origin` |
+
 ---
 
 ## 主题设置
@@ -530,11 +634,38 @@ minify 插件始终启用，没有可配置选项。它会压缩 HTML 页面以�
 | `meta_file` | `string` | `.meta.yml` | 元数据文件 |
 | `enabled` | `boolean` | `true` | 启用插件 |
 
+#### `i18n` 插件
+
+多语言站点（后缀式语言变体）。插件自动加载；也可以在 `extra.i18n_languages` 下配置（参见[多语言站点](../setup/i18n.md)）。
+
+| 选项 | 类型 | 默认值 | 描述 |
+|--------|------|---------|-------------|
+| `languages` | `list` | `[]` | 语言列表：`locale`、`name`、`default`，可选 `site_name`、`site_description`、`nav_translations` |
+| `enabled` | `boolean` | `true` | 启用插件 |
+
+#### `social` 插件
+
+可选的社交卡片生成（每页一个 OpenGraph PNG）。需要 `pip install docsforge[social]`（pillow + cairosvg）；参见[设置社交卡片](../setup/setting-up-social-cards.md)。
+
+| 选项 | 类型 | 默认值 | 描述 |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | 启用插件 |
+| `concurrency` | `integer` | CPU 数 - 1 | 并行卡片渲染 |
+| `cache` | `boolean` | `true` | 缓存生成的卡片 |
+| `cache_dir` | `string` | `.docsforge/cache/social` | 卡片缓存目录 |
+| `cards` | `boolean` | `true` | 生成卡片 |
+| `cards_dir` | `string` | `assets/images/social` | 卡片输出目录 |
+| `cards_layout` | `string` | `default` | 卡片布局 |
+| `cards_layout_dir` | `string` | `layouts` | 自定义布局目录 |
+| `cards_layout_options` | `dict` | `{}` | `background_color`、`color`、`font_family` 等 |
+| `cards_include` | `list` | `[]` | 包含的页面 glob |
+| `cards_exclude` | `list` | `[]` | 排除的页面 glob |
+
 ---
 
 ## Markdown 扩展
 
-DocsForge 默认启用大多数常见扩展。仅在需要自定义行为时才配置。
+DocsForge 默认启用大多数常见扩展 —— 36 个默认 + 3 个内置（`toc`、`tables`、`fenced_code`）。仅在需要自定义行为时才配置。
 
 ### `markdown_extensions`
 
@@ -551,6 +682,8 @@ markdown_extensions:
 | `admonition` | 是 | 标注框（`!!! note`） |
 | `pymdownx.details` | 是 | 可折叠详情（`??? question`） |
 | `pymdownx.superfences` | 是 | 支持自定义围栏的代码块 |
+| `fenced_code` | 是 | 标准围栏代码块 |
+| `pymdownx.betterem` | 是 | 更智能的强调处理 |
 | `pymdownx.highlight` | 是 | 代码语法高亮 |
 | `pymdownx.inlinehilite` | 是 | 行内代码高亮 |
 | `pymdownx.snippets` | 是 | 内容包含（`--8<--`） |

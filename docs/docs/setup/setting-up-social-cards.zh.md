@@ -30,7 +30,37 @@ description: Custom description for this page
 
 ## 社交卡片图片
 
-DocsForge 不会自动生成社交卡片图片。要添加自定义卡片图片，请将图片放在 `docs/` 文件夹中，并在站点元数据或自定义模板中通过绝对 URL 引用：
+默认情况下 DocsForge 不生成卡片图片 —— 只输出 OpenGraph 和 Twitter 元数据。有两种方式获得卡片图片：
+
+### 方案 1：social 插件（推荐）
+
+DocsForge 内置了 mkdocs-material 的**社交卡片**插件：构建时为每个页面渲染 1200×630 PNG，无需任何设计工作。启用它（可选 —— 需要 `pillow` + `cairosvg`）：
+
+``` bash
+pip install "docsforge[social]"
+```
+
+``` yaml
+plugins:
+  - social
+```
+
+卡片生成到构建产物的 `assets/images/social/`，并缓存在 `.docsforge/cache/social` 下。卡片显示站点名称、描述以及你的 `extra.social` 底部链接。
+
+用 `cards_layout_options` 调整布局（参见[配置 → `extra.social`](../reference/configuration.md)）：
+
+``` yaml
+plugins:
+  - social:
+      cards_layout_options:
+        background_color: "#0b57d0"
+        color: "#ffffff"
+        font_family: "Roboto"
+```
+
+### 方案 2：手动图片
+
+添加自定义卡片图片并用绝对 URL 引用：
 
 ``` yaml
 site_name: My Project Docs

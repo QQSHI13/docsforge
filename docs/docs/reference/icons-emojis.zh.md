@@ -144,6 +144,27 @@ Click the :material-cog: settings icon to configure.
 
 ---
 
+## Lucide 图标
+
+DocsForge 还内置了完整的 [Lucide](https://lucide.dev) 图标集（2,000+ 个描边图标）。使用 `:lucide-name:` 前缀：
+
+``` markdown
+:lucide-rocket: 发射
+:lucide-github: GitHub
+:lucide-cloud: 云端
+:lucide-terminal: 终端
+```
+
+:lucide-rocket: 发射  :lucide-github: GitHub  :lucide-cloud: 云端  :lucide-terminal: 终端
+
+浏览 [Lucide 图标库](https://lucide.dev/icons) 查找精确名称 —— 将空格替换为连字符：`arrow-right` → `:lucide-arrow-right:`。
+
+!!! tip "描边图标"
+    Lucide 图标使用描边绘制。DocsForge 将其渲染为轮廓（与填充的 Material
+    图标不同），与简洁的 UI 文本搭配效果很好。
+
+---
+
 ## Font Awesome 图标
 
 Font Awesome 品牌图标同样可用：
