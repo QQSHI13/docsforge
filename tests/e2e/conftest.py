@@ -15,6 +15,8 @@ from typing import Iterator
 
 import pytest
 
+from _browser import launch_opts
+
 pytestmark = pytest.mark.e2e
 
 
@@ -27,7 +29,7 @@ def _can_launch_browser() -> bool:
     b = None
     try:
         p = sync_playwright().start()
-        b = p.chromium.launch()
+        b = p.chromium.launch(**launch_opts())
         return True
     except Exception:
         return False
@@ -138,7 +140,7 @@ def context_page(served_site):
 
     base_url, _ = served_site
     p = sync_playwright().start()
-    browser = p.chromium.launch()
+    browser = p.chromium.launch(**launch_opts())
     context = browser.new_context()
     page = context.new_page()
     try:

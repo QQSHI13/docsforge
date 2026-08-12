@@ -114,10 +114,11 @@ def test_dev_server_matches_deployed(served_dev):
     """`docsforge serve` must install the SW and serve pages offline just like a
     deployed site (the serve == build parity promise)."""
     from playwright.sync_api import sync_playwright
+    from _browser import launch_opts
 
     url = served_dev
     p = sync_playwright().start()
-    browser = p.chromium.launch()
+    browser = p.chromium.launch(**launch_opts())
     context = browser.new_context()
     page = context.new_page()
     try:
@@ -137,10 +138,11 @@ def test_i18n_translates_ui(served_site_i18n):
     """A site built with theme.language='fr' must render <html lang='fr'> and
     translated UI strings (not the English defaults)."""
     from playwright.sync_api import sync_playwright
+    from _browser import launch_opts
 
     url = served_site_i18n
     p = sync_playwright().start()
-    browser = p.chromium.launch()
+    browser = p.chromium.launch(**launch_opts())
     page = browser.new_context().new_page()
     try:
         page.goto(url, wait_until="load")
