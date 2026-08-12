@@ -410,7 +410,7 @@ markdown_extensions:
 
 DocsForge includes powerful features by default[^1]. The `privacy` plugin downloads external assets[^2], while `minify` compresses output[^3].
 
-[^1]: All 31 Markdown extensions and 7 plugins load automatically.
+[^1]: All 36 Markdown extensions and 8 core plugins load automatically; social cards are opt-in.
 [^2]: Google Fonts, CDN scripts, and other external resources are cached locally during build.
 [^3]: HTML, CSS, and JavaScript are minified at build time with no configuration needed.
 

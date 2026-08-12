@@ -20,7 +20,7 @@ DocsForge is a fork of MkDocs + Material for MkDocs with all dependencies vendor
 - ✅ Zero external dependencies
 - ✅ All plugins built-in
 - ✅ Material theme included
-- ✅ Blog, tags, search, privacy, minify, info, meta
+- ✅ Blog, tags, search, privacy, minify, info, meta, i18n
 
 ## Quick Start
 

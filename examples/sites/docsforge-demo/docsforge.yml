@@ -32,8 +32,8 @@ repo_url: https://github.com/QQSHI13/docsforge
 repo_name: QQSHI13/docsforge
 edit_uri: edit/main/examples/sites/docsforge-demo/docs/
 
-# search, tags, blog, and privacy are built-in core plugins and load
-# automatically — no need to declare them under `plugins:`.
+# All 8 core plugins (search, tags, blog, meta, info, minify, privacy, i18n)
+# load automatically — no need to declare them under `plugins:`.
 # social is opt-in: it needs pillow + cairosvg.
 plugins:
   - social
