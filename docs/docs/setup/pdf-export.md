@@ -1,3 +1,7 @@
+---
+icon: material/file-pdf-box
+---
+
 # PDF Export
 
 DocsForge can export your documentation as PDF files using `docsforge build --pdf`.

@@ -1,3 +1,7 @@
+---
+icon: material/book-open-variant
+---
+
 # 参考
 
 DocsForge Markdown 扩展和组件的完整语法参考。

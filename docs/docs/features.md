@@ -1,3 +1,7 @@
+---
+icon: material/feature-search-outline
+---
+
 # Features
 
 DocsForge includes everything you need to write and publish documentation. No extra installs, no extra config.

@@ -1,3 +1,7 @@
+---
+icon: material/book-open-variant
+---
+
 # Reference
 
 Complete syntax reference for all DocsForge Markdown extensions and components.

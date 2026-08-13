@@ -1,3 +1,7 @@
+---
+icon: material/format-font
+---
+
 # 更改字体
 
 DocsForge 开箱即用地支持 Google Fonts。在 `docsforge.yml` 中的 `theme.font` 键下配置字体。

@@ -1,3 +1,7 @@
+---
+icon: material/alert-decagram-outline
+---
+
 # Admonitions
 
 Admonitions (also called callouts or aside boxes) highlight important information with colored boxes and icons.

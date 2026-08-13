@@ -1,3 +1,7 @@
+---
+icon: material/home
+---
+
 # DocsForge
 
 <p align="center">

@@ -1,3 +1,7 @@
+---
+icon: material/developer-board
+---
+
 # Plugin Development
 
 This guide covers **authoring, packaging, and distributing** a DocsForge plugin. For the event API reference, see [Custom Plugins](plugins.md); for complete runnable examples, see the `examples/plugins/` directory in the repo.

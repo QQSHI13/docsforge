@@ -1,3 +1,7 @@
+---
+icon: material/wrench
+---
+
 # Troubleshooting
 
 Something not working? This page covers the most common issues and how to fix them. Each section lists symptoms, likely causes, and step-by-step solutions.

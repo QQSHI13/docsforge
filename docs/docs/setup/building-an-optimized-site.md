@@ -1,3 +1,7 @@
+---
+icon: material/gauge
+---
+
 # Building an optimized site
 
 DocsForge includes the `minify` plugin by default. It compresses HTML, CSS, and JavaScript at build time.

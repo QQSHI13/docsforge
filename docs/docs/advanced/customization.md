@@ -1,3 +1,7 @@
+---
+icon: material/brush-variant
+---
+
 # Customization Guide
 
 DocsForge provides powerful customization options beyond the basic configuration. This guide covers advanced techniques for tailoring your site's appearance, behavior, and functionality.

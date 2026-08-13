@@ -1,3 +1,7 @@
+---
+icon: material/feature-search-outline
+---
+
 # 功能特性
 
 DocsForge 包含编写和发布文档所需的一切。无需额外安装，无需额外配置。

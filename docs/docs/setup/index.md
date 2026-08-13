@@ -1,3 +1,7 @@
+---
+icon: material/cog
+---
+
 # Setup
 
 DocsForge's setup guides help you customize every aspect of your documentation site. All configuration happens in `docsforge.yml`.

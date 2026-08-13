@@ -1,3 +1,7 @@
+---
+icon: material/lightbulb-on-outline
+---
+
 # 设计理念
 
 DocsForge 的诞生源于我们相信文档应该**尽可能简单**。

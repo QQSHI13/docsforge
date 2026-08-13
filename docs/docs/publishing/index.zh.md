@@ -1,3 +1,7 @@
+---
+icon: material/book-open-page-variant
+---
+
 # 发布您的站点
 
 DocsForge 会构建静态 HTML，可部署到任何 Web 服务器或静态托管平台。本章节涵盖将您的文档上线所需的全部内容。

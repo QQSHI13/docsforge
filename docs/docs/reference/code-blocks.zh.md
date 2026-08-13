@@ -1,3 +1,7 @@
+---
+icon: material/code-tags
+---
+
 # 代码块
 
 DocsForge 支持丰富的代码块，包括语法高亮、标题、行号等功能。

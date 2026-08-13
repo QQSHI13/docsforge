@@ -1,3 +1,7 @@
+---
+icon: material/swap-horizontal
+---
+
 # 迁移指南
 
 对于大多数网站来说，从 MkDocs/Material 迁移到 DocsForge 非常简单。本指南介绍哪些内容可以轻松迁移，哪些需要额外工作。

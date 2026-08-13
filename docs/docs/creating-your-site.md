@@ -1,3 +1,7 @@
+---
+icon: material/file-document-edit
+---
+
 # Creating your site
 
 ## Project structure

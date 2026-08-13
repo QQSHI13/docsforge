@@ -1,3 +1,7 @@
+---
+icon: material/tooltip-text
+---
+
 # Tooltips
 
 工具提示在鼠标悬停文本时显示额外信息。

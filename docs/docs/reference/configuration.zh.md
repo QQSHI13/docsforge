@@ -1,3 +1,7 @@
+---
+icon: material/tune-variant
+---
+
 # 配置参考
 
 本页面记录 `docsforge.yml` 中可用的每个选项。自定义站点时，请将其作为完整参考。

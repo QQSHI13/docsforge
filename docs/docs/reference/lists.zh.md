@@ -1,3 +1,7 @@
+---
+icon: material/format-list-bulleted
+---
+
 # 列表
 
 DocsForge 支持所有标准列表类型，以及任务列表、定义列表和复杂嵌套的扩展语法。

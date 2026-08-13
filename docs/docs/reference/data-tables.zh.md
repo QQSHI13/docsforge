@@ -1,3 +1,7 @@
+---
+icon: material/table
+---
+
 # 数据表格
 
 DocsForge 使用增强的样式渲染 Markdown 表格。

@@ -1,3 +1,7 @@
+---
+icon: material/tab
+---
+
 # Content tabs
 
 Content tabs group related content, letting readers switch between alternatives without scrolling.

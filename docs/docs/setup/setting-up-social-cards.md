@@ -1,3 +1,7 @@
+---
+icon: material/card-account-details-outline
+---
+
 # Setting up social cards
 
 DocsForge includes basic OpenGraph metadata automatically. Every page generates:

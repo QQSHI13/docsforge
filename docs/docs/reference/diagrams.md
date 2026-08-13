@@ -1,3 +1,7 @@
+---
+icon: material/graph-outline
+---
+
 # Diagrams
 
 DocsForge integrates [Mermaid.js](https://mermaid.js.org) for creating diagrams with text. No external tools or image editors needed — just write the diagram code in a fenced block.

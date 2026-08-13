@@ -1,3 +1,7 @@
+---
+icon: material/tune-variant
+---
+
 # Configuration Reference
 
 This page documents every option available in `docsforge.yml`. Use it as a complete reference when customizing your site.

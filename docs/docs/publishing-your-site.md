@@ -1,3 +1,7 @@
+---
+icon: material/web
+---
+
 # Publishing your site
 
 DocsForge builds a completely static site — no database, no server-side processing, no runtime dependencies. This means you can host it anywhere that serves static files.

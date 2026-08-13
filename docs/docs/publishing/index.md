@@ -1,3 +1,7 @@
+---
+icon: material/book-open-page-variant
+---
+
 # Publishing Your Site
 
 DocsForge builds static HTML that can be deployed to any web server or static hosting platform. This section covers everything you need to get your docs online.

@@ -1,3 +1,7 @@
+---
+icon: material/code-tags
+---
+
 # Code blocks
 
 DocsForge supports rich code blocks with syntax highlighting, titles, line numbers, and more.

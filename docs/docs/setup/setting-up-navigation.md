@@ -1,3 +1,7 @@
+---
+icon: material/view-list
+---
+
 # Setting up navigation
 
 DocsForge provides rich navigation options. Configure them in `docsforge.yml` under `theme.features`.

@@ -1,3 +1,7 @@
+---
+icon: material/format-pilcrow
+---
+
 # 格式
 
 DocsForge 扩展了标准 Markdown，提供了额外的内联格式选项，用于强调、技术符号和特殊字符。

@@ -1,4 +1,5 @@
 ---
+icon: material/rss-box
 title: Blogging
 ---
 

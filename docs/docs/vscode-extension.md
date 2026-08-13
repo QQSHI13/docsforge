@@ -1,3 +1,7 @@
+---
+icon: material/microsoft-visual-studio-code
+---
+
 # Visual Studio Code Extension
 
 DocsForge provides a VS Code extension for writing, previewing, and building documentation without leaving your editor.

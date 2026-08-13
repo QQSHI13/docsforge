@@ -1,3 +1,7 @@
+---
+icon: material/alert-decagram-outline
+---
+
 # 提示框
 
 提示框（也称为 callouts 或侧边栏）通过彩色方框和图标突出显示重要信息。

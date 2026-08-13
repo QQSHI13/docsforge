@@ -1,3 +1,7 @@
+---
+icon: material/rocket-launch
+---
+
 # Getting started
 
 DocsForge is a self-contained documentation engine. `pip install`, write Markdown, build.

@@ -1,3 +1,7 @@
+---
+icon: material/license
+---
+
 # 许可协议
 
 DocsForge 及其文档根据 **Apache License 2.0（Apache-2.0）** 发布。

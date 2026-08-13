@@ -1,3 +1,7 @@
+---
+icon: material/palette
+---
+
 # Changing the colors
 
 DocsForge uses the Material theme's color system. Customize colors in `docsforge.yml` under the `theme.palette` key.

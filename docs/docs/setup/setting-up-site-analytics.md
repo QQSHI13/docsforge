@@ -1,3 +1,7 @@
+---
+icon: material/chart-line
+---
+
 # Setting up site analytics
 
 Add analytics to understand how readers use your documentation.

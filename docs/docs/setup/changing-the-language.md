@@ -1,3 +1,7 @@
+---
+icon: material/translate
+---
+
 # Changing the language
 
 Set the site language in `docsforge.yml`. This affects search stemming, typography (e.g., Chinese justification), and RTL layout.

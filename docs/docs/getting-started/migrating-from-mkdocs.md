@@ -1,3 +1,7 @@
+---
+icon: material/swap-horizontal
+---
+
 # Migrating from MkDocs
 
 This guide walks you through migrating an existing [MkDocs](https://www.mkdocs.org/) project to DocsForge. Whether you're using MkDocs with the Material theme or a custom setup, the migration is straightforward and brings significant benefits.

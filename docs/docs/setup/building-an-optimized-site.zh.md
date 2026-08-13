@@ -1,3 +1,7 @@
+---
+icon: material/gauge
+---
+
 # 构建优化站点
 
 DocsForge 默认包含 `minify` 插件。它会在构建时压缩 HTML、CSS 和 JavaScript。

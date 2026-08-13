@@ -1,3 +1,7 @@
+---
+icon: material/docker
+---
+
 # Docker Image
 
 DocsForge can be run inside a Docker container for isolated, reproducible documentation builds.

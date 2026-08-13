@@ -1,3 +1,7 @@
+---
+icon: material/history
+---
+
 # 更新日志
 
 本文档记录 DocsForge 的所有重要变更。

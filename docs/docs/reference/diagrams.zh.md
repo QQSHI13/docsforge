@@ -1,3 +1,7 @@
+---
+icon: material/graph-outline
+---
+
 # 图表
 
 DocsForge 集成 [Mermaid.js](https://mermaid.js.org)，支持使用文本创建图表。无需外部工具或图像编辑器——只需在代码块中编写图表代码即可。

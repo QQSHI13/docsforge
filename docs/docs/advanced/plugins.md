@@ -1,3 +1,7 @@
+---
+icon: material/puzzle-outline
+---
+
 # Custom Plugins
 
 DocsForge supports custom plugins using its own plugin API (similar to MkDocs but with a different base class).

@@ -1,3 +1,7 @@
+---
+icon: material/rocket-launch
+---
+
 # 入门
 
 DocsForge 是一款自包含的文档引擎。`pip install`，编写 Markdown，构建完成。

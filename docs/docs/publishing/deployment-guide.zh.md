@@ -1,3 +1,7 @@
+---
+icon: material/server-network
+---
+
 # 部署指南
 
 DocsForge 生成静态 HTML，可以部署到任何静态托管平台。本指南涵盖最流行的选项。

@@ -1,3 +1,7 @@
+---
+icon: material/format-pilcrow
+---
+
 # Formatting
 
 DocsForge extends standard Markdown with additional inline formatting options for emphasis, technical notation, and special characters.

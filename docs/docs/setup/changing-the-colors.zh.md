@@ -1,3 +1,7 @@
+---
+icon: material/palette
+---
+
 # 更改颜色
 
 DocsForge 使用 Material 主题的颜色系统。在 `docsforge.yml` 的 `theme.palette` 键下自定义颜色。

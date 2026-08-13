@@ -1,3 +1,7 @@
+---
+icon: material/image
+---
+
 # Images
 
 DocsForge handles images with enhanced styling options. Images are responsive by default and support lazy loading, alignment, sizing, and more.

@@ -1,3 +1,7 @@
+---
+icon: material/format-list-bulleted
+---
+
 # Lists
 
 DocsForge supports all standard list types plus extended syntax for task lists, definition lists, and complex nesting.

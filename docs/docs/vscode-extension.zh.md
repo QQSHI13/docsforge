@@ -1,3 +1,7 @@
+---
+icon: material/microsoft-visual-studio-code
+---
+
 # Visual Studio Code 扩展
 
 DocsForge 提供 VS Code 扩展，让你在编辑器内即可编写、预览和构建文档，无需切换窗口。

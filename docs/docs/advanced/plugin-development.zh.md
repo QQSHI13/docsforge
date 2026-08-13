@@ -1,3 +1,7 @@
+---
+icon: material/developer-board
+---
+
 # 插件开发
 
 本指南涵盖 **DocsForge 插件的编写、打包和分发**。有关事件 API 参考，请参阅 [自定义插件](plugins.md)；完整可运行示例请参见仓库中的 `examples/plugins/` 目录。

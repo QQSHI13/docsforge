@@ -1,3 +1,7 @@
+---
+icon: material/compass
+---
+
 # 使用指南
 
 DocsForge 是 MkDocs + Material 的替代方案。本指南涵盖日常使用，从创建新站点到部署站点。

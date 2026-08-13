@@ -1,3 +1,7 @@
+---
+icon: material/puzzle-outline
+---
+
 # 自定义插件
 
 DocsForge 支持通过自身的插件 API 使用自定义插件（与 MkDocs 类似，但基类不同）。

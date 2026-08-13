@@ -1,3 +1,7 @@
+---
+icon: material/source-branch
+---
+
 # Adding a git repository
 
 Link your documentation to its source repository. This adds an "Edit this page" button and shows the repository name in the header.

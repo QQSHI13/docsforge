@@ -1,3 +1,7 @@
+---
+icon: material/magnify
+---
+
 # 设置站点搜索
 
 DocsForge 包含一个强大的客户端搜索引擎。它默认通过 `search` 插件启用。

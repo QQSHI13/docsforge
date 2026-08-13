@@ -1,3 +1,7 @@
+---
+icon: material/view-list
+---
+
 # 设置导航
 
 DocsForge 提供丰富的导航选项。在 `docsforge.yml` 的 `theme.features` 下配置它们。

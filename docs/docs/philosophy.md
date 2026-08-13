@@ -1,3 +1,7 @@
+---
+icon: material/lightbulb-on-outline
+---
+
 # Philosophy
 
 DocsForge exists because we believe documentation should be **as easy as possible**.

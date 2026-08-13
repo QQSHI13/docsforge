@@ -1,3 +1,7 @@
+---
+icon: material/table
+---
+
 # Data tables
 
 DocsForge renders Markdown tables with enhanced styling.

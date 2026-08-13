@@ -1,3 +1,7 @@
+---
+icon: material/swap-horizontal
+---
+
 # Migration Guide
 
 Moving from MkDocs/Material to DocsForge is straightforward for most sites. This guide covers what migrates easily and what requires effort.

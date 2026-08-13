@@ -1,3 +1,7 @@
+---
+icon: material/tooltip-text
+---
+
 # Tooltips
 
 Tooltips show additional information when hovering over text.

@@ -1,3 +1,7 @@
+---
+icon: material/card-account-details-outline
+---
+
 # 设置社交卡片
 
 DocsForge 会自动包含基本的 OpenGraph 元数据。每个页面会生成：

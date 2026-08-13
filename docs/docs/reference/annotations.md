@@ -1,3 +1,7 @@
+---
+icon: material/comment-plus-outline
+---
+
 # Annotations
 
 Annotations add explanations, comments, and callouts directly to code blocks. They help readers understand complex code without breaking the flow.

@@ -1,3 +1,7 @@
+---
+icon: material/file-pdf-box
+---
+
 # PDF 导出
 
 DocsForge 可以使用 `docsforge build --pdf` 将您的文档导出为 PDF 文件。

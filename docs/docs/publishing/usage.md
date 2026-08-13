@@ -1,3 +1,7 @@
+---
+icon: material/compass
+---
+
 # Usage Guide
 
 DocsForge is a drop-in replacement for MkDocs + Material. This guide covers daily usage, from creating a new site to deploying it.

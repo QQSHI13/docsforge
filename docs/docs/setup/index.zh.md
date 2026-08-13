@@ -1,3 +1,7 @@
+---
+icon: material/cog
+---
+
 # 设置
 
 DocsForge 的设置指南帮助你自定义文档站点的每个方面。所有配置都在 `docsforge.yml` 中完成。

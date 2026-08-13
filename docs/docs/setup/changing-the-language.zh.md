@@ -1,3 +1,7 @@
+---
+icon: material/translate
+---
+
 # 更改语言
 
 在 `docsforge.yml` 中设置站点语言。这会影响搜索词干提取、排版（例如中文对齐）和 RTL 布局。

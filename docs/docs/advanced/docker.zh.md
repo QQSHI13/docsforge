@@ -1,3 +1,7 @@
+---
+icon: material/docker
+---
+
 # Docker 镜像
 
 DocsForge 可以在 Docker 容器中运行，以实现隔离且可复现的文档构建。

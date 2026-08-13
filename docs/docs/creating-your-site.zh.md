@@ -1,3 +1,7 @@
+---
+icon: material/file-document-edit
+---
+
 # 创建站点
 
 ## 项目结构

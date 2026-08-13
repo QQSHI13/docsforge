@@ -1,3 +1,7 @@
+---
+icon: material/history
+---
+
 # Changelog
 
 All notable changes to DocsForge are documented in this file.

@@ -1,3 +1,7 @@
+---
+icon: material/magnify
+---
+
 # Setting up site search
 
 DocsForge includes a powerful client-side search engine. It's enabled by default via the `search` plugin.

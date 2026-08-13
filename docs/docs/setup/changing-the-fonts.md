@@ -1,3 +1,7 @@
+---
+icon: material/format-font
+---
+
 # Changing the fonts
 
 DocsForge supports Google Fonts out of the box. Configure fonts in `docsforge.yml` under the `theme.font` key.

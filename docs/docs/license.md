@@ -1,3 +1,7 @@
+---
+icon: material/license
+---
+
 # License
 
 DocsForge and its documentation are released under the **Apache License, Version 2.0 (Apache-2.0)**.

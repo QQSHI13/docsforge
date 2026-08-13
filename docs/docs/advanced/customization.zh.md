@@ -1,3 +1,7 @@
+---
+icon: material/brush-variant
+---
+
 # 自定义指南
 
 DocsForge 提供了超越基础配置的强大自定义选项。本指南涵盖了用于定制网站外观、行为和功能的高级技术。

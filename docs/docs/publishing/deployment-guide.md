@@ -1,3 +1,7 @@
+---
+icon: material/server-network
+---
+
 # Deployment Guide
 
 DocsForge builds static HTML that can be deployed to any static hosting platform. This guide covers the most popular options.

@@ -1,3 +1,7 @@
+---
+icon: material/swap-horizontal
+---
+
 # 从 MkDocs 迁移
 
 本指南将带你把现有的 [MkDocs](https://www.mkdocs.org/) 项目迁移到 DocsForge。无论你使用的是 MkDocs Material 主题还是自定义配置，迁移过程都很简单，并能带来显著收益。
