@@ -41,7 +41,6 @@ dependencies = [
     "colorama >=0.4.6",
     "pymdown-extensions >=11.0.1",
     "backrefs >=8.0",
-    "paginate >=0.5.7",
     "requests >=2.34.2",
     "babel >=2.18.0",
     "pygments >=2.20.0",

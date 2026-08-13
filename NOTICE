@@ -60,3 +60,7 @@ Simple Icons
 
 Font Awesome Icons
   Licensed under the CC BY 4.0 License (icons) and the SIL OFL 1.1 (fonts).
+
+paginate
+  Copyright (c) 2007-2012 Christoph Haas
+  Licensed under the MIT License (vendored as docsforge/paginate.py).

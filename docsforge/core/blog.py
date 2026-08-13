@@ -21,7 +21,7 @@ from jinja2.runtime import Context
 from markdown import Markdown
 from markdown.treeprocessors import Treeprocessor
 from math import ceil
-from paginate import Page as Pagination
+from docsforge.paginate import Page as Pagination
 from pymdownx.slugs import slugify
 from re import Match
 from shutil import rmtree
