@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from docsforge.config_base import load_config
+from docsforge.yaml_utils import get_yaml_loader
 from docsforge.exceptions import Abort, ConfigurationError
 
 log = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
     # 2. Parse YAML
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
-            raw_config = yaml.safe_load(f) or {}
+            raw_config = yaml.load(f, Loader=get_yaml_loader()) or {}
     except Exception as e:
         log.error(f"Failed to parse {config_path}: {e}")
         return 1
@@ -224,7 +225,7 @@ def fix_config(config_file=None) -> int:
         return 1
 
     with open(config_path, 'r', encoding='utf-8') as f:
-        raw = yaml.safe_load(f) or {}
+        raw = yaml.load(f, Loader=get_yaml_loader()) or {}
 
     changed = False
 

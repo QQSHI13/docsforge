@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import importlib
 import logging
 import os
 import os.path
@@ -16,6 +17,33 @@ if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
 
 log = logging.getLogger(__name__)
+
+
+def _construct_python_name(
+    loader: yaml.BaseLoader, suffix: str, node: yaml.ScalarNode
+) -> Any:
+    """Resolve `!!python/name:module.attr` tags (mkdocs config compat).
+
+    Real-world mkdocs configs use e.g.
+    `slugify: !!python/name:pymdownx.slugs.uslugify`. SafeLoader rejects
+    unknown tags, so without this those configs fail to load.
+    """
+    del loader, node
+    module_name, _, object_name = suffix.rpartition('.')
+    if not module_name or not object_name:
+        raise exceptions.ConfigurationError(
+            f"Could not resolve python/name tag {suffix!r}: expected 'module.attr'"
+        )
+    try:
+        module = importlib.import_module(module_name)
+        value: Any = module
+        for part in object_name.split('.'):
+            value = getattr(value, part)
+        return value
+    except (ImportError, AttributeError) as e:
+        raise exceptions.ConfigurationError(
+            f"Could not resolve python/name tag {suffix!r}: {e}"
+        ) from e
 
 
 def _construct_dir_placeholder(
@@ -117,6 +145,9 @@ def get_yaml_loader(loader=yaml.SafeLoader, config: DocsForgeConfig | None = Non
     # Attach Environment Variable constructor.
     # See https://github.com/waylan/pyyaml-env-tag
     Loader.add_constructor('!ENV', yaml_env_tag.construct_env_tag)
+
+    # Attach mkdocs-style !!python/name:module.attr constructor.
+    Loader.add_multi_constructor('tag:yaml.org,2002:python/name:', _construct_python_name)
 
     if config is not None:
         Loader.add_constructor('!relative', functools.partial(_construct_dir_placeholder, config))

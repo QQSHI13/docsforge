@@ -37,7 +37,23 @@
 
 ## Migrating from MkDocs
 
-To migrate an existing MkDocs project, manually convert `mkdocs.yml` to `docsforge.yml`:
+To migrate an existing MkDocs project automatically, run the one-liner — it
+converts `mkdocs.yml` / `properdocs.yml` / `zensical.toml` to `docsforge.yml`:
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.ps1 | iex
+```
+
+The script converts navigation, theme, plugins, and extensions, warns about
+anything it can't migrate, and prints a report. See the
+[migration guide](https://qqshi13.github.io/docsforge/getting-started/migrating-from-mkdocs/)
+for the manual, key-by-key walkthrough (also fine for a small site):
 
 1. Rename `mkdocs.yml` to `docsforge.yml`.
 2. Keep the `theme:` block as-is (DocsForge uses the built-in Material theme).
@@ -51,8 +67,6 @@ pip install docsforge
 docsforge build          # builds your site
 docsforge serve          # live preview
 ```
-
-See the [migration guide](https://qqshi13.github.io/docsforge/getting-started/migrating-from-mkdocs/) for a detailed walkthrough.
 
 ---
 
@@ -225,15 +239,14 @@ Apache-2.0
 
 ## Install VSCode Extension
 
-**macOS / Linux:**
+Install **DocsForge Studio** from the `.vsix` attached to the
+[latest release](https://github.com/QQSHI13/docsforge/releases):
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.sh | bash
+code --install-extension docsforge-vscode-<version>.vsix
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/install.ps1 | iex
-```
+or install it via the VS Code UI: Extensions view → `...` → *Install from VSIX*.
 
 ## Star History
 

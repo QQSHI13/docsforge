@@ -72,7 +72,7 @@ def detect_environment() -> dict:
             from docsforge.config_base import _open_config_file
             with _open_config_file(config_path) as f:
                 import yaml
-                cfg = yaml.safe_load(f) or {}
+                cfg = yaml.load(f, Loader=yaml.FullLoader) or {}
                 docs_dir = cfg.get('docs_dir', 'docs')
                 docs_path = Path(docs_dir)
                 result['docs_dir_exists'] = docs_path.exists()
@@ -360,7 +360,7 @@ def _check_optional_deps(config_file=None):
 
     try:
         with _open_config_file(config_file) as f:
-            cfg = yaml.safe_load(f) or {}
+            cfg = yaml.load(f, Loader=yaml.FullLoader) or {}
     except Exception:
         return  # Best-effort, don't fail build because dep check failed
 

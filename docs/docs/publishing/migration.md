@@ -6,6 +6,27 @@ icon: material/swap-horizontal
 
 Moving from MkDocs/Material to DocsForge is straightforward for most sites. This guide covers what migrates easily and what requires effort.
 
+## One-line migration
+
+If you have an existing `mkdocs.yml`, `properdocs.yml`, or `zensical.toml`, migrate it automatically:
+
+=== "macOS / Linux"
+
+    ``` bash
+    curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.sh | bash
+    ```
+
+=== "Windows (PowerShell)"
+
+    ``` powershell
+    irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.ps1 | iex
+    ```
+
+The script converts navigation, theme, plugins, and extensions into
+`docsforge.yml`, warns about anything it can't migrate (third-party plugins,
+`INHERIT`, hooks), and prints a report with next steps. For anything it
+misses, see [Support](../support.md) — we'll help you port it.
+
 ## Easy to Migrate (Zero/Low Effort)
 
 | Feature | Status | Notes |

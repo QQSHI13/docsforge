@@ -151,7 +151,7 @@ def build(strict, pdf, jobs):
             docs_dir = "docs"
             try:
                 with open(config_file) as f:
-                    cfg = yaml.safe_load(f) or {}
+                    cfg = yaml.load(f, Loader=yaml.FullLoader) or {}
                 docs_dir = cfg.get("docs_dir", "docs")
             except Exception:
                 pass

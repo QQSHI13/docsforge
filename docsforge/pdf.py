@@ -149,7 +149,7 @@ def build_pdf(docs_dir: str, output_dir: str = "pdf", **kwargs) -> int:
     if config_path.exists():
         try:
             import yaml
-            cfg = yaml.safe_load(config_path.read_text()) or {}
+            cfg = yaml.load(config_path.read_text(), Loader=yaml.FullLoader) or {}
             site_dir = cfg.get("site_dir", "site")
         except Exception:
             pass

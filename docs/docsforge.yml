@@ -277,3 +277,7 @@ nav:
     path: troubleshooting.md
     i18n:
       zh: 故障排除
+  - title: Support
+    path: support.md
+    i18n:
+      zh: 支持

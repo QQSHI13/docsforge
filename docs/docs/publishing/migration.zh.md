@@ -6,6 +6,26 @@ icon: material/swap-horizontal
 
 对于大多数网站来说，从 MkDocs/Material 迁移到 DocsForge 非常简单。本指南介绍哪些内容可以轻松迁移，哪些需要额外工作。
 
+## 一键迁移
+
+如果你已有 `mkdocs.yml`、`properdocs.yml` 或 `zensical.toml`，可以自动迁移：
+
+=== "macOS / Linux"
+
+    ``` bash
+    curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.sh | bash
+    ```
+
+=== "Windows (PowerShell)"
+
+    ``` powershell
+    irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.ps1 | iex
+    ```
+
+脚本会把导航、主题、插件和扩展转换为 `docsforge.yml`，对无法迁移的内容
+（第三方插件、`INHERIT`、钩子）发出警告，并打印后续步骤报告。如有遗漏，
+参见[支持](../support.md) —— 我们会帮你迁移。
+
 ## 易于迁移（零/低工作量）
 
 | 功能 | 状态 | 说明 |

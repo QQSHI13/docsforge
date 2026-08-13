@@ -33,6 +33,32 @@ except ImportError:  # pragma: no cover
     sys.exit(2)
 
 # ---------------------------------------------------------------------------
+# YAML loader/dumper with mkdocs-style !!python/name tag round-trip.
+# Real-world configs (e.g. OI-wiki) use `slugify: !!python/name:module.func`;
+# safe_load rejects unknown tags, so we resolve them to a marker and re-emit
+# the same tag so docsforge's own loader (also mkdocs-derived) handles them.
+# ---------------------------------------------------------------------------
+
+class _PythonName(str):
+    """Marker for a !!python/name:module.attr tag (kept as the dotted path)."""
+
+
+def _construct_python_name(loader, suffix: str, node):
+    del loader, node
+    return _PythonName(suffix)
+
+
+def _represent_python_name(dumper, data: _PythonName):
+    return dumper.represent_scalar(f"tag:yaml.org,2002:python/name:{data}", "")
+
+
+yaml.SafeLoader.add_multi_constructor(
+    "tag:yaml.org,2002:python/name:", _construct_python_name
+)
+yaml.SafeDumper.add_multi_representer(_PythonName, _represent_python_name)
+
+
+# ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
@@ -317,10 +343,10 @@ def convert_yaml_config(data: dict, report: Report) -> dict:
         elif isinstance(theme_in, dict):
             theme_out = {}
             for key in THEME_COPY_KEYS:
-                if key in theme_in:
+                if key in theme_in and theme_in[key] is not None:
                     theme_out[key] = theme_in[key]
                     report.ok(f"theme.{key}")
-            if "name" not in theme_out:
+            if not theme_out.get("name"):
                 theme_out["name"] = "material"
                 report.ok("theme.name (defaulted to material)")
             out["theme"] = theme_out
