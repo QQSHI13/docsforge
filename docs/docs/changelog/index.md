@@ -61,6 +61,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   that failed every run; `neural-network.tex` needed `amssymb`; added the
   missing `shannon-state-machine.tex`.
 
+## [12.5.3] — 2026-08-13
+
+### Added
+
+- **One-line migration scripts**: `curl | bash` (Unix) and `irm | iex`
+  (PowerShell) convert an existing `mkdocs.yml` / `properdocs.yml` /
+  `zensical.toml` to `docsforge.yml` automatically — navigation, theme,
+  plugins, and extensions. Warns about anything it can't migrate
+  (third-party plugins, `INHERIT`, hooks) and prints a report with contact
+  info (email + issues).
+- **`!!python/name:` tag support** in config loading — mkdocs configs
+  commonly use `slugify: !!python/name:pymdownx.slugs.uslugify`; such
+  configs (e.g. OI-wiki's) now parse and round-trip cleanly.
+- **SECURITY.md** — private vulnerability reporting (GitHub advisory or
+  email), supported-version policy.
+- **Support page** (en + zh) with the migration one-liner, support channels,
+  and a "what to include" checklist.
+- **Sidebar navigation icons** on every docs page (Material set, en + zh).
+
+### Changed
+
+- **minify now uses `csscompress`** — the community fork of the dormant
+  `csscompressor` (last release 2017). Ships the data-URI whitespace fix
+  (SVG/MathML inside `url(...)` survives minification) and a proper
+  `__version__`; the monkey-patch workaround in `minify.py` is gone.
+- **`paginate` vendored** into the package (`docsforge/paginate.py`) —
+  another dormant dependency (2017) removed from the install.
+- README: migration one-liner added; broken `install.sh`/`install.ps1`
+  references fixed (the Studio extension ships as a release `.vsix`).
+
+### Fixed
+
+- Config parsing in `docsforge check` / CLI / PDF now routes through the
+  docsforge YAML loader, so `!!python/name:` tags no longer crash config
+  discovery.
+- Migration script: `theme.name: null` (local-theme setups) defaults to
+  `material`; external nav links are dropped with a hint (docsforge nav is
+  internal-only).
+
 ## [12.5.2] — 2026-08-12
 
 ### Added
