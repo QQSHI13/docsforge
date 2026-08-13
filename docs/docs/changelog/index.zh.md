@@ -1,59 +1,36 @@
----
-icon: material/history
----
-
-# 更新日志
-
-本文档记录 DocsForge 的所有重要变更。
-
-格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，并且本项目遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
-
-## [12.5.0] — 2026-08-11
+## [12.5.3] — 2026-08-13
 
 ### 新增
 
-- **DocsForge Studio**（VS Code 扩展，`studio/`，由 `vscode-docsforge` 更名）：
-  无需语言服务器即可获得完整编辑器能力 — 基于构建产物
-  `validation.json` 的诊断（断链/锚点、脚注）、大纲、折叠、定义跳转
-  （Ctrl+点击）、悬停断链提示、补全（`:material-`/`:lucide-` 图标与文档
-  路径）、查找所有引用，以及“重命名文档”/“重命名锚点”（自动改写所有
-  入站链接，感知锚点与翻译变体 — 重命名 `.zh` 文件会同时重命名基础文件
-  及其全部语言变体）。资源管理器中的重命名会被自动拦截处理。
-  “修复全部断链 (N)”快速修复、打开链接目标、“在内置浏览器打开构建后
-  页面”、保存时格式化（可选）、侧边栏输出面板。
-- **Python 环境管理**：自动检测解释器（设置 → 记住的 venv → `.venv` →
-  PATH），检查 pip 与 docsforge，提供 venv / 用户 / 全局安装选项。
-- **Apache-2.0 许可证**：由 LGPL-3.0-or-later 切换；新增 `NOTICE`
-  上游署名（ProperDocs/MkDocs BSD-2、Material MIT、各图标库）。
-- **KaTeX 与 Mermaid 改为内置**（纳入 package.json 受依赖管理，此前为
-  冻结快照 / 硬编码 CDN）：前端构建新增 `copy_katex()` 与 `copy_mermaid()`；
-  Mermaid 从本地资源加载，CDN 仅作回退。
-- **pygments.css 改为构建时生成**（此前为冻结快照）。
-- **CI 覆盖 Studio**：`ci.yml` 新增 `studio` 任务（npm ci + 编译 + lint +
-  测试），并合并 `frontend.yml` 为 `frontend` 任务。
+- **一键迁移脚本**：`curl | bash`（Unix）和 `irm | iex`（PowerShell）可自动把
+  现有的 `mkdocs.yml` / `properdocs.yml` / `zensical.toml` 转换为
+  `docsforge.yml` —— 导航、主题、插件和扩展。对无法迁移的内容（第三方插件、
+  `INHERIT`、钩子）发出警告，并打印包含联系方式（邮箱 + issues）的报告。
+- **配置加载支持 `!!python/name:` 标签** —— mkdocs 配置常用
+  `slugify: !!python/name:pymdownx.slugs.uslugify`；此类配置（如 OI-wiki 的）
+  现在可以干净地解析和往返转换。
+- **SECURITY.md** —— 私密漏洞报告（GitHub advisory 或邮箱）、受支持版本策略。
+- **支持页面**（中英文）—— 一键迁移、支持渠道和“报告中应包含什么”清单。
+- **每个文档页面的侧边栏导航图标**（Material 图标集，中英文）。
 
 ### 变更
 
-- **Social 插件改为可选启用**：从默认加载的核心插件中移除（依赖
-  pillow + cairosvg）；通过 `plugins: [social]` 启用。文档与示例配置已更新。
-- **链接/锚点校验修复**：锚点问题现在会持久化到 `validation.json`
-  （此前仅记录日志而未存储 — 导致 Studio 诊断无数据可显示）；
-  修复了类级共享的 `link_warnings` 列表导致警告在所有页面重复的问题。
-- **目录更名**：`vscode-docsforge/` → `studio/`、`docsforge-docs/` →
-  `docs/`、`examples/site/` → `examples/sites/`（移除 gitignore 否定规则，
-  由全局 `site/` 规则直接覆盖）。
-- **TypeScript 6.0.3**（TS 7 超出 typescript-eslint 的 peer 范围）。
-- **演示站部署**：wrangler-action v4（不再固定 wrangler 版本）。
+- **minify 改用 `csscompress`** —— 这是已停更的 `csscompressor`（最后发布
+  2017）的社区分支。自带 data-URI 空白修复（`url(...)` 中的 SVG/MathML 在压缩
+  后仍能正常显示）和正确的 `__version__`；`minify.py` 中的猴子补丁已移除。
+- **内置 `paginate`**（`docsforge/paginate.py`）—— 又移除一个停更依赖
+  （2017）。
+- README：新增一键迁移；修复失效的 `install.sh`/`install.ps1` 引用
+  （Studio 扩展以 release 中的 `.vsix` 分发）。
 
 ### 修复
 
-- **Social 卡片字体拉取可能卡死构建**：Google Fonts 请求无超时
-  （已回退，与上游一致）。默认缓存移至 `.docsforge/cache/social`。
-- **演示站流水线**：修复每次运行失败的
-  `rm -rf /var/lib/apt/lists/*` 权限问题；`neural-network.tex` 缺少
-  `amssymb`；补充缺失的 `shannon-state-machine.tex`。
+- `docsforge check` / CLI / PDF 的配置解析现在统一走 docsforge YAML 加载器，
+  `!!python/name:` 标签不再导致配置发现崩溃。
+- 迁移脚本：`theme.name: null`（本地主题配置）默认改为 `material`；外部导航
+  链接会丢弃并给出提示（docsforge 导航仅支持内部页面）。
 
-## [12.5.1] — 2026-08-12
+## [12.5.2] — 2026-08-12
 
 ### 新增
 
@@ -119,6 +96,51 @@ icon: material/history
 - **演示站点**：新增三篇博客文章（TikZ 图表、后缀式 i18n、DocsForge Studio
   诊断）；移除一个孤儿页面；`latex-equations.md` 加入导航；TikZ 图现在可
   正确解析。
+
+## [12.5.0] — 2026-08-11
+
+### 新增
+
+- **DocsForge Studio**（VS Code 扩展，`studio/`，由 `vscode-docsforge` 更名）：
+  无需语言服务器即可获得完整编辑器能力 — 基于构建产物
+  `validation.json` 的诊断（断链/锚点、脚注）、大纲、折叠、定义跳转
+  （Ctrl+点击）、悬停断链提示、补全（`:material-`/`:lucide-` 图标与文档
+  路径）、查找所有引用，以及“重命名文档”/“重命名锚点”（自动改写所有
+  入站链接，感知锚点与翻译变体 — 重命名 `.zh` 文件会同时重命名基础文件
+  及其全部语言变体）。资源管理器中的重命名会被自动拦截处理。
+  “修复全部断链 (N)”快速修复、打开链接目标、“在内置浏览器打开构建后
+  页面”、保存时格式化（可选）、侧边栏输出面板。
+- **Python 环境管理**：自动检测解释器（设置 → 记住的 venv → `.venv` →
+  PATH），检查 pip 与 docsforge，提供 venv / 用户 / 全局安装选项。
+- **Apache-2.0 许可证**：由 LGPL-3.0-or-later 切换；新增 `NOTICE`
+  上游署名（ProperDocs/MkDocs BSD-2、Material MIT、各图标库）。
+- **KaTeX 与 Mermaid 改为内置**（纳入 package.json 受依赖管理，此前为
+  冻结快照 / 硬编码 CDN）：前端构建新增 `copy_katex()` 与 `copy_mermaid()`；
+  Mermaid 从本地资源加载，CDN 仅作回退。
+- **pygments.css 改为构建时生成**（此前为冻结快照）。
+- **CI 覆盖 Studio**：`ci.yml` 新增 `studio` 任务（npm ci + 编译 + lint +
+  测试），并合并 `frontend.yml` 为 `frontend` 任务。
+
+### 变更
+
+- **Social 插件改为可选启用**：从默认加载的核心插件中移除（依赖
+  pillow + cairosvg）；通过 `plugins: [social]` 启用。文档与示例配置已更新。
+- **链接/锚点校验修复**：锚点问题现在会持久化到 `validation.json`
+  （此前仅记录日志而未存储 — 导致 Studio 诊断无数据可显示）；
+  修复了类级共享的 `link_warnings` 列表导致警告在所有页面重复的问题。
+- **目录更名**：`vscode-docsforge/` → `studio/`、`docsforge-docs/` →
+  `docs/`、`examples/site/` → `examples/sites/`（移除 gitignore 否定规则，
+  由全局 `site/` 规则直接覆盖）。
+- **TypeScript 6.0.3**（TS 7 超出 typescript-eslint 的 peer 范围）。
+- **演示站部署**：wrangler-action v4（不再固定 wrangler 版本）。
+
+### 修复
+
+- **Social 卡片字体拉取可能卡死构建**：Google Fonts 请求无超时
+  （已回退，与上游一致）。默认缓存移至 `.docsforge/cache/social`。
+- **演示站流水线**：修复每次运行失败的
+  `rm -rf /var/lib/apt/lists/*` 权限问题；`neural-network.tex` 缺少
+  `amssymb`；补充缺失的 `shannon-state-machine.tex`。
 
 ## [12.4.0] — 2026-08-09
 
