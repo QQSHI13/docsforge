@@ -12,10 +12,9 @@ import re
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
-import csscompressor
+import csscompress
 import jsmin
 import minify_html
-from packaging import version
 
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.pages import Page
@@ -29,31 +28,10 @@ EXTRAS: Dict[str, str] = {
 # Per-type minifier and its fixed keyword arguments.
 MINIFIERS: Dict[str, tuple[Callable, dict]] = {
     "js": (jsmin.jsmin, {"quote_chars": "'\"`"}),
-    "css": (csscompressor.compress, {}),
+    "css": (csscompress.compress, {}),
 }
 
 log = logging.getLogger(__name__)
-
-if not getattr(csscompressor, "__version__", None):
-    csscompressor.__version__ = "0.9.6"
-
-if version.parse(csscompressor.__version__) <= version.parse("0.9.5"):
-    # Monkey patch csscompressor 0.9.5
-    # See https://github.com/sprymix/csscompressor/issues/9#issuecomment-1024417374
-    _preserve_call_tokens_original = csscompressor._preserve_call_tokens
-    _url_re = csscompressor._url_re
-
-    def my_new_preserve_call_tokens(*args, **kwargs):
-        """If regex is for url pattern, switch the keyword remove_ws to False.
-        
-        Such configuration will preserve svg code in url() pattern of CSS file.
-        """
-        if _url_re == args[1]:
-            kwargs["remove_ws"] = False
-        return _preserve_call_tokens_original(*args, **kwargs)
-
-    csscompressor._preserve_call_tokens = my_new_preserve_call_tokens
-    assert csscompressor._preserve_call_tokens == my_new_preserve_call_tokens
 
 
 class MinifyPlugin(BasePlugin):
