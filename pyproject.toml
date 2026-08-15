@@ -46,7 +46,7 @@ dependencies = [
     "pygments >=2.20.0",
     "lunr >=0.8.0",
     "csscompress >=0.1.0",
-    "minify-html >=0.18.1",
+    "min-html >=0.18.4",
     "jsmin >=3.0.1",
 ]
 

@@ -10,7 +10,7 @@ from docsforge.core.minify import MinifyPlugin, MINIFIERS
 
 class TestMinifyPlugin:
     def test_has_minifiers_for_js_and_css(self):
-        # HTML is minified via minify_html directly, not via MINIFIERS.
+        # HTML is minified via min_html directly, not via MINIFIERS.
         assert "js" in MINIFIERS
         assert "css" in MINIFIERS
 
@@ -33,7 +33,7 @@ class TestMinifyPlugin:
         assert "red" in out
 
     def test_minify_html_page_strips_comments(self):
-        # _minify_html_page uses the minify_html library directly.
+        # _minify_html_page uses the min_html library directly.
         plugin = MinifyPlugin()
         out = plugin._minify_html_page("<div>\n  <p>hi</p>  <!-- c -->\n</div>")
         assert out is not None
@@ -41,8 +41,8 @@ class TestMinifyPlugin:
         assert "<!-- c -->" not in out
 
     def test_minify_html_page_preserves_svg_viewbox(self):
-        # minify_html lowercases case-sensitive SVG attribute names (viewBox ->
-        # viewbox). The plugin must restore them after minification.
+        # The min-html fork preserves case-sensitive SVG attribute names
+        # (viewBox, preserveAspectRatio) inside foreign-content subtrees.
         plugin = MinifyPlugin()
         html = (
             '<div><svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">'
@@ -52,19 +52,6 @@ class TestMinifyPlugin:
         assert out is not None
         assert 'viewBox="0 0 24 24"' in out
         assert 'preserveAspectRatio="xMidYMid meet"' in out
-
-    def test_restore_svg_case_ignores_inline_js_property(self):
-        # The re-case must not touch JS property access like `obj.viewbox = ...`
-        # or identifiers such as `_viewbox`, which are case-sensitive in JS.
-        plugin = MinifyPlugin()
-        html = (
-            '<script>var obj = { viewbox: 1 }; obj.viewbox = 2; '
-            'var _viewbox = 3;</script>'
-        )
-        out = plugin._minify_html_page(html)
-        assert out is not None
-        assert "viewbox" in out
-        assert "viewBox" not in out
 
 
 class TestExtraPathValidation:

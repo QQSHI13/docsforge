@@ -8,13 +8,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-import re
 from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
 import csscompress
 import jsmin
-import minify_html
+import min_html
 
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.pages import Page
@@ -113,44 +112,9 @@ class MinifyPlugin(BasePlugin):
             except Exception as e:
                 log.warning(f"Failed to minify extra {file_type} file {file_path}: {e}")
 
-    # SVG attribute names that are case-sensitive (camelCase) but get lowercased
-    # by minify_html (the Rust minify-html crate lowercases every attribute name
-    # without special-casing SVG/MathML foreign content). HTML attribute names
-    # are case-insensitive, so restoring the canonical case everywhere is safe:
-    # it can only ever affect SVG foreign content, never an HTML element.
-    # Tracked upstream: https://github.com/wilsonzlin/minify-html (SVG case).
-    _SVG_CASE_ATTRS = (
-        "viewBox", "preserveAspectRatio", "clipPathUnits", "gradientUnits",
-        "markerUnits", "maskUnits", "patternUnits", "filterUnits",
-        "primitiveUnits", "gradientTransform", "patternTransform",
-        "markerWidth", "markerHeight", "markerStart", "markerMid",
-        "markerEnd", "baseFrequency", "baseProfile", "calcMode", "edgeMode",
-        "glyphRef", "lengthAdjust", "pathLength", "pointsAtX", "pointsAtY",
-        "pointsAtZ", "specularConstant", "specularExponent", "spreadMethod",
-        "stdDeviation", "stitchTiles", "surfaceScale", "systemLanguage",
-        "tableValues", "targetX", "targetY", "textLength", "viewTarget",
-        "xChannelSelector", "yChannelSelector", "zoomAndPan",
-        "attributeName", "attributeType",
-    )
-    _SVG_CASE_MAP = {name.lower(): name for name in _SVG_CASE_ATTRS}
-
-    # Matches an attribute-name position: preceded by a non-word, non-dot char
-    # (so `obj.viewbox =` and `_viewbox` in inline JS are NOT touched), and
-    # followed by `=`. Case-insensitive because the minifier lowercased them.
-    _SVG_CASE_RE = re.compile(
-        r"(?<![\w.])\b(" + "|".join(re.escape(n) for n in _SVG_CASE_MAP) + r")\s*=",
-        re.IGNORECASE,
-    )
-
-    def _restore_svg_case(self, match: re.Match[str]) -> str:
-        return f"{self._SVG_CASE_MAP[match.group(1).lower()]}="
-
     def _minify_html_page(self, output: str) -> Optional[str]:
         """Minify HTML page content. Always enabled."""
-        minified = minify_html.minify(output, minify_js=False, minify_css=False)
-        # Restore the canonical case of case-sensitive SVG attributes that the
-        # minifier lowercased. Remove once minify-html handles foreign content.
-        return self._SVG_CASE_RE.sub(self._restore_svg_case, minified)
+        return min_html.minify(output, minify_js=False, minify_css=False)
 
     def on_pre_build(self, *, config: DocsForgeConfig) -> None:
         """Prepare minified extra assets and update config before rendering."""
