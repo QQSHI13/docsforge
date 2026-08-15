@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 
 import csscompress
-import jsmin
+import js_min
 import min_html
 
 from docsforge.config_defaults import DocsForgeConfig
@@ -26,7 +26,7 @@ EXTRAS: Dict[str, str] = {
 
 # Per-type minifier and its fixed keyword arguments.
 MINIFIERS: Dict[str, tuple[Callable, dict]] = {
-    "js": (jsmin.jsmin, {"quote_chars": "'\"`"}),
+    "js": (js_min.jsmin, {"quote_chars": "'\"`"}),
     "css": (csscompress.compress, {}),
 }
 

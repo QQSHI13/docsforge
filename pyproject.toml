@@ -47,7 +47,7 @@ dependencies = [
     "lunr >=0.8.0",
     "csscompress >=0.1.0",
     "min-html >=0.18.4",
-    "jsmin >=3.0.1",
+    "min-js >=3.0.2",
 ]
 
 [project.optional-dependencies]
