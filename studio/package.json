@@ -2,7 +2,7 @@
   "name": "docsforge-studio",
   "displayName": "DocsForge Studio",
   "description": "Write, validate and refactor DocsForge documentation — no language server required",
-  "version": "12.5.2",
+  "version": "12.5.3",
   "publisher": "QQSHI",
   "license": "Apache-2.0",
   "engines": {
