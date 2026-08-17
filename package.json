@@ -23,7 +23,7 @@
     "@types/escape-html": "^1.0.4",
     "@types/lunr": "^2.3.7",
     "autoprefixer": "^10.4.23",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "html-minifier-terser": "^7.2.0",
     "katex": "^0.18.4",
     "lucide-static": "^1.31.0",
