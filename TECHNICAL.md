@@ -186,7 +186,7 @@ The `build()` function, in order:
 | `tags` | Tag system with tag pages (`/tags/` + per-tag listings) | auto |
 | `blog` | Blog: posts, authors, categories, archive, RSS; auto-generates `docs/blog/index.md` at build | auto |
 | `info` | Admonition callouts (material's info plugin) | auto |
-| `minify` | HTML/CSS/JS minification (min-html fork of the minify-html Rust crate + csscompress + min-js fork); source-map stripping | auto |
+| `minify` | HTML/CSS/JS minification (minify-go wheels of the Go `tdewolff/minify` binding; incl. inline style/script); source-map stripping | auto |
 | `i18n` | Suffix-mode i18n (see §7) | auto |
 | `privacy` | Fetches + inlines external assets (Google Fonts, CDN scripts) at build; cache under `.docsforge/cache/privacy` | when `privacy: true` |
 | `social` | Social cards (OpenGraph PNG generation), two-stage parallel rendering, font download, cache under `.docsforge/cache/social` | opt-in via `plugins: [social]` |

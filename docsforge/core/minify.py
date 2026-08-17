@@ -9,11 +9,9 @@ import hashlib
 import logging
 import os
 from pathlib import Path
-from typing import Callable, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
-import csscompress
-import js_min
-import min_html
+import minify
 
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.pages import Page
@@ -24,10 +22,10 @@ EXTRAS: Dict[str, str] = {
     "css": "extra_css",
 }
 
-# Per-type minifier and its fixed keyword arguments.
-MINIFIERS: Dict[str, tuple[Callable, dict]] = {
-    "js": (js_min.jsmin, {"quote_chars": "'\"`"}),
-    "css": (csscompress.compress, {}),
+# Per-type minifier: file type -> MIME type for the Go minifier backend.
+MINIFIERS: Dict[str, str] = {
+    "js": "application/javascript",
+    "css": "text/css",
 }
 
 log = logging.getLogger(__name__)
@@ -41,6 +39,7 @@ class MinifyPlugin(BasePlugin):
     def __init__(self) -> None:
         # original site-relative path -> minified content
         self._pending_minified: dict[str, str] = {}
+        minify.config({})
 
     @staticmethod
     def _item_path(item) -> str:
@@ -56,11 +55,9 @@ class MinifyPlugin(BasePlugin):
         except ValueError:
             return False
 
-    def _minify_file_data_with_func(
-        self, file_data: str, minify_func: Callable, minify_kwargs: dict
-    ) -> str:
-        """Use the minify_func with its fixed kwargs and return the minified data."""
-        return minify_func(file_data, **minify_kwargs)
+    def _minify_file_data(self, file_data: str, mediatype: str) -> str:
+        """Minify *file_data* with the Go backend for the given MIME type."""
+        return minify.string(mediatype, file_data)
 
     def _process_extras(self, file_type: str, config: DocsForgeConfig) -> None:
         """Minify extra JS/CSS files and update config before pages are rendered.
@@ -70,7 +67,7 @@ class MinifyPlugin(BasePlugin):
         here (before rendering) with a cache-busting query string so the HTML
         references match the file that will exist on disk.
         """
-        minify_func, minify_kwargs = MINIFIERS[file_type]
+        mediatype = MINIFIERS[file_type]
         extra_key: str = EXTRAS[file_type]
         extra_files = config.get(extra_key, [])
         if not extra_files:
@@ -98,9 +95,7 @@ class MinifyPlugin(BasePlugin):
 
             try:
                 file_data = src_path.read_text(encoding='utf-8')
-                minified = self._minify_file_data_with_func(
-                    file_data, minify_func, minify_kwargs
-                )
+                minified = self._minify_file_data(file_data, mediatype)
                 file_hash = hashlib.sha384(minified.encode('utf-8')).hexdigest()[:8]
                 site_rel_path = file_path.lstrip('/')
                 self._pending_minified[site_rel_path] = minified
@@ -114,7 +109,7 @@ class MinifyPlugin(BasePlugin):
 
     def _minify_html_page(self, output: str) -> Optional[str]:
         """Minify HTML page content. Always enabled."""
-        return min_html.minify(output, minify_js=False, minify_css=False)
+        return minify.string("text/html", output)
 
     def on_pre_build(self, *, config: DocsForgeConfig) -> None:
         """Prepare minified extra assets and update config before rendering."""

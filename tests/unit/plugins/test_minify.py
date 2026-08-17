@@ -10,30 +10,28 @@ from docsforge.core.minify import MinifyPlugin, MINIFIERS
 
 class TestMinifyPlugin:
     def test_has_minifiers_for_js_and_css(self):
-        # HTML is minified via min_html directly, not via MINIFIERS.
+        # HTML is minified via the minify backend directly, not via MINIFIERS.
         assert "js" in MINIFIERS
         assert "css" in MINIFIERS
 
     def test_minify_js_removes_comments(self):
         plugin = MinifyPlugin()
-        func, kwargs = MINIFIERS["js"]
-        out = plugin._minify_file_data_with_func(
-            "// a comment\nvar x = 1; // trailing\n", func, kwargs
+        out = plugin._minify_file_data(
+            "// a comment\nvar x = 1; // trailing\n", MINIFIERS["js"]
         )
         assert "comment" not in out
         assert "var x=1" in out
 
     def test_minify_css_strips_comments_and_whitespace(self):
         plugin = MinifyPlugin()
-        func, kwargs = MINIFIERS["css"]
-        out = plugin._minify_file_data_with_func(
-            "/* a */ body { color : red ; }", func, kwargs
+        out = plugin._minify_file_data(
+            "/* a */ body { color : red ; }", MINIFIERS["css"]
         )
         assert "/* a */" not in out
         assert "red" in out
 
     def test_minify_html_page_strips_comments(self):
-        # _minify_html_page uses the min_html library directly.
+        # _minify_html_page uses the minify backend directly.
         plugin = MinifyPlugin()
         out = plugin._minify_html_page("<div>\n  <p>hi</p>  <!-- c -->\n</div>")
         assert out is not None
@@ -41,17 +39,19 @@ class TestMinifyPlugin:
         assert "<!-- c -->" not in out
 
     def test_minify_html_page_preserves_svg_viewbox(self):
-        # The min-html fork preserves case-sensitive SVG attribute names
+        # The Go backend preserves case-sensitive SVG attribute names
         # (viewBox, preserveAspectRatio) inside foreign-content subtrees.
+        # Default-valued attributes (e.g. preserveAspectRatio="xMidYMid meet")
+        # are stripped by design, so a non-default value is asserted here.
         plugin = MinifyPlugin()
         html = (
-            '<div><svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">'
+            '<div><svg viewBox="0 0 24 24" preserveAspectRatio="none">'
             '<path d="M3 6h18v2H3z"/></svg></div>'
         )
         out = plugin._minify_html_page(html)
         assert out is not None
         assert 'viewBox="0 0 24 24"' in out
-        assert 'preserveAspectRatio="xMidYMid meet"' in out
+        assert 'preserveAspectRatio="none"' in out
 
 
 class TestExtraPathValidation:

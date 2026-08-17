@@ -1,4 +1,4 @@
-## [12.5.3] — 2026-08-13
+## [12.5.3] — 2026-08-17
 
 ### Added
 
@@ -19,10 +19,14 @@
 
 ### Changed
 
-- **minify now uses `csscompress`** — the community fork of the dormant
-  `csscompressor` (last release 2017). Ships the data-URI whitespace fix
-  (SVG/MathML inside `url(...)` survives minification) and a proper
-  `__version__`; the monkey-patch workaround in `minify.py` is gone.
+- **minify backend is now the Go minifier** (`minify-go`, wheels built from
+  `tdewolff/minify` by our own cron workflow, incl. macOS arm64): the
+  maintained forks (min-html, min-js, csscompress) are consolidated into one
+  dependency. HTML pages now also minify inline `<style>`/`<script>` blocks;
+  SVG default-valued attributes (e.g. `preserveAspectRatio="xMidYMid meet"`)
+  are stripped, non-default values and case-sensitive names (`viewBox`) are
+  preserved. Note: musllinux/Alpine is unsupported by the Go binding
+  (c-shared `.so` cannot be dlopen'd on musl).
 - **`paginate` vendored** into the package (`docsforge/paginate.py`) —
   another dormant dependency (2017) removed from the install.
 - README: migration one-liner added; broken `install.sh`/`install.ps1`

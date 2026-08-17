@@ -45,9 +45,7 @@ dependencies = [
     "babel >=2.18.0",
     "pygments >=2.20.0",
     "lunr >=0.8.0",
-    "csscompress >=0.1.0",
-    "min-html >=0.18.4",
-    "min-js >=3.0.2",
+    "minify-go >=2.24.17",
 ]
 
 [project.optional-dependencies]

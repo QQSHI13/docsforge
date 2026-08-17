@@ -1,4 +1,4 @@
-## [12.5.3] — 2026-08-13
+## [12.5.3] — 2026-08-17
 
 ### 新增
 
@@ -15,9 +15,13 @@
 
 ### 变更
 
-- **minify 改用 `csscompress`** —— 这是已停更的 `csscompressor`（最后发布
-  2017）的社区分支。自带 data-URI 空白修复（`url(...)` 中的 SVG/MathML 在压缩
-  后仍能正常显示）和正确的 `__version__`；`minify.py` 中的猴子补丁已移除。
+- **minify 后端改为 Go 压缩器**（`minify-go`，由我们自己的 cron 工作流基于
+  `tdewolff/minify` 构建 wheels，含 macOS arm64）：长期维护的分支
+  （min-html、min-js、csscompress）合并为单个依赖。HTML 页面现在也会压缩
+  内联的 `<style>`/`<script>` 块；SVG 默认值属性（如
+  `preserveAspectRatio="xMidYMid meet"`）会被移除，非默认值与大小写敏感
+  的属性名（`viewBox`）保持不变。注意：Go 绑定不支持 musllinux/Alpine
+  （c-shared `.so` 无法在 musl 上 dlopen）。
 - **内置 `paginate`**（`docsforge/paginate.py`）—— 又移除一个停更依赖
   （2017）。
 - README：新增一键迁移；修复失效的 `install.sh`/`install.ps1` 引用
