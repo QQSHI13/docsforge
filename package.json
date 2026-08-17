@@ -28,7 +28,7 @@
     "cssnano": "^8.0.4",
     "esbuild": "^0.28.1",
     "html-minifier-terser": "^7.2.0",
-    "lucide-static": "^1.30.0",
+    "lucide-static": "^1.31.0",
     "material-design-color": "^2.3.2",
     "material-shadows": "^3.0.1",
     "postcss": "^8.5.26",
