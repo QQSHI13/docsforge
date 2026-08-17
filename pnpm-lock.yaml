@@ -24,8 +24,8 @@ importers:
         specifier: ^2.3.9
         version: 2.3.9
       lunr-languages:
-        specifier: ^1.14.0
-        version: 1.20.0
+        specifier: ^1.21.0
+        version: 1.21.0
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -1143,8 +1143,8 @@ packages:
   lucide-static@1.31.0:
     resolution: {integrity: sha512-XFX9NO+gcLsOkXISmeQZYGJa2siGWZc/lgT/BK1b83h9RdOiz3cj1eQP5nWhELiB1KhW5ryk0nmMopOgm/CuSA==}
 
-  lunr-languages@1.20.0:
-    resolution: {integrity: sha512-3LVgE7ekWXt04NBci/hjm+NXJxXZeRXuyClL0kA0HONyBOjxhP3ZQkuWIM4Ok3pbeptUW/rj3XcJcJuJVPwPYA==}
+  lunr-languages@1.21.0:
+    resolution: {integrity: sha512-Hj0VwJP1FGwZzVMMZdDtWY2GB2VVKtvVElYtVajzCZCDr2RTucyLpPibrOPGgTlcq2ENQy2gYLtPnzyFu9jZCg==}
 
   lunr@2.3.9:
     resolution: {integrity: sha512-zTU3DaZaF3Rt9rhN3uBMGQD3dD2/vFQqnvZCDv4dl5iOzq2IZQqTxu90r4E5J+nP70J3ilqVCrbho2eWaeW8Ow==}
@@ -2594,7 +2594,7 @@ snapshots:
 
   lucide-static@1.31.0: {}
 
-  lunr-languages@1.20.0: {}
+  lunr-languages@1.21.0: {}
 
   lunr@2.3.9: {}
 
