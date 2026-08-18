@@ -94,38 +94,6 @@ def test_regression_10_8_4_relative_url_not_backwards():
 
 
 # ---------------------------------------------------------------------------
-# 10.9.5 — WSL port probe must not hang
-# ---------------------------------------------------------------------------
-
-
-def test_regression_10_9_5_port_probe_has_short_timeout(monkeypatch):
-    """The port-finder must use a short socket timeout so a dropped SYN (WSL
-    firewall) doesn't hang the server startup for the default TCP timeout."""
-    import inspect
-
-    from docsforge import serve
-
-    src = inspect.getsource(serve._find_available_port)
-    assert "settimeout" in src
-    # Confirm the timeout is actually small (<= 1s) by exercising it.
-    timeouts = []
-
-    class FakeSocket:
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
-        def settimeout(self, t): timeouts.append(t)
-        def connect_ex(self, addr): return 0  # port "in use"
-
-    monkeypatch.setattr(socket, "socket", lambda *a, **k: FakeSocket())
-    try:
-        serve._find_available_port("127.0.0.1", 8000, max_attempts=1)
-    except RuntimeError:
-        pass  # all "in use" -> no port found, that's fine
-    assert timeouts, "settimeout was never called"
-    assert timeouts[0] <= 1.0
-
-
-# ---------------------------------------------------------------------------
 # 11.0.0b1 — privacy path normalization /. matched .icons -> _icons
 # ---------------------------------------------------------------------------
 

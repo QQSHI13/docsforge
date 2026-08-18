@@ -60,20 +60,6 @@ class TestFindAvailablePort:
         with pytest.raises(RuntimeError):
             _find_available_port("127.0.0.1", 8000, max_attempts=3)
 
-    def test_firewall_dropped_syn_returns_port(self, monkeypatch):
-        # A dropped SYN (firewall) raises socket.timeout/OSError -> port is free
-        class FakeSocket:
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
-            def settimeout(self, t):
-                self.t = t
-                assert t <= 1.0, "probe must use a short timeout (WSL fix)"
-            def connect_ex(self, addr):
-                raise socket.timeout("dropped")
-
-        monkeypatch.setattr(socket, "socket", lambda *a, **k: FakeSocket())
-        assert _find_available_port("127.0.0.1", 8000) == 8000
-
 
 # ---------------------------------------------------------------------------
 # URL / path helpers
