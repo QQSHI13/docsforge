@@ -35,13 +35,7 @@ def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> 
 
     for port in range(start_port, start_port + max_attempts):
         with socket.socket(family, socket.SOCK_STREAM) as s:
-            s.settimeout(0.3)  # Prevent WSL firewall hangs (dropped SYN packets)
-            try:
-                result = s.connect_ex((host, port))
-            except (socket.timeout, OSError):
-                # Port is likely available but firewall drops the probe
-                return port
-            if result != 0:
+            if s.connect_ex((host, port)) != 0:
                 return port
     raise RuntimeError(f"No available port found in range {start_port}-{start_port + max_attempts - 1}")
 
