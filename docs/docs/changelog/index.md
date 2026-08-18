@@ -14,6 +14,16 @@
   the code in all cases).
 - **Docker image runs as non-root** — the image now creates a `docsforge`
   user (uid 1000) and drops privileges (`USER docsforge`).
+- **TikZ default math preamble** — bare diagram sources (no `\documentclass`)
+  are now auto-wrapped in a standalone document with `amsmath`, `amssymb`,
+  `tikz`, `pgfplots`, `tikz-cd` and `tkz-euclide` preloaded, so a diagram is
+  just the `tikzpicture` body. New `tikz_preamble` config option injects extra
+  preamble lines. `texlive-fonts-recommended` (amssymb/amsfonts) added to the
+  Docker image — pgfplots, tikz-cd and tkz-euclide already ship in
+  `texlive-pictures`.
+- **TikZ SVGs embed fonts** — `dvisvgm` no longer runs with `--no-fonts`, so
+  diagram text stays selectable and searchable; it falls back to outlined
+  paths only when the TeX fonts are unavailable.
 
 ### Changed
 

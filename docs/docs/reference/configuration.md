@@ -285,6 +285,16 @@ Gitignore-style patterns of files that are intentionally not in the navigation. 
 
 Enable TikZ diagram compilation. `.tex` files under `docs_dir` containing `\begin{tikzpicture}` (or in a `tikz/` directory) are compiled to SVG during the build. Requires a LaTeX toolchain (`latex`/`pdflatex` + `dvisvgm`/`pdf2svg`); when unavailable the build warns and skips compilation.
 
+Sources without a `\documentclass` (just the picture body) are automatically wrapped in a standalone document with a default math preamble — `amsmath`, `amssymb`, `tikz`, `pgfplots`, `tikz-cd` and `tkz-euclide` are preloaded, so a diagram is just:
+
+```latex
+\begin{tikzpicture}
+\draw (0,0) -- (1,1);
+\end{tikzpicture}
+```
+
+The generated SVG embeds fonts, so diagram text stays selectable and searchable; on minimal TeX installs (no `texlive-fonts-recommended`) it falls back to outlined paths.
+
 ```yaml
 tikz: true
 ```
@@ -292,6 +302,22 @@ tikz: true
 | Type | Default | Required |
 |------|---------|----------|
 | `boolean` | `null` (auto) | No |
+
+---
+
+### `tikz_preamble`
+
+Extra LaTeX preamble lines injected into bare diagram sources (files without a `\documentclass`), after the default math preamble. Ignored for full documents.
+
+```yaml
+tikz_preamble:
+  - \usetikzlibrary{calc}
+  - \usepackage{caption}
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `list` of `string` | `null` | No |
 
 ---
 

@@ -18,10 +18,75 @@ log = logging.getLogger("docsforge.tikz")
 
 LATEX_TIMEOUT = 60
 
+# Default preamble for bare diagram sources (files without a \documentclass).
+# Only the tikzpicture / tikzcd / axis body needs to be written; the math
+# diagram toolchain (pgfplots, tikz-cd, tkz-euclide, amsmath/amssymb) is
+# preloaded so it "just works" for a maths encyclopedia.
+DEFAULT_TIKZ_PREAMBLE = (
+    "\\documentclass[border=2pt]{standalone}\n"
+    "\\usepackage{amsmath}\n"
+    "\\usepackage{amssymb}\n"
+    "\\usepackage{tikz}\n"
+    "\\usepackage{pgfplots}\n"
+    "\\pgfplotsset{compat=1.18}\n"
+    "\\usepackage{tikz-cd}\n"
+    "\\usepackage{tkz-euclide}\n"
+)
+
+
+def _wrap_with_preamble(tex_text: str, extra_preamble: list[str] | None = None) -> str:
+    """Wrap bare diagram content in a standalone document.
+
+    Files without a ``\\documentclass`` (just a ``\\begin{tikzpicture}`` or
+    other picture body) get the default math preamble, so the source stays
+    minimal. Full documents pass through unchanged. Extra preamble lines from
+    the ``tikz_preamble`` config option are injected after the defaults, before
+    ``\\begin{document}``.
+    """
+    if any(
+        line.strip().startswith("\\documentclass") or "\\begin{document}" in line
+        for line in tex_text.splitlines()
+    ):
+        return tex_text
+    lines = [DEFAULT_TIKZ_PREAMBLE]
+    if extra_preamble:
+        lines.append("\n".join(line.strip() for line in extra_preamble))
+    lines.append("\\begin{document}\n")
+    lines.append(tex_text)
+    lines.append("\n\\end{document}")
+    return "\n".join(lines)
+
 
 def _has_tool(name: str) -> bool:
     """Check if a command-line tool is available."""
     return shutil.which(name) is not None
+
+
+def _run_dvisvgm(input_file: Path, output_path: Path, cwd: Path, name: str) -> bool:
+    """Convert a DVI/PDF to SVG with dvisvgm.
+
+    Fonts are embedded (text stays selectable/searchable in the SVG); if that
+    fails (minimal TeX installs without the font sets), falls back to
+    ``--no-fonts`` so the diagram still compiles with text drawn as paths.
+    """
+    for extra in ([], ["--no-fonts"]):
+        result = subprocess.run(
+            ["dvisvgm", *extra, "--output=" + str(output_path), str(input_file)],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=LATEX_TIMEOUT,
+        )
+        if result.returncode == 0:
+            if extra:
+                log.warning(
+                    f"dvisvgm font embedding failed for {name}; fell back to "
+                    "--no-fonts (text rendered as paths). Install "
+                    "texlive-fonts-recommended for selectable text."
+                )
+            return True
+    log.warning(f"dvisvgm failed for {name}: {result.stderr[:200]}")
+    return False
 
 
 def _needs_rebuild(tex_path: Path, output_path: Path) -> bool:
@@ -31,7 +96,9 @@ def _needs_rebuild(tex_path: Path, output_path: Path) -> bool:
     return tex_path.stat().st_mtime > output_path.stat().st_mtime
 
 
-def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
+def _compile_tex_to_svg(
+    tex_path: Path, output_path: Path, preamble: list[str] | None = None
+) -> bool:
     """Compile a single .tex file to SVG.
 
     Returns True on success, False on failure.
@@ -58,7 +125,7 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
         temp_tex = tmpdir / tex_path.name
-        shutil.copy2(tex_path, temp_tex)
+        temp_tex.write_text(_wrap_with_preamble(tex_text, preamble), encoding="utf-8")
 
         # Determine which tools to use
         has_latex = _has_tool("latex")
@@ -85,15 +152,7 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
                 log.warning(f"No DVI produced for {tex_path.name}")
                 return False
 
-            result = subprocess.run(
-                ["dvisvgm", "--no-fonts", "--output=" + str(output_path), str(dvi_file)],
-                cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=LATEX_TIMEOUT,
-            )
-            if result.returncode != 0:
-                log.warning(f"dvisvgm failed for {tex_path.name}: {result.stderr[:200]}")
+            if not _run_dvisvgm(dvi_file, output_path, tmpdir, tex_path.name):
                 return False
 
         elif has_pdflatex and has_pdf2svg:
@@ -142,15 +201,7 @@ def _compile_tex_to_svg(tex_path: Path, output_path: Path) -> bool:
                 log.warning(f"No PDF produced for {tex_path.name}")
                 return False
 
-            result = subprocess.run(
-                ["dvisvgm", "--no-fonts", "--output=" + str(output_path), str(pdf_file)],
-                cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                timeout=LATEX_TIMEOUT,
-            )
-            if result.returncode != 0:
-                log.warning(f"dvisvgm failed for {tex_path.name}: {result.stderr[:200]}")
+            if not _run_dvisvgm(pdf_file, output_path, tmpdir, tex_path.name):
                 return False
 
         else:
@@ -192,6 +243,14 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     if tikz_config is False:
         log.debug("TikZ compilation disabled in config")
         return []
+
+    # Extra preamble lines injected into bare diagram sources (no \documentclass).
+    tikz_preamble = getattr(config, "tikz_preamble", None) or []
+    if not isinstance(tikz_preamble, list):
+        tikz_preamble = []
+    elif any(not isinstance(line, str) for line in tikz_preamble):
+        log.warning("tikz_preamble must be a list of strings; ignoring non-string entries")
+        tikz_preamble = [line for line in tikz_preamble if isinstance(line, str)]
 
     tex_files = list(docs_dir.rglob("*.tex"))
     if not tex_files:
@@ -248,7 +307,7 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
                     log.debug(f"Copied TikZ SVG to site: {site_output}")
             return output_path
 
-        if _compile_tex_to_svg(tex_file, output_path):
+        if _compile_tex_to_svg(tex_file, output_path, preamble=tikz_preamble):
             nonlocal newly_compiled
             newly_compiled += 1
             if output_to_docs:

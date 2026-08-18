@@ -12,6 +12,14 @@
   所有情况下随代码一起分发）。
 - **Docker 镜像以非 root 用户运行** —— 镜像现在创建 `docsforge` 用户
   （uid 1000）并降权运行（`USER docsforge`）。
+- **TikZ 默认数学前言** —— 裸图表源文件（没有 `\documentclass`）现在会
+  自动包装为 standalone 文档，预载 `amsmath`、`amssymb`、`tikz`、
+  `pgfplots`、`tikz-cd` 和 `tkz-euclide`，图表只需写 `tikzpicture` 内容
+  即可。新增 `tikz_preamble` 配置项用于注入额外前言行。Docker 镜像新增
+  `texlive-fonts-recommended`（amssymb/amsfonts）—— pgfplots、tikz-cd 和
+  tkz-euclide 已随 `texlive-pictures` 提供。
+- **TikZ SVG 内嵌字体** —— `dvisvgm` 不再使用 `--no-fonts`，图表文字保持
+  可选中、可搜索；仅在 TeX 字体不可用时回退为轮廓路径。
 
 ### 变更
 

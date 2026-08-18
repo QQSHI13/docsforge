@@ -285,6 +285,16 @@ exclude_docs: |
 
 启用 TikZ 图表编译。`docs_dir` 下包含 `\begin{tikzpicture}`（或位于 `tikz/` 目录）的 `.tex` 文件会在构建时编译为 SVG。需要 LaTeX 工具链（`latex`/`pdflatex` + `dvisvgm`/`pdf2svg`）；不可用时构建会警告并跳过编译。
 
+没有 `\documentclass` 的源文件（只有图表内容）会自动包装为 standalone 文档，并预载默认数学前言 —— `amsmath`、`amssymb`、`tikz`、`pgfplots`、`tikz-cd` 和 `tkz-euclide`，因此图表只需写：
+
+```latex
+\begin{tikzpicture}
+\draw (0,0) -- (1,1);
+\end{tikzpicture}
+```
+
+生成的 SVG 内嵌字体，图表文字保持可选中、可搜索；在最小化 TeX 安装（没有 `texlive-fonts-recommended`）时回退为轮廓路径。
+
 ```yaml
 tikz: true
 ```
@@ -292,6 +302,22 @@ tikz: true
 | 类型 | 默认值 | 必填 |
 |------|---------|----------|
 | `boolean` | `null`（自动） | 否 |
+
+---
+
+### `tikz_preamble`
+
+注入到裸图表源文件（没有 `\documentclass`）中的额外 LaTeX 前言行，位于默认数学前言之后。完整文档会忽略此项。
+
+```yaml
+tikz_preamble:
+  - \usetikzlibrary{calc}
+  - \usepackage{caption}
+```
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `string` 列表 | `null` | 否 |
 
 ---
 
