@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # DocsForge migration — converts mkdocs/properdocs/zensical config to
 # docsforge.yml. One-liner:
-#   curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.sh | bash
+#   curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
 set -euo pipefail
 
-MIGRATE_URL="${DOCSFORGE_MIGRATE_URL:-https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.py}"
+MIGRATE_URL="${DOCSFORGE_MIGRATE_URL:-https://qqshi13.github.io/docsforge/migrate.py}"
 
 log()  { printf 'docsforge-migrate: %s\n' "$*"; }
 fail() { log "$*" >&2; exit 1; }

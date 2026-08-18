@@ -14,13 +14,13 @@ DocsForge 免费且开源。如果你遇到问题、需要迁移帮助或发现�
 === "macOS / Linux"
 
     ``` bash
-    curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.sh | bash
+    curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
     ```
 
 === "Windows (PowerShell)"
 
     ``` powershell
-    irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.ps1 | iex
+    irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
     ```
 
 脚本会：

@@ -85,9 +85,9 @@ bundled with esbuild (`build_typescript`), SCSS is compiled + autoprefixed
 worker are copied from node_modules (`copy_katex`, `copy_mermaid`,
 `copy_lunr`, `copy_sw`). The twemoji SVG set is vendored under
 `src/templates/assets/emoji/twemoji/` (the npm package no longer ships the
-assets) — refresh it with `python scripts/fetch_twemoji.py` and commit the
-result; `copy_twemoji` syncs it into `docsforge/templates/` like the icon
-sets. See `build_frontend.py` for details.
+assets) — refresh it with `python build_frontend.py --fetch-twemoji` and
+commit the result; `copy_twemoji` syncs it into `docsforge/templates/`
+like the icon sets. See `build_frontend.py` for details.
 
 The **frontend CI job** builds the frontend and fails if the committed
 `docsforge/templates/` don't match the build (a parity check). Keep `src/`

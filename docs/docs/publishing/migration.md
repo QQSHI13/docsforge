@@ -13,13 +13,13 @@ If you have an existing `mkdocs.yml`, `properdocs.yml`, or `zensical.toml`, migr
 === "macOS / Linux"
 
     ``` bash
-    curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.sh | bash
+    curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
     ```
 
 === "Windows (PowerShell)"
 
     ``` powershell
-    irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.ps1 | iex
+    irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
     ```
 
 The script converts navigation, theme, plugins, and extensions into
