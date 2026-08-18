@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import logging
 import os
@@ -16,6 +17,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
+import urllib.request
 from pathlib import Path
 
 log = logging.getLogger("build_frontend")
@@ -24,6 +27,14 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 OUT = ROOT / "docsforge" / "templates"
 NODE_MODULES = ROOT / "node_modules"
+
+# Pinned twemoji tag (maintained fork of the archived twitter/twemoji).
+TWEMOJI_TAG = "v17.0.3"
+TWEMOJI_TARBALL_URL = (
+    f"https://codeload.github.com/jdecked/twemoji/tar.gz/refs/tags/{TWEMOJI_TAG}"
+)
+TWEMOJI_SRC = SRC / "templates" / "assets" / "emoji" / "twemoji"
+TWEMOJI_LICENSES = ["LICENSE", "LICENSE-GRAPHICS"]
 
 
 def _bin_path(pkg_dir: Path, name: str) -> Path | None:
@@ -301,14 +312,50 @@ def copy_icons_to_out() -> None:
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
+def fetch_twemoji() -> None:
+    """Download the pinned twemoji SVG set into the source tree.
+
+    The twemoji npm package no longer ships the SVG assets, so the set is
+    pulled from the pinned tag of the maintained jdecked/twemoji fork (the
+    upstream twitter/twemoji repository is archived). Run this when bumping
+    TWEMOJI_TAG, commit the result, then a normal build syncs it into
+    docsforge/templates/ via copy_twemoji().
+    """
+    log.info("Fetching twemoji %s ...", TWEMOJI_TAG)
+    with urllib.request.urlopen(TWEMOJI_TARBALL_URL) as resp:
+        data = resp.read()
+
+    prefix = f"twemoji-{TWEMOJI_TAG.removeprefix('v')}"
+    svg_dir = f"{prefix}/assets/svg/"
+    if TWEMOJI_SRC.exists():
+        shutil.rmtree(TWEMOJI_SRC)
+    TWEMOJI_SRC.mkdir(parents=True)
+    count = 0
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+        for member in tar.getmembers():
+            name = member.name
+            if name.startswith(svg_dir) and name.endswith(".svg"):
+                out = TWEMOJI_SRC / Path(name).name
+                f = tar.extractfile(member)
+                if f is not None:
+                    out.write_bytes(f.read())
+                    count += 1
+            elif name in {f"{prefix}/{lic}" for lic in TWEMOJI_LICENSES}:
+                f = tar.extractfile(member)
+                if f is not None:
+                    (TWEMOJI_SRC / Path(name).name).write_bytes(f.read())
+
+    log.info("Wrote %d SVGs + licenses to %s", count, TWEMOJI_SRC)
+
+
 def copy_twemoji() -> None:
     """Sync the vendored twemoji SVG set from the source tree to templates.
 
     The twemoji npm package no longer ships the SVG assets, so the set is
     vendored under src/templates/assets/emoji/twemoji/ and refreshed with
-    scripts/fetch_twemoji.py (pinned upstream tag).
+    `python build_frontend.py --fetch-twemoji` (pinned upstream tag).
     """
-    src = SRC / "templates" / "assets" / "emoji" / "twemoji"
+    src = TWEMOJI_SRC
     dst = OUT / "assets" / "emoji" / "twemoji"
     if not src.exists():
         log.warning("Twemoji source does not exist: %s", src)
@@ -456,6 +503,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build DocsForge frontend")
     parser.add_argument("--watch", action="store_true", help="Watch for changes")
     parser.add_argument("--clean", action="store_true", help="Clean output first")
+    parser.add_argument(
+        "--fetch-twemoji",
+        action="store_true",
+        help="Fetch the pinned twemoji SVG set into src/ and exit",
+    )
     parser.add_argument("--skip-templates", action="store_true", help="Skip template copy/minify")
     parser.add_argument("--skip-icons", action="store_true", help="Skip icon copy/optimize")
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -465,6 +517,10 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s - %(message)s",
     )
+
+    if args.fetch_twemoji:
+        fetch_twemoji()
+        return 0
 
     if args.clean:
         clean_output()

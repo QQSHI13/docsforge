@@ -346,7 +346,7 @@ are re-fetched; files no longer in the manifest are evicted.
     `src/templates/assets/emoji/twemoji/` into `docsforge/templates/`
     (same pattern as `copy_icons_to_out`). The npm package no longer ships
     the assets, so the source is refreshed with
-    `python scripts/fetch_twemoji.py` (pinned tag `jdecked/twemoji`
+    `python build_frontend.py --fetch-twemoji` (pinned tag `jdecked/twemoji`
     v17.0.3, the maintained fork of the archived `twitter/twemoji`) and
     committed.
   - `copy_sw` — esbuild-minify `sw.js`, preserving the `__DOCSFORGE_*__`
