@@ -20,6 +20,8 @@
   tkz-euclide 已随 `texlive-pictures` 提供。
 - **TikZ SVG 内嵌字体** —— `dvisvgm` 不再使用 `--no-fonts`，图表文字保持
   可选中、可搜索；仅在 TeX 字体不可用时回退为轮廓路径。
+- **TikZ 编译不再超时** —— 移除了每步固定 60 秒的限制；大型或慢速图表
+  （pgfplots 曲面、大量 `foreach` 循环）可以按需编译任意时长。
 
 ### 变更
 
