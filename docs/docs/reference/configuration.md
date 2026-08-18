@@ -87,6 +87,23 @@ copyright: Copyright &copy; 2025 Example Inc.
 
 ---
 
+### `concurrency`
+
+Maximum number of worker threads used for parallel work: Markdown page
+rendering, page building, TikZ compilation, social card generation, and
+privacy plugin downloads. PDF export uses it as the base tab count (capped
+by available memory, roughly 200 MiB per Chromium tab).
+
+```yaml
+concurrency: 4
+```
+
+| Type | Default | Required |
+|------|---------|----------|
+| `integer` | CPU count - 1 | No |
+
+---
+
 ### `repo_url`
 
 URL to your source repository. Adds an edit icon in the header linking to the repo.
@@ -646,7 +663,6 @@ The minify plugin is always enabled and has no configuration options. It minifie
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Enable plugin |
-| `concurrency` | `integer` | `CPU count - 1` | Download concurrency |
 | `cache_dir` | `string` | `.cache/plugin/privacy` | Local cache directory |
 | `assets_fetch` | `boolean` | `true` | Fetch external assets from the network |
 | `assets_fetch_dir` | `string` | `assets/external` | Storage directory inside `site_dir` |
@@ -686,7 +702,6 @@ Opt-in social card generation (OpenGraph PNG per page). Needs `pip install docsf
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Enable plugin |
-| `concurrency` | `integer` | CPU count - 1 | Parallel card rendering |
 | `cache` | `boolean` | `true` | Cache generated cards |
 | `cache_dir` | `string` | `.docsforge/cache/social` | Card cache directory |
 | `cards` | `boolean` | `true` | Generate cards |

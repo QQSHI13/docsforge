@@ -576,7 +576,7 @@ def _populate_changed_pages(
     # (read_source + render/markdown.convert) is thread-safe (per-thread
     # Markdown instance); only plugin events are serialized via plugin_lock.
     plugin_lock = threading.RLock()
-    max_workers = min(32, os.cpu_count() or 1)
+    max_workers = config.concurrency
     if to_populate:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = [
@@ -684,7 +684,7 @@ def _write_outputs(
     built_any = False
     built_sources: set[str] = set()
     if pages_to_build:
-        max_workers = min(32, os.cpu_count() or 1)
+        max_workers = config.concurrency
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [
                 (

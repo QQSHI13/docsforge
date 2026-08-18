@@ -5,7 +5,26 @@ from pathlib import Path
 
 import pytest
 
-from docsforge.pdf import _is_within, build_pdf
+from docsforge import pdf as pdf_mod
+from docsforge.pdf import _is_within, _tabs_from_memory, build_pdf
+
+
+class TestTabsFromMemory:
+    def test_caps_by_remaining_memory(self, monkeypatch):
+        monkeypatch.setattr(pdf_mod, "_available_memory_mb", lambda: 500)
+        assert _tabs_from_memory(8) == 2  # 500 MiB / 200 MiB per tab
+
+    def test_keeps_requested_when_memory_plenty(self, monkeypatch):
+        monkeypatch.setattr(pdf_mod, "_available_memory_mb", lambda: 8192)
+        assert _tabs_from_memory(4) == 4
+
+    def test_min_one_when_memory_very_low(self, monkeypatch):
+        monkeypatch.setattr(pdf_mod, "_available_memory_mb", lambda: 50)
+        assert _tabs_from_memory(8) == 1
+
+    def test_unchanged_when_memory_unknown(self, monkeypatch):
+        monkeypatch.setattr(pdf_mod, "_available_memory_mb", lambda: None)
+        assert _tabs_from_memory(3) == 3
 
 
 class TestIsWithin:

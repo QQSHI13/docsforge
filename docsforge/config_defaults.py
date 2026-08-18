@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Mapping
 from typing import IO
 
@@ -9,6 +10,8 @@ from docsforge import config_options as c
 from docsforge.emoji import twemoji, to_svg
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.yaml_utils import get_yaml_loader, yaml_load
+
+DEFAULT_CONCURRENCY = max(1, (os.cpu_count() or 1) - 1)
 
 
 class _LogLevel(c.OptionallyRequired[int]):
@@ -211,6 +214,11 @@ class DocsForgeConfig(base.Config):
     """Extra LaTeX preamble lines injected into bare TikZ sources (files
     without a \\documentclass), after the default math preamble. Ignored for
     full documents."""
+
+    concurrency = c.Type(int, default=DEFAULT_CONCURRENCY)
+    """Maximum number of worker threads for parallel work: Markdown page
+    rendering, page building, TikZ compilation, social card generation and
+    privacy plugin downloads."""
 
     plugins = c.Plugins(theme_key='theme', default=[])
     """A list of plugins. Each item may contain a string name or a key value pair.

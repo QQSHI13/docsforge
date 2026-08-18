@@ -1170,7 +1170,6 @@ def get_offset(layer: Layer, image: _Image):
 # Social plugin configuration
 class SocialConfig(Config):
     enabled = Type(bool, default = True)
-    concurrency = Type(int, default = max(1, os.cpu_count() - 1))
 
     # Settings for caching
     cache = Type(bool, default = True)
@@ -1237,16 +1236,17 @@ class SocialPlugin(BasePlugin[SocialConfig]):
     def on_startup(self, *, command, dirty):
         self.is_serve = command == "serve"
 
-        # Initialize thread pool for cards
-        self.card_pool = ThreadPoolExecutor(self.config.concurrency)
+    # Resolve and load manifest and initialize environment
+    def on_config(self, config):
+        # Thread pools sized by the global `concurrency` setting; created here
+        # (on_config receives the global config; on_startup does not).
+        self.card_pool = ThreadPoolExecutor(config.concurrency)
         self.card_pool_jobs: dict[str, Future] = {}
 
         # Initialize thread pool for card layers
-        self.card_layer_pool = ThreadPoolExecutor(self.config.concurrency)
+        self.card_layer_pool = ThreadPoolExecutor(config.concurrency)
         self.card_layer_pool_jobs: dict[str, Future] = {}
 
-    # Resolve and load manifest and initialize environment
-    def on_config(self, config):
         if not self.config.enabled:
             return
 

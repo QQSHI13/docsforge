@@ -49,7 +49,6 @@ class TestConfig:
         plugin = SocialPlugin()
         errors, warnings = plugin.load_config({
             "enabled": True,
-            "concurrency": 4,
             "cache": True,
             "cache_dir": ".docsforge/cache/social",
             "log": True,
@@ -68,7 +67,6 @@ class TestConfig:
         })
         assert errors == []
         assert warnings == []
-        assert plugin.config.concurrency == 4
         assert plugin.config.cards_layout == "variant"
         assert plugin.config.cards_include == ["*.md"]
         assert plugin.config.cards_layout_options["background_color"] == "#123456"
@@ -91,15 +89,20 @@ class TestConfig:
 
     def test_invalid_option_types_raise(self):
         plugin = SocialPlugin()
-        errors, warnings = plugin.load_config({"concurrency": "many"})
-        assert [key for key, _ in errors] == ["concurrency"]
+        errors, warnings = plugin.load_config({"cache": "yes"})
+        assert [key for key, _ in errors] == ["cache"]
         assert isinstance(plugin.config, config_options.Config)
 
     def test_unknown_options_warn(self):
         plugin = SocialPlugin()
+        errors, warnings = plugin.load_config({"concurrency": 4})
+        assert errors == []
+        # The concurrency option moved to the global config in 12.5.4;
+        # plugin-level usage is reported as a warning.
+        assert any(key == "concurrency" for key, _ in warnings)
+        # Other unknown options warn the same way.
         errors, warnings = plugin.load_config({"cards_font": "Comic Sans"})
         assert errors == []
-        # Deprecated options are reported as warnings
         assert any(key == "cards_font" for key, _ in warnings)
 
     def test_not_auto_loaded(self, tmp_path):

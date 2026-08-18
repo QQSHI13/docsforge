@@ -319,7 +319,7 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
         return None
 
     # Compile in parallel using thread pool (each LaTeX process is CPU-bound but I/O-waiting)
-    max_workers = min(4, len(tex_files)) if len(tex_files) > 1 else 1
+    max_workers = min(config.concurrency, len(tex_files)) if len(tex_files) > 1 else 1
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_compile_one, f): f for f in tex_files}
         for future in concurrent.futures.as_completed(futures):

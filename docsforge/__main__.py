@@ -117,7 +117,7 @@ def docsforge(ctx):
 @docsforge.command()
 @click.option('--strict', is_flag=True, help='Fail on warnings')
 @click.option('--pdf', is_flag=True, help='Also export to PDF (requires playwright)')
-@click.option('--jobs', type=int, default=None, help='Number of parallel tabs for PDF rendering (default: 4)')
+@click.option('--jobs', type=int, default=None, help='Number of parallel tabs for PDF rendering (default: global `concurrency`, capped by available memory)')
 def build(strict, pdf, jobs):
     """Build the DocsForge documentation for production."""
     _ = State()  # Initialize default logging
