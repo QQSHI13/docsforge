@@ -215,7 +215,7 @@ class TestAddFilesFromTheme:
 
         from docsforge.files import Files
 
-        files = Files()
+        files = Files([])
         files.add_files_from_theme(self._env(theme), self._config(theme))
         uris = {f.src_uri for f in files}
         assert "assets/images/logo.svg" in uris
