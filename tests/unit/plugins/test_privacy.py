@@ -62,13 +62,16 @@ class TestExtensions:
 
 class TestPrivacyConfig:
     def test_defaults(self):
+        from docsforge.config_defaults import DEFAULT_CONCURRENCY
         from docsforge.core.privacy import PrivacyConfig
 
         cfg = PrivacyConfig()
         cfg.load_dict({})
         cfg.validate()
         assert cfg["enabled"] is True
-        assert cfg["concurrency"] >= 1
+        # concurrency is now a global setting, not a plugin option.
+        assert "concurrency" not in cfg
+        assert DEFAULT_CONCURRENCY >= 1
 
 
 class TestPathSanitization:

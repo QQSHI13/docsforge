@@ -20,10 +20,47 @@ import sys
 import urllib.parse
 from pathlib import Path
 
+from docsforge.config_defaults import DEFAULT_CONCURRENCY
+
 log = logging.getLogger(__name__)
 
 # PDF cache schema version — bump to invalidate all cached PDFs.
 PDF_CACHE_VERSION = 1
+
+# Rough Chromium headless footprint per tab (MiB) for the memory-based cap.
+MEMORY_PER_TAB_MB = 200
+
+
+def _available_memory_mb() -> int | None:
+    """Best-effort estimate of remaining memory in MiB, or None when unknown."""
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) // 1024
+    except (OSError, ValueError):
+        pass
+    try:
+        pages = os.sysconf("SC_AVPHYS_PAGES")
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        if pages > 0 and page_size > 0:
+            return pages * page_size // (1024 * 1024)
+    except (ValueError, OSError, AttributeError):
+        pass
+    return None
+
+
+def _tabs_from_memory(requested: int, memory_per_tab_mb: int = MEMORY_PER_TAB_MB) -> int:
+    """Cap the number of parallel Chromium tabs by remaining memory.
+
+    Each tab costs roughly ``memory_per_tab_mb`` MiB; tabs are reduced so the
+    build never OOMs. Returns ``requested`` unchanged when memory can't be
+    measured, and at least 1 tab otherwise.
+    """
+    available_mb = _available_memory_mb()
+    if available_mb is None:
+        return requested
+    return max(1, min(requested, available_mb // memory_per_tab_mb))
 
 _DEFAULT_BROWSER_PATHS = [
     # Linux
@@ -161,7 +198,17 @@ def build_pdf(docs_dir: str, output_dir: str = "pdf", **kwargs) -> int:
 
     log.info("Rendering PDFs via Playwright...")
     try:
-        concurrency = kwargs.get("concurrency", 4)
+        # Base tab count: CLI --jobs wins, then the global `concurrency`
+        # setting, then the default. Capped by remaining memory so parallel
+        # Chromium tabs can't OOM the build.
+        requested = kwargs.get("concurrency")
+        if requested is None:
+            requested = cfg.get("concurrency", DEFAULT_CONCURRENCY)
+            if not isinstance(requested, int) or requested < 1:
+                requested = DEFAULT_CONCURRENCY
+        concurrency = _tabs_from_memory(requested)
+        if concurrency < requested:
+            log.info(f"Tabs capped by available memory: {concurrency} (requested {requested})")
         cache = PdfCache(project_dir)
         asyncio.run(_render(site_path, Path(output_dir), concurrency, cache))
     except Exception as e:

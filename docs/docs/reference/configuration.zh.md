@@ -87,6 +87,22 @@ copyright: Copyright &copy; 2025 Example Inc.
 
 ---
 
+### `concurrency`
+
+并行工作使用的最大工作线程数：Markdown 页面渲染、页面构建、TikZ 编译、
+社交卡片生成和隐私插件下载。PDF 导出以它为基础标签页数（并按可用内存
+封顶，每个 Chromium 标签页约 200 MiB）。
+
+```yaml
+concurrency: 4
+```
+
+| 类型 | 默认值 | 必填 |
+|------|---------|----------|
+| `integer` | CPU 数 - 1 | 否 |
+
+---
+
 ### `repo_url`
 
 源代码仓库 URL。在页眉中添加指向仓库的编辑图标。
@@ -640,7 +656,6 @@ minify 插件始终启用，没有可配置选项。它会压缩 HTML 页面以�
 | 选项 | 类型 | 默认值 | 描述 |
 |--------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | 启用插件 |
-| `concurrency` | `integer` | `CPU count - 1` | 下载并发数 |
 | `cache_dir` | `string` | `.cache/plugin/privacy` | 本地缓存目录 |
 | `assets_fetch` | `boolean` | `true` | 从网络获取外部资源 |
 | `assets_fetch_dir` | `string` | `assets/external` | `site_dir` 内的存储目录 |
@@ -680,7 +695,6 @@ minify 插件始终启用，没有可配置选项。它会压缩 HTML 页面以�
 | 选项 | 类型 | 默认值 | 描述 |
 |--------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | 启用插件 |
-| `concurrency` | `integer` | CPU 数 - 1 | 并行卡片渲染 |
 | `cache` | `boolean` | `true` | 缓存生成的卡片 |
 | `cache_dir` | `string` | `.docsforge/cache/social` | 卡片缓存目录 |
 | `cards` | `boolean` | `true` | 生成卡片 |

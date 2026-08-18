@@ -21,7 +21,7 @@ from xml.etree.ElementTree import Element, tostring
 
 from docsforge import is_error_template
 from docsforge.config_base import Config
-from docsforge.config_defaults import DocsForgeConfig
+from docsforge.config_defaults import DEFAULT_CONCURRENCY, DocsForgeConfig
 from docsforge.config_options import (
     Choice,
     Deprecated,
@@ -88,7 +88,6 @@ class PrivacyConfig(Config):
     """Privacy plugin configuration."""
 
     enabled = Type(bool, default=True)
-    concurrency = Type(int, default=max(1, os.cpu_count() - 1))
 
     # Settings for caching
     cache = Type(bool, default=True)
@@ -130,6 +129,9 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
     supports_multiple_instances = True
 
+    # Sized by the global `concurrency` setting in on_config; fallback until then.
+    _concurrency: int = DEFAULT_CONCURRENCY
+
     # -----------------------------------------------------------------------
     # Pool lifecycle
     # -----------------------------------------------------------------------
@@ -137,7 +139,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     def _get_pool(self) -> ThreadPoolExecutor:
         """Return the thread pool, creating it on first use."""
         if self.pool is None:
-            self.pool = ThreadPoolExecutor(self.config.concurrency)
+            self.pool = ThreadPoolExecutor(self._concurrency)
         return self.pool
 
     # -----------------------------------------------------------------------
@@ -146,6 +148,8 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
     def on_config(self, config):
         self.site = urlparse(config.site_url or "")
+        # Global `concurrency` setting sizes the download pool.
+        self._concurrency = config.concurrency
         if not self.config.enabled:
             return
 

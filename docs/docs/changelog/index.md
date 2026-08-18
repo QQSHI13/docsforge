@@ -27,6 +27,16 @@
 
 ### Changed
 
+- **Global `concurrency` setting** — new top-level `concurrency` key
+  (default: CPU count − 1) sizes every parallel pool: Markdown page
+  rendering, page building, TikZ compilation, social card generation and
+  privacy downloads. The plugin-level `concurrency` options of `social` and
+  `privacy` are removed — set `concurrency:` at the top level instead
+  (breaking; plugin-level usage now warns).
+- **PDF export tabs are memory-capped** — the base tab count comes from
+  `--jobs`, else global `concurrency` (default CPU count − 1), and is capped
+  by remaining memory (≈200 MiB per Chromium tab) so parallel rendering
+  can't OOM the build.
 - **`scripts/fetch_twemoji.py` merged into `build_frontend.py`** — refresh
   the vendored twemoji set with `python build_frontend.py --fetch-twemoji`
   (pinned tag), then a normal build syncs it into `docsforge/templates/`.

@@ -23,6 +23,14 @@
 
 ### 变更
 
+- **全局 `concurrency` 设置** —— 新增顶层 `concurrency` 配置键（默认值：
+  CPU 数 − 1），统一控制所有并行池：Markdown 页面渲染、页面构建、TikZ
+  编译、社交卡片生成和隐私下载。`social` 和 `privacy` 插件原有的
+  `concurrency` 选项已移除 —— 请改用顶层 `concurrency:`（破坏性变更；
+  插件级用法现在只会给出警告）。
+- **PDF 导出标签页数按内存封顶** —— 基础标签页数来自 `--jobs`，否则使用
+  全局 `concurrency`（默认 CPU 数 − 1），并按剩余内存封顶（每个
+  Chromium 标签页约 200 MiB），避免并行渲染导致构建内存不足（OOM）。
 - **`scripts/fetch_twemoji.py` 合并进 `build_frontend.py`** —— 通过
   `python build_frontend.py --fetch-twemoji`（固定标签）刷新内置的
   twemoji 集合，然后正常构建即可同步到 `docsforge/templates/`。
