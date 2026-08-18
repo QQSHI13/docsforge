@@ -46,9 +46,29 @@ DocsForge 使用了与 MkDocs Material（最受欢迎的 MkDocs 主题）相同�
 
 ## 迁移命令
 
+### 自动迁移
+
+使用一键命令转换现有配置 —— 脚本会读取 `mkdocs.yml` / `properdocs.yml` /
+`zensical.toml` 并写出 `docsforge.yml`：
+
+=== "macOS / Linux"
+
+    ``` bash
+    curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
+    ```
+
+=== "Windows (PowerShell)"
+
+    ``` powershell
+    irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
+    ```
+
+脚本会转换导航、主题、插件和扩展，对无法迁移的内容（第三方插件、
+`INHERIT`、钩子）发出警告，并打印后续步骤报告。
+
 ### 手动迁移
 
-DocsForge 目前尚未提供自动迁移命令。请按照以下步骤手动转换项目。本指南的其余部分将详细介绍每个方面。
+想要完全掌控，或站点较小？请按照以下步骤手动转换项目。本指南的其余部分将详细介绍每个方面。
 
 !!! warning "先备份"
     迁移前务必将当前状态提交到版本控制：

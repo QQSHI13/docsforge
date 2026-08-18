@@ -13,13 +13,13 @@ icon: material/swap-horizontal
 === "macOS / Linux"
 
     ``` bash
-    curl -fsSL https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.sh | bash
+    curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
     ```
 
 === "Windows (PowerShell)"
 
     ``` powershell
-    irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.ps1 | iex
+    irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
     ```
 
 脚本会把导航、主题、插件和扩展转换为 `docsforge.yml`，对无法迁移的内容

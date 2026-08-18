@@ -15,6 +15,29 @@
 - **Docker image runs as non-root** — the image now creates a `docsforge`
   user (uid 1000) and drops privileges (`USER docsforge`).
 
+### Changed
+
+- **`scripts/fetch_twemoji.py` merged into `build_frontend.py`** — refresh
+  the vendored twemoji set with `python build_frontend.py --fetch-twemoji`
+  (pinned tag), then a normal build syncs it into `docsforge/templates/`.
+- **Migration scripts now served from the docs site** — `migrate.sh`,
+  `migrate.ps1` and `migrate.py` live in the docs content and are copied
+  into the built site (docsforge copies static files from `docs_dir`), so
+  the one-liners are now:
+
+  ```bash
+  curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
+  ```
+
+  ```powershell
+  irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
+  ```
+
+  The scripts download `migrate.py` from the same site
+  (`https://qqshi13.github.io/docsforge/migrate.py`) instead of the raw
+  GitHub URL, and the getting-started migration guide now documents the
+  automatic one-liner (was: "no automatic migration command").
+
 ## [12.5.3] — 2026-08-17
 
 ### Added

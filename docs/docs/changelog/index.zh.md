@@ -13,6 +13,28 @@
 - **Docker 镜像以非 root 用户运行** —— 镜像现在创建 `docsforge` 用户
   （uid 1000）并降权运行（`USER docsforge`）。
 
+### 变更
+
+- **`scripts/fetch_twemoji.py` 合并进 `build_frontend.py`** —— 通过
+  `python build_frontend.py --fetch-twemoji`（固定标签）刷新内置的
+  twemoji 集合，然后正常构建即可同步到 `docsforge/templates/`。
+- **迁移脚本改为由文档站点提供** —— `migrate.sh`、`migrate.ps1` 和
+  `migrate.py` 位于文档内容目录中，构建时复制到站点输出（docsforge
+  会复制 `docs_dir` 中的静态文件），一键命令更新为：
+
+  ```bash
+  curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
+  ```
+
+  ```powershell
+  irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
+  ```
+
+  脚本从同一站点下载 `migrate.py`
+  （`https://qqshi13.github.io/docsforge/migrate.py`），不再使用 GitHub
+  raw URL；入门迁移指南现在也记录了自动一键迁移（此前写着“暂无自动
+  迁移命令”）。
+
 ## [12.5.3] — 2026-08-17
 
 ### 新增

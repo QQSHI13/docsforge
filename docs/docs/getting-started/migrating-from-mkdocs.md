@@ -46,9 +46,33 @@ DocsForge uses the same visual foundation as MkDocs Material (the most popular M
 
 ## Migration Command
 
+### Automatic migration
+
+Convert your existing config with the one-liner — it reads
+`mkdocs.yml` / `properdocs.yml` / `zensical.toml` and writes
+`docsforge.yml`:
+
+=== "macOS / Linux"
+
+    ``` bash
+    curl -fsSL https://qqshi13.github.io/docsforge/migrate.sh | bash
+    ```
+
+=== "Windows (PowerShell)"
+
+    ``` powershell
+    irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
+    ```
+
+The script converts navigation, theme, plugins, and extensions, warns about
+anything it can't migrate (third-party plugins, `INHERIT`, hooks), and prints
+a report with next steps.
+
 ### Manual Migration
 
-DocsForge does not yet provide an automatic migration command. Convert your project manually by following the steps below. The rest of this guide covers each aspect in detail.
+Prefer full control, or migrating a small site? Convert your project manually
+by following the steps below. The rest of this guide covers each aspect in
+detail.
 
 !!! warning "Backup First"
     Always commit your current state to version control before migrating:

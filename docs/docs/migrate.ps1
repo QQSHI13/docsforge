@@ -1,11 +1,11 @@
 # DocsForge migration — converts mkdocs/properdocs/zensical config to
 # docsforge.yml. One-liner (PowerShell):
-#   irm https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.ps1 | iex
+#   irm https://qqshi13.github.io/docsforge/migrate.ps1 | iex
 $ErrorActionPreference = 'Stop'
 
 $MigrateUrl = $env:DOCSFORGE_MIGRATE_URL
 if (-not $MigrateUrl) {
-  $MigrateUrl = 'https://raw.githubusercontent.com/QQSHI13/docsforge/main/scripts/migrate.py'
+  $MigrateUrl = 'https://qqshi13.github.io/docsforge/migrate.py'
 }
 
 function Fail($msg) {
