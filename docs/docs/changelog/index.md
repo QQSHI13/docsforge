@@ -24,6 +24,9 @@
 - **TikZ SVGs embed fonts** — `dvisvgm` no longer runs with `--no-fonts`, so
   diagram text stays selectable and searchable; it falls back to outlined
   paths only when the TeX fonts are unavailable.
+- **TikZ compilation no longer times out** — the fixed 60-second per-step
+  limit is removed; large or slow diagrams (pgfplots surfaces, heavy
+  `foreach` loops) compile for as long as they need.
 
 ### Changed
 

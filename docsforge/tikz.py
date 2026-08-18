@@ -16,8 +16,6 @@ from pathlib import Path
 
 log = logging.getLogger("docsforge.tikz")
 
-LATEX_TIMEOUT = 60
-
 # Default preamble for bare diagram sources (files without a \documentclass).
 # Only the tikzpicture / tikzcd / axis body needs to be written; the math
 # diagram toolchain (pgfplots, tikz-cd, tkz-euclide, amsmath/amssymb) is
@@ -75,8 +73,7 @@ def _run_dvisvgm(input_file: Path, output_path: Path, cwd: Path, name: str) -> b
             cwd=cwd,
             capture_output=True,
             text=True,
-            timeout=LATEX_TIMEOUT,
-        )
+                    )
         if result.returncode == 0:
             if extra:
                 log.warning(
@@ -140,8 +137,7 @@ def _compile_tex_to_svg(
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
-                timeout=LATEX_TIMEOUT,
-            )
+                            )
             if result.returncode != 0:
                 err = result.stderr[:500] if result.stderr else result.stdout[:500]
                 log.warning(f"latex failed for {tex_path.name}: {err}")
@@ -162,8 +158,7 @@ def _compile_tex_to_svg(
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
-                timeout=LATEX_TIMEOUT,
-            )
+                            )
             if result.returncode != 0:
                 log.warning(f"pdflatex failed for {tex_path.name}: {result.stderr[:200]}")
                 return False
@@ -177,8 +172,7 @@ def _compile_tex_to_svg(
                 ["pdf2svg", str(pdf_file), str(output_path)],
                 capture_output=True,
                 text=True,
-                timeout=LATEX_TIMEOUT,
-            )
+                            )
             if result.returncode != 0:
                 log.warning(f"pdf2svg failed for {tex_path.name}: {result.stderr[:200]}")
                 return False
@@ -190,8 +184,7 @@ def _compile_tex_to_svg(
                 cwd=tmpdir,
                 capture_output=True,
                 text=True,
-                timeout=LATEX_TIMEOUT,
-            )
+                            )
             if result.returncode != 0:
                 log.warning(f"pdflatex failed for {tex_path.name}: {result.stderr[:200]}")
                 return False
