@@ -1,3 +1,20 @@
+## [12.5.4] — Unreleased
+
+### Added
+
+- **Twemoji SVGs vendored** — the full twemoji set (4,000+ emojis, pinned
+  to `jdecked/twemoji` v17.0.3, the maintained fork of the archived
+  `twitter/twemoji`) ships inside the package. Unicode emojis
+  (`:smile:`, `:us:`) are now inlined locally at build time, so no CDN
+  (jsdelivr/maxcdn) is referenced anymore — falling back to the CDN only
+  for codepoints missing from the vendored set.
+- **License files shipped with bundled assets** — Mermaid (MIT) and KaTeX
+  (MIT) licenses travel alongside the bundled scripts, and the lunr
+  stemmer modules ship their MPL-1.1 license (the license must accompany
+  the code in all cases).
+- **Docker image runs as non-root** — the image now creates a `docsforge`
+  user (uid 1000) and drops privileges (`USER docsforge`).
+
 ## [12.5.3] — 2026-08-17
 
 ### Added

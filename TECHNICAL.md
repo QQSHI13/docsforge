@@ -28,7 +28,7 @@ rendered pages + static assets
 
 Key properties:
 
-- **Zero-config**: core plugins auto-load; 31 Markdown extensions
+- **Zero-config**: core plugins auto-load; 42 Markdown extensions
   pre-configured; no `plugins:` section needed (social is the only opt-in core
   plugin).
 - **Offline-first**: a service worker with a build-hash manifest caches every
@@ -66,7 +66,7 @@ optional-dependency checker (`_check_optional_deps`).
 - `config_defaults.py` — `DocsForgeConfig`: every config key. Notable ones:
   `site_name`, `site_url`, `nav`, `theme`, `docs_dir` (default `docs`),
   `site_dir` (default `site`), `use_directory_urls` (default True),
-  `markdown_extensions` (31 preconfigured), `tikz` (bool, optional),
+  `markdown_extensions` (42 preconfigured), `tikz` (bool, optional),
   `plugins` (default `[]` — core plugins still auto-load), `privacy`
   (default True — external assets fetched + inlined), `hooks` (Python module
   plugins), `watch`, and `validation` (link/anchor warning levels, see §6).
@@ -342,8 +342,20 @@ are re-fetched; files no longer in the manifest are evicted.
     `wordcut.js`.
   - `copy_katex` — katex dist (min.js, min.css, contrib, fonts).
   - `copy_mermaid` — mermaid.min.js.
+  - `copy_twemoji` — syncs the vendored twemoji SVG set (~4,000 files) from
+    `src/templates/assets/emoji/twemoji/` into `docsforge/templates/`
+    (same pattern as `copy_icons_to_out`). The npm package no longer ships
+    the assets, so the source is refreshed with
+    `python scripts/fetch_twemoji.py` (pinned tag `jdecked/twemoji`
+    v17.0.3, the maintained fork of the archived `twitter/twemoji`) and
+    committed.
   - `copy_sw` — esbuild-minify `sw.js`, preserving the `__DOCSFORGE_*__`
     placeholders for build.py injection.
+- `docsforge/emoji.py` — the `pymdownx.emoji` index/generator pair. Material
+  icons are inlined from `templates/.icons/`; unicode emojis (`:smile:`,
+  `:us:`) are inlined from the vendored twemoji set so no CDN is referenced
+  (falling back to pymdownx's CDN `<img>` only for codepoints missing from
+  the set).
 - `src/assets/javascripts/sw.js` — the service worker source; build.py
   injects base URL + build hash at site-build time (see §8). Mermaid loads
   from the local asset via `window.docsforge.mermaidUrl` (set in base.html),

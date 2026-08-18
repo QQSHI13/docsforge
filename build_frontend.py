@@ -301,6 +301,22 @@ def copy_icons_to_out() -> None:
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
+def copy_twemoji() -> None:
+    """Sync the vendored twemoji SVG set from the source tree to templates.
+
+    The twemoji npm package no longer ships the SVG assets, so the set is
+    vendored under src/templates/assets/emoji/twemoji/ and refreshed with
+    scripts/fetch_twemoji.py (pinned upstream tag).
+    """
+    src = SRC / "templates" / "assets" / "emoji" / "twemoji"
+    dst = OUT / "assets" / "emoji" / "twemoji"
+    if not src.exists():
+        log.warning("Twemoji source does not exist: %s", src)
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+
+
 def copy_lunr() -> None:
     """Copy Lunr language stemmers from node_modules."""
     src = NODE_MODULES / "lunr-languages"
@@ -317,6 +333,9 @@ def copy_lunr() -> None:
             out = dst / rel
             out.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(f, out)
+    # MPL-1.1: the license must travel with the stemmer modules
+    if (src / "LICENSE").exists():
+        shutil.copy2(src / "LICENSE", dst / "LICENSE")
 
 
 def copy_katex() -> None:
@@ -341,6 +360,10 @@ def copy_katex() -> None:
     fonts = src / "fonts"
     if fonts.exists():
         shutil.copytree(fonts, dst / "fonts")
+    # MIT: the copyright notice must be included in copies
+    katex_license = NODE_MODULES / "katex" / "LICENSE"
+    if katex_license.exists():
+        shutil.copy2(katex_license, dst / "LICENSE")
     log.info("Copied KaTeX %s", _pkg_version("katex"))
 
 
@@ -358,6 +381,11 @@ def copy_mermaid() -> None:
         return
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
+    # MIT: the copyright notice must be included in copies (esbuild strips
+    # the upstream banner, so ship the license file alongside the bundle)
+    mermaid_license = NODE_MODULES / "mermaid" / "LICENSE"
+    if mermaid_license.exists():
+        shutil.copy2(mermaid_license, dst.parent / "mermaid.LICENSE")
     log.info("Copied Mermaid %s", _pkg_version("mermaid"))
 
 
@@ -458,6 +486,7 @@ def main(argv: list[str] | None = None) -> int:
     copy_lunr()
     copy_katex()
     copy_mermaid()
+    copy_twemoji()
     copy_sw()
 
     if args.watch:

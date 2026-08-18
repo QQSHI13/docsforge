@@ -4,7 +4,7 @@ icon: material/emoticon-happy-outline
 
 # Icons & Emojis
 
-DocsForge includes **16,500+ icons** across five families — Material Design, Lucide, Font Awesome, Octicons, and Simple Icons — plus **3,800+ Twemoji emojis**, out of the box. No external downloads needed.
+DocsForge includes **16,500+ icons** across five families — Material Design, Lucide, Font Awesome, Octicons, and Simple Icons — plus **4,000+ Twemoji emojis**, out of the box. No external downloads needed.
 
 ---
 

@@ -44,7 +44,9 @@ DocsForge bundles the following open source components, each under their respect
 | Pymdown Extensions | MIT |
 | Pygments | BSD-2-Clause |
 | Lunr.js | MIT |
+| lunr-languages (stemmers) | MPL-1.1 |
 | Mermaid.js | MIT |
+| KaTeX | MIT |
 | Material Design Icons | Apache-2.0 |
 | Lucide Icons | ISC |
 | Octicons | MIT |

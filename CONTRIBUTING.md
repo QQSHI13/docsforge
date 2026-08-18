@@ -83,12 +83,16 @@ bundled with esbuild (`build_typescript`), SCSS is compiled + autoprefixed
 (`build_styles`), `pygments.css` is regenerated from the installed Pygments
 (`generate_pygments_css`), and KaTeX / Mermaid / Lunr stemmers / the service
 worker are copied from node_modules (`copy_katex`, `copy_mermaid`,
-`copy_lunr`, `copy_sw`). See `build_frontend.py` for details.
+`copy_lunr`, `copy_sw`). The twemoji SVG set is vendored under
+`src/templates/assets/emoji/twemoji/` (the npm package no longer ships the
+assets) — refresh it with `python scripts/fetch_twemoji.py` and commit the
+result; `copy_twemoji` syncs it into `docsforge/templates/` like the icon
+sets. See `build_frontend.py` for details.
 
 The **frontend CI job** builds the frontend and fails if the committed
 `docsforge/templates/` don't match the build (a parity check). Keep `src/`
-close to upstream mkdocs-material (v9.7.7) and comment any intentional
-deviation where you make it.
+close to upstream mkdocs-material and comment any intentional deviation where
+you make it.
 
 ## Documentation & translations
 
@@ -101,6 +105,50 @@ deviation where you make it.
   so keep both current.
 - License: Apache-2.0. Upstream attribution is consolidated in `NOTICE` and
   `docs/docs/license.md`.
+
+## Commit conventions
+
+This repository uses **Conventional Commits** — machine-readable messages that
+drive the changelog and release notes:
+
+```
+<type>(<scope>): <subject>
+```
+
+- `<type>` — one of `feat`, `fix`, `docs`, `style`, `refactor`, `perf`,
+  `test`, `build`, `ci`, `chore`, `revert`.
+- `<scope>` — optional, lowercase module or area (`minify`, `search`, `i18n`,
+  `studio`, `frontend`, `deps`, `docs`, ...).
+- `<subject>` — imperative, lowercase, ≤ 72 characters, no trailing period.
+
+Examples:
+
+```
+feat(minify): consolidate minifier forks into minify-go
+fix(i18n): restore missing EN changelog heading
+docs: changelog entry for the new release (en + zh)
+chore(deps): bump lunr-languages from 1.20.0 to 1.21.0
+```
+
+Rules:
+
+- `feat` and `fix` (user-visible changes) **must** ship a changelog entry in
+  both `docs/docs/changelog/index.md` and `index.zh.md` — the release
+  workflow extracts the version's entry for the GitHub release notes.
+- `docs`-type changes that touch an English page **must** include the Chinese
+  twin in the same commit (see "Documentation & translations" above).
+- Breaking changes: add `!` after the type/scope (`feat!(api): ...`) and
+  describe the migration in the changelog entry.
+
+A commit message template ships as `gitmessage` at the repository root.
+Enable it once:
+
+```bash
+git config commit.template gitmessage
+```
+
+After that, `git commit` opens the template with the rules and examples
+pre-filled.
 
 ## Submitting changes
 

@@ -85,8 +85,8 @@ pip install docsforge
 You get:
 - ⚡ **Engine** — ProperDocs fork, vendored and maintained
 - 🎨 **Theme** — Material for MkDocs, fully included
-- 🔌 **Plugins** — 7 built-in: search, tags, blog, info, meta, minify, privacy
-- 📝 **Markdown** — 31 extensions pre-configured (pymdownx + python-markdown)
+- 🔌 **Plugins** — 8 built-in: search, tags, blog, info, meta, minify, privacy, i18n
+- 📝 **Markdown** — 42 extensions pre-configured (pymdownx + python-markdown)
 - ➗ **Math** — KaTeX vendored (`$$...$$` works out of the box)
 - 🖍️ **Highlighting** — Pygments at build time
 - 📐 **Diagrams** — TikZ auto-compiled to SVG, Mermaid built-in
@@ -218,14 +218,7 @@ No configuration needed. Works offline after the first visit.
 
 ## Changelog
 
-See [full changelog](https://qqshi13.github.io/docsforge/changelog/) in the documentation.
-
-Recent highlights:
-
-- **v10.4.1** — Mermaid auto-config, search plugin cleanup
-- **v10.3.3** — Versioned service worker with auto cache cleanup
-- **v10.3.0** — TikZ diagrams, blog plugin, theme playground
-- **v10.1.0** — Zero-config Markdown, KaTeX math, dark mode toggle
+See the [full changelog](https://qqshi13.github.io/docsforge/changelog/) in the documentation.
 
 ---
 

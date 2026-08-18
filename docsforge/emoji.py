@@ -41,10 +41,18 @@ def to_svg(
         el.text = md.htmlStash.store(_load(icons[shortname]["path"]))
         return el
 
-    # Delegate to pymdownx.emoji extension for Unicode emojis
-    return emoji.to_svg(
-        index, shortname, alias, uc, alt, title, category, options, md
-    )
+    # Unicode emoji: serve from the vendored twemoji assets so no CDN is
+    # referenced. Fall back to pymdownx only for codepoints missing from the
+    # vendored set.
+    file = _find_twemoji_svg(uc)
+    if file is None:
+        return emoji.to_svg(
+            index, shortname, alias, uc, alt, title, category, options, md
+        )
+
+    el = Element("span", {"class": options.get("classes", index)})
+    el.text = md.htmlStash.store(_load(file))
+    return el
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +64,25 @@ def _load(file: str):
     """Load icon SVG content."""
     with open(file, encoding="utf-8") as f:
         return f.read()
+
+
+@functools.lru_cache(maxsize=None)
+def _find_twemoji_svg(uc: str):
+    """Return the vendored twemoji SVG file for a unicode codepoint string.
+
+    `uc` uses the twemoji filename convention (dash-separated codepoints,
+    e.g. `1f468-200d-1f4bb`). Returns None when the codepoint is not part
+    of the vendored set.
+    """
+    path = os.path.join(_twemoji_dir(), f"{uc}.svg")
+    return path if os.path.isfile(path) else None
+
+
+@functools.lru_cache(maxsize=None)
+def _twemoji_dir() -> str:
+    """Return the directory of the vendored twemoji SVG assets."""
+    root = os.path.dirname(getfile(docsforge))
+    return os.path.join(root, "templates", "assets", "emoji", "twemoji")
 
 
 @functools.lru_cache(maxsize=None)

@@ -39,8 +39,16 @@ Lunr.js
   Copyright (c) 2013-2021 Oliver Nightingale
   Licensed under the MIT License.
 
+lunr-languages (stemmer modules)
+  Copyright (c) 2014, Mihai Valentin
+  Licensed under the Mozilla Public License 1.1.
+
 Mermaid.js
-  Copyright (c) 2014-2024 Knut Sveidqvist
+  Copyright (c) 2014-2022 Knut Sveidqvist
+  Licensed under the MIT License.
+
+KaTeX
+  Copyright (c) 2013-2020 Khan Academy and other contributors
   Licensed under the MIT License.
 
 Material Design Icons
@@ -60,6 +68,11 @@ Simple Icons
 
 Font Awesome Icons
   Licensed under the CC BY 4.0 License (icons) and the SIL OFL 1.1 (fonts).
+
+Twemoji
+  Copyright (c) 2018 Twitter, Inc and other contributors
+  Maintained fork by jdecked/twemoji contributors (Unicode 17.0)
+  Licensed under the CC BY 4.0 License.
 
 paginate
   Copyright (c) 2007-2012 Christoph Haas

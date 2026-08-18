@@ -1,0 +1,24 @@
+# <type>(<optional scope>): <subject>
+#
+# type:   feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
+# scope:  optional, lowercase module or area
+#         (minify, search, i18n, studio, frontend, deps, docs, ...)
+# subject: imperative, lowercase, <= 72 chars, no trailing period
+#
+# Examples:
+#   feat(minify): consolidate minifier forks into minify-go
+#   fix(i18n): restore missing EN changelog heading
+#   docs: changelog entry for the new release (en + zh)
+#   chore(deps): bump lunr-languages from 1.20.0 to 1.21.0
+#
+# Rules:
+#   - feat/fix (user-visible changes) MUST add a changelog entry in BOTH
+#     docs/docs/changelog/index.md and index.zh.md
+#     (the release workflow extracts it for the GitHub release notes)
+#   - docs-type changes MUST include the Chinese twin page in the same commit
+#   - breaking changes: add '!' after the type/scope (feat!(api): ...)
+#     and describe the migration in the changelog entry
+#
+# Body (optional, one blank line after the subject):
+# - what changed and why
+# - anything a reviewer should know

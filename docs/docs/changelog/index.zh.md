@@ -1,3 +1,18 @@
+## [12.5.4] — Unreleased
+
+### 新增
+
+- **内置 Twemoji SVG 资源** —— 完整的 twemoji 表情集（4,000+ 个表情，
+  固定到 `jdecked/twemoji` v17.0.3，即已归档 `twitter/twemoji` 的维护分支）
+  随包发布。Unicode 表情（`:smile:`、`:us:`）现在在构建时本地内联，不再
+  引用任何 CDN（jsdelivr/maxcdn）—— 仅当表情码点不在内置集合中时才回退
+  到 CDN。
+- **内置资源附带许可证文件** —— Mermaid（MIT）和 KaTeX（MIT）许可证随
+  打包的脚本一起分发，lunr 词干模块附带其 MPL-1.1 许可证（许可证必须在
+  所有情况下随代码一起分发）。
+- **Docker 镜像以非 root 用户运行** —— 镜像现在创建 `docsforge` 用户
+  （uid 1000）并降权运行（`USER docsforge`）。
+
 ## [12.5.3] — 2026-08-17
 
 ### 新增
