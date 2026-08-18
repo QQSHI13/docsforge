@@ -185,6 +185,44 @@ class TestGetFiles:
 
 
 
+class TestAddFilesFromTheme:
+    """Twemoji assets are build-time-only and must not be copied into sites."""
+
+    def _env(self, theme_dir: Path):
+        import jinja2
+
+        return jinja2.Environment(loader=jinja2.FileSystemLoader([str(theme_dir)]))
+
+    def _config(self, theme_dir: Path):
+        theme = type("Theme", (), {"dirs": [str(theme_dir)], "static_templates": []})()
+        return type(
+            "Config",
+            (),
+            {
+                "site_dir": "/site",
+                "use_directory_urls": True,
+                "theme": theme,
+            },
+        )()
+
+    def test_emoji_assets_excluded_from_theme_files(self, tmp_path):
+        theme = tmp_path / "theme"
+        (theme / "assets" / "emoji" / "twemoji").mkdir(parents=True)
+        (theme / "assets" / "emoji" / "twemoji" / "1f004.svg").write_text("<svg/>")
+        (theme / "assets" / "images").mkdir(parents=True)
+        (theme / "assets" / "images" / "logo.svg").write_text("<svg/>")
+        (theme / "main.js").write_text("js")
+
+        from docsforge.files import Files
+
+        files = Files()
+        files.add_files_from_theme(self._env(theme), self._config(theme))
+        uris = {f.src_uri for f in files}
+        assert "assets/images/logo.svg" in uris
+        assert "main.js" in uris
+        assert not any("assets/emoji" in uri for uri in uris)
+
+
 class TestFileGenerated:
     """File.generated must use the public PluginCollection.current_plugin API."""
 

@@ -151,6 +151,12 @@ class Files:
             patterns = ['.*', '*/.*', '*.py', '*.pyc', '*.html', '*readme*', 'docsforge_theme.yml']
             # Exclude translation files
             patterns.append("locales/*")
+            # Dev from upstream mkdocs: the vendored twemoji SVG set under
+            # assets/emoji/ is a build-time-only resource — docsforge/emoji.py
+            # inlines the SVGs into the HTML at build time, so the files must
+            # not be copied into every built site (4000+ files would bloat the
+            # SW cache manifest and break offline navigation).
+            patterns.append("assets/emoji/*")
             patterns.extend(f'*{x}' for x in utils.markdown_extensions)
             patterns.extend(config.theme.static_templates)
             for pattern in patterns:

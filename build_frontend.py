@@ -250,7 +250,8 @@ def copy_templates() -> None:
         rel = src.relative_to(template_src)
         # .icons/ is a 14k-file set synced separately by copy_icons_to_out();
         # copying it here doubles the work and duplicates the output.
-        if rel.parts[0] == ".icons":
+        # assets/emoji/ (twemoji, ~4k files) is synced by copy_twemoji().
+        if rel.parts[0] == ".icons" or rel.parts[:2] == ("assets", "emoji"):
             continue
         dst = OUT / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
