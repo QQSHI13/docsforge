@@ -143,6 +143,19 @@ TikZ diagrams are written as `.tex` files, compiled to SVG, and embedded as imag
 
 ---
 
+### Maths Encyclopedia Kit (Default Preamble)
+
+*File: `assets/tikz/math-kit.tex` → `assets/tikz/math-kit.svg`*
+
+![Maths Encyclopedia Kit](assets/tikz/math-kit.svg)
+
+> No `\documentclass` needed — bare diagram sources are auto-wrapped with the
+> default math preamble (`amsmath`, `amssymb`, `tikz`, `pgfplots`, `tikz-cd`,
+> `tkz-euclide`). One source shows all three families: a commutative diagram,
+> a function plot, and a Euclidean construction.
+
+---
+
 ## Comparison
 
 | Feature | Mermaid | TikZ |
@@ -162,12 +175,21 @@ TikZ diagrams are written as `.tex` files, compiled to SVG, and embedded as imag
 # 1. Compile .tex to .dvi
 latex -interaction=nonstopmode diagram.tex
 
-# 2. Convert .dvi to .svg
-dvisvgm --no-fonts diagram.dvi -o diagram.svg
+# 2. Convert .dvi to .svg (fonts embedded, text stays selectable)
+dvisvgm diagram.dvi -o diagram.svg
 
 # Or use pdf2svg:
 pdflatex diagram.tex
 pdf2svg diagram.pdf diagram.svg
+```
+
+Bare sources (no `\documentclass`) are wrapped with the default math preamble,
+so only the picture body needs to be written:
+
+```latex
+\begin{tikzpicture}
+\draw (0,0) -- (1,1);
+\end{tikzpicture}
 ```
 
 The SVG is then referenced in Markdown as a standard image:

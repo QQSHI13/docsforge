@@ -207,6 +207,11 @@ class DocsForgeConfig(base.Config):
     compiled to SVG during the build. Requires a LaTeX toolchain (texlive).
     When False or unset, TikZ compilation is skipped."""
 
+    tikz_preamble = c.Optional(c.ListOfItems(c.Type(str)))
+    """Extra LaTeX preamble lines injected into bare TikZ sources (files
+    without a \\documentclass), after the default math preamble. Ignored for
+    full documents."""
+
     plugins = c.Plugins(theme_key='theme', default=[])
     """A list of plugins. Each item may contain a string name or a key value pair.
     A key value pair should be the string name (as the key) and a dict of config

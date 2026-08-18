@@ -6,11 +6,14 @@ LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # System deps: TikZ toolchain (texlive + dvisvgm), PDF export (chromium for
 # playwright), and curl for health checks / asset fetching.
+# texlive-fonts-recommended provides amssymb/amsfonts used by the default
+# math preamble; pgfplots, tikz-cd and tkz-euclide ship in texlive-pictures.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     texlive-latex-base \
     texlive-pictures \
     texlive-latex-extra \
+    texlive-fonts-recommended \
     dvisvgm \
     curl \
     && rm -rf /var/lib/apt/lists/*
