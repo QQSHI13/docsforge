@@ -171,6 +171,40 @@ def test_regression_manifest_key_is_files_not_Files(tmp_path: Path, monkeypatch)
     assert "Files" not in data
 
 
+def test_regression_manifest_sizes_match_built_files(tmp_path: Path, monkeypatch):
+    """_generate_cache_manifest must ship a `sizes` map with the exact byte
+    size of every built file (the SW evicts by measured size, no guessing)."""
+    import json
+
+    import docsforge.build as build_mod
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "site").mkdir()
+    src = tmp_path / "docs" / "p.md"
+    src.parent.mkdir()
+    src.write_text("# P")
+    out = tmp_path / "site" / "p" / "index.html"
+    out.parent.mkdir()
+    out.write_text("<html><body>" + ("x" * 4096) + "</body></html>")
+
+    from docsforge.files import Files
+
+    files = Files([])
+    build_mod._generate_cache_manifest(str(tmp_path / "site"), ["p/"], files)
+    data = json.loads((tmp_path / "site" / "cache-manifest.json").read_text())
+
+    assert "sizes" in data, "cache manifest must carry a sizes map"
+    assert set(data["sizes"].keys()) == set(data["files"].keys()), (
+        "every manifest file must have a size"
+    )
+    for key, size in data["sizes"].items():
+        built = tmp_path / "site" / (key.replace("./", "").rstrip("/") + "/index.html" if key.endswith("/") else key)
+        assert built.is_file(), f"size key {key!r} must resolve to a built file"
+        assert size == built.stat().st_size, (
+            f"size for {key!r} must be the exact built-file byte count"
+        )
+
+
 # ---------------------------------------------------------------------------
 # v11.1.5 (found while writing tests) — find_orphaned_outputs vs dir URLs
 # ---------------------------------------------------------------------------

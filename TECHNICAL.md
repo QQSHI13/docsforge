@@ -283,19 +283,23 @@ Lists every built file with its content hash:
 ```json
 {
   "version": "<hash of all file hashes>",
-  "files": { "assets/javascripts/bundle.min.js": "abc123...", "index.html": "def456..." }
+  "files": { "assets/javascripts/bundle.min.js": "abc123...", "index.html": "def456..." },
+  "sizes": { "assets/javascripts/bundle.min.js": 116474, "index.html": 8212 }
 }
 ```
 
 Used by the SW for hash-based invalidation: on sync, files whose hash changed
-are re-fetched; files no longer in the manifest are evicted.
+are re-fetched; files no longer in the manifest are evicted. The `sizes` map
+records the exact byte count of every built file on disk, so quota eviction
+accounts entries at their true size instead of guessing.
 
 ### Service worker (`src/assets/javascripts/sw.js`)
 
 - **Caches**: `docsforge-<BUILD_HASH>` (content), `docsforge-meta`
   (manifest + previous-files list).
 - **Constants**: `BUILD_HASH`, `BASE_URL` (with trailing-slash normalization),
-  `ORIGIN_BASE`, `SYNC_CONCURRENCY = 6`, quota margins.
+  `ORIGIN_BASE`, `SYNC_CONCURRENCY = 6`, `DOWNLOAD_COST_BYTES = 20 MiB`
+  (per-download budget reservation), `QUOTA_MARGIN_RATIO = 0.1`.
 - **IndexedDB**: `docsforge-i18n` (locale preference).
 - **Messages**:
   - `DOCSFORGE_RELOAD_DETECTED` (from the page, on Navigation Timing
@@ -308,7 +312,12 @@ are re-fetched; files no longer in the manifest are evicted.
 - **Manifest sync**: fetch `cache-manifest.json` (`cache: 'no-cache'`),
   diff against the previous files list, fetch changed URLs (concurrency 6),
   evict orphaned entries (LRU by access time when quota exceeded, plus
-  manifest-driven eviction for files no longer tracked).
+  manifest-driven eviction for files no longer tracked). The sync is
+  budgeted against the free space reported by `storage.estimate()`: each
+  download reserves a flat `DOWNLOAD_COST_BYTES` (20 MiB — the usage
+  estimate lags behind in-flight writes) and the sync stops once the budget
+  is exhausted, so files that cannot possibly fit are never downloaded in
+  the first place. Unbudgeted files are cached on demand when visited.
 - **Fetch strategy**: pages served from cache with background revalidation;
   static assets cache-first; navigation requests matched against the manifest
   (`manifestHasFile`) so pages absent from the manifest never 404 as
@@ -316,7 +325,13 @@ are re-fetched; files no longer in the manifest are evicted.
   (`nav.type === 'back_forward'`) are deliberately **not** treated as
   revalidation triggers (design decision).
 - **Quota handling**: on QuotaExceeded, evicts LRU entries (using
-  `docsforge-access-times`), with a configurable margin, and retries.
+  `docsforge-access-times`) and retries. Eviction accounts each entry at its
+  **measured** byte size (Content-Length, falling back to reading the body),
+  frees until `available + freed` covers the required bytes plus a
+  proportional 10%-of-quota margin, and drops evicted entries from the
+  persisted previous-files list (`docsforge-manifest-files`) so a later sync
+  re-fetches them instead of believing they are cached. A single resource
+  larger than the whole quota is never cached.
 
 ---
 

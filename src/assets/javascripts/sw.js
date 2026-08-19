@@ -30,7 +30,12 @@ const I18N_DB_STORE = 'preferences';
 const I18N_LOCALE_KEY = 'preferred_locale';
 
 const SYNC_CONCURRENCY = 6;
-const QUOTA_MARGIN_BYTES = 20 * 1024 * 1024;
+// Conservative per-download cost when budgeting the manifest sync against
+// free space: each changed file reserved at a flat 20 MiB regardless of its
+// real size, because the browser's quota-usage estimate lags behind in-flight
+// writes. The sync stops downloading once the budget is exhausted instead of
+// fetching files that will only be evicted again.
+const DOWNLOAD_COST_BYTES = 20 * 1024 * 1024;
 const QUOTA_MARGIN_RATIO = 0.1;
 
 // In-memory manifest + dedupe promises.
@@ -38,6 +43,10 @@ let _manifest = null;
 let _manifestRefresh = null;
 let _syncPromise = null;
 let _preferredLocale = null;
+// URLs evicted by makeSpaceIfNeeded() since the last reconciliation. The
+// manifest sync removes them from the persisted previous-files list before
+// writing, so evicted files are never falsely recorded as cached.
+let _evicted = new Set();
 
 function log(...args) {
   console.log('[SW]', ...args);
@@ -227,16 +236,52 @@ function manifestHasFile(manifest, url) {
   return Object.prototype.hasOwnProperty.call(manifest.files, key);
 }
 
-async function makeSpaceIfNeeded(requiredBytes = 0) {
-  if (!navigator.storage || !navigator.storage.estimate) return;
-  let estimate;
+// Actual byte size of a cached entry. Content-Length is exact for network
+// responses (the stored body is exactly what the server sent); synthesized
+// responses (404 pages, etc.) have no header, so measure the body directly.
+async function measuredSize(cache, url) {
   try {
-    estimate = await navigator.storage.estimate();
-  } catch (e) { return; }
-  if (!estimate || typeof estimate.usage !== 'number' || typeof estimate.quota !== 'number') return;
-  const available = estimate.quota - estimate.usage;
-  const targetFree = Math.max(requiredBytes + QUOTA_MARGIN_BYTES, Math.floor(estimate.quota * QUOTA_MARGIN_RATIO));
-  if (available >= targetFree) return;
+    const resp = await cache.match(url);
+    if (!resp) return 0;
+    const header = parseInt(resp.headers.get('content-length'), 10);
+    if (Number.isFinite(header) && header > 0) return header;
+    const body = await resp.clone().arrayBuffer();
+    return body.byteLength;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Storage estimate (usage + quota), or null when unavailable/unusable (the
+// caller then relies on reactive quota handling).
+async function storageEstimate() {
+  if (!navigator.storage || !navigator.storage.estimate) return null;
+  try {
+    const est = await navigator.storage.estimate();
+    if (est && typeof est.usage === 'number' && typeof est.quota === 'number' && est.quota > 0) return est;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+// Free space per storage.estimate(), or null when unavailable.
+async function availableBytes() {
+  const est = await storageEstimate();
+  return est ? Math.max(0, est.quota - est.usage) : null;
+}
+
+// Evict least-recently-used entries until `available + freed` covers
+// requiredBytes, accounting each entry at its ACTUAL byte size (no guesses).
+// Evicted entries are removed from the persisted previous-files list so a
+// later manifest sync re-fetches them; returns true when enough space was
+// freed for the caller to retry its cache.put().
+async function makeSpaceIfNeeded(requiredBytes = 0) {
+  const est = await storageEstimate();
+  if (!est) return false;
+  const available = Math.max(0, est.quota - est.usage);
+  // A single resource larger than the whole quota can never be cached.
+  if (requiredBytes > 0 && requiredBytes > est.quota) return false;
+  const targetFree = Math.max(requiredBytes, Math.floor(est.quota * QUOTA_MARGIN_RATIO));
+  if (available >= targetFree) return true;
 
   const cache = await caches.open(CACHE_NAME);
   const times = await readAccessTimes();
@@ -246,41 +291,81 @@ async function makeSpaceIfNeeded(requiredBytes = 0) {
     if (!key) continue;
     // Never evict the manifest itself or sw.js.
     if (key === MANIFEST_URL || key === 'sw.js') continue;
-    entries.push({ url: req.url, key, time: times[req.url] || 0 });
+    entries.push({ url: req.url, time: times[req.url] || 0 });
   }
   entries.sort((a, b) => a.time - b.time);
 
   let freed = 0;
   for (const entry of entries) {
     if (available + freed >= targetFree) break;
+    const size = await measuredSize(cache, entry.url);
     const deleted = await cache.delete(entry.url);
     if (deleted) {
       delete times[entry.url];
-      // We don't know the real byte size; assume a modest chunk and keep evicting.
-      freed += 5 * 1024 * 1024;
+      _evicted.add(entry.url);
+      freed += size;
     }
   }
   await writeAccessTimes(times);
+
+  // Drop evicted entries from the persisted previous-files list so the next
+  // manifest sync re-fetches them instead of believing they are cached.
+  const evictedKeys = [];
+  for (const url of _evicted) {
+    const key = manifestKeyOf(url);
+    if (key) evictedKeys.push(key);
+  }
+  if (evictedKeys.length > 0) {
+    const prev = await readPrevFiles();
+    let changed = false;
+    for (const key of evictedKeys) {
+      if (Object.prototype.hasOwnProperty.call(prev, key)) {
+        delete prev[key];
+        changed = true;
+      }
+    }
+    if (changed) await writePrevFiles(prev);
+  }
+  return available + freed >= targetFree;
+}
+
+// Normalize a URL to its manifest key form ('./', 'second/', ...), matching
+// how the build emits directory-index pages. Returns null for URLs outside
+// the site or for the manifest/sw.js files themselves.
+function manifestKeyOf(url) {
+  let key = urlToKey(url);
+  if (key === null) return null;
+  if (key === MANIFEST_URL || key === 'sw.js') return null;
+  if (key.endsWith('/index.html')) key = key.slice(0, -'index.html'.length) || './';
+  return key;
 }
 
 async function putWithQuotaHandling(cache, request, response) {
   try {
     await cache.put(request, response.clone());
     await touchAccessTime(request.url);
+    return true;
   } catch (e) {
     if (e && (e.name === 'QuotaExceededError')) {
-      log('Quota exceeded, evicting LRU entries...');
+      log('Quota exceeded, evicting LRU entries (measured)...');
       const sizeHint = response.headers.get('content-length');
-      await makeSpaceIfNeeded(sizeHint ? parseInt(sizeHint, 10) : 0);
-      try {
-        await cache.put(request, response.clone());
-        await touchAccessTime(request.url);
-      } catch (e2) {
-        log('Still failed after eviction:', e2.message);
+      const required = sizeHint ? parseInt(sizeHint, 10) : 0;
+      const freedEnough = await makeSpaceIfNeeded(required);
+      if (freedEnough) {
+        try {
+          await cache.put(request, response.clone());
+          await touchAccessTime(request.url);
+          return true;
+        } catch (e2) {
+          log('Still failed after eviction:', e2.message);
+        }
+      } else {
+        log('Could not free enough space for', request.url, '(required', required, 'bytes)');
       }
     } else {
       throw e;
     }
+    return false;
   }
 }
 
@@ -313,28 +398,64 @@ async function syncCacheFromManifest(manifest) {
     const cache = await caches.open(CACHE_NAME);
     let updated = 0;
 
+    // Budget the sync against the free space available NOW: every download
+    // costs a flat DOWNLOAD_COST_BYTES (the estimate lags behind in-flight
+    // writes), and the sync stops once the budget is exhausted instead of
+    // fetching files that would only be evicted again. Files skipped here are
+    // cached on demand when actually visited. A null budget (no usable
+    // estimate) falls back to reactive quota handling.
+    let budget = await availableBytes();
     const entries = Object.keys(newFiles);
     log('Syncing', entries.length, 'files from manifest...');
 
-    const tasks = entries.map(key => async () => {
+    const tasks = [];
+    for (const key of entries) {
       const newHash = newFiles[key];
-      if (prevFiles[key] === newHash) return;
+      if (prevFiles[key] === newHash) continue;
+      if (budget !== null) {
+        if (budget < DOWNLOAD_COST_BYTES) {
+          log('Quota budget exhausted, stopping sync at', key);
+          break;
+        }
+        budget -= DOWNLOAD_COST_BYTES;
+      }
+      tasks.push(key);
+    }
+    log('Syncing', tasks.length, 'changed files within quota budget...');
 
+    const runTask = async (key) => {
+      const newHash = newFiles[key];
       try {
         const fullUrl = keyToUrl(key);
         log('Caching:', key);
         const resp = await fetch(fullUrl, { cache: 'no-cache' });
         if (resp && resp.ok) {
-          await putWithQuotaHandling(cache, fullUrl, resp);
-          prevFiles[key] = newHash;
-          updated++;
+          const ok = await putWithQuotaHandling(cache, fullUrl, resp);
+          if (ok) {
+            prevFiles[key] = newHash;
+            updated++;
+          } else {
+            log('Not cached (quota):', key);
+          }
         }
       } catch (e) {
         log('Failed to cache:', key, e.message);
       }
-    });
+    };
 
-    await runWithConcurrency(tasks, SYNC_CONCURRENCY);
+    await runWithConcurrency(tasks.map(k => () => runTask(k)), SYNC_CONCURRENCY);
+
+    // Never record evicted files as cached: drop every URL evicted during
+    // this sync (or while it was running) from the previous-files list so the
+    // next sync re-fetches what actually got evicted.
+    for (const url of _evicted) {
+      const key = manifestKeyOf(url);
+      if (key && Object.prototype.hasOwnProperty.call(prevFiles, key)) {
+        delete prevFiles[key];
+        log('Unmarked evicted file:', key);
+      }
+    }
+    _evicted.clear();
     await writePrevFiles(prevFiles);
     await deleteOrphans(newFiles, prevFiles);
     log('Sync complete:', updated, 'files updated');

@@ -56,8 +56,13 @@ def has_browser() -> bool:
     return _HAS_BROWSER
 
 
-def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True, language: str | None = None) -> tuple[Path, Path]:
-    """Build a small docsforge site and return (root, site_dir)."""
+def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True, language: str | None = None, quota_assets: int = 0) -> tuple[Path, Path]:
+    """Build a small docsforge site and return (root, site_dir).
+
+    quota_assets: number of 2 MiB static binaries to drop into docs/assets
+    (used by the quota/eviction tests to force the SW against the browser's
+    storage limit).
+    """
     from docsforge.config_base import load_config
     from docsforge.build import build
 
@@ -68,6 +73,10 @@ def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True
     (docs / "second.md").write_text("# Second\n\nAnother page with searchable content.\n\nUniqueTokenSecond\n")
     (docs / "guide").mkdir()
     (docs / "guide" / "intro.md").write_text("# Introduction\n\nIntro material.\n")
+    if quota_assets:
+        (docs / "assets").mkdir()
+        for i in range(quota_assets):
+            (docs / "assets" / f"big{i + 1}.bin").write_bytes(b"x" * (2 * 1024 * 1024))
     nav_block = (
         "nav:\n  - Home: index.md\n  - Second: second.md\n  - Guide:\n      - guide/intro.md\n"
         if with_nav else ""
@@ -124,6 +133,21 @@ def served_site_i18n(tmp_path_factory):
     if not has_browser():
         pytest.skip("Playwright/Chromium unavailable — E2E tests skipped")
     _, site_dir = _build_fixture(tmp_path_factory.mktemp("e2e-i18n"), language="fr")
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", 0), lambda *a: _Handler(*a, directory=str(site_dir)))
+    httpd.daemon_threads = True
+    port = httpd.server_address[1]
+    t = threading.Thread(target=httpd.serve_forever, daemon=True)
+    t.start()
+    yield f"http://127.0.0.1:{port}/"
+    httpd.shutdown()
+
+
+@pytest.fixture(scope="module")
+def served_site_quota(tmp_path_factory):
+    """A fixture site with 2x 2 MiB static binaries for quota/eviction tests."""
+    if not has_browser():
+        pytest.skip("Playwright/Chromium unavailable — E2E tests skipped")
+    _, site_dir = _build_fixture(tmp_path_factory.mktemp("e2e-quota"), quota_assets=2)
     httpd = socketserver.ThreadingTCPServer(("127.0.0.1", 0), lambda *a: _Handler(*a, directory=str(site_dir)))
     httpd.daemon_threads = True
     port = httpd.server_address[1]

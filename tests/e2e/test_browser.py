@@ -134,6 +134,166 @@ def test_dev_server_matches_deployed(served_dev):
         p.stop()
 
 
+# --- Quota / eviction tests -------------------------------------------------
+#
+# These run Chromium with a tiny per-origin quota (--quota-override-size-mb)
+# so the SW's quota handling actually fires. The service worker budgets the
+# manifest sync at a flat 20 MiB per download, so with a 25 MiB quota exactly
+# one file gets synced; and on-demand caching of a 2 MiB binary evicts the
+# LRU entries with measured byte accounting. Tests skip when the override is
+# not honoured (quota still huge), keeping the suite green on Chromium builds
+# without the flag.
+
+_QUOTA_OVERRIDE_FLOOR = 100 * 1024 * 1024
+
+
+def _launch_quota(quota_mb: int):
+    from playwright.sync_api import sync_playwright
+    from _browser import launch_opts
+
+    opts = launch_opts()
+    opts["args"] = [f"--quota-override-size-mb={quota_mb}"]
+    p = sync_playwright().start()
+    return p, p.chromium.launch(**opts)
+
+
+def _quota_override_applied(page, quota_mb: int) -> bool:
+    """True when the quota override took effect (estimate reports ~quota_mb)."""
+    return page.evaluate(
+        "async (mb) => (await navigator.storage.estimate()).quota <= mb * 1024 * 1024",
+        quota_mb,
+    )
+
+
+def _content_cache_name(page):
+    """Name of the SW content cache (docsforge-<buildhash>), not the meta cache."""
+    return page.evaluate(
+        """async () => {
+            const names = await caches.keys();
+            return names.find(n => n.startsWith('docsforge-') && n !== 'docsforge-meta');
+        }"""
+    )
+
+
+def _cached_urls(page, cache_name: str):
+    return page.evaluate(
+        "async (name) => (await (await caches.open(name)).keys()).map(r => r.url)",
+        cache_name,
+    )
+
+
+def _tracked_files(page):
+    """The SW's persisted previous-files list (docsforge-manifest-files)."""
+    return page.evaluate(
+        """async () => {
+            const cache = await caches.open('docsforge-meta');
+            const resp = await cache.match('docsforge-manifest-files');
+            return resp ? await resp.json() : {};
+        }"""
+    )
+
+
+def test_manifest_sync_budget_stops_when_quota_small(served_site_quota):
+    """With a 25 MiB quota the flat 20 MiB-per-download budget must stop the
+    manifest sync after one file, and every tracked file must really be in
+    the cache (no 'marked cached but evicted' lies)."""
+    base_url = served_site_quota
+    p, browser = _launch_quota(25)
+    context = browser.new_context()
+    page = context.new_page()
+    try:
+        page.goto(base_url, wait_until="networkidle")
+        _sw_ready(page)
+        if not _quota_override_applied(page, 25):
+            pytest.skip("quota override not honoured by this Chromium")
+        page.wait_for_function(
+            """async () => {
+                const cache = await caches.open('docsforge-meta');
+                const resp = await cache.match('docsforge-manifest-files');
+                if (!resp) return false;
+                const files = await resp.json();
+                return Object.keys(files).length === 1;
+            }""",
+            timeout=15000,
+        )
+        tracked = _tracked_files(page)
+        assert len(tracked) == 1, f"expected exactly 1 tracked file, got {list(tracked)}"
+        cache_name = _content_cache_name(page)
+        cached = set(_cached_urls(page, cache_name))
+        for key in tracked:
+            expected = base_url + ("" if key == "./" else key)
+            assert expected.rstrip("/") in {u.rstrip("/") for u in cached}, (
+                f"tracked file {key!r} is not actually cached"
+            )
+        # The site ships many more files than the budget allowed to download.
+        manifest = page.evaluate(
+            "async () => (await (await caches.open('docsforge-meta')).match('cache-manifest.json')).json()"
+        )
+        assert len(manifest["files"]) > 1, "fixture site is too small for this test"
+        usage = page.evaluate("async () => (await navigator.storage.estimate()).usage")
+        assert usage <= 25 * 1024 * 1024
+    finally:
+        context.close()
+        browser.close()
+        p.stop()
+
+
+def test_eviction_uses_measured_sizes(served_site_quota):
+    """On-demand caching of a 2 MiB binary under a 3 MiB quota must evict the
+    LRU entries (with real byte accounting), keep the cache within quota, and
+    never leave a tracked file that is missing from the cache."""
+    base_url = served_site_quota
+    p, browser = _launch_quota(3)
+    context = browser.new_context()
+    page = context.new_page()
+    try:
+        page.goto(base_url, wait_until="networkidle")
+        _sw_ready(page)
+        if not _quota_override_applied(page, 3):
+            pytest.skip("quota override not honoured by this Chromium")
+
+        # Fetch both 2 MiB binaries through the SW. The first fits; the second
+        # exceeds the remaining space, forcing measured LRU eviction.
+        for asset in ("assets/big1.bin", "assets/big2.bin"):
+            page.evaluate(
+                "async (a) => { const r = await fetch(a); if (!r.ok) throw new Error(r.status); await r.arrayBuffer(); }",
+                asset,
+            )
+        page.wait_for_function(
+            """async (url) => {
+                const names = await caches.keys();
+                const name = names.find(n => n.startsWith('docsforge-') && n !== 'docsforge-meta');
+                const cache = await caches.open(name);
+                return !!(await cache.match(url));
+            }""",
+            base_url + "assets/big2.bin",
+            timeout=15000,
+        )
+
+        cache_name = _content_cache_name(page)
+        cached = {u.rstrip("/") for u in _cached_urls(page, cache_name)}
+        assert base_url.rstrip("/") + "/assets/big2.bin" in cached, "big2.bin must be cached"
+        assert base_url.rstrip("/") + "/assets/big1.bin" not in cached, (
+            "big1.bin must have been evicted to make room for big2.bin"
+        )
+        assert base_url.rstrip("/") not in cached, "home page must have been evicted first (LRU)"
+
+        # Every tracked file must still be present in the content cache.
+        tracked = _tracked_files(page)
+        for key in tracked:
+            expected = base_url + ("" if key == "./" else key)
+            assert expected.rstrip("/") in cached, (
+                f"tracked file {key!r} was evicted but still recorded as cached"
+            )
+
+        usage = page.evaluate("async () => (await navigator.storage.estimate()).usage")
+        assert usage <= 3 * 1024 * 1024, f"cache usage {usage} exceeds the 3 MiB quota"
+    finally:
+        context.close()
+        browser.close()
+        p.stop()
+
+
 def test_i18n_translates_ui(served_site_i18n):
     """A site built with theme.language='fr' must render <html lang='fr'> and
     translated UI strings (not the English defaults)."""
