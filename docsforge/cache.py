@@ -57,6 +57,7 @@ class CacheManager:
         self.theme_sig_file = cache_dir / "theme_sig"
         self.nav_sig_file = cache_dir / "nav_sig"
         self.validation_file = cache_dir / "validation.json"
+        self.tikz_file = cache_dir / "tikz.json"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -144,6 +145,14 @@ class CacheManager:
         """Save the per-source link/anchor validation cache."""
         self._write_json(self.validation_file, validation)
 
+    def get_tikz_hashes(self) -> dict[str, str]:
+        """Get the {tex path: source hash} cache for TikZ diagram rebuilds."""
+        return self._read_json(self.tikz_file)
+
+    def set_tikz_hashes(self, hashes: dict[str, str]) -> None:
+        """Save the {tex path: source hash} cache for TikZ diagram rebuilds."""
+        self._write_json(self.tikz_file, hashes)
+
     def get_pkg_version(self) -> str | None:
         """Get the docsforge version that produced this cache."""
         if self.pkg_version_file.exists():
@@ -186,6 +195,7 @@ class CacheManager:
             self.pkg_version_file,
             self.theme_sig_file,
             self.nav_sig_file,
+            self.tikz_file,
         ]:
             if f.exists():
                 f.unlink()

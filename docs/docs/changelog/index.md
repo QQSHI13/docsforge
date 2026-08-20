@@ -32,6 +32,12 @@
   just-cached files, and recorded them as cached anyway; offline coverage
   silently degraded to a few tail files. Now the sync stops early and the
   tracked-file list stays truthful.
+- **TikZ diagram cache is content-based** — unchanged diagrams are now
+  skipped by hashing the effective source (tex plus preamble) instead of
+  comparing file mtimes. Git checkouts and CI cache restores bump every
+  mtime, which previously recompiled all diagrams on every build; edits to
+  `tikz_preamble` now also correctly trigger recompilation (mtime never
+  noticed preamble changes).
 
 ## [12.5.4] — 2026-08-18
 

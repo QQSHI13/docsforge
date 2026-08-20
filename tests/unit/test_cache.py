@@ -206,13 +206,21 @@ class TestCacheManager:
         cm.set_version(CACHE_VERSION)
         assert cm.get_version() == CACHE_VERSION
 
+    def test_tikz_hashes_roundtrip(self, tmp_path: Path):
+        cm = CacheManager(cache_dir=tmp_path / "c")
+        assert cm.get_tikz_hashes() == {}
+        cm.set_tikz_hashes({"diagram.tex": "abc"})
+        assert cm.get_tikz_hashes() == {"diagram.tex": "abc"}
+
     def test_invalidate_clears_all(self, tmp_path: Path):
         cm = CacheManager(cache_dir=tmp_path / "c")
         cm.set_hashes({"a": "1"})
         cm.set_config_hash("x")
+        cm.set_tikz_hashes({"d.tex": "h"})
         cm.invalidate()
         assert cm.get_hashes() == {}
         assert cm.get_config_hash() is None
+        assert cm.get_tikz_hashes() == {}
 
 
 # ---------------------------------------------------------------------------
