@@ -44,6 +44,19 @@ class _AbsoluteLinksValidation(_LogLevel):
 # NOTE: The order here is important. During validation some config options
 # depend on others. So, if config option A depends on B, then A should be
 # listed higher in the schema.
+class _OfflineMode(c.OptionallyRequired[str]):
+    """Service-worker / offline caching mode."""
+
+    allowed = ("cache-first", "none")
+
+    def run_validation(self, value: object) -> str:
+        if not isinstance(value, str):
+            raise base.ValidationError(f"Expected a string, but a {type(value)} was given.")
+        if value not in self.allowed:
+            raise base.ValidationError(f"Expected one of {list(self.allowed)}, got {value!r}")
+        return value
+
+
 class DocsForgeConfig(base.Config):
     """The configuration of DocsForge itself (the root object of docsforge.yml)."""
 
@@ -228,6 +241,20 @@ class DocsForgeConfig(base.Config):
     privacy = c.Type(bool, default=True)
     """Privacy mode. When enabled, external assets are fetched and inlined
     locally to prevent tracking and ensure offline functionality."""
+
+    class Offline(base.Config):
+        mode = _OfflineMode(default="cache-first")
+        """Service worker caching mode.
+        - `cache-first` (default): a service worker registers and precaches
+          every built page and asset, serving them from the cache first for
+          instant loads and full offline support.
+        - `none`: no service worker is registered and no cache/PWA manifest is
+          generated. The site is served purely from the network — zero caching
+          by the service worker.
+        """
+
+    offline = c.SubConfig(Offline)
+    """Service worker and offline-caching behavior. See `Offline`."""
 
     hooks = c.Hooks('plugins')
     """A list of filenames that will be imported as Python modules and used as

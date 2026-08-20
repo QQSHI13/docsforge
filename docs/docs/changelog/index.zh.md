@@ -1,5 +1,13 @@
 ## [12.5.6] — 2026-08-20
 
+### 新增
+
+- **离线模式开关** —— 新增 `offline.mode` 配置项，可完全关闭 service worker。
+  默认的 `cache-first` 模式不变（注册 service worker，预缓存所有页面和资源，
+  先读缓存再回源，支持离线使用）。设置为 `offline.mode: none` 时完全跳过
+  service worker：不生成 `sw.js`、`cache-manifest.json` 或 `manifest.json`，
+  页面中也不含注册代码或 manifest 链接，站点纯粹通过网络提供服务。
+
 ### 修复
 
 - **主题签名与安装位置无关** —— 主题模板签名此前使用绝对路径，同一份

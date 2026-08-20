@@ -1,5 +1,15 @@
 ## [12.5.6] — 2026-08-20
 
+### Added
+
+- **Offline mode toggle** — a new `offline.mode` config option lets you switch
+  the service worker off entirely. The default `cache-first` mode is unchanged
+  (service worker registers, precaches every page and asset, and serves from
+  cache first for offline support). Setting `offline.mode: none` skips the
+  service worker entirely: no `sw.js`, no `cache-manifest.json`, no
+  `manifest.json`, and pages carry no registration code or manifest link — the
+  site is served purely from the network.
+
 ### Fixed
 
 - **Theme signature is location-independent** — the theme template signature

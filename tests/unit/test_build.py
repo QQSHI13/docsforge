@@ -361,6 +361,9 @@ class TestPwaManifestIcons:
             def get(self, key: str, default=None):
                 return {'favicon': 'favicon.png', 'logo': 'logo.svg'}.get(key, default)
 
+        class OfflineMode:
+            mode = "cache-first"
+
         class FakeConfig:
             site_dir = str(site)
             docs_dir = str(docs)
@@ -370,6 +373,7 @@ class TestPwaManifestIcons:
             config_file_path = ''
             extra = {}
             theme = FakeTheme()
+            offline = OfflineMode()
 
         with patch.object(build_mod, '_generate_cache_manifest'):
             _generate_pwa_manifest_and_precache(FakeConfig(), Files([]), Mock(homepage=None), None)

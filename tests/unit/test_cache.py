@@ -350,6 +350,8 @@ class TestBuildPlanner:
         dir_b = tmp_path / "b" / "templates"
         dir_a.mkdir(parents=True)
         dir_b.mkdir(parents=True)
+        (dir_a / "partials").mkdir(parents=True)
+        (dir_b / "partials").mkdir(parents=True)
         (dir_a / "base.html").write_text("v1")
         (dir_a / "partials" / "header.html").write_text("h")
         for f in ("base.html",):
