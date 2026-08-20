@@ -1,3 +1,16 @@
+## [12.5.6] — 2026-08-20
+
+### Fixed
+
+- **Theme signature is location-independent** — the theme template signature
+  used absolute file paths, so the same templates installed at a different
+  path (e.g. GitHub Actions Python toolcache updates, or a reinstall into a
+  new environment) produced a different signature and invalidated the whole
+  build cache on every CI run, defeating incremental builds. The signature
+  now hashes template contents with paths relative to each theme directory,
+  so identical templates always yield the same signature regardless of where
+  they are installed.
+
 ## [12.5.5] — 2026-08-20
 
 ### Added

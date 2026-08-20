@@ -341,6 +341,22 @@ class TestBuildPlanner:
         tpl.write_text("v2")
         assert p.theme_signature([str(tdir)]) != sig1
 
+    def test_theme_signature_is_location_independent(self, tmp_path: Path):
+        """Identical templates at different absolute paths (pip reinstall,
+        CI toolcache updates) must produce the same signature."""
+        from docsforge.cache import BuildPlanner, CacheManager, FileHasher
+        p = self._planner(tmp_path)
+        dir_a = tmp_path / "a" / "templates"
+        dir_b = tmp_path / "b" / "templates"
+        dir_a.mkdir(parents=True)
+        dir_b.mkdir(parents=True)
+        (dir_a / "base.html").write_text("v1")
+        (dir_a / "partials" / "header.html").write_text("h")
+        for f in ("base.html",):
+            (dir_b / f).write_text((dir_a / f).read_text())
+        (dir_b / "partials" / "header.html").write_text("h")
+        assert p.theme_signature([str(dir_a)]) == p.theme_signature([str(dir_b)])
+
     def test_invalidate_clears_in_memory_hashes(self, tmp_path: Path):
         """planner.invalidate() must clear in-memory hashes, not just disk files
         — otherwise unchanged pages would skip rebuild after a config/version change."""
