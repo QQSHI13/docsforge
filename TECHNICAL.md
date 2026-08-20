@@ -122,6 +122,14 @@ The `build()` function, in order:
 ### Incremental cache (`cache.py`)
 
 - `CACHE_DIR = .docsforge/cache`, `CACHE_VERSION = 1`.
+
+  Contents: `hashes.json` (source sha256 per file), `deps.json` (snippet
+  include graph), `config_hash`, `version`, `sources.json`, `meta.json`,
+  `pkg_version`, `theme_sig`, `nav_sig`, `validation.json` (per-source link/
+  anchor validation), and `tikz.json` (sha256 of each diagram's effective
+  source, i.e. tex plus preamble). The TikZ cache is content-based so
+  restored CI outputs skip unchanged diagrams even when every mtime was
+  bumped by a git checkout or cache restore.
 - `FileHasher` — SHA-256 content hashing (`hash_file`, `hash_string`).
 - `DependencyTracker` — tracks snippet includes (`--8<-- "path"` and
   `-8<-- 'path'` lines, with optional `file:5,10` line ranges) so a change to

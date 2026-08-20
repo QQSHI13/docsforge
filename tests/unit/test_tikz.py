@@ -1,9 +1,55 @@
 """Unit tests for docsforge.tikz."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
-from docsforge.tikz import DEFAULT_TIKZ_PREAMBLE, _compile_tex_to_svg, _wrap_with_preamble
+from docsforge.tikz import DEFAULT_TIKZ_PREAMBLE, _compile_tex_to_svg, _needs_rebuild, _wrap_with_preamble
+
+
+class TestNeedsRebuild:
+    def test_output_missing_always_rebuilds(self, tmp_path: Path):
+        tex = tmp_path / "a.tex"
+        tex.write_text("x")
+        assert _needs_rebuild(tex, tmp_path / "a.svg", "h", "h") is True
+
+    def test_hash_equal_skips_even_with_new_mtime(self, tmp_path: Path):
+        # A restored site + bumped mtimes (git checkout, CI cache restore)
+        # must NOT recompile an unchanged diagram.
+        tex = tmp_path / "a.tex"
+        out = tmp_path / "a.svg"
+        tex.write_text("x")
+        out.write_text("svg")
+        os.utime(tex, (10_000, 10_000))
+        os.utime(out, (1_000, 1_000))
+        assert _needs_rebuild(tex, out, "h1", "h1") is False
+
+    def test_hash_differs_rebuilds(self, tmp_path: Path):
+        tex = tmp_path / "a.tex"
+        out = tmp_path / "a.svg"
+        tex.write_text("x")
+        out.write_text("svg")
+        assert _needs_rebuild(tex, out, "h1", "h2") is True
+
+    def test_mtime_fallback_without_hashes(self, tmp_path: Path):
+        tex = tmp_path / "a.tex"
+        out = tmp_path / "a.svg"
+        tex.write_text("x")
+        out.write_text("svg")
+        os.utime(tex, (1_000, 1_000))
+        os.utime(out, (2_000, 2_000))
+        assert _needs_rebuild(tex, out) is False
+        os.utime(tex, (3_000, 3_000))
+        assert _needs_rebuild(tex, out) is True
+
+    def test_missing_hash_falls_back_to_mtime(self, tmp_path: Path):
+        tex = tmp_path / "a.tex"
+        out = tmp_path / "a.svg"
+        tex.write_text("x")
+        out.write_text("svg")
+        os.utime(tex, (1_000, 1_000))
+        os.utime(out, (2_000, 2_000))
+        assert _needs_rebuild(tex, out, "h1", None) is False
 
 
 class TestCompileTexToSvg:

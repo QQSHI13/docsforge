@@ -32,6 +32,17 @@
   just-cached files, and recorded them as cached anyway; offline coverage
   silently degraded to a few tail files. Now the sync stops early and the
   tracked-file list stays truthful.
+- **TikZ diagram cache is content-based** — unchanged diagrams are now
+  skipped by hashing the effective source (tex plus preamble) instead of
+  comparing file mtimes. Git checkouts and CI cache restores bump every
+  mtime, which previously recompiled all diagrams on every build; edits to
+  `tikz_preamble` now also correctly trigger recompilation (mtime never
+  noticed preamble changes).
+- **Theme signature is content-based** — a full rebuild is triggered by
+  actual template content changes instead of stat (mtime/size) differences.
+  Reinstalling the docsforge package or restoring a CI cache stamps fresh
+  mtimes on identical theme templates; previously that invalidated the
+  whole build cache on every CI run, defeating incremental builds.
 
 ## [12.5.4] — 2026-08-18
 

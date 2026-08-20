@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from docsforge.cache import CacheManager, FileHasher
 from pathlib import Path
 
 log = logging.getLogger("docsforge.tikz")
@@ -86,15 +87,29 @@ def _run_dvisvgm(input_file: Path, output_path: Path, cwd: Path, name: str) -> b
     return False
 
 
-def _needs_rebuild(tex_path: Path, output_path: Path) -> bool:
-    """Check if tex file needs recompilation (output missing or older)."""
+def _needs_rebuild(
+    tex_path: Path,
+    output_path: Path,
+    current_hash: str | None = None,
+    cached_hash: str | None = None,
+) -> bool:
+    """Check if a tex file needs recompilation.
+
+    Content-based when hashes are supplied (output missing or the effective
+    source — tex plus preamble — changed), falling back to mtime comparison
+    for callers without a hash cache. Content hashing makes the cache
+    survive git checkouts and CI restores, where every source mtime is
+    bumped to checkout time and mtime comparison would recompile everything.
+    """
     if not output_path.exists():
         return True
+    if current_hash is not None and cached_hash is not None:
+        return current_hash != cached_hash
     return tex_path.stat().st_mtime > output_path.stat().st_mtime
 
 
 def _compile_tex_to_svg(
-    tex_path: Path, output_path: Path, preamble: list[str] | None = None
+    tex_path: Path, output_path: Path, preamble: list[str] | None = None, cached_hash: str | None = None
 ) -> bool:
     """Compile a single .tex file to SVG.
 
@@ -114,15 +129,20 @@ def _compile_tex_to_svg(
         log.debug(f"Skipping {tex_path.name}: not a TikZ file")
         return False
 
+    # The effective source includes the preamble, so preamble edits (and
+    # default-preamble changes between versions) invalidate the cache too.
+    wrapped = _wrap_with_preamble(tex_text, preamble)
+    current_hash = FileHasher.hash_string(wrapped)
+
     # Skip if output is up to date
-    if not _needs_rebuild(tex_path, output_path):
+    if not _needs_rebuild(tex_path, output_path, current_hash, cached_hash):
         log.debug(f"Skipping {tex_path.name} (SVG up to date)")
         return True
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
         temp_tex = tmpdir / tex_path.name
-        temp_tex.write_text(_wrap_with_preamble(tex_text, preamble), encoding="utf-8")
+        temp_tex.write_text(wrapped, encoding="utf-8")
 
         # Determine which tools to use
         has_latex = _has_tool("latex")
@@ -283,15 +303,35 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     skipped = 0
     newly_compiled = 0
 
+    # Content-hash cache ({tex path: hash of effective source}) so unchanged
+    # diagrams are skipped even when every file's mtime was bumped (git
+    # checkout, CI cache restore). Hashes are recorded only for sources that
+    # produced an output, so failures retry on the next build.
+    cache = CacheManager()
+    cached_hashes = cache.get_tikz_hashes()
+    new_hashes: dict[str, str] = {}
+
     def _compile_one(tex_file: Path) -> Path | None:
         """Compile a single TikZ file; returns output path or None."""
         svg_name = tex_file.with_suffix(".svg").name
         output_path = output_dir / svg_name
+        key = str(tex_file.resolve())
 
-        if not _needs_rebuild(tex_file, output_path):
+        current_hash: str | None = None
+        try:
+            tex_text = tex_file.read_text(encoding="utf-8", errors="ignore")
+            current_hash = FileHasher.hash_string(
+                _wrap_with_preamble(tex_text, tikz_preamble)
+            )
+        except OSError:
+            tex_text = ""
+
+        if not _needs_rebuild(tex_file, output_path, current_hash, cached_hashes.get(key)):
             nonlocal skipped
             skipped += 1
             log.debug(f"Skipping {tex_file.name} (SVG up to date)")
+            if current_hash is not None:
+                new_hashes[key] = current_hash
             if output_to_docs:
                 site_output = site_dir / "assets" / "tikz" / svg_name
                 if not site_output.exists():
@@ -300,9 +340,11 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
                     log.debug(f"Copied TikZ SVG to site: {site_output}")
             return output_path
 
-        if _compile_tex_to_svg(tex_file, output_path, preamble=tikz_preamble):
+        if _compile_tex_to_svg(tex_file, output_path, preamble=tikz_preamble, cached_hash=cached_hashes.get(key)):
             nonlocal newly_compiled
             newly_compiled += 1
+            if current_hash is not None:
+                new_hashes[key] = current_hash
             if output_to_docs:
                 site_output = site_dir / "assets" / "tikz" / svg_name
                 site_output.parent.mkdir(parents=True, exist_ok=True)
@@ -319,6 +361,9 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
             result = future.result()
             if result:
                 generated.append(result)
+
+    if new_hashes:
+        cache.set_tikz_hashes(new_hashes)
 
     if skipped:
         log.info(

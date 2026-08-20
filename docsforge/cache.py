@@ -57,6 +57,7 @@ class CacheManager:
         self.theme_sig_file = cache_dir / "theme_sig"
         self.nav_sig_file = cache_dir / "nav_sig"
         self.validation_file = cache_dir / "validation.json"
+        self.tikz_file = cache_dir / "tikz.json"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -144,6 +145,14 @@ class CacheManager:
         """Save the per-source link/anchor validation cache."""
         self._write_json(self.validation_file, validation)
 
+    def get_tikz_hashes(self) -> dict[str, str]:
+        """Get the {tex path: source hash} cache for TikZ diagram rebuilds."""
+        return self._read_json(self.tikz_file)
+
+    def set_tikz_hashes(self, hashes: dict[str, str]) -> None:
+        """Save the {tex path: source hash} cache for TikZ diagram rebuilds."""
+        self._write_json(self.tikz_file, hashes)
+
     def get_pkg_version(self) -> str | None:
         """Get the docsforge version that produced this cache."""
         if self.pkg_version_file.exists():
@@ -186,6 +195,7 @@ class CacheManager:
             self.pkg_version_file,
             self.theme_sig_file,
             self.nav_sig_file,
+            self.tikz_file,
         ]:
             if f.exists():
                 f.unlink()
@@ -294,12 +304,15 @@ class BuildPlanner:
         self.validation = cache.get_validation()
 
     def theme_signature(self, dirs) -> str:
-        """Stat-only signature of all .html/.xml templates in the theme dirs.
+        """Content hash of all .html/.xml templates in the theme dirs.
 
         A change triggers a full rebuild so edits to base.html, a partial, or
         a custom_dir template propagate to every page. Only .html/.xml are
         tracked (rendering-affecting); the 14k+ .icons/ and asset directories
-        are skipped by globbing for the exact suffixes.
+        are skipped by globbing for the exact suffixes. Content hashing (not
+        mtimes) keeps the signature stable across git checkouts and CI cache
+        restores — and across re-installs of the docsforge package, which
+        stamp fresh mtimes on identical files.
         """
         import hashlib
         items = []
@@ -313,14 +326,14 @@ class BuildPlanner:
             for pattern in ('*.html', '*.xml'):
                 for p in dpath.rglob(pattern):
                     try:
-                        st = p.stat()
+                        data = p.read_bytes()
                     except OSError:
                         continue
-                    items.append((str(p), st.st_mtime_ns, st.st_size))
+                    items.append((str(p), hashlib.sha256(data).hexdigest()[:16]))
         items.sort()
         h = hashlib.sha256()
-        for path, mtime, size in items:
-            h.update(f"{path}|{mtime}|{size}".encode())
+        for path, digest in items:
+            h.update(f"{path}|{digest}".encode())
         return h.hexdigest()[:16]
 
     def _current_hash(self, path: Path) -> str:
