@@ -312,7 +312,11 @@ class BuildPlanner:
         are skipped by globbing for the exact suffixes. Content hashing (not
         mtimes) keeps the signature stable across git checkouts and CI cache
         restores — and across re-installs of the docsforge package, which
-        stamp fresh mtimes on identical files.
+        stamp fresh mtimes on identical files. Paths are recorded relative to
+        each base dir so the signature does not depend on the absolute install
+        or checkout location (e.g. GitHub Actions Python toolcache updates
+        move the package dir between runs; an absolute path in the signature
+        would invalidate the whole build cache on every CI run).
         """
         import hashlib
         items = []
@@ -329,7 +333,8 @@ class BuildPlanner:
                         data = p.read_bytes()
                     except OSError:
                         continue
-                    items.append((str(p), hashlib.sha256(data).hexdigest()[:16]))
+                    rel = p.relative_to(dpath).as_posix()
+                    items.append((rel, hashlib.sha256(data).hexdigest()[:16]))
         items.sort()
         h = hashlib.sha256()
         for path, digest in items:
