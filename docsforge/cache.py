@@ -304,12 +304,15 @@ class BuildPlanner:
         self.validation = cache.get_validation()
 
     def theme_signature(self, dirs) -> str:
-        """Stat-only signature of all .html/.xml templates in the theme dirs.
+        """Content hash of all .html/.xml templates in the theme dirs.
 
         A change triggers a full rebuild so edits to base.html, a partial, or
         a custom_dir template propagate to every page. Only .html/.xml are
         tracked (rendering-affecting); the 14k+ .icons/ and asset directories
-        are skipped by globbing for the exact suffixes.
+        are skipped by globbing for the exact suffixes. Content hashing (not
+        mtimes) keeps the signature stable across git checkouts and CI cache
+        restores — and across re-installs of the docsforge package, which
+        stamp fresh mtimes on identical files.
         """
         import hashlib
         items = []
@@ -323,14 +326,14 @@ class BuildPlanner:
             for pattern in ('*.html', '*.xml'):
                 for p in dpath.rglob(pattern):
                     try:
-                        st = p.stat()
+                        data = p.read_bytes()
                     except OSError:
                         continue
-                    items.append((str(p), st.st_mtime_ns, st.st_size))
+                    items.append((str(p), hashlib.sha256(data).hexdigest()[:16]))
         items.sort()
         h = hashlib.sha256()
-        for path, mtime, size in items:
-            h.update(f"{path}|{mtime}|{size}".encode())
+        for path, digest in items:
+            h.update(f"{path}|{digest}".encode())
         return h.hexdigest()[:16]
 
     def _current_hash(self, path: Path) -> str:

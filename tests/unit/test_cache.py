@@ -7,6 +7,7 @@ shipped broken in v11.1.3 and was fixed in v11.1.4).
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from docsforge.cache import (
@@ -324,6 +325,21 @@ class TestBuildPlanner:
         assert sig2 != sig1
         p2 = BuildPlanner(CacheManager(cache_dir=tmp_path / "c"), FileHasher())
         assert p2.should_full_rebuild(cfg, pkg_version="x", theme_sig=sig2) is True
+
+    def test_theme_signature_ignores_mtime_bumps(self, tmp_path: Path):
+        """Reinstalls/checkouts bump template mtimes without changing content;
+        the signature must not change, or every CI run does a full rebuild."""
+        from docsforge.cache import BuildPlanner, CacheManager, FileHasher
+        p = self._planner(tmp_path)
+        tdir = tmp_path / "tpl"
+        tdir.mkdir()
+        tpl = tdir / "base.html"
+        tpl.write_text("v1")
+        sig1 = p.theme_signature([str(tdir)])
+        os.utime(tpl, (10_000, 10_000))
+        assert p.theme_signature([str(tdir)]) == sig1
+        tpl.write_text("v2")
+        assert p.theme_signature([str(tdir)]) != sig1
 
     def test_invalidate_clears_in_memory_hashes(self, tmp_path: Path):
         """planner.invalidate() must clear in-memory hashes, not just disk files
