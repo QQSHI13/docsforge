@@ -95,6 +95,21 @@ class TestBuildE2E:
             "size must be the exact built-file byte count"
         )
 
+    def test_offline_mode_none_skips_sw_and_manifests(self, tmp_project, monkeypatch):
+        """With offline.mode: none, no service worker or PWA artifacts are
+        generated and pages carry no SW registration or manifest link."""
+        cfg = tmp_project / "docsforge.yml"
+        cfg.write_text(cfg.read_text() + "offline:\n  mode: none\n")
+        _build_once(monkeypatch, tmp_project)
+        site = tmp_project / "site"
+        for missing in ("sw.js", "cache-manifest.json", "manifest.json"):
+            assert not (site / missing).exists(), f"{missing} must not exist in none mode"
+        assert not (site / "assets" / "javascripts" / "sw.js").exists()
+        html = (site / "index.html").read_text()
+        assert 'rel="manifest"' not in html
+        assert "serviceWorker.register" not in html
+        assert "'serviceWorker' in navigator" not in html
+
     def test_second_build_is_incremental(self, tmp_project, monkeypatch):
         """The second build must not rewrite an unchanged page's output."""
         _build_once(monkeypatch, tmp_project)

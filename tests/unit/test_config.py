@@ -197,3 +197,26 @@ class TestHooks:
         # ...but the module itself gets a safe internal name, not the raw path.
         assert cfg["plugins"]["myhook.py"].__name__.startswith("_docsforge_hook_")
         assert "myhook.py" not in sys.modules
+
+
+class TestOfflineMode:
+    def test_default_is_cache_first(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, "site_name: T\n")
+        cfg = load_config()
+        assert cfg["offline"]["mode"] == "cache-first"
+        assert cfg.offline.mode == "cache-first"
+
+    def test_none_mode_accepted(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, "site_name: T\noffline:\n  mode: none\n")
+        cfg = load_config()
+        assert cfg.offline.mode == "none"
+
+    def test_invalid_mode_rejected(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, "site_name: T\noffline:\n  mode: everything\n")
+        from docsforge.exceptions import DocsForgeException
+
+        with pytest.raises(DocsForgeException):
+            load_config()

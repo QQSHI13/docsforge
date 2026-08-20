@@ -38,7 +38,9 @@
          to fetch a per-page sitemap.xml (404s). The language switcher handles
          locale switching instead. #}
       <link rel="icon" href="{{ config.theme.favicon | url }}">
+      {% if config.offline.mode != 'none' %}
       <link rel="manifest" href="{{ 'manifest.json' | url }}">
+      {% endif %}
       {% set palette = config.theme.palette %}
       {% if palette and not palette is mapping %}
         {% set palette = palette | first %}
@@ -632,6 +634,7 @@
         })();
 
         // Register service worker for offline support
+        {% if config.offline.mode != 'none' %}
         if ('serviceWorker' in navigator) {
           var swUrl = "{{ 'sw.js' | url }}";
           var swScope = new URL("{{ config.site_url or '/' }}", location.href).pathname;
@@ -677,6 +680,7 @@
             }
           });
         }
+        {% endif %}
       </script>
     {% endblock %}
   </body>

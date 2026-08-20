@@ -53,6 +53,17 @@ cwebp -q 80 image.png -o image.webp
 
 每次构建时自动运行。
 
+## 离线模式
+
+默认情况下，DocsForge 会注册一个 service worker，预缓存所有构建页面和资源，因此整个站点可以离线使用，并在再次访问时即时加载。如果您希望站点纯粹通过网络提供服务、不注册任何 service worker，可将 `offline.mode` 设置为 `none`：
+
+``` yaml
+offline:
+  mode: none
+```
+
+设置为 `none` 时，DocsForge 不会生成 `sw.js`、`cache-manifest.json` 或 `manifest.json`，页面中也不包含 service worker 注册代码或 manifest 链接。这适用于内容频繁更新、位于需要认证的代理之后或绝不能由客户端缓存的情况。默认模式为 `cache-first`。
+
 ## 构建输出
 
 ``` bash

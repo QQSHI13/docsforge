@@ -1016,6 +1016,18 @@ def _generate_pwa_manifest_and_precache(
     """
     site_dir = config.site_dir
 
+    if config.offline.mode == "none":
+        # Mode 'none' eliminates the service worker and all its caching: no
+        # registration, no sw.js at the site root, no cache/PWA manifest. Drop
+        # the template copy of sw.js that was copied into assets so no worker
+        # ships with the site at all.
+        try:
+            os.remove(os.path.join(site_dir, 'assets', 'javascripts', 'sw.js'))
+        except OSError:
+            pass
+        log.debug("offline.mode 'none': skipping service worker and cache manifest")
+        return
+
     # Collect all HTML page URLs for pre-caching
     precache_urls = []
     for file in files.documentation_pages():
