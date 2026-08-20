@@ -84,6 +84,17 @@ class TestBuildE2E:
             "cache-manifest.json must not be in cache manifest"
         )
 
+        # Sizes map: exact byte count of every built file, matching disk.
+        sizes = cm["sizes"]
+        assert set(sizes.keys()) == set(files.keys()), (
+            "sizes must cover exactly the manifest files"
+        )
+        for key, size in sizes.items():
+            assert isinstance(size, int) and size > 0
+        assert sizes["404.html"] == (tmp_project / "site" / "404.html").stat().st_size, (
+            "size must be the exact built-file byte count"
+        )
+
     def test_second_build_is_incremental(self, tmp_project, monkeypatch):
         """The second build must not rewrite an unchanged page's output."""
         _build_once(monkeypatch, tmp_project)

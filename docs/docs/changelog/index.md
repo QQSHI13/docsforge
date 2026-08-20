@@ -1,3 +1,38 @@
+## [12.5.5] — 2026-08-19
+
+### Added
+
+- **File sizes in `cache-manifest.json`** — the manifest now ships a `sizes`
+  map with the exact byte count of every built file. The service worker uses
+  it (plus the response's `Content-Length`, measured from the body when
+  missing) to account quota evictions at their real size instead of the old
+  guessed 5 MiB per entry.
+
+### Changed
+
+- **Service worker quota eviction is exact** — when the browser cache is
+  full, the SW evicts least-recently-used entries until the actually-freed
+  bytes (measured, not estimated) cover the required space plus a
+  proportional 10%-of-quota margin, then retries. The old flat 20 MiB free
+  margin is gone. Evicted entries are removed from the persisted
+  previous-files list, so a file that was evicted is never falsely recorded
+  as cached — the next sync re-fetches it instead of skipping it.
+- **Manifest sync is budget-aware** — the background sync now checks the
+  free space reported by `storage.estimate()` before downloading: every
+  changed file reserves a flat 20 MiB of budget (the usage estimate lags
+  behind in-flight writes), and the sync stops once the budget is exhausted
+  instead of downloading files that would only be evicted again. Files that
+  don't fit are cached on demand when actually visited. A single resource
+  larger than the whole quota is never cached.
+
+### Fixed
+
+- **Safari (and any small-quota browser) no longer thrashes** — previously
+  the sync downloaded the whole manifest, hit the quota wall, evicted the
+  just-cached files, and recorded them as cached anyway; offline coverage
+  silently degraded to a few tail files. Now the sync stops early and the
+  tracked-file list stays truthful.
+
 ## [12.5.4] — 2026-08-18
 
 ### Added

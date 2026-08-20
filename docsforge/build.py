@@ -1185,8 +1185,13 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
     index, sitemap, PWA manifest, fonts, etc.). Hashes are computed from the
     Markdown SOURCE file when one exists, otherwise from the built file on disk.
     The SW uses this manifest to cache everything directly, without parsing HTML.
+
+    The ``sizes`` map records the byte size of every built file on disk (the
+    exact number of bytes the SW stores in the browser cache), so quota
+    eviction can free precisely the space it claims instead of guessing.
     """
     manifest_files = {}
+    manifest_sizes = {}
 
     # Build a lookup from page URL to source Markdown path. Multiple URL forms
     # can map to the same source (e.g. 'second/', 'second', 'second/index.html').
@@ -1241,10 +1246,12 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
                     h = hashlib.sha256(f.read()).hexdigest()[:16]
 
             manifest_files[url] = h
+            manifest_sizes[url] = os.path.getsize(abs_path)
 
     manifest = {
         "version": hashlib.sha256(json.dumps(manifest_files, sort_keys=True).encode()).hexdigest()[:12],
         "files": manifest_files,
+        "sizes": manifest_sizes,
     }
 
     manifest_path = os.path.join(site_dir, 'cache-manifest.json')
