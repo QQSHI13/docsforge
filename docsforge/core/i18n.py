@@ -268,6 +268,24 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             _add_parent_links(locale_nav.items)
             self._locale_navs[locale] = locale_nav
 
+        # Pre-read locale-nav sources here, synchronously: the build's own
+        # pre-read pass only covers the default-locale nav, and rendering runs
+        # in a thread pool — reading lazily at render time would race (pages
+        # rendered before their locale siblings' sources were read showed
+        # empty titles and frontmatter-driven nav icons).
+        for locale in self.locales:
+            if locale == self.default_locale:
+                continue
+            locale_nav = self._locale_navs.get(locale)
+            if locale_nav is None:
+                continue
+            for nav_page in locale_nav.pages:
+                if getattr(nav_page, "markdown", None) is None:
+                    try:
+                        nav_page.read_source(config)
+                    except Exception:
+                        pass
+
         return nav
 
     def _clone_nav_items(
