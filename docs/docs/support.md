@@ -38,7 +38,7 @@ Anything it couldn't handle? Email us or open an issue — we'll help you port i
 | Need | Where |
 |------|-------|
 | **Bugs, feature requests** | [GitHub Issues](https://github.com/QQSHI13/docsforge/issues) |
-| **Security vulnerabilities** | [Security policy](../SECURITY.md) (private reporting) |
+| **Security vulnerabilities** | [Security policy](https://github.com/QQSHI13/docsforge/blob/main/SECURITY.md) (private reporting) |
 | **Migration help, private questions** | **qingquanshi65@gmail.com** |
 | **See it in action** | [Live demo](https://docsforge-demo.pages.dev) |
 
@@ -61,4 +61,4 @@ For a plugin, hook, or feature the migration script couldn't convert, tell us:
 
 - [Troubleshooting](troubleshooting.md) — common problems and fixes
 - [Migration guide](publishing/migration.md) — detailed key-by-key mapping
-- [Changelog](../changelog/index.md) — what changed in each release
+- [Changelog](changelog/index.md) — what changed in each release

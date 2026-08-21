@@ -36,7 +36,7 @@ DocsForge 免费且开源。如果你遇到问题、需要迁移帮助或发现�
 | 需求 | 途径 |
 |------|-------|
 | **Bug、功能请求** | [GitHub Issues](https://github.com/QQSHI13/docsforge/issues) |
-| **安全漏洞** | [安全策略](../SECURITY.md)（私密报告） |
+| **安全漏洞** | [安全策略](https://github.com/QQSHI13/docsforge/blob/main/SECURITY.md)（私密报告） |
 | **迁移帮助、私人问题** | **qingquanshi65@gmail.com** |
 | **在线演示** | [Live demo](https://docsforge-demo.pages.dev) |
 
@@ -59,4 +59,4 @@ DocsForge 免费且开源。如果你遇到问题、需要迁移帮助或发现�
 
 - [故障排除](troubleshooting.md) —— 常见问题与修复
 - [迁移指南](publishing/migration.md) —— 逐键映射详解
-- [更新日志](../changelog/index.md) —— 每个版本的变化
+- [更新日志](changelog/index.md) —— 每个版本的变化
