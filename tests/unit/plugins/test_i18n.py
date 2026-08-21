@@ -94,6 +94,41 @@ class TestMakeLanguageFile:
         assert lang_file.dest_uri == "index.zh.html"
         assert lang_file.i18n_locale == "zh"
 
+    def test_sibling_shares_default_stem(self, plugin):
+        from docsforge.files import File
+        from docsforge.pages import Page
+
+        default = File(
+            path="setup/index.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+        )
+        translated = File(
+            path="setup/index.zh.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+        )
+        lang_file = plugin._make_language_file({}, translated, "zh", default)
+        # Translated index pages keep the base file's stem identity so they
+        # are treated as index pages (tab icons, section indexes, sorting).
+        assert lang_file.name == "index"
+        page = Page(None, lang_file, {})
+        assert page.is_index
+
+    def test_self_referential_base_file_does_not_recurse(self, plugin):
+        from docsforge.files import File
+
+        f = File(
+            path="index.md",
+            src_dir="docs",
+            dest_dir="site",
+            use_directory_urls=True,
+        )
+        f.i18n_base_file = f
+        assert f.name == "index"
+
 
 class TestOnFiles:
     def test_translation_emitted_as_sibling(self, plugin):

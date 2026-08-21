@@ -246,6 +246,14 @@ class File:
 
     The value is the plugin's entrypoint name and can be used to find the plugin by key in the PluginCollection."""
 
+    i18n_locale: str | None = None
+    """Locale of an i18n translation sibling (e.g. 'zh' for index.zh.md); None for default-language files."""
+
+    i18n_base_file: File | None = None
+    """For i18n translation siblings, the default-language File this file translates.
+
+    May be set to the file itself on default-language files; the stem logic treats self-reference as no base."""
+
     _content: str | bytes | None = None
     """If set, the file's content will be read from here.
 
@@ -370,6 +378,11 @@ class File:
 
     def _get_stem(self) -> str:
         """Soft-deprecated, do not use."""
+        # i18n translation siblings share the base file's stem identity, so
+        # 'index.zh.md' counts as an index page exactly like 'index.md'.
+        base = self.i18n_base_file
+        if base is not None and base is not self:
+            return base.name
         filename = posixpath.basename(self.src_uri)
         stem, _ext = posixpath.splitext(filename)
         return 'index' if stem == 'README' else stem

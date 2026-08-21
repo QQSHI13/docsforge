@@ -1,3 +1,15 @@
+## [12.5.7] — 2026-08-22
+
+### Fixed
+
+- **Translated pages keep their index-page identity** — a translation sibling
+  such as `index.zh.md` was treated as a regular page instead of an index
+  page, so on multi-language sites the top navigation tabs lost their icons
+  in non-default languages (the icon comes from the tab's index page), and
+  translated section indexes were not merged into their section with
+  `navigation.indexes`. Translation siblings now share the default file's
+  stem identity, so `index.zh.md` behaves exactly like `index.md`.
+
 ## [12.5.6] — 2026-08-20
 
 ### Added

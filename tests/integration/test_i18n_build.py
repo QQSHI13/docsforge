@@ -223,6 +223,72 @@ class TestI18nBuild:
         assert re.search(r'rel=["\']?alternate["\']?', html) is not None
 
 
+class TestI18nTabIcons:
+    def _build_tabs_site(self, tmp_path: Path) -> Path:
+        docs = tmp_path / "docs"
+        setup = docs / "setup"
+        setup.mkdir(parents=True)
+        (docs / "index.md").write_text("---\ntitle: Home\nicon: material/home\n---\n# Home\n")
+        (docs / "index.zh.md").write_text("---\ntitle: 首页\nicon: material/home\n---\n# 首页\n")
+        (setup / "index.md").write_text("---\ntitle: Setup\nicon: material/cog\n---\n# Setup\n")
+        (setup / "index.zh.md").write_text("---\ntitle: 设置\nicon: material/cog\n---\n# 设置\n")
+
+        config = {
+            "site_name": "I18n Tabs",
+            "docs_dir": "docs",
+            "site_url": "https://example.com/",
+            "theme": {
+                "name": "material",
+                "font": False,
+                "features": ["navigation.tabs", "navigation.indexes"],
+            },
+            "nav": [
+                {"title": "Home", "path": "index.md"},
+                {"title": "Setup", "children": [{"title": "Setup overview", "path": "setup/index.md"}]},
+            ],
+            "extra": {
+                "i18n_languages": [
+                    {"locale": "en", "name": "English", "default": True},
+                    {"locale": "zh", "name": "中文"},
+                ]
+            },
+        }
+        import yaml
+
+        (tmp_path / "docsforge.yml").write_text(yaml.safe_dump(config))
+
+        cfg = load_config(config_file=str(tmp_path / "docsforge.yml"))
+        cfg.plugins.on_startup(command="build", dirty=True)
+        try:
+            build(cfg, dirty=True)
+        finally:
+            cfg.plugins.on_shutdown()
+        return tmp_path / "site"
+
+    @staticmethod
+    def _count_tab_icons(html: str) -> int:
+        match = re.search(r"<nav[^>]*md-tabs[\s>].*?</nav>", html, re.S)
+        assert match, "tabs nav not found"
+        return len(re.findall(r"<svg", match.group(0)))
+
+    def test_translated_tabs_keep_icons(self, tmp_path):
+        site = self._build_tabs_site(tmp_path)
+        en_html = (site / "index.html").read_text()
+        zh_html = (site / "index.zh.html").read_text()
+        # Both locales must render one icon per tab (Home + Setup).
+        assert self._count_tab_icons(en_html) == 2
+        assert self._count_tab_icons(zh_html) == 2
+
+    def test_translated_section_index_merges_into_sidebar(self, tmp_path):
+        site = self._build_tabs_site(tmp_path)
+        zh_html = (site / "index.zh.html").read_text()
+        # With navigation.indexes, the translated section index (setup/index.zh.md)
+        # is merged into its section: the sidebar renders an md-nav__container
+        # linking the section title to setup/, exactly like the default locale.
+        # Without index recognition the section falls back to a plain <label>.
+        assert re.search(r'md-nav__container["\']?>\s*<a href=["\']?setup/', zh_html)
+
+
 class TestI18nNoFrontmatterTitles:
     def test_no_none_in_nav_titles(self, tmp_path):
         docs = tmp_path / "docs"
