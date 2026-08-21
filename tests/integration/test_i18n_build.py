@@ -286,7 +286,7 @@ class TestI18nTabIcons:
         # is merged into its section: the sidebar renders an md-nav__container
         # linking the section title to setup/, exactly like the default locale.
         # Without index recognition the section falls back to a plain <label>.
-        assert re.search(r'md-nav__container>\s*<a href=["\']?setup/', zh_html)
+        assert re.search(r'md-nav__container["\']?>\s*<a href=["\']?setup/', zh_html)
 
 
 class TestI18nNoFrontmatterTitles:
