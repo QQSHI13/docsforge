@@ -379,7 +379,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             # so translated frontmatter titles are available. Ensure nav titles
             # use explicit translations when configured, and that fallback nav
             # entries copied from the default page carry the correct title.
-            self._fix_locale_nav_titles(locale_nav, locale)
+            self._fix_locale_nav_titles(locale_nav, locale, config)
             # Activate the current page in the locale nav so the sidebar/top bar
             # highlight the right item.
             for nav_page in locale_nav.pages:
@@ -400,7 +400,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         return context
 
-    def _fix_locale_nav_titles(self, locale_nav: Navigation, locale: str) -> None:
+    def _fix_locale_nav_titles(self, locale_nav: Navigation, locale: str, config: DocsForgeConfig) -> None:
         """Update nav titles after Markdown sources have been read.
 
         Explicit nav translations win over frontmatter. Fallback entries that
@@ -412,6 +412,18 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         lang_config = self._get_language_config(locale)
         for nav_page in locale_nav.pages:
+            # The build's source pre-read pass only covers the default-locale
+            # nav; locale-nav pages are separate Page objects whose sources
+            # would otherwise be read lazily in render order — leaving meta
+            # (frontmatter icons) and titles empty on pages rendered before
+            # their nav siblings. Read them here so the first rendered page
+            # already sees a fully populated locale nav.
+            if getattr(nav_page, "markdown", None) is None:
+                try:
+                    nav_page.read_source(config)
+                except Exception:
+                    pass
+
             # Use the canonical page stored on the file. For translated files
             # this is the translated page itself; for fallback entries it is
             # the original default-language page.

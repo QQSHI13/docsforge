@@ -1,3 +1,18 @@
+## [12.5.7] — 2026-08-21
+
+### Fixed
+
+- **Nav icons on translated pages** — in suffix-mode i18n sites, locale-suffixed
+  pages (e.g. `index.zh.md`) were never treated as index pages (`File.name`
+  keeps the locale suffix), so top-bar tab icons configured via frontmatter
+  `icon:` vanished on every non-default locale, and `navigation.indexes`
+  section-index detection failed for translations. Locale-suffixed twins now
+  count as index pages like their base file.
+- **Locale nav renders fully populated** — locale navigation sources were read
+  lazily in render order, so early-rendered pages saw empty titles and
+  frontmatter-driven icons for their locale's later pages. Locale nav sources
+  are now pre-read before the first page renders.
+
 ## [12.5.6] — 2026-08-20
 
 ### Added

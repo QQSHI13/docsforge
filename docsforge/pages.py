@@ -182,7 +182,14 @@ class Page(StructureItem):
 
     @property
     def is_index(self) -> bool:
-        return self.file.name == 'index'
+        if self.file.name == 'index':
+            return True
+        # Locale-suffixed twins (e.g. index.zh.md in suffix-mode i18n) are the
+        # same page as their base file for navigation purposes: File.name keeps
+        # the locale suffix ('index.zh'), so without this check the section-
+        # index detection and tab icons would silently vanish for translations.
+        base = getattr(self.file, 'i18n_base_file', None)
+        return base is not None and base.name == 'index'
 
     edit_url: str | None
     """The full URL to the source page in the source repository. Typically used to

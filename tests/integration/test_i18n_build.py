@@ -191,8 +191,8 @@ class TestI18nBuild:
         <link rel=alternate>; only the per-locale i18n alternates were removed."""
         docs = tmp_path / "docs"
         docs.mkdir()
-        (docs / "index.md").write_text("---\ntitle: Home\n---\n# Home\n")
-        (docs / "index.zh.md").write_text("---\ntitle: 首页\n---\n# 首页\n")
+        (docs / "index.md").write_text("---\ntitle: Home\nicon: material/home\n---\n# Home\n")
+        (docs / "index.zh.md").write_text("---\ntitle: 首页\nicon: material/home\n---\n# 首页\n")
         config = {
             "site_name": "I18n Test",
             "docs_dir": "docs",
@@ -270,3 +270,64 @@ class TestI18nNoFrontmatterTitles:
             # Both the English and Chinese H1-derived titles should appear in nav.
             assert "Home" in nav_html or "首页" in nav_html
             assert "Second Page" in nav_html or "第二页" in nav_html
+
+
+class TestI18nNavIcons:
+    """Regression: locale-suffixed pages (index.zh.md) must behave like their
+    base page for navigation — tab icons (frontmatter `icon:`) and section
+    indexes were silently dropped for translations because File.name keeps
+    the locale suffix ('index.zh') and locale-nav sources were read lazily
+    in render order."""
+
+    def test_tab_icons_render_for_translated_section_indexes(self, tmp_path):
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "index.md").write_text("---\ntitle: Home\nicon: material/home\n---\n# Home\n")
+        (docs / "index.zh.md").write_text("---\ntitle: 首页\nicon: material/home\n---\n# 首页\n")
+        setup = docs / "setup"
+        setup.mkdir()
+        # Section index carries the tab icon; a sibling page renders first so
+        # the icon page is NOT the first page rendered by the build.
+        (setup / "guide.md").write_text("# Guide\n\nLong guide body.\n" * 40)
+        (setup / "guide.zh.md").write_text("# 指南\n\n长指南正文。\n" * 40)
+        (setup / "index.md").write_text("---\nicon: material/cog\n---\n# Setup\n")
+        (setup / "index.zh.md").write_text("---\nicon: material/cog\n---\n# 设置\n")
+
+        config = {
+            "site_name": "I18n Icons",
+            "docs_dir": "docs",
+            "site_url": "https://example.com/",
+            "theme": {
+                "name": "material",
+                "font": False,
+                "features": ["navigation.tabs", "navigation.indexes"],
+            },
+            "nav": [
+                "index.md",
+                {"Setup": ["setup/index.md", "setup/guide.md"]},
+            ],
+            "extra": {
+                "i18n_languages": [
+                    {"locale": "en", "name": "English", "default": True},
+                    {"locale": "zh", "name": "中文"},
+                ]
+            },
+        }
+        import yaml
+
+        (tmp_path / "docsforge.yml").write_text(yaml.safe_dump(config))
+
+        cfg = load_config(config_file=str(tmp_path / "docsforge.yml"))
+        cfg.plugins.on_startup(command="build", dirty=True)
+        try:
+            build(cfg, dirty=True)
+        finally:
+            cfg.plugins.on_shutdown()
+
+        site = tmp_path / "site"
+        for rel in ("index.html", "index.zh.html"):
+            html = (site / rel).read_text()
+            tabs = html[html.find("md-tabs__list") : html.find("</ul>", html.find("md-tabs__list"))]
+            assert "<svg" in tabs, f"{rel}: no icon in top-bar tabs"
+            # Both the Home and the Setup tab must carry an icon.
+            assert tabs.count("<svg") >= 2, f"{rel}: expected icons on Home and Setup tabs"

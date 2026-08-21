@@ -194,7 +194,7 @@ def _build_locale_static_templates(
                 # resolves the right translations.
                 config.theme['language'] = locale
                 config.extra.i18n_current_locale = locale
-                plugin._fix_locale_nav_titles(locale_nav, locale)
+                plugin._fix_locale_nav_titles(locale_nav, locale, config)
                 context = get_context(
                     locale_nav, files, config, page=None, base_url=base_url
                 )
