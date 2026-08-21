@@ -20,6 +20,13 @@
   now hashes template contents with paths relative to each theme directory,
   so identical templates always yield the same signature regardless of where
   they are installed.
+- **Translated pages keep their index-page identity** — a translation sibling
+  such as `index.zh.md` was treated as a regular page instead of an index
+  page, so on multi-language sites the top navigation tabs lost their icons
+  in non-default languages (the icon comes from the tab's index page), and
+  translated section indexes were not merged into their section with
+  `navigation.indexes`. Translation siblings now share the default file's
+  stem identity, so `index.zh.md` behaves exactly like `index.md`.
 
 ## [12.5.5] — 2026-08-20
 

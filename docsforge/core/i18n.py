@@ -207,8 +207,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         )
         # Share the default file's URL so all locales are locale-agnostic.
         new_file.url = default_file.url
-        new_file.i18n_locale = locale  # type: ignore[attr-defined]
-        new_file.i18n_base_file = default_file  # type: ignore[attr-defined]
+        new_file.i18n_locale = locale
+        new_file.i18n_base_file = default_file
         new_file.inclusion = (
             InclusionLevel.NOT_IN_NAV if default_file.inclusion.is_included() else default_file.inclusion
         )
@@ -248,8 +248,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         # Ensure default pages know they are the default locale.
         for page in nav.pages:
-            page.file.i18n_locale = self.default_locale  # type: ignore[attr-defined]
-            page.file.i18n_base_file = page.file  # type: ignore[attr-defined]
+            page.file.i18n_locale = self.default_locale
+            page.file.i18n_base_file = page.file
 
         # Build a per-locale copy of the nav with translated titles but the same
         # locale-agnostic URLs. This avoids mutating shared nav items during
