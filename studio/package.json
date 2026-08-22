@@ -216,7 +216,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^26.2.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.134.0",
     "eslint": "^10.8.1",
     "globals": "^17.11.0",
     "mocha": "^11.8.0",
