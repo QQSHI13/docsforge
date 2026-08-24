@@ -346,6 +346,38 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         start_response(msg, [("Content-Type", "text/html")])
         return [error_content]
 
+    def _resolve_within_root(self, rel_file_path: str) -> str | None:
+        """Resolve a request-relative path to an absolute path inside the site root.
+
+        Returns ``None`` if the result would escape the root. This is the only
+        place request-controlled input becomes a filesystem path, so all
+        containment reasoning lives here:
+
+        1. ``normpath("/" + rel)`` collapses every ``..`` segment against the
+           leading slash, so ``../../etc/passwd`` flattens to ``etc/passwd``
+           before it is ever joined to the root. The ``lstrip("/")`` then makes
+           it relative so ``join`` cannot be hijacked by an absolute path.
+        2. Any ``..`` surviving normalization is rejected outright. This is a
+           no-op for legitimate URLs (step 1 removes them all) and a belt-and-
+           braces guard against platform-specific normalization quirks.
+        3. ``realpath`` resolves symlinks, and the result must equal the root or
+           sit beneath ``root + os.sep``. The separator matters: without it a
+           sibling directory sharing the root's name prefix (``/site`` vs
+           ``/sitezz``) would pass a bare ``startswith``.
+        """
+        rel_file_path = posixpath.normpath("/" + rel_file_path).lstrip("/")
+
+        if rel_file_path == ".." or rel_file_path.startswith(("../", "..\\")):
+            return None
+        if "/../" in rel_file_path or "\\..\\" in rel_file_path:
+            return None
+
+        base = os.path.realpath(self.root)
+        file_path = os.path.realpath(os.path.join(base, rel_file_path))
+        if file_path != base and not file_path.startswith(base + os.sep):
+            return None
+        return file_path
+
     def _serve_request(self, environ, start_response) -> Iterable[bytes] | None:
         # https://bugs.python.org/issue16679
         # https://github.com/bottlepy/bottle/blob/f9b1849db4/bottle.py#L984
@@ -367,15 +399,12 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
             if path.endswith("/"):
                 rel_file_path += "index.html"
-            # Prevent directory traversal: resolve against the site root and
-            # verify the result stays inside it. The guard needs the separator
-            # so a sibling directory sharing the root's name prefix can never
-            # pass; the guarded value is what the file operations use.
-            rel_file_path = posixpath.normpath("/" + rel_file_path).lstrip("/")
-            base = os.path.realpath(self.root)
-            file_path = os.path.realpath(os.path.join(base, rel_file_path))
-            if file_path != base and not file_path.startswith(base + os.sep):
+            # Prevent directory traversal. The guarded value is what every
+            # filesystem operation below uses.
+            resolved = self._resolve_within_root(rel_file_path)
+            if resolved is None:
                 return None
+            file_path = resolved
         elif path == "/":
             start_response("302 Found", [("Location", urllib.parse.quote(self.mount_path))])
             return []

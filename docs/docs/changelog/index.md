@@ -16,6 +16,18 @@
 
 ### Fixed
 
+- **Dev-server path containment is now a tested boundary** — the live-reload
+  server's directory-traversal guard was correct but inline, undocumented and
+  entirely untested: the one place where a request path becomes an `open()`
+  call had no regression net. It is now `_resolve_within_root()`, a single
+  documented method that returns `None` rather than a path when a request would
+  escape the site root, with an explicit rejection of any `..` surviving
+  normalization as defense in depth. Eight unit tests pin the boundary against
+  traversal, percent-encoded traversal, root-prefix sibling directories
+  (`/site` vs `/sitezz`), escaping symlinks, and absolute paths that would
+  otherwise hijack `os.path.join`. No behavior change: every path that resolved
+  before still resolves, and every path that was blocked is still blocked.
+
 - **Social cards no longer leak between builds** — `SocialPlugin.manifest` was
   a class attribute that instance code mutated, so every plugin instance shared
   one dict and card entries accumulated across rebuilds within a single
