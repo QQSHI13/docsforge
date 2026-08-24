@@ -18,6 +18,23 @@ permissions:
   contents: write
 
 jobs:
+  # Same correctness gate as CI. Repeated here rather than assumed from the
+  # pushed commit: a release can be dispatched from any state of main, including
+  # one whose CI run never completed.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install ruff
+        run: pip install 'ruff==0.16.4'
+      - name: Lint
+        run: ruff check --output-format=github .
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -37,7 +54,7 @@ jobs:
         run: python -m pytest -q
 
   release:
-    needs: test
+    needs: [lint, test]
     runs-on: ubuntu-latest
     outputs:
       commit_sha: ${{ steps.commit.outputs.commit_sha }}

@@ -5,7 +5,6 @@ project in a tmp_path so builds are hermetic and parallel-safe.
 """
 from __future__ import annotations
 
-import os
 import textwrap
 from pathlib import Path
 

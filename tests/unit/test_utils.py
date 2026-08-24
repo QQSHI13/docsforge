@@ -9,29 +9,29 @@ from docsforge import utils
 
 class TestGetThemeDir:
     def test_builtin_material_returns_templates_dir(self):
-        theme_dir = str(utils.get_theme_dir('material'))
-        assert os.path.basename(theme_dir) == 'templates'
-        assert os.path.exists(os.path.join(theme_dir, 'base.html'))
+        theme_dir = str(utils.get_theme_dir("material"))
+        assert os.path.basename(theme_dir) == "templates"
+        assert os.path.exists(os.path.join(theme_dir, "base.html"))
 
     def test_resolves_theme_by_entry_point(self, tmp_path, monkeypatch):
-        pkg = tmp_path / 'mytheme'
+        pkg = tmp_path / "mytheme"
         pkg.mkdir()
-        (pkg / '__init__.py').write_text('')
+        (pkg / "__init__.py").write_text("")
         monkeypatch.syspath_prepend(str(tmp_path))
 
-        ep = EntryPoint(name='mytheme', value='mytheme', group='docsforge.themes')
-        monkeypatch.setattr(utils, 'entry_points', lambda group: [ep])
+        ep = EntryPoint(name="mytheme", value="mytheme", group="docsforge.themes")
+        monkeypatch.setattr(utils, "entry_points", lambda group: [ep])
         utils.get_themes.cache_clear()
         try:
-            assert utils.get_theme_dir('mytheme') == str(pkg)
+            assert utils.get_theme_dir("mytheme") == str(pkg)
         finally:
             utils.get_themes.cache_clear()
 
     def test_unknown_theme_falls_back_to_builtin(self):
         # Names without a registered entry point keep the historical
         # behavior of returning the built-in templates directory.
-        theme_dir = str(utils.get_theme_dir('no-such-theme'))
-        assert os.path.basename(theme_dir) == 'templates'
+        theme_dir = str(utils.get_theme_dir("no-such-theme"))
+        assert os.path.basename(theme_dir) == "templates"
 
 
 class TestGetRelativeUrl:

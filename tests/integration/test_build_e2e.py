@@ -17,8 +17,8 @@ pytestmark = pytest.mark.slow
 
 
 def _build_once(monkeypatch, cwd: Path) -> None:
-    from docsforge.config_base import load_config
     from docsforge.build import build
+    from docsforge.config_base import load_config
 
     monkeypatch.chdir(cwd)
     cfg = load_config(config_file=str(cwd / "docsforge.yml"))
@@ -89,7 +89,7 @@ class TestBuildE2E:
         assert set(sizes.keys()) == set(files.keys()), (
             "sizes must cover exactly the manifest files"
         )
-        for key, size in sizes.items():
+        for size in sizes.values():
             assert isinstance(size, int) and size > 0
         assert sizes["404.html"] == (tmp_project / "site" / "404.html").stat().st_size, (
             "size must be the exact built-file byte count"
@@ -141,7 +141,7 @@ class TestBuildE2E:
     def test_snippet_include_change_triggers_rebuild(self, tmp_project_with_include, monkeypatch):
         """The v11.1.4 feature, end-to-end: editing an included snippet must
         rebuild the page that includes it."""
-        root, page, inc = tmp_project_with_include
+        root, _page, inc = tmp_project_with_include
         _build_once(monkeypatch, root)
         out = root / "site" / "page" / "index.html"
         assert out.is_file()

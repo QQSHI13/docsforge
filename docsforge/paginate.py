@@ -126,8 +126,8 @@ __status__ = "Beta"
 
 
 import re
-from string import Template
 import sys
+from string import Template
 
 # are we running at least python 3.x ?
 PY3 = sys.version_info[0] >= 3
@@ -250,8 +250,7 @@ class Page(list):
         # normally page should be always at least 1 but the original maintainer
         # decided that for empty collection and empty page it can be...0? (based on tests)
         # preserving behavior for BW compat
-        if self.page < 1:
-            self.page = 1
+        self.page = max(self.page, 1)
 
         self.items_per_page = items_per_page
 
@@ -272,7 +271,7 @@ class Page(list):
             raise TypeError(
                 "Your collection of type {} cannot be handled "
                 "by paginate.".format(type(self.collection))
-            )
+            ) from exc
 
         # Unless the user tells us how many items the collections has
         # we calculate that ourselves.
@@ -492,15 +491,15 @@ class Page(list):
         result = re.sub(r"~(\d+)~", links_markup, format)
 
         link_first = (
-            self.page > self.first_page and self.link_tag(link_map["first_page"]) or ""
+            (self.page > self.first_page and self.link_tag(link_map["first_page"])) or ""
         )
         link_last = (
-            self.page < self.last_page and self.link_tag(link_map["last_page"]) or ""
+            (self.page < self.last_page and self.link_tag(link_map["last_page"])) or ""
         )
         link_previous = (
-            self.previous_page and self.link_tag(link_map["previous_page"]) or ""
+            (self.previous_page and self.link_tag(link_map["previous_page"])) or ""
         )
-        link_next = self.next_page and self.link_tag(link_map["next_page"]) or ""
+        link_next = (self.next_page and self.link_tag(link_map["next_page"])) or ""
         # Interpolate '$' variables
         result = Template(result).safe_substitute(
             {

@@ -14,8 +14,8 @@ import re
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-from docsforge.config_options import ListOfItems, Optional, SubConfig, Type, ValidationError
 from docsforge.config_base import Config
+from docsforge.config_options import ListOfItems, Optional, SubConfig, Type, ValidationError
 from docsforge.core.plugin_base import BasePlugin
 from docsforge.files import File, Files, InclusionLevel
 from docsforge.nav import Navigation
@@ -81,7 +81,6 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         if not raw:
             return []
 
-        validator = SubConfig(I18nLanguageConfig)
         validated: list[I18nLanguageConfig] = []
         for idx, item in enumerate(raw):
             if not isinstance(item, dict):
@@ -90,7 +89,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 )
             cfg = I18nLanguageConfig()
             cfg.load_dict(dict(item))
-            errors, warnings = cfg.validate()
+            errors, _warnings = cfg.validate()
             if errors:
                 raise ValidationError(
                     f"extra.i18n_languages[{idx}]: "
@@ -167,10 +166,6 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         # Docs assets are no longer copied per locale.
         return files
 
-    def _process_assets(self, files: Files, non_default: list[str], config: DocsForgeConfig) -> None:
-        """Legacy hook; per-locale asset copies are no longer created."""
-        pass
-
     def _parse_file(self, src_uri: str) -> tuple[str, str | None]:
         """Return (base_key, locale) for a source file.
 
@@ -231,14 +226,9 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 return dest_uri[: -len("index.html")] + f"index.{locale}.html"
             if dest_uri == "index.html":
                 return f"index.{locale}.html"
-        else:
-            if dest_uri.endswith(".html"):
-                return dest_uri[: -len(".html")] + f".{locale}.html"
+        elif dest_uri.endswith(".html"):
+            return dest_uri[: -len(".html")] + f".{locale}.html"
         return dest_uri
-
-    def _make_fallback_file(self, config, default_file: File, locale: str) -> File:
-        """Legacy method; fallback pages are no longer emitted."""
-        raise NotImplementedError("fallback files are not supported in the locale-agnostic i18n rewrite")
 
     def on_nav(self, nav: Navigation, *, config: DocsForgeConfig, files: Files) -> Navigation:
         if not self._languages:
@@ -451,9 +441,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 page.meta["description"] = lang_config.site_description
 
         # Apply nav title translations to the page title as well.
-        if lang_config and lang_config.nav_translations:
-            if page.title in lang_config.nav_translations:
-                page.title = lang_config.nav_translations[page.title]
+        if lang_config and lang_config.nav_translations and page.title in lang_config.nav_translations:
+            page.title = lang_config.nav_translations[page.title]
 
         return html
 
@@ -474,7 +463,3 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             if lang.locale == locale:
                 return lang
         return None
-
-    def on_post_build(self, *, config: DocsForgeConfig) -> None:
-        """Per-locale sitemaps are no longer generated; the theme emits a single root sitemap."""
-        return

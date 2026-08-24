@@ -87,7 +87,6 @@ class TestMakeLanguageFile:
             use_directory_urls=True,
             inclusion=SimpleNamespace(is_included=lambda: True),
         )
-        from docsforge.files import File
 
         lang_file = plugin._make_language_file({}, translated, "zh", default)
         assert lang_file.url == "./"
@@ -167,8 +166,8 @@ class TestOnFiles:
 
 class TestOnPageContext:
     def test_sets_locale_nav_and_base_url(self, plugin):
-        from docsforge.nav import Navigation, Page
         from docsforge.files import File
+        from docsforge.nav import Navigation, Page
 
         default = File(
             path="index.md",

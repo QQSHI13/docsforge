@@ -1,6 +1,6 @@
-import subprocess
-import os
 import logging
+import os
+import subprocess
 from datetime import datetime
 
 log = logging.getLogger(__name__)
@@ -14,8 +14,8 @@ def _format_git_date(iso_string: str) -> str | None:
     if not iso_string:
         return None
     try:
-        dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
-        return dt.strftime('%b %d, %Y')
+        dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
+        return dt.strftime("%b %d, %Y")
     except ValueError:
         return iso_string
 
@@ -24,9 +24,9 @@ def _get_git_page_info(file_path: str) -> dict | None:
     """Uncached git revision info lookup for a documentation page file."""
     try:
         # Check if we're in a git repo by finding the top-level
-        cwd = os.path.dirname(file_path) or '.'
+        cwd = os.path.dirname(file_path) or "."
         result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
+            ["git", "rev-parse", "--show-toplevel"],
             cwd=cwd, capture_output=True, text=True, check=True, timeout=5
         )
         repo_root = result.stdout.strip()
@@ -36,24 +36,24 @@ def _get_git_page_info(file_path: str) -> dict | None:
 
         # Last updated date
         result = subprocess.run(
-            ['git', 'log', '-1', '--format=%cI', '--', rel_path],
+            ["git", "log", "-1", "--format=%cI", "--", rel_path],
             cwd=repo_root, capture_output=True, text=True, check=True, timeout=5
         )
         updated = result.stdout.strip()
 
         # Creation date (first commit that touched this file)
         result = subprocess.run(
-            ['git', 'log', '--follow', '--format=%cI', '--', rel_path],
+            ["git", "log", "--follow", "--format=%cI", "--", rel_path],
             cwd=repo_root, capture_output=True, text=True, check=True, timeout=5
         )
-        lines = [l for l in result.stdout.strip().split('\n') if l.strip()]
+        lines = [line for line in result.stdout.strip().split("\n") if line.strip()]
         created = lines[-1] if lines else None
 
         return {
-            'updated': updated,
-            'created': created,
-            'updated_display': _format_git_date(updated),
-            'created_display': _format_git_date(created) if created else None,
+            "updated": updated,
+            "created": created,
+            "updated_display": _format_git_date(updated),
+            "created_display": _format_git_date(created) if created else None,
         }
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
         return None

@@ -5,7 +5,6 @@ import logging
 import posixpath
 import re
 import threading
-import warnings
 from collections import OrderedDict
 from collections.abc import Callable, Iterator, MutableMapping, Sequence
 from typing import TYPE_CHECKING, Any
@@ -17,13 +16,11 @@ import markdown.htmlparser
 import markdown.treeprocessors
 from markdown.util import AMP_SUBSTITUTE
 
-from docsforge import utils
+from docsforge import meta, utils
+from docsforge.rendering import get_heading_text
 from docsforge.structure import StructureItem
 from docsforge.toc import get_toc
-from docsforge.utils import weak_property
-from docsforge.utils import get_build_date, get_markdown_title
-from docsforge import meta
-from docsforge.rendering import get_heading_text
+from docsforge.utils import get_build_date, get_markdown_title, weak_property
 
 if TYPE_CHECKING:
     from xml.etree import ElementTree as etree
@@ -63,7 +60,7 @@ def _get_markdown_instance(extensions: list[str], extension_configs: dict) -> ma
     cfg_key = _freeze(extension_configs)
     cache_key = (ext_key, cfg_key)
 
-    if not hasattr(_md_thread_local, 'instances'):
+    if not hasattr(_md_thread_local, "instances"):
         _md_thread_local.instances = OrderedDict()
 
     md = _md_thread_local.instances.get(cache_key)
@@ -79,7 +76,7 @@ def _get_markdown_instance(extensions: list[str], extension_configs: dict) -> ma
     return md
 
 
-class Page(StructureItem):
+class Page(StructureItem):  # noqa: PLW1641 - see __eq__ below
     def __init__(self, title: str | None, file: File, config: DocsForgeConfig) -> None:
         super().__init__()
         file.page = self
@@ -98,9 +95,9 @@ class Page(StructureItem):
 
         self.update_date: str = get_build_date()
 
-        self._set_canonical_url(config.get('site_url', None))
+        self._set_canonical_url(config.get("site_url", None))
         self._set_edit_url(
-            config.get('repo_url', None), config.get('edit_uri'), config.get('edit_uri_template')
+            config.get("repo_url", None), config.get("edit_uri"), config.get("edit_uri_template")
         )
 
         # Placeholders to be filled in later in the build process.
@@ -117,6 +114,9 @@ class Page(StructureItem):
         self.links_to_anchors: dict[File, dict[str, str]] | None = None
         self.link_warnings: list[tuple[int, str]] = []
 
+    # Deliberately unhashable: `title` is mutable (plugins and the renderer
+    # both set it), so any __hash__ consistent with __eq__ would change as the
+    # page is processed. Pages are keyed by their File instead.
     def __eq__(self, other) -> bool:
         return (
             isinstance(other, self.__class__)
@@ -126,7 +126,7 @@ class Page(StructureItem):
 
     def __repr__(self):
         name = self.__class__.__name__
-        title = f"{self.title!r}" if self.title is not None else '[blank]'
+        title = f"{self.title!r}" if self.title is not None else "[blank]"
         url = self.abs_url or self.file.url
         return f"{name}(title={title}, url={url!r})"
 
@@ -149,8 +149,8 @@ class Page(StructureItem):
     def url(self) -> str:
         """The URL of the page relative to the DocsForge `site_dir`."""
         url = self.file.url
-        if url in ('.', './'):
-            return ''
+        if url in (".", "./"):
+            return ""
         return url
 
     file: File
@@ -182,7 +182,7 @@ class Page(StructureItem):
 
     @property
     def is_index(self) -> bool:
-        return self.file.name == 'index'
+        return self.file.name == "index"
 
     edit_url: str | None
     """The full URL to the source page in the source repository. Typically used to
@@ -192,7 +192,7 @@ class Page(StructureItem):
     @property
     def is_homepage(self) -> bool:
         """Evaluates to `True` for the homepage of the site and `False` for all other pages."""
-        return self.is_top_level and self.is_index and self.file.url in ('.', './', 'index.html')
+        return self.is_top_level and self.is_index and self.file.url in (".", "./", "index.html")
 
     previous_page: Page | None
     """The [page][docsforge.structure.pages.Page] object for the previous page or `None`.
@@ -218,8 +218,8 @@ class Page(StructureItem):
 
     def _set_canonical_url(self, base: str | None) -> None:
         if base:
-            if not base.endswith('/'):
-                base += '/'
+            if not base.endswith("/"):
+                base += "/"
             self.canonical_url = canonical_url = urljoin(base, self.url)
             self.abs_url = urlsplit(canonical_url).path
         else:
@@ -244,7 +244,7 @@ class Page(StructureItem):
             noext = posixpath.splitext(src_uri)[0]
             file_edit_uri = edit_uri_template.format(path=src_uri, path_noext=noext)
         else:
-            if edit_uri is None or not edit_uri.endswith('/'):
+            if edit_uri is None or not edit_uri.endswith("/"):
                 raise ValueError(
                     f"edit_uri must be a string ending with '/', got {edit_uri!r}"
                 )
@@ -252,8 +252,8 @@ class Page(StructureItem):
 
         if repo_url:
             # Ensure urljoin behavior is correct
-            if not file_edit_uri.startswith(('?', '#')) and not repo_url.endswith('/'):
-                repo_url += '/'
+            if not file_edit_uri.startswith(("?", "#")) and not repo_url.endswith("/"):
+                repo_url += "/"
         else:
             try:
                 parsed_url = urlsplit(file_edit_uri)
@@ -264,7 +264,7 @@ class Page(StructureItem):
             except ValueError as e:
                 log.warning(f"edit_uri: {file_edit_uri!r} is not a valid URL: {e}")
 
-        self.edit_url = urljoin(repo_url or '', file_edit_uri)
+        self.edit_url = urljoin(repo_url or "", file_edit_uri)
 
     def read_source(self, config: DocsForgeConfig) -> None:
         source = config.plugins.on_page_read_source(page=self, config=config)
@@ -272,10 +272,10 @@ class Page(StructureItem):
             try:
                 source = self.file.content_string
             except OSError:
-                log.error(f'File not found: {self.file.src_path}')
+                log.error(f"File not found: {self.file.src_path}")
                 raise
             except ValueError:
-                log.error(f'Encoding error reading file: {self.file.src_path}')
+                log.error(f"Encoding error reading file: {self.file.src_path}")
                 raise
 
         self.markdown, self.meta = meta.get_data(source)
@@ -297,20 +297,20 @@ class Page(StructureItem):
         if self.markdown is None:
             return None
 
-        if 'title' in self.meta:
-            return self.meta['title']
+        if "title" in self.meta:
+            return self.meta["title"]
 
         if self._title_from_render:
             return self._title_from_render
-        elif self.content is None:  # Preserve legacy behavior only for edge cases in plugins.
+        if self.content is None:  # Preserve legacy behavior only for edge cases in plugins.
             title_from_md = get_markdown_title(self.markdown)
             if title_from_md is not None:
                 return title_from_md
 
         if self.is_homepage:
-            return 'Home'
+            return "Home"
 
-        title = self.file.name.replace('-', ' ').replace('_', ' ')
+        title = self.file.name.replace("-", " ").replace("_", " ")
         # Capitalize if the filename was all lowercase, otherwise leave it as-is.
         if title.lower() == title:
             title = title.capitalize()
@@ -321,10 +321,10 @@ class Page(StructureItem):
         if self.markdown is None:
             raise RuntimeError("`markdown` field hasn't been set (via `read_source`)")
 
-        mdx_configs = dict(config['mdx_configs'] or {})
+        mdx_configs = dict(config["mdx_configs"] or {})
 
         # Use cached Markdown instance for this thread to avoid re-initializing extensions
-        md = _get_markdown_instance(config['markdown_extensions'], mdx_configs)
+        md = _get_markdown_instance(config["markdown_extensions"], mdx_configs)
 
         raw_html_ext = _RawHTMLPreprocessor()
         raw_html_ext._register(md)
@@ -339,7 +339,7 @@ class Page(StructureItem):
         extract_title_ext._register(md)
 
         self.content = md.convert(self.markdown)
-        self.toc = get_toc(getattr(md, 'toc_tokens', []))
+        self.toc = get_toc(getattr(md, "toc_tokens", []))
         self._title_from_render = extract_title_ext.title
         self.present_anchor_ids = (
             extract_anchors_ext.present_anchor_ids | raw_html_ext.present_anchor_ids
@@ -378,7 +378,7 @@ class Page(StructureItem):
                 context = ""
                 if to_file == self.file:
                     problem = "there is no such anchor on this page"
-                    if anchor.startswith('fnref:'):
+                    if anchor.startswith("fnref:"):
                         context = " This seems to be a footnote that is never referenced."
                 else:
                     problem = f"the doc '{to_file.src_uri}' does not contain an anchor '#{anchor}'"
@@ -402,11 +402,10 @@ class _ExtractAnchorsTreeprocessor(markdown.treeprocessors.Treeprocessor):
     def run(self, root: etree.Element) -> None:
         add = self.present_anchor_ids.add
         for element in root.iter():
-            if anchor := element.get('id'):
+            if anchor := element.get("id"):
                 add(anchor)
-            if element.tag == 'a':
-                if anchor := element.get('name'):
-                    add(anchor)
+            if element.tag == "a" and (anchor := element.get("name")):
+                add(anchor)
 
     def _register(self, md: markdown.Markdown) -> None:
         md.treeprocessors.register(self, "docsforge_extract_anchors", priority=5)  # Same as 'toc'.
@@ -427,10 +426,10 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
         tags and then makes them relative based on the site navigation
         """
         for element in root.iter():
-            if element.tag == 'a':
-                key = 'href'
-            elif element.tag == 'img':
-                key = 'src'
+            if element.tag == "a":
+                key = "href"
+            elif element.tag == "img":
+                key = "src"
             else:
                 continue
 
@@ -445,7 +444,7 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
     @classmethod
     def _target_uri(cls, src_path: str, dest_path: str) -> str:
         return posixpath.normpath(
-            posixpath.join(posixpath.dirname(src_path), dest_path).lstrip('/')
+            posixpath.join(posixpath.dirname(src_path), dest_path).lstrip("/")
         )
 
     @classmethod
@@ -456,7 +455,7 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
         target_uri = cls._target_uri(file.src_uri, path)
         yield target_uri
 
-        if posixpath.normpath(path) == '.':
+        if posixpath.normpath(path) == ".":
             # Explicitly link to current file.
             yield file.src_uri
             return
@@ -470,19 +469,19 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
         if use_directory_urls:
             suffixes.append(lambda p: p)
         if not posixpath.splitext(target_uri)[-1]:
-            suffixes.append(lambda p: posixpath.join(p, 'index.md'))
-            suffixes.append(lambda p: posixpath.join(p, 'README.md'))
+            suffixes.append(lambda p: posixpath.join(p, "index.md"))
+            suffixes.append(lambda p: posixpath.join(p, "README.md"))
         if (
-            not target_uri.endswith('.')
-            and not path.endswith('.md')
-            and (use_directory_urls or not path.endswith('/'))
+            not target_uri.endswith(".")
+            and not path.endswith(".md")
+            and (use_directory_urls or not path.endswith("/"))
         ):
-            suffixes.append(lambda p: p.removesuffix('.html') + '.md')
+            suffixes.append(lambda p: p.removesuffix(".html") + ".md")
 
         for pref in prefixes:
             for suf in suffixes:
                 guess = posixpath.normpath(suf(pref))
-                if guess not in tried and not guess.startswith('../'):
+                if guess not in tried and not guess.startswith("../"):
                     yield guess
                     tried.add(guess)
 
@@ -498,20 +497,20 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
             return url
 
         absolute_link = None
-        warning_level, warning = 0, ''
+        warning_level, warning = 0, ""
 
         # Ignore URLs unless they are a relative link to a source file.
         if scheme or netloc:  # External link.
-            if scheme and scheme.lower() not in ('http', 'https', 'mailto', 'tel'):
+            if scheme and scheme.lower() not in ("http", "https", "mailto", "tel"):
                 log.log(
                     self.config.validation.links.unrecognized_links,
                     f"Doc file '{self.file.src_uri}' contains a link with unsupported scheme "
                     f"'{url}', it was escaped to prevent unsafe protocol use.",
                 )
                 # Neutralize dangerous protocols such as javascript: by escaping the colon.
-                return url.replace(':', '%3A', 1)
+                return url.replace(":", "%3A", 1)
             return url
-        elif url.startswith(('/', '\\')):  # Absolute link.
+        if url.startswith(("/", "\\")):  # Absolute link.
             absolute_link = self.config.validation.links.absolute_links
             if absolute_link is not _AbsoluteLinksValidationValue.RELATIVE_TO_DOCS:
                 warning_level = absolute_link
@@ -549,7 +548,7 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
                     f"it was left as is."
                 )
             else:
-                target = f" '{target_uri}'" if target_uri != url.lstrip('/') else ""
+                target = f" '{target_uri}'" if target_uri != url.lstrip("/") else ""
                 warning_level = self.config.validation.links.not_found
                 warning = (
                     f"Doc file '{self.file.src_uri}' contains a link '{url}', "
@@ -564,20 +563,20 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
 
             # There was no match, so try to guess what other file could've been intended.
             if warning_level > logging.DEBUG:
-                suggest_url = ''
+                suggest_url = ""
                 for path in possible_target_uris:
                     if self.files.get_file_from_path(path) is not None:
                         if anchor and path == self.file.src_uri:
-                            path = ''
+                            suggest_path = ""
                         elif absolute_link is _AbsoluteLinksValidationValue.RELATIVE_TO_DOCS:
-                            path = '/' + path
+                            suggest_path = "/" + path
                         else:
-                            path = utils.get_relative_url(self.file.src_uri, path)
-                        suggest_url = urlunsplit(('', '', path, query, anchor))
+                            suggest_path = utils.get_relative_url(self.file.src_uri, path)
+                        suggest_url = urlunsplit(("", "", suggest_path, query, anchor))
                         break
                 else:
-                    if '@' in url and '.' in url and '/' not in url:
-                        suggest_url = f'mailto:{url}'
+                    if "@" in url and "." in url and "/" not in url:
+                        suggest_url = f"mailto:{url}"
                 if suggest_url:
                     warning += f" Did you mean '{suggest_url}'?"
             # Collect instead of logging inline so the validation pass can
@@ -611,7 +610,7 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
             else:
                 log.log(warning_level, warning)
         path = utils.get_relative_url(self.file.url, target_file.url)
-        return urlunsplit(('', '', path, query, anchor))
+        return urlunsplit(("", "", path, query, anchor))
 
     def _register(self, md: markdown.Markdown) -> None:
         md.treeprocessors.register(self, "relpath", 0)
@@ -619,12 +618,12 @@ class _RelativePathTreeprocessor(markdown.treeprocessors.Treeprocessor):
 
 # Inline code spans (`...` or ``...``) may contain literal HTML that must not be
 # treated as real HTML/anchors. This regex matches Markdown code spans.
-_CODE_SPAN_RE = re.compile(r'(?<!\\)(`+)(.*?)(?<!`)\1(?!`)', re.DOTALL)
+_CODE_SPAN_RE = re.compile(r"(?<!\\)(`+)(.*?)(?<!`)\1(?!`)", re.DOTALL)
 
 
 def _mask_code_spans(text: str) -> str:
     """Replace Markdown code spans with spaces so HTML inside them is ignored."""
-    return _CODE_SPAN_RE.sub(lambda m: ' ' * len(m.group(0)), text)
+    return _CODE_SPAN_RE.sub(lambda m: " " * len(m.group(0)), text)
 
 
 class _RawHTMLPreprocessor(markdown.preprocessors.Preprocessor):
@@ -635,7 +634,7 @@ class _RawHTMLPreprocessor(markdown.preprocessors.Preprocessor):
     def run(self, lines: list[str]) -> list[str]:
         parser = _HTMLHandler()
         # Mask code spans before parsing so raw HTML inside them is not extracted.
-        parser.feed(_mask_code_spans('\n'.join(lines)))
+        parser.feed(_mask_code_spans("\n".join(lines)))
         parser.close()
         self.present_anchor_ids = parser.present_anchor_ids
         return lines
@@ -655,7 +654,7 @@ class _HTMLHandler(markdown.htmlparser.htmlparser.HTMLParser):  # type: ignore[n
 
     def handle_starttag(self, tag: str, attrs: Sequence[tuple[str, str]]) -> None:
         for k, v in attrs:
-            if k == 'id' or (k == 'name' and tag == 'a'):
+            if k == "id" or (k == "name" and tag == "a"):
                 self.present_anchor_ids.add(v)
         return super().handle_starttag(tag, attrs)
 
@@ -666,7 +665,7 @@ class _ExtractTitleTreeprocessor(markdown.treeprocessors.Treeprocessor):
 
     def run(self, root: etree.Element) -> etree.Element:
         for el in root:
-            if el.tag == 'h1':
+            if el.tag == "h1":
                 self.title = get_heading_text(el, self.md)
                 break
         return root

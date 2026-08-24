@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import jinja2
-    import yaml
 
 from docsforge import localization
 from docsforge.config_base import ValidationError
@@ -55,15 +54,15 @@ class Theme(MutableMapping[str, Any]):
     ) -> None:
         self.name = name
         self._custom_dir = custom_dir
-        _vars: dict[str, Any] = {'name': name, 'locale': 'en'}
+        _vars: dict[str, Any] = {"name": name, "locale": "en"}
         self.__vars = _vars
 
         # DocsForge provided static templates
         package_dir = os.path.abspath(os.path.dirname(__file__))
-        docsforge_templates = os.path.join(package_dir, 'templates')
+        docsforge_templates = os.path.join(package_dir, "templates")
         # Only include known static templates, not layout templates
         self.static_templates = set()
-        for static_template in ('404.html', 'sitemap.xml'):
+        for static_template in ("404.html", "sitemap.xml"):
             path = os.path.join(docsforge_templates, static_template)
             if os.path.exists(path):
                 self.static_templates.add(static_template)
@@ -86,19 +85,19 @@ class Theme(MutableMapping[str, Any]):
         self.static_templates.update(static_templates)
         # 'name' is set from the constructor argument only; never let user
         # config desync the 'name' key from self.name.
-        user_config.pop('name', None)
+        user_config.pop("name", None)
         _vars.update(user_config)
 
         # Validate locale and convert to Locale object
         if locale is None:
-            locale = _vars['locale']
-        _vars['locale'] = localization.parse_locale(locale)
+            locale = _vars["locale"]
+        _vars["locale"] = localization.parse_locale(locale)
 
     name: str | None
 
     @property
     def locale(self) -> localization.Locale:
-        return self['locale']
+        return self["locale"]
 
     @property
     def custom_dir(self) -> str | None:
@@ -109,6 +108,7 @@ class Theme(MutableMapping[str, Any]):
         warnings.warn(
             "Do not access Theme._vars, instead access the keys of Theme directly.",
             DeprecationWarning,
+            stacklevel=2,
         )
         return self.__vars
 
@@ -122,7 +122,7 @@ class Theme(MutableMapping[str, Any]):
             self.name,
             self.dirs,
             self.static_templates,
-            ', '.join(f'{k}={v!r}' for k, v in self.items()),
+            ", ".join(f"{k}={v!r}" for k, v in self.items()),
         )
 
     def __getitem__(self, key: str) -> Any:
@@ -151,18 +151,17 @@ class Theme(MutableMapping[str, Any]):
         except ImportError:
             from yaml import SafeLoader
         from docsforge import utils
-        from docsforge.config_base import ValidationError
 
         theme_dir = utils.get_theme_dir(name)
         utils.get_themes.cache_clear()
         self.dirs.append(theme_dir)
 
         # Try theme root first, then templates/ subdirectory
-        file_path = os.path.join(theme_dir, 'docsforge_theme.yml')
+        file_path = os.path.join(theme_dir, "docsforge_theme.yml")
         if not os.path.exists(file_path):
-            file_path = os.path.join(theme_dir, 'templates', 'docsforge_theme.yml')
+            file_path = os.path.join(theme_dir, "templates", "docsforge_theme.yml")
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 theme_config = yaml.load(f, SafeLoader)
         except OSError as e:
             log.debug(e)
@@ -182,7 +181,7 @@ class Theme(MutableMapping[str, Any]):
 
         log.debug(f"Loaded theme configuration for '{name}' from '{file_path}': {theme_config}")
 
-        parent_theme = theme_config.pop('extends', None)
+        parent_theme = theme_config.pop("extends", None)
         if parent_theme is not None and not isinstance(parent_theme, str):
             raise ValidationError(
                 f"The theme '{name}' has an invalid 'extends' value: {parent_theme!r}. "
@@ -197,7 +196,7 @@ class Theme(MutableMapping[str, Any]):
                 )
             self._load_theme_config(parent_theme)
 
-        static_templates = theme_config.pop('static_templates', [])
+        static_templates = theme_config.pop("static_templates", [])
         if not isinstance(static_templates, list) or not all(
             isinstance(template, str) for template in static_templates
         ):
@@ -208,23 +207,25 @@ class Theme(MutableMapping[str, Any]):
         self.static_templates.update(static_templates)
         # 'name' comes from the theme entrypoint, not from the theme config,
         # so it must never override the key set in __init__.
-        theme_config.pop('name', None)
+        theme_config.pop("name", None)
         self.__vars.update(theme_config)
 
     def get_env(self) -> jinja2.Environment:
         """Return a Jinja environment for the theme."""
         import jinja2
+
         from docsforge import templates
         loader = jinja2.FileSystemLoader(self.dirs)
         # No autoreload because editing a template in the middle of a build is not useful.
         env = jinja2.Environment(
             loader=loader,
             auto_reload=False,
-            autoescape=jinja2.select_autoescape(['html', 'xml']),
+            autoescape=jinja2.select_autoescape(["html", "xml"]),
         )
-        env.filters['url'] = templates.url_filter
-        env.filters['script_tag'] = templates.script_tag_filter
-        env.filters['validate_icon_name'] = templates.validate_icon_name
-        env.globals['asset_url'] = templates.asset_url
+        env.filters["url"] = templates.url_filter
+        env.filters["script_tag"] = templates.script_tag_filter
+        env.filters["validate_icon_name"] = templates.validate_icon_name
+        env.filters["theme_color"] = templates.resolve_theme_color
+        env.globals["asset_url"] = templates.asset_url
         localization.install_translations(env, self.locale, self.dirs)
         return env

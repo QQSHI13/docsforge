@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from docsforge.config_base import load_config
 from docsforge.exceptions import BuildError
 from docsforge.nav import Link, Page, Section, _data_to_navigation
-from docsforge.config_base import load_config
 
 
 def _write_config(root: Path) -> Path:

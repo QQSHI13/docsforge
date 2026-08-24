@@ -8,12 +8,12 @@ import ipaddress
 import logging
 import os
 import random
+import re
 import urllib.request
 from collections.abc import Callable
 from urllib.parse import urlparse
 
 import platformdirs
-import re
 
 import docsforge
 

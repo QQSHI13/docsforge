@@ -10,11 +10,10 @@ from __future__ import annotations
 import http.server
 import socketserver
 import threading
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import pytest
-
 from _browser import launch_opts
 
 pytestmark = pytest.mark.e2e
@@ -50,21 +49,27 @@ _HAS_BROWSER = None
 
 
 def has_browser() -> bool:
-    global _HAS_BROWSER
+    global _HAS_BROWSER  # noqa: PLW0603 - session-wide memo; launching a browser to probe is slow
     if _HAS_BROWSER is None:
         _HAS_BROWSER = _can_launch_browser()
     return _HAS_BROWSER
 
 
-def _build_fixture(tmp_path: Path, site_name: str = "E2E", with_nav: bool = True, language: str | None = None, quota_assets: int = 0) -> tuple[Path, Path]:
+def _build_fixture(
+    tmp_path: Path,
+    site_name: str = "E2E",
+    with_nav: bool = True,
+    language: str | None = None,
+    quota_assets: int = 0,
+) -> tuple[Path, Path]:
     """Build a small docsforge site and return (root, site_dir).
 
     quota_assets: number of 2 MiB static binaries to drop into docs/assets
     (used by the quota/eviction tests to force the SW against the browser's
     storage limit).
     """
-    from docsforge.config_base import load_config
     from docsforge.build import build
+    from docsforge.config_base import load_config
 
     root = tmp_path / "proj"
     docs = root / "docs"
@@ -182,7 +187,6 @@ def served_dev(tmp_path_factory):
     Tests the dev-server path (the one with the most historical bugs) and
     verifies it behaves like a deployed site (SW installs, offline works).
     """
-    import os
     import re
     import subprocess
     import sys

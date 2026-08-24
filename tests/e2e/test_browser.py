@@ -113,8 +113,8 @@ def test_search_typeahead(context_page):
 def test_dev_server_matches_deployed(served_dev):
     """`docsforge serve` must install the SW and serve pages offline just like a
     deployed site (the serve == build parity promise)."""
-    from playwright.sync_api import sync_playwright
     from _browser import launch_opts
+    from playwright.sync_api import sync_playwright
 
     url = served_dev
     p = sync_playwright().start()
@@ -148,8 +148,8 @@ _QUOTA_OVERRIDE_FLOOR = 100 * 1024 * 1024
 
 
 def _launch_quota(quota_mb: int):
-    from playwright.sync_api import sync_playwright
     from _browser import launch_opts
+    from playwright.sync_api import sync_playwright
 
     opts = launch_opts()
     opts["args"] = [f"--quota-override-size-mb={quota_mb}"]
@@ -256,7 +256,8 @@ def test_eviction_uses_measured_sizes(served_site_quota):
         # exceeds the remaining space, forcing measured LRU eviction.
         for asset in ("assets/big1.bin", "assets/big2.bin"):
             page.evaluate(
-                "async (a) => { const r = await fetch(a); if (!r.ok) throw new Error(r.status); await r.arrayBuffer(); }",
+                "async (a) => { const r = await fetch(a);"
+                " if (!r.ok) throw new Error(r.status); await r.arrayBuffer(); }",
                 asset,
             )
         page.wait_for_function(
@@ -297,8 +298,8 @@ def test_eviction_uses_measured_sizes(served_site_quota):
 def test_i18n_translates_ui(served_site_i18n):
     """A site built with theme.language='fr' must render <html lang='fr'> and
     translated UI strings (not the English defaults)."""
-    from playwright.sync_api import sync_playwright
     from _browser import launch_opts
+    from playwright.sync_api import sync_playwright
 
     url = served_site_i18n
     p = sync_playwright().start()

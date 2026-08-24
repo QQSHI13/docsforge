@@ -26,10 +26,8 @@ def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> 
     import ipaddress
     # Use the correct address family for the host (IPv4 vs IPv6)
     try:
-        if isinstance(ipaddress.ip_address(host), ipaddress.IPv6Address):
-            family = socket.AF_INET6
-        else:
-            family = socket.AF_INET
+        is_v6 = isinstance(ipaddress.ip_address(host), ipaddress.IPv6Address)
+        family = socket.AF_INET6 if is_v6 else socket.AF_INET
     except ValueError:
         family = socket.AF_INET
 
@@ -38,7 +36,7 @@ def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> 
             s.settimeout(0.3)  # Prevent WSL firewall hangs (dropped SYN packets)
             try:
                 result = s.connect_ex((host, port))
-            except (socket.timeout, OSError):
+            except (TimeoutError, OSError):
                 # Port is likely available but firewall drops the probe
                 return port
             if result != 0:
@@ -50,7 +48,7 @@ def serve(
     config_file: str | BinaryIO | None = None,
     livereload: bool = False,
     watch_theme: bool = False,
-    watch: list[str] = [],
+    watch: list[str] | None = None,
     *,
     host: str | None = None,
     open_in_browser: bool = True,
@@ -69,16 +67,18 @@ def serve(
     """
     get_config_file: Callable[[], str | BinaryIO | None]
     if config_file is None or isinstance(config_file, str):
-        get_config_file = lambda: config_file
+        def get_config_file() -> str | BinaryIO | None:
+            return config_file
     elif sys.stdin and config_file is sys.stdin.buffer:
         # Stdin must be read only once, can't be reopened later.
         config_file_content = sys.stdin.buffer.read()
-        get_config_file = lambda: io.BytesIO(config_file_content)
+
+        def get_config_file() -> str | BinaryIO | None:
+            return io.BytesIO(config_file_content)
     else:
         # If closed file descriptor, reopen it through the file path instead.
-        get_config_file = lambda: (
-            config_file.name if getattr(config_file, 'closed', False) else config_file
-        )
+        def get_config_file() -> str | BinaryIO | None:
+            return config_file.name if getattr(config_file, "closed", False) else config_file
 
     # Cache loaded config by config-file mtime so incremental serve rebuilds
     # don't pay the ~1-2s config-loading cost every time.
@@ -104,22 +104,22 @@ def serve(
 
         # Extend watch list only once per config object to avoid duplicates.
         if id(config) not in _watch_applied:
-            config.watch.extend(watch)
+            config.watch.extend(watch or [])
             _watch_applied.add(id(config))
         return config
 
     config = get_config()
-    config.plugins.on_startup(command='serve', dirty=True)
+    config.plugins.on_startup(command="serve", dirty=True)
 
     config_host, config_port = config.dev_addr
     host = host or config_host
     port = _find_available_port(host, config_port)
     if port != config_port:
         log.info(f"Port {config_port} is in use, using port {port} instead")
-    mount_path = urlsplit(config.site_url or '/').path
+    mount_path = urlsplit(config.site_url or "/").path
 
     # Use localhost for the display URL when binding to all interfaces.
-    display_host = '127.0.0.1' if host in ('0.0.0.0', '::') else host
+    display_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
     config.site_url = serve_url = _serve_url(display_host, port, mount_path)
 
     def builder(config: DocsForgeConfig | None = None):
@@ -141,10 +141,10 @@ def serve(
 
     def error_handler(code) -> bytes | None:
         if code in (404, 500):
-            error_page = join(config.site_dir, f'{code}.html')
+            error_page = join(config.site_dir, f"{code}.html")
             if isfile(error_page):
                 try:
-                    with open(error_page, 'rb') as f:
+                    with open(error_page, "rb") as f:
                         return f.read()
                 except OSError as e:
                     log.debug(f"Could not read error page {error_page}: {e}")

@@ -35,4 +35,4 @@ class StructureItem(abc.ABC):
         return [self.parent, *self.parent.ancestors]
 
     def _indent_print(self, depth: int = 0) -> str:
-        return ('    ' * depth) + repr(self)
+        return ("    " * depth) + repr(self)

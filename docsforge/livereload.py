@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import functools
 import ipaddress
 import logging
 import os
@@ -19,11 +18,12 @@ import webbrowser
 import wsgiref.simple_server
 import wsgiref.util
 from collections.abc import Callable, Iterable
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, ClassVar
 
 import watchdog.events
 import watchdog.observers
 import watchdog.observers.polling
+
 
 class _LoggerAdapter(logging.LoggerAdapter):
     def process(self, msg: str, kwargs: dict) -> tuple[str, dict]:  # type: ignore[override]
@@ -185,10 +185,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             return True
 
         # Hidden files in general are often editor metadata; be conservative.
-        if name.startswith("."):
-            return True
-
-        return False
+        return name.startswith(".")
 
     def _content_unchanged(self, event) -> bool:
         """Return True if a modified event did not actually change file content."""
@@ -218,7 +215,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         # Ignore read-only events. On Linux, simply reading a file emits
         # IN_OPEN/IN_CLOSE_NOWRITE events; treating them as changes causes
         # the build itself to trigger an endless rebuild loop.
-        if event.event_type not in ('created', 'modified', 'moved', 'deleted'):
+        if event.event_type not in ("created", "modified", "moved", "deleted"):
             log.debug(f"Ignoring non-modifying event: {event}")
             return
         if self._is_ignored_event(event):
@@ -287,7 +284,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 self.builder()
             except BaseException as e:
                 if isinstance(e, SystemExit):
-                    print(e, file=sys.stderr)  # noqa: T201
+                    print(e, file=sys.stderr)
                 else:
                     traceback.print_exc()
                 log.error(
@@ -319,15 +316,11 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             super().shutdown()
         self.server_close()
         if wait:
-            try:
+            with contextlib.suppress(Exception):
                 self.observer.stop()
-            except Exception:
-                pass
             self.serve_thread.join(timeout=1)
-            try:
+            with contextlib.suppress(Exception):
                 self.observer.join(timeout=1)
-            except Exception:
-                pass
 
     def serve_request(self, environ, start_response) -> Iterable[bytes]:
         try:
@@ -394,7 +387,9 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             self._epoch_cond.wait_for(lambda: self._visible_epoch == self._wanted_epoch)
 
         try:
-            file: BinaryIO = open(file_path, "rb")
+            # Deliberately left open: FileWrapper streams it to the client and
+            # closes it when the response finishes.
+            file: BinaryIO = open(file_path, "rb")  # noqa: SIM115
         except OSError:
             if not path.endswith("/") and os.path.isfile(os.path.join(file_path, "index.html")):
                 # Percent-encode everything (safe="") so the header value can
@@ -414,7 +409,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
     # Hermetic content-type map. Values are constants — the request path only
     # ever selects a key, so the emitted header can't be influenced by the URL
     # (no response splitting) and the server has no OS mime database to depend on.
-    _CONTENT_TYPES = {
+    _CONTENT_TYPES: ClassVar[dict[str, str]] = {
         ".js": "application/javascript",
         ".mjs": "application/javascript",
         ".gz": "application/gzip",

@@ -7,23 +7,21 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 import minify
 
 from docsforge.config_defaults import DocsForgeConfig
-from docsforge.pages import Page
 from docsforge.core.plugin_base import BasePlugin
+from docsforge.pages import Page
 
-EXTRAS: Dict[str, str] = {
+EXTRAS: dict[str, str] = {
     "js": "extra_javascript",
     "css": "extra_css",
 }
 
 # Per-type minifier: file type -> MIME type for the Go minifier backend.
-MINIFIERS: Dict[str, str] = {
+MINIFIERS: dict[str, str] = {
     "js": "application/javascript",
     "css": "text/css",
 }
@@ -34,7 +32,7 @@ log = logging.getLogger(__name__)
 class MinifyPlugin(BasePlugin):
     """Always-on minify plugin. No configuration options."""
 
-    config_scheme: Tuple = ()
+    config_scheme: tuple = ()
 
     def __init__(self) -> None:
         # original site-relative path -> minified content
@@ -44,7 +42,7 @@ class MinifyPlugin(BasePlugin):
     @staticmethod
     def _item_path(item) -> str:
         """Return the path string from an extra item (ExtraScriptValue or str)."""
-        return str(item.path if hasattr(item, 'path') else item).strip()
+        return str(item.path if hasattr(item, "path") else item).strip()
 
     @staticmethod
     def _is_within(path: Path, base: Path) -> bool:
@@ -73,15 +71,15 @@ class MinifyPlugin(BasePlugin):
         if not extra_files:
             return
 
-        docs_dir = Path(config['docs_dir'])
+        docs_dir = Path(config["docs_dir"])
         extra_list = config[extra_key]
 
         for idx, extra_item in enumerate(extra_files):
             file_path = self._item_path(extra_item)
             # Skip absolute/external URLs and empty paths.
-            if not file_path or file_path.startswith(('http://', 'https://', '//')):
+            if not file_path or file_path.startswith(("http://", "https://", "//")):
                 continue
-            src_path = docs_dir / file_path.lstrip('/')
+            src_path = docs_dir / file_path.lstrip("/")
             try:
                 src_path = src_path.resolve()
             except (OSError, ValueError):
@@ -94,20 +92,20 @@ class MinifyPlugin(BasePlugin):
                 continue
 
             try:
-                file_data = src_path.read_text(encoding='utf-8')
+                file_data = src_path.read_text(encoding="utf-8")
                 minified = self._minify_file_data(file_data, mediatype)
-                file_hash = hashlib.sha384(minified.encode('utf-8')).hexdigest()[:8]
-                site_rel_path = file_path.lstrip('/')
+                file_hash = hashlib.sha384(minified.encode("utf-8")).hexdigest()[:8]
+                site_rel_path = file_path.lstrip("/")
                 self._pending_minified[site_rel_path] = minified
                 new_path = f"{file_path}?v={file_hash}"
-                if hasattr(extra_item, 'path'):
+                if hasattr(extra_item, "path"):
                     extra_item.path = new_path
                 else:
                     extra_list[idx] = new_path
             except Exception as e:
                 log.warning(f"Failed to minify extra {file_type} file {file_path}: {e}")
 
-    def _minify_html_page(self, output: str) -> Optional[str]:
+    def _minify_html_page(self, output: str) -> str | None:
         """Minify HTML page content. Always enabled."""
         return minify.string("text/html", output)
 
@@ -117,13 +115,13 @@ class MinifyPlugin(BasePlugin):
         self._process_extras("js", config)
         self._process_extras("css", config)
 
-    def on_post_page(self, output: str, *, page: Page, config: DocsForgeConfig) -> Optional[str]:
+    def on_post_page(self, output: str, *, page: Page, config: DocsForgeConfig) -> str | None:
         """Minify HTML page before saving to disk."""
         return self._minify_html_page(output)
 
     def on_post_template(
         self, output_content: str, *, template_name: str, config: DocsForgeConfig
-    ) -> Optional[str]:
+    ) -> str | None:
         """Minify HTML template files, e.g. 404.html, before saving to disk."""
         if template_name.endswith(".html"):
             return self._minify_html_page(output_content)
@@ -131,7 +129,7 @@ class MinifyPlugin(BasePlugin):
 
     def on_post_build(self, *, config: DocsForgeConfig) -> None:
         """Write minified extra JS/CSS files to the site directory."""
-        site_dir = Path(config['site_dir']).resolve()
+        site_dir = Path(config["site_dir"]).resolve()
         for site_rel_path, minified in self._pending_minified.items():
             dest_path = (site_dir / site_rel_path).resolve()
             if not self._is_within(dest_path, site_dir):
@@ -139,6 +137,6 @@ class MinifyPlugin(BasePlugin):
                 continue
             try:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
-                dest_path.write_text(minified, encoding='utf-8')
+                dest_path.write_text(minified, encoding="utf-8")
             except Exception as e:
                 log.warning(f"Failed to write minified file {site_rel_path}: {e}")

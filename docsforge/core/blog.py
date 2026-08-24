@@ -6,29 +6,26 @@ import logging
 import os
 import posixpath
 import re
-import yaml
-from email.utils import format_datetime as _email_format_datetime
-from pathlib import Path
-from urllib.parse import urljoin
-from xml.sax.saxutils import escape
-
 from collections.abc import Callable
 from copy import copy
 from datetime import date, datetime, time, timezone
+from email.utils import format_datetime as _email_format_datetime
 from html.parser import HTMLParser
+from math import ceil
+from pathlib import Path
+from re import Match
+from shutil import rmtree
+from tempfile import mkdtemp
+from urllib.parse import urljoin, urlparse
+from xml.etree.ElementTree import Element
+from xml.sax.saxutils import escape
+
+import yaml
 from jinja2 import pass_context
 from jinja2.runtime import Context
 from markdown import Markdown
 from markdown.treeprocessors import Treeprocessor
-from math import ceil
-from docsforge.paginate import Page as Pagination
 from pymdownx.slugs import slugify
-from re import Match
-from shutil import rmtree
-from typing import Dict
-from tempfile import mkdtemp
-from urllib.parse import urlparse
-from xml.etree.ElementTree import Element
 from yaml import SafeLoader
 
 from docsforge import copy_file, get_relative_url
@@ -36,14 +33,16 @@ from docsforge.config_base import BaseConfigOption, Config, ValidationError
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, Optional, SubConfig, T, Type
 from docsforge.core.meta import MetaPlugin
+from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.core.search import void
 from docsforge.exceptions import PluginError
 from docsforge.files import File, Files, InclusionLevel
 from docsforge.meta import YAML_RE
 from docsforge.nav import Link, Navigation, Section, _add_parent_links, _data_to_navigation
 from docsforge.pages import Page, _RelativePathTreeprocessor
-from docsforge.core.plugin_base import BasePlugin, event_priority
+from docsforge.paginate import Page as Pagination
 from docsforge.structure import StructureItem
+
 # Try to import babel date formatting, fall back to strftime if unavailable
 try:
     from babel.dates import format_date, format_datetime
@@ -58,7 +57,7 @@ from docsforge.toc import AnchorLink, TableOfContents, get_toc
 # -----------------------------------------------------------------------------
 
 # Date dictionary
-class DateDict(Dict[str, datetime]):
+class DateDict(dict[str, datetime]):
 
     # Initialize date dictionary
     def __init__(self, data: dict):
@@ -71,6 +70,7 @@ class DateDict(Dict[str, datetime]):
     def __getattr__(self, name: str):
         if name in self:
             return self[name]
+        return None
 
 # -----------------------------------------------------------------------------
 
@@ -100,7 +100,7 @@ class PostDate(BaseConfigOption[DateDict]):
                 # Set timezone to UTC if not set
                 if value.tzinfo is None:
                     config[key_name][key] = value.replace(tzinfo=timezone.utc)
-                continue;
+                continue
 
 
             # Handle date - we set 00:00:00 as the default time, if the author
@@ -291,7 +291,7 @@ class BlogConfig(Config):
     categories_slugify_separator = Type(str, default = "-")
     categories_sort_by = Type(Callable, default = view_name)
     categories_sort_reverse = Type(bool, default = False)
-    categories_allowed = Type(list, default = list())
+    categories_allowed = Type(list, default = [])
     categories_pagination = Optional(Type(bool))
     categories_pagination_per_page = Optional(Type(int))
     categories_toc = Optional(Type(bool))
@@ -345,12 +345,12 @@ class ReadtimeParser(HTMLParser):
         super().__init__(convert_charrefs = True)
 
         # Tags to skip
-        self.skip = set([
+        self.skip = {
             "object",                  # Objects
             "script",                  # Scripts
             "style",                   # Styles
             "svg"                      # SVGs
-        ])
+        }
 
         # Current context
         self.context = []
@@ -408,7 +408,8 @@ def readtime(html: str, words_per_minute: int):
     delta = 12
     for _ in range(parser.images):
         seconds += delta
-        if delta > 3: delta -= 1
+        if delta > 3:
+            delta -= 1
 
     # Return readtime in minutes
     return ceil(seconds / 60)
@@ -693,12 +694,12 @@ def _patch(config: DocsForgeConfig):
     # table of contents extension is appropriately configured
     config.mdx_configs["toc"] = {
         **config.mdx_configs.get("toc", {}),
-        **{
+
             "anchorlink": True,        # Render headline as clickable
             "baselevel": 2,            # Render h1 as h2 and so forth
             "permalink": False,        # Remove permalinks
             "toc_depth": 2             # Remove everything below h2
-        }
+
     }
 
     # Additionally, we disable link validation when rendering excerpts, because
@@ -978,7 +979,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             f"    <description>{escape(description)}</description>",
             f"    <language>{escape(language)}</language>",
             f"    <lastBuildDate>{_email_format_datetime(_date(posts[0]), usegmt=True)}</lastBuildDate>",
-            f"    <atom:link href=\"{escape(link)}feed_rss_created.xml\" rel=\"self\" type=\"application/rss+xml\"/>",
+            f'    <atom:link href="{escape(link)}feed_rss_created.xml" rel="self" type="application/rss+xml"/>',
             *items,
             "  </channel>",
             "</rss>",
@@ -994,7 +995,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             entry = [
                 "  <entry>",
                 f"    <title>{escape(post_title)}</title>",
-                f"    <link href=\"{escape(url)}\"/>",
+                f'    <link href="{escape(url)}"/>',
                 f"    <id>{escape(url)}</id>",
                 f"    <updated>{_iso(updated)}</updated>",
                 f"    <published>{_iso(created)}</published>",
@@ -1002,15 +1003,15 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             if author:
                 entry.append(f"    <author><name>{escape(author)}</name></author>")
             if desc:
-                entry.append(f"    <content type=\"html\"><![CDATA[{desc}]]></content>")
+                entry.append(f'    <content type="html"><![CDATA[{desc}]]></content>')
             entry.append("  </entry>")
             entries.append("\n".join(entry))
         return "\n".join([
             '<?xml version="1.0" encoding="utf-8"?>',
             '<feed xmlns="http://www.w3.org/2005/Atom">',
             f"  <title>{escape(title)}</title>",
-            f"  <link href=\"{escape(link)}\" rel=\"alternate\"/>",
-            f"  <link href=\"{escape(link)}feed_atom.xml\" rel=\"self\" type=\"application/atom+xml\"/>",
+            f'  <link href="{escape(link)}" rel="alternate"/>',
+            f'  <link href="{escape(link)}feed_atom.xml" rel="self" type="application/atom+xml"/>',
             f"  <id>{escape(link)}</id>",
             f"  <updated>{_iso(posts[0].config.date.created)}</updated>",
             *entries,
@@ -1088,19 +1089,18 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     @event_priority(-50)
     def on_page_markdown(self, markdown, *, page, config, files):
         if not self.config.enabled:
-            return
+            return None
 
         # Skip if page is not a post managed by this instance - this plugin has
         # support for multiple instances, which is why this check is necessary
         if page not in self.blog.posts:
             if not self._config_pagination(page):
-                return
+                return None
 
             # Set template for blog views if not already set
             view = self._resolve_original(page)
-            if view in self._resolve_views(self.blog):
-                if 'template' not in page.meta:
-                    page.meta['template'] = 'blog.html'
+            if view in self._resolve_views(self.blog) and "template" not in page.meta:
+                page.meta["template"] = "blog.html"
 
             # We set the contents of the view to its title if pagination should
             # not keep the content of the original view on paginated views
@@ -1118,7 +1118,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
                         return f"# {name}"
 
             # Nothing more to be done for views
-            return
+            return None
 
         # Extract and assign authors to post, if enabled
         if self.config.authors:
@@ -1138,19 +1138,19 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # we append the separator to the end of the contents of the post, if it
         # is not already present, so we can remove footnotes or other content
         # from the excerpt without affecting the content of the excerpt
-        if separator not in page.markdown:
-            if self.config.post_excerpt == "required":
-                docs = os.path.relpath(config.docs_dir)
-                path = os.path.relpath(page.file.abs_src_path, docs)
-                raise PluginError(
-                    f"Couldn't find '{separator}' in post '{path}' in '{docs}'"
-                )
+        if separator not in page.markdown and self.config.post_excerpt == "required":
+            docs = os.path.relpath(config.docs_dir)
+            path = os.path.relpath(page.file.abs_src_path, docs)
+            raise PluginError(
+                f"Couldn't find '{separator}' in post '{path}' in '{docs}'"
+            )
 
         # Create excerpt for post and inherit authors and categories - excerpts
         # can contain a subset of the authors and categories of the post
         page.excerpt            = Excerpt(page, config, files)
         page.excerpt.authors    = page.authors[:max_authors]
         page.excerpt.categories = page.categories[:max_categories]
+        return None
 
     # Process posts
     def on_page_content(self, html, *, page, config, files):
@@ -1259,9 +1259,8 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # date should be taken into account, we automatically mark it as draft
         # if the publishing date is in the future. This, of course, is opt-in
         # and must be explicitly enabled by the author.
-        if not isinstance(post.config.draft, bool):
-            if self.config.draft_if_future_date:
-                return post.config.date.created > datetime.now(timezone.utc)
+        if not isinstance(post.config.draft, bool) and self.config.draft_if_future_date:
+            return post.config.date.created > datetime.now(timezone.utc)
 
         # Post might be a draft
         return bool(post.config.draft)
@@ -1403,15 +1402,13 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     def _resolve_siblings(self, item: StructureItem, nav: Navigation):
         if isinstance(item.parent, Section):
             return item.parent.children
-        else:
-            return nav.items
+        return nav.items
 
     # Resolve original page or view (e.g. for paginated views)
     def _resolve_original(self, page: Page):
         if isinstance(page, View) and page.pages:
             return page.pages[0]
-        else:
-            return page
+        return page
 
     # -------------------------------------------------------------------------
 
@@ -1642,7 +1639,9 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # Attach a list of pages to each other and to the given parent item without
     # explicitly adding them to the navigation, which can be done by the caller
     def _attach(self, parent: StructureItem, pages: list[Page]):
-        for tail, page, head in zip(pages, pages[1:], pages[2:]):
+        # Sliding window over consecutive triples; the offset slices are
+        # intentionally shorter, so strict= must stay False.
+        for tail, page, head in zip(pages, pages[1:], pages[2:], strict=False):
 
             # Link page to parent and siblings
             page.parent        = parent
@@ -1653,8 +1652,10 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             # link its siblings back to the view
             if isinstance(page, View):
                 view = self._resolve_original(page)
-                if tail: tail.next_page     = view
-                if head: head.previous_page = view
+                if tail:
+                    tail.next_page = view
+                if head:
+                    head.previous_page = view
 
     # Attach a page to the given parent and link it to the previous and next
     # page of the given host - this is exclusively used for paginated views
@@ -1752,8 +1753,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             return self._config("categories_toc", default)
         if isinstance(view, Profile):
             return self._config("authors_profiles_toc", default)
-        else:
-            return default
+        return default
 
     # Retrieve configuration value for pagination
     def _config_pagination(self, view: View):
@@ -1764,8 +1764,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             return self._config("categories_pagination", default)
         if isinstance(view, Profile):
             return self._config("authors_profiles_pagination", default)
-        else:
-            return default
+        return default
 
     # Retrieve configuration value for pagination per page
     def _config_pagination_per_page(self, view: View):
@@ -1776,8 +1775,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             return self._config("categories_pagination_per_page", default)
         if isinstance(view, Profile):
             return self._config("authors_profiles_pagination_per_page", default)
-        else:
-            return default
+        return default
 
     # -------------------------------------------------------------------------
 
@@ -1861,21 +1859,19 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         if format_date and format_datetime:
             if format in ["full", "long", "medium", "short"]:
                 return format_date(date, format = format, locale = locale)
-            else:
-                return format_datetime(date, format = format, locale = locale)
-        else:
-            # Fallback to strftime if Babel is not available. Babel date formats
-            # use patterns like "yyyy/MM/dd" for URLs, which are not valid
-            # strftime directives, so we map the tokens used by the blog plugin.
-            mapping = {
-                "yyyy": "%Y",
-                "MM": "%m",
-                "dd": "%d",
-            }
-            for babel_token, strftime_token in mapping.items():
-                format = format.replace(babel_token, strftime_token)
+            return format_datetime(date, format = format, locale = locale)
+        # Fallback to strftime if Babel is not available. Babel date formats
+        # use patterns like "yyyy/MM/dd" for URLs, which are not valid
+        # strftime directives, so we map the tokens used by the blog plugin.
+        mapping = {
+            "yyyy": "%Y",
+            "MM": "%m",
+            "dd": "%d",
+        }
+        for babel_token, strftime_token in mapping.items():
+            format = format.replace(babel_token, strftime_token)
 
-            return date.strftime(format)
+        return date.strftime(format)
 
     # Format date for post
     def _format_date_for_post(self, date: datetime, config: DocsForgeConfig):
@@ -1964,9 +1960,9 @@ def _find_links(items: list[StructureItem]):
 
         # Resolve sections recursively
         if isinstance(item, Section):
-            for item in _find_links(item.children):
-                assert isinstance(item, Link)
-                yield item
+            for child in _find_links(item.children):
+                assert isinstance(child, Link)
+                yield child
 
 # Find anchor in table of contents for the given id
 def _find_anchor(toc: TableOfContents, id: str):
@@ -1975,9 +1971,10 @@ def _find_anchor(toc: TableOfContents, id: str):
             return anchor
 
         # Resolve anchors recursively
-        anchor = _find_anchor(anchor.children, id)
-        if isinstance(anchor, AnchorLink):
-            return anchor
+        nested = _find_anchor(anchor.children, id)
+        if isinstance(nested, AnchorLink):
+            return nested
+    return None
 
 # -----------------------------------------------------------------------------
 # Data

@@ -6,9 +6,6 @@ be constructed.
 """
 from __future__ import annotations
 
-import threading
-import time
-
 import watchdog.events
 import watchdog.observers
 import watchdog.observers.polling
@@ -56,15 +53,15 @@ class TestEventFiltering:
 
     def _event(self, event_type, src_path, is_directory=False):
         cls = {
-            'opened': watchdog.events.FileOpenedEvent,
-            'closed_no_write': watchdog.events.FileClosedNoWriteEvent,
-            'closed': watchdog.events.FileClosedEvent,
-            'created': watchdog.events.FileCreatedEvent,
-            'modified': watchdog.events.FileModifiedEvent,
-            'deleted': watchdog.events.FileDeletedEvent,
-            'moved': watchdog.events.FileMovedEvent,
+            "opened": watchdog.events.FileOpenedEvent,
+            "closed_no_write": watchdog.events.FileClosedNoWriteEvent,
+            "closed": watchdog.events.FileClosedEvent,
+            "created": watchdog.events.FileCreatedEvent,
+            "modified": watchdog.events.FileModifiedEvent,
+            "deleted": watchdog.events.FileDeletedEvent,
+            "moved": watchdog.events.FileMovedEvent,
         }[event_type]
-        if event_type == 'moved':
+        if event_type == "moved":
             return cls(src_path, dest_path=src_path)
         return cls(src_path)
 
@@ -72,65 +69,65 @@ class TestEventFiltering:
         s = _make_server(tmp_path)
         s._want_rebuild = False
 
-        s._on_file_event(self._event('opened', str(tmp_path / 'file.md')))
+        s._on_file_event(self._event("opened", str(tmp_path / "file.md")))
         assert s._want_rebuild is False
 
-        s._on_file_event(self._event('closed_no_write', str(tmp_path / 'file.md')))
+        s._on_file_event(self._event("closed_no_write", str(tmp_path / "file.md")))
         assert s._want_rebuild is False
 
-        s._on_file_event(self._event('closed', str(tmp_path / 'file.md')))
+        s._on_file_event(self._event("closed", str(tmp_path / "file.md")))
         assert s._want_rebuild is False
 
     def test_modifying_events_trigger_rebuild(self, tmp_path):
         s = _make_server(tmp_path)
 
-        for event_type in ('created', 'modified', 'deleted', 'moved'):
+        for event_type in ("created", "modified", "deleted", "moved"):
             s._want_rebuild = False
-            s._on_file_event(self._event(event_type, str(tmp_path / 'file.md')))
+            s._on_file_event(self._event(event_type, str(tmp_path / "file.md")))
             assert s._want_rebuild is True, f"{event_type} should trigger rebuild"
 
     def test_queued_rebuild_only_fires_for_modifying_events(self, tmp_path):
         s = _make_server(tmp_path)
         s._rebuilding = True
 
-        s._on_file_event(self._event('opened', str(tmp_path / 'file.md')))
-        s._on_file_event(self._event('closed_no_write', str(tmp_path / 'file.md')))
+        s._on_file_event(self._event("opened", str(tmp_path / "file.md")))
+        s._on_file_event(self._event("closed_no_write", str(tmp_path / "file.md")))
         assert s._pending_rebuild is False
 
-        s._on_file_event(self._event('modified', str(tmp_path / 'file.md')))
+        s._on_file_event(self._event("modified", str(tmp_path / "file.md")))
         assert s._pending_rebuild is True
 
     def test_ignores_nano_backup_files(self, tmp_path):
         s = _make_server(tmp_path)
-        s._on_file_event(self._event('created', str(tmp_path / 'file.md~')))
+        s._on_file_event(self._event("created", str(tmp_path / "file.md~")))
         assert s._want_rebuild is False
 
     def test_ignores_vim_swap_files(self, tmp_path):
         s = _make_server(tmp_path)
-        s._on_file_event(self._event('modified', str(tmp_path / '.file.md.swp')))
+        s._on_file_event(self._event("modified", str(tmp_path / ".file.md.swp")))
         assert s._want_rebuild is False
 
     def test_ignores_events_in_cache_dirs(self, tmp_path):
         s = _make_server(tmp_path)
-        cache_file = tmp_path / '.docsforge' / 'cache.json'
+        cache_file = tmp_path / ".docsforge" / "cache.json"
         cache_file.parent.mkdir()
-        s._on_file_event(self._event('modified', str(cache_file)))
+        s._on_file_event(self._event("modified", str(cache_file)))
         assert s._want_rebuild is False
 
     def test_ignores_hidden_metadata_files(self, tmp_path):
         s = _make_server(tmp_path)
-        s._on_file_event(self._event('modified', str(tmp_path / '.git' / 'HEAD')))
+        s._on_file_event(self._event("modified", str(tmp_path / ".git" / "HEAD")))
         assert s._want_rebuild is False
 
     def test_noop_modification_is_ignored(self, tmp_path):
         s = _make_server(tmp_path)
-        f = tmp_path / 'file.md'
-        f.write_text('hello')
+        f = tmp_path / "file.md"
+        f.write_text("hello")
         # First modified event records the fingerprint.
-        s._on_file_event(self._event('modified', str(f)))
+        s._on_file_event(self._event("modified", str(f)))
         assert s._want_rebuild is True
 
         # A second event with identical mtime/size is ignored.
         s._want_rebuild = False
-        s._on_file_event(self._event('modified', str(f)))
+        s._on_file_event(self._event("modified", str(f)))
         assert s._want_rebuild is False

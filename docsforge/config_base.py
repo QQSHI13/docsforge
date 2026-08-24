@@ -6,10 +6,11 @@ import logging
 import os
 import sys
 import warnings
-import yaml
 from collections import UserDict
 from collections.abc import Iterator, Mapping, Sequence
 from typing import IO, TYPE_CHECKING, Any, Generic, TypeVar, overload
+
+import yaml
 
 from docsforge import exceptions, utils
 from docsforge.utils import weak_property
@@ -18,10 +19,10 @@ if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
 
 
-log = logging.getLogger('docsforge.config')
+log = logging.getLogger("docsforge.config")
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class BaseConfigOption(Generic[T]):
@@ -71,7 +72,7 @@ class BaseConfigOption(Generic[T]):
         """
 
     def __set_name__(self, owner, name):
-        if name.endswith('_') and not name.startswith('_'):
+        if name.endswith("_") and not name.startswith("_"):
             name = name[:-1]
         self._name = name
 
@@ -94,9 +95,12 @@ class BaseConfigOption(Generic[T]):
         obj[self._name] = value
 
 
-class ValidationError(Exception):
+class ValidationError(Exception):  # noqa: PLW1641
     """Raised during the validation process of the config on errors."""
 
+    # Compared by message so tests can assert on the exact validation text.
+    # Left unhashable on purpose: a message-based hash would contradict
+    # Exception's identity hash for any subclass that doesn't override __eq__.
     def __eq__(self, other):
         return type(self) is type(other) and str(self) == str(other)
 
@@ -122,23 +126,23 @@ class Config(UserDict):
     config_file_path: str
 
     def __init_subclass__(cls):
-        schema = dict(getattr(cls, '_schema', ()))
+        schema = dict(getattr(cls, "_schema", ()))
         for attr_name, attr in cls.__dict__.items():
             if isinstance(attr, BaseConfigOption):
-                schema[getattr(attr, '_name', attr_name)] = attr
+                schema[getattr(attr, "_name", attr_name)] = attr
         cls._schema = tuple(schema.items())
 
         for attr_name, attr in cls._schema:
-            if not getattr(attr, '_required_set', False):
+            if not getattr(attr, "_required_set", False):
                 attr.required = True
-            if getattr(attr, '_legacy_required', None) is not None:
+            if getattr(attr, "_legacy_required", None) is not None:
                 raise TypeError(
                     f"{cls.__name__}.{attr_name}: "
                     "Setting 'required' is unsupported in class-based configs. "
                     "All values are required, or can be wrapped into config_options.Optional"
                 )
 
-    def __new__(cls, *args, **kwargs) -> Config:  # noqa: PYI034
+    def __new__(cls, *args, **kwargs) -> Config:
         """Compatibility: allow referring to `LegacyConfig(...)` constructor as `Config(...)`."""
         if cls is Config:
             return LegacyConfig(*args, **kwargs)
@@ -157,7 +161,7 @@ class Config(UserDict):
                 config_file_path = config_file_path.decode(encoding=sys.getfilesystemencoding())
             except UnicodeDecodeError:
                 raise ValidationError("config_file_path is not a Unicode string.")
-        self.config_file_path = config_file_path or ''
+        self.config_file_path = config_file_path or ""
 
     def set_defaults(self) -> None:
         """
@@ -247,13 +251,16 @@ class Config(UserDict):
             "Config.load_file is not used in DocsForge and will be removed soon. "
             "Use DocsForgeConfig.load_file instead",
             DeprecationWarning,
+            stacklevel=2,
         )
         return self.load_dict(utils.yaml_load(config_file))
 
     @weak_property
     def user_configs(self) -> Sequence[Mapping[str, Any]]:
         warnings.warn(
-            "user_configs is never used in DocsForge and will be removed soon.", DeprecationWarning
+            "user_configs is never used in DocsForge and will be removed soon.",
+            DeprecationWarning,
+            stacklevel=2,
         )
         return self.__user_configs
 
@@ -287,7 +294,7 @@ def _open_config_file(config_file: str | IO | None) -> Iterator[IO]:
     """
     # Default to the standard config filename.
     if config_file is None:
-        paths_to_try = ['docsforge.yml', 'docsforge.yaml']
+        paths_to_try = ["docsforge.yml", "docsforge.yaml"]
     # If it is a string or path-like, attempt to open it as a file path.
     elif isinstance(config_file, (str, os.PathLike)):
         paths_to_try = [os.fspath(config_file)]
@@ -301,7 +308,9 @@ def _open_config_file(config_file: str | IO | None) -> Iterator[IO]:
             abspath = os.path.abspath(path)
             log.debug(f"Loading configuration file: {abspath}")
             try:
-                result_config_file = open(abspath, 'rb')
+                # Deliberately left open: the handle is the return value, read
+                # by the caller and closed there.
+                result_config_file = open(abspath, "rb")  # noqa: SIM115
                 break
             except FileNotFoundError:
                 continue
@@ -316,7 +325,7 @@ def _open_config_file(config_file: str | IO | None) -> Iterator[IO]:
     try:
         yield result_config_file
     finally:
-        if hasattr(result_config_file, 'close'):
+        if hasattr(result_config_file, "close"):
             result_config_file.close()
 
 
@@ -344,9 +353,8 @@ def load_config(
         # Initialize the config with the default schema.
         from docsforge.config_defaults import DocsForgeConfig
 
-        if config_file_path is None:
-            if sys.stdin and fd is not sys.stdin.buffer:
-                config_file_path = getattr(fd, 'name', None)
+        if config_file_path is None and sys.stdin and fd is not sys.stdin.buffer:
+            config_file_path = getattr(fd, "name", None)
         cfg = DocsForgeConfig(config_file_path=config_file_path)
         # load the config file
         try:
@@ -359,7 +367,7 @@ def load_config(
             print()
             print(f"  Failed to parse {config_file_path or 'docsforge.yml'}:")
             print()
-            if hasattr(e, 'problem_mark'):
+            if hasattr(e, "problem_mark"):
                 mark = e.problem_mark
                 print(f"  Line {mark.line + 1}, Column {mark.column + 1}:")
                 print(f"  {e.problem}")
@@ -402,7 +410,7 @@ def load_config(
         print("    - See docs: https://qqshi13.github.io/docsforge/")
         print()
         raise exceptions.Abort("Configuration error — fix the issues above and try again.")
-    elif cfg.strict and len(warnings) > 0:
+    if cfg.strict and len(warnings) > 0:
         raise exceptions.Abort(
             f"Aborted with {len(warnings)} configuration warnings in 'strict' mode!"
         )

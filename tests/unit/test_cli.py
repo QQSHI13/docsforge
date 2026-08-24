@@ -1,8 +1,6 @@
 """Unit tests for cli_core: config-file discovery, optional-dep checks, routing."""
 from __future__ import annotations
 
-from pathlib import Path
-
 from docsforge import cli_core
 
 
@@ -110,7 +108,9 @@ class TestServeStrictFlag:
         (tmp_path / "docs").mkdir()
         (tmp_path / "docs" / "index.md").write_text("# h\n")
         (tmp_path / "docsforge.yml").write_text(
-            "site_name: T\ntheme: {name: material, palette: [{scheme: default, primary: teal, accent: teal}]}\nprivacy: false\n"
+            "site_name: T\n"
+        "theme: {name: material, palette: [{scheme: default, primary: teal, accent: teal}]}\n"
+        "privacy: false\n"
         )
         # load_config accepts strict as a kwarg (the path serve takes)
         cfg = load_config(strict=True)

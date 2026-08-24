@@ -13,8 +13,8 @@ _OPTIMIZER_STATE_FILE = "asset_optimizer.json"
 
 # File extensions considered assets.
 _ASSET_EXTENSIONS = frozenset({
-    'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp',
-    'woff', 'woff2', 'ttf', 'eot', 'otf',
+    "css", "js", "png", "jpg", "jpeg", "gif", "svg", "webp",
+    "woff", "woff2", "ttf", "eot", "otf",
 })
 
 
@@ -38,8 +38,8 @@ class _AssetReferenceParser(HTMLParser):
     def _collect_srcset(self, value: str | None) -> None:
         if not value:
             return
-        for entry in value.split(','):
-            entry = entry.strip()
+        for raw_entry in value.split(","):
+            entry = raw_entry.strip()
             if not entry:
                 continue
             parts = entry.split()
@@ -55,31 +55,31 @@ class _AssetReferenceParser(HTMLParser):
             self._collect(url)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag == 'style':
+        if tag == "style":
             self._in_style = True
             self._style_buffer = []
             return
 
         attr_dict = dict(attrs)
-        if tag == 'link':
-            self._collect(attr_dict.get('href'))
-        elif tag in ('script', 'img', 'video', 'audio', 'source'):
-            self._collect(attr_dict.get('src'))
-            if tag in ('img', 'source'):
-                self._collect_srcset(attr_dict.get('srcset'))
-        elif tag == 'image':
-            self._collect(attr_dict.get('href'))
+        if tag == "link":
+            self._collect(attr_dict.get("href"))
+        elif tag in ("script", "img", "video", "audio", "source"):
+            self._collect(attr_dict.get("src"))
+            if tag in ("img", "source"):
+                self._collect_srcset(attr_dict.get("srcset"))
+        elif tag == "image":
+            self._collect(attr_dict.get("href"))
         else:
             # data-* attributes that reference assets.
             for name, value in attr_dict.items():
-                if name.startswith('data-') and value:
-                    ext = value.split('.')[-1].split('?')[0].lower()
+                if name.startswith("data-") and value:
+                    ext = value.split(".")[-1].split("?")[0].lower()
                     if ext in _ASSET_EXTENSIONS:
                         self._collect(value)
 
     def handle_endtag(self, tag: str) -> None:
-        if tag == 'style' and self._in_style:
-            self._collect_inline_style(''.join(self._style_buffer))
+        if tag == "style" and self._in_style:
+            self._collect_inline_style("".join(self._style_buffer))
             self._in_style = False
             self._style_buffer = []
 
@@ -125,30 +125,30 @@ def _is_external_url(url: str) -> bool:
     """Return True if the URL is external, a fragment, or a data URI."""
     if not url:
         return True
-    if url.startswith(('http://', 'https://', '//', 'data:', 'mailto:', 'tel:', '#')):
-        return True
-    return False
+    return url.startswith(("http://", "https://", "//", "data:", "mailto:", "tel:", "#"))
 
 
 def _normalize_asset_url(url: str, file_dir: str) -> str | None:
     """Return a site-relative posix path for a local asset URL, or None."""
     if _is_external_url(url):
         return None
-    url = url.split('?')[0].split('#')[0]
+    url = url.split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]
     if not url:
         return None
 
-    if url.startswith('/'):
-        rel_path = url.lstrip('/')
+    if url.startswith("/"):
+        rel_path = url.lstrip("/")
+    elif file_dir:
+        rel_path = os.path.join(file_dir, url)
     else:
-        rel_path = os.path.join(file_dir, url) if file_dir else url
+        rel_path = url
 
     try:
-        rel_path = os.path.normpath(rel_path).replace('\\', '/')
+        rel_path = os.path.normpath(rel_path).replace("\\", "/")
     except Exception:
         return None
 
-    if rel_path.startswith('..'):
+    if rel_path.startswith(".."):
         return None
     return rel_path or None
 
@@ -161,8 +161,8 @@ def _load_reference_cache(cache_dir: Path | None) -> dict[str, Any]:
         path = cache_dir / "asset_references.json"
         if not path.exists():
             return {}
-        data = json.loads(path.read_text(encoding='utf-8'))
-        if data.get('version') == _OPTIMIZER_STATE_VERSION:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if data.get("version") == _OPTIMIZER_STATE_VERSION:
             return data
     except Exception:
         pass
@@ -176,7 +176,7 @@ def _save_reference_cache(cache_dir: Path | None, state: dict[str, Any]) -> None
     try:
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
         path = Path(cache_dir) / "asset_references.json"
-        path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding='utf-8')
+        path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
     except Exception as e:
         log.debug(f"Could not save asset reference cache: {e}")
 
@@ -184,12 +184,12 @@ def _save_reference_cache(cache_dir: Path | None, state: dict[str, Any]) -> None
 def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str) -> list[str]:
     """Parse asset references from a single HTML, CSS, or JS file."""
     try:
-        content = file_path.read_text(encoding='utf-8', errors='ignore')
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
     except Exception:
         return []
 
     refs: list[str] = []
-    if ext == '.html':
+    if ext == ".html":
         parser = _AssetReferenceParser()
         parser.feed(content)
         for url in parser.refs:
@@ -197,7 +197,7 @@ def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str) -> list[str]:
             if normalized:
                 refs.append(normalized)
 
-    elif ext == '.css':
+    elif ext == ".css":
         for match in _CSS_URL_RE.finditer(content):
             url = next(g for g in match.groups() if g is not None)
             normalized = _normalize_asset_url(url, file_dir_str)
@@ -209,10 +209,10 @@ def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str) -> list[str]:
             if normalized:
                 refs.append(normalized)
 
-    elif ext == '.js':
+    elif ext == ".js":
         # Conservative regex for string literals that look like asset paths.
         for match in re.finditer(
-            r'''["']([^"']+\.(?:css|js|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|otf))["']''',
+            r"""["']([^"']+\.(?:css|js|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|otf))["']""",
             content,
             re.IGNORECASE,
         ):
@@ -238,36 +238,36 @@ def _find_referenced_assets(
     site_path = Path(site_dir)
 
     state = _load_reference_cache(cache_dir)
-    file_state: dict[str, dict[str, Any]] = state.setdefault('files', {})
+    file_state: dict[str, dict[str, Any]] = state.setdefault("files", {})
     new_file_state: dict[str, dict[str, Any]] = {}
 
-    for file_path in site_path.rglob('*'):
+    for file_path in site_path.rglob("*"):
         if not file_path.is_file():
             continue
         ext = file_path.suffix.lower()
-        if ext not in ('.html', '.css', '.js'):
+        if ext not in (".html", ".css", ".js"):
             continue
 
         rel_path = file_path.relative_to(site_path).as_posix()
         prev_entry = file_state.get(rel_path)
 
         if _file_unchanged(file_path, prev_entry):
-            refs = prev_entry.get('refs', [])  # type: ignore[union-attr]
+            refs = prev_entry.get("refs", [])  # type: ignore[union-attr]
             new_file_state[rel_path] = prev_entry  # type: ignore[assignment]
         else:
             file_dir = file_path.parent.relative_to(site_path)
-            file_dir_str = str(file_dir).replace('\\', '/') if str(file_dir) != '.' else ''
+            file_dir_str = str(file_dir).replace("\\", "/") if str(file_dir) != "." else ""
             refs = _parse_file_refs(file_path, ext, file_dir_str)
             try:
                 st = file_path.stat()
-                new_file_state[rel_path] = {'mtime': st.st_mtime, 'size': st.st_size, 'refs': refs}
+                new_file_state[rel_path] = {"mtime": st.st_mtime, "size": st.st_size, "refs": refs}
             except OSError:
                 pass
 
         referenced.update(refs)
 
-    state['version'] = _OPTIMIZER_STATE_VERSION
-    state['files'] = new_file_state
+    state["version"] = _OPTIMIZER_STATE_VERSION
+    state["files"] = new_file_state
     _save_reference_cache(cache_dir, state)
 
     return referenced
@@ -301,15 +301,15 @@ def cleanup_unused_assets(
 
     # Always keep these important files even if not directly referenced
     always_keep = {
-        'sitemap.xml', 'sitemap.xml.gz',
-        '404.html', 'search.html',
-        'assets/javascripts/workers/search.js',  # Search worker loaded dynamically
+        "sitemap.xml", "sitemap.xml.gz",
+        "404.html", "search.html",
+        "assets/javascripts/workers/search.js",  # Search worker loaded dynamically
     }
     referenced.update(always_keep)
 
     # Find all files that might be candidates for removal
     # Focus on heavy directories: icons, fonts, images
-    candidate_dirs = ['.icons', 'assets/images', 'assets/fonts']
+    candidate_dirs = [".icons", "assets/images", "assets/fonts"]
 
     removed_count = 0
     removed_size = 0
@@ -319,7 +319,7 @@ def cleanup_unused_assets(
         if not dir_path.exists():
             continue
 
-        for file_path in dir_path.rglob('*'):
+        for file_path in dir_path.rglob("*"):
             if not file_path.is_file():
                 continue
 
@@ -374,8 +374,8 @@ def _load_optimizer_state(cache_dir: Path | None) -> dict[str, Any]:
         path = Path(cache_dir) / _OPTIMIZER_STATE_FILE
         if not path.exists():
             return {}
-        data = json.loads(path.read_text(encoding='utf-8'))
-        if data.get('version') == _OPTIMIZER_STATE_VERSION:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if data.get("version") == _OPTIMIZER_STATE_VERSION:
             return data
     except Exception:
         pass
@@ -389,7 +389,7 @@ def _save_optimizer_state(cache_dir: Path | None, state: dict[str, Any]) -> None
     try:
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
         path = Path(cache_dir) / _OPTIMIZER_STATE_FILE
-        path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding='utf-8')
+        path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
     except Exception as e:
         log.debug(f"Could not save asset optimizer state: {e}")
 
@@ -402,7 +402,7 @@ def _file_unchanged(path: Path, entry: dict[str, Any] | None) -> bool:
         st = path.stat()
     except OSError:
         return False
-    return st.st_mtime == entry.get('mtime') and st.st_size == entry.get('size')
+    return st.st_mtime == entry.get("mtime") and st.st_size == entry.get("size")
 
 
 def remove_source_maps(site_dir: str, cache_dir: Path | None = None) -> None:
@@ -417,13 +417,13 @@ def remove_source_maps(site_dir: str, cache_dir: Path | None = None) -> None:
         return
 
     state = _load_optimizer_state(cache_dir)
-    js_state: dict[str, dict[str, Any]] = state.setdefault('js_files', {})
+    js_state: dict[str, dict[str, Any]] = state.setdefault("js_files", {})
 
     # Remove .map files
     removed_count = 0
     removed_size = 0
 
-    for map_file in site_path.rglob('*.map'):
+    for map_file in site_path.rglob("*.map"):
         if not map_file.is_file():
             continue
 
@@ -442,10 +442,10 @@ def remove_source_maps(site_dir: str, cache_dir: Path | None = None) -> None:
 
     # Strip sourceMappingURL comments from JS files to prevent 404 requests.
     js_files_modified = 0
-    sourcemap_pattern = re.compile(r'//# sourceMappingURL=[^\s]+\s*\n?')
+    sourcemap_pattern = re.compile(r"//# sourceMappingURL=[^\s]+\s*\n?")
     new_js_state: dict[str, dict[str, Any]] = {}
 
-    for js_file in site_path.rglob('*.js'):
+    for js_file in site_path.rglob("*.js"):
         if not js_file.is_file():
             continue
 
@@ -458,23 +458,23 @@ def remove_source_maps(site_dir: str, cache_dir: Path | None = None) -> None:
             continue
 
         try:
-            content = js_file.read_text(encoding='utf-8', errors='ignore')
-            if 'sourceMappingURL=' in content:
-                cleaned = sourcemap_pattern.sub('', content)
+            content = js_file.read_text(encoding="utf-8", errors="ignore")
+            if "sourceMappingURL=" in content:
+                cleaned = sourcemap_pattern.sub("", content)
                 if cleaned != content:
-                    js_file.write_text(cleaned, encoding='utf-8')
+                    js_file.write_text(cleaned, encoding="utf-8")
                     js_files_modified += 1
 
             st = js_file.stat()
-            new_js_state[rel_path] = {'mtime': st.st_mtime, 'size': st.st_size}
+            new_js_state[rel_path] = {"mtime": st.st_mtime, "size": st.st_size}
         except Exception as e:
             log.warning(f"Could not strip source map comment from {js_file}: {e}")
 
     if js_files_modified > 0:
         log.info(f"Stripped source map comments from {js_files_modified} JS files")
 
-    state['version'] = _OPTIMIZER_STATE_VERSION
-    state['js_files'] = new_js_state
+    state["version"] = _OPTIMIZER_STATE_VERSION
+    state["js_files"] = new_js_state
     _save_optimizer_state(cache_dir, state)
 
 
@@ -491,13 +491,13 @@ def remove_unused_font_formats(
     if not site_path.exists():
         return
 
-    font_dirs = list(site_path.rglob('**/fonts'))
+    font_dirs = list(site_path.rglob("**/fonts"))
 
     removed_count = 0
     removed_size = 0
 
     # Remove old font formats
-    old_extensions = {'.ttf', '.eot', '.svg'}
+    old_extensions = {".ttf", ".eot", ".svg"}
 
     # Collect referenced assets first so fonts still in use are not deleted.
     if referenced is None:

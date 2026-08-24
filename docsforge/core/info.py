@@ -7,9 +7,11 @@ configuration scaffolding and debug utilities.
 from __future__ import annotations
 
 import logging
-from docsforge.config_options import Type
+
 from docsforge.config_base import Config
+from docsforge.config_options import Type
 from docsforge.core.plugin_base import BasePlugin
+
 
 # Plugin configuration
 class InfoConfig(Config):

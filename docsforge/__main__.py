@@ -33,10 +33,10 @@ log = logging.getLogger(__name__)
 
 class ColorFormatter(logging.Formatter):
     colors: ClassVar = {
-        'CRITICAL': 'red',
-        'ERROR': 'red',
-        'WARNING': 'yellow',
-        'DEBUG': 'blue',
+        "CRITICAL": "red",
+        "ERROR": "red",
+        "WARNING": "yellow",
+        "DEBUG": "blue",
     }
 
     text_wrapper = textwrap.TextWrapper(
@@ -44,18 +44,18 @@ class ColorFormatter(logging.Formatter):
         replace_whitespace=False,
         break_long_words=False,
         break_on_hyphens=False,
-        initial_indent=' ' * 11,
-        subsequent_indent=' ' * 11,
+        initial_indent=" " * 11,
+        subsequent_indent=" " * 11,
     )
 
     def format(self, record):
         message = super().format(record)
-        prefix = f'{record.levelname:<8}-  '
+        prefix = f"{record.levelname:<8}-  "
         if record.levelname in self.colors:
             prefix = click.style(prefix, fg=self.colors[record.levelname])
         if self.text_wrapper.width:
             indent = self.text_wrapper.initial_indent
-            msg = '\n'.join(self.text_wrapper.fill(line) for line in message.splitlines())
+            msg = "\n".join(self.text_wrapper.fill(line) for line in message.splitlines())
             return prefix + msg[len(indent):]
         return prefix + message
 
@@ -64,21 +64,21 @@ class State:
     """Maintain logging level."""
 
     def __init__(self):
-        self.logger = logging.getLogger('docsforge')
+        self.logger = logging.getLogger("docsforge")
         self.logger.setLevel(logging.INFO)
         self.logger.propagate = False
 
         # Avoid duplicate handlers when group + subcommand both instantiate
-        if not any(h.name == 'DocsForgeStreamHandler' for h in self.logger.handlers):
+        if not any(h.name == "DocsForgeStreamHandler" for h in self.logger.handlers):
             self.stream = logging.StreamHandler()
             self.stream.setFormatter(ColorFormatter())
-            self.stream.name = 'DocsForgeStreamHandler'
+            self.stream.name = "DocsForgeStreamHandler"
             self.logger.addHandler(self.stream)
 
     def __del__(self):
         # Only remove if we created it
         for h in list(self.logger.handlers):
-            if h.name == 'DocsForgeStreamHandler':
+            if h.name == "DocsForgeStreamHandler":
                 self.logger.removeHandler(h)
 
 
@@ -88,16 +88,16 @@ def _enable_warnings():
         warning_counter = utils.CountHandler()
         warning_counter.setLevel(logging.WARNING)
         logging.getLogger("docsforge").addHandler(warning_counter)
-        warnings.simplefilter('module', DeprecationWarning)
+        warnings.simplefilter("module", DeprecationWarning)
 
 
 # ---- Main CLI ----
 
 @click.group(
     invoke_without_command=True,
-    context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120)
+    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 120}
 )
-@click.version_option(__version__, '-v', '--version', prog_name='docsforge')
+@click.version_option(__version__, "-v", "--version", prog_name="docsforge")
 @click.pass_context
 def docsforge(ctx):
     """DocsForge - Project documentation with Markdown.
@@ -115,9 +115,11 @@ def docsforge(ctx):
 
 
 @docsforge.command()
-@click.option('--strict', is_flag=True, help='Fail on warnings')
-@click.option('--pdf', is_flag=True, help='Also export to PDF (requires playwright)')
-@click.option('--jobs', type=int, default=None, help='Number of parallel tabs for PDF rendering (default: global `concurrency`, capped by available memory)')
+@click.option("--strict", is_flag=True, help="Fail on warnings")
+@click.option("--pdf", is_flag=True, help="Also export to PDF (requires playwright)")
+@click.option("--jobs", type=int, default=None,
+              help="Number of parallel tabs for PDF rendering "
+                   "(default: global `concurrency`, capped by available memory)")
 def build(strict, pdf, jobs):
     """Build the DocsForge documentation for production."""
     _ = State()  # Initialize default logging
@@ -128,7 +130,7 @@ def build(strict, pdf, jobs):
 
     result = Validator.check()
     if result != 0:
-        click.secho("\nConfiguration validation failed. Fix the issues above and try again.", fg='red')
+        click.secho("\nConfiguration validation failed. Fix the issues above and try again.", fg="red")
         sys.exit(result)
 
     _check_optional_deps()
@@ -143,9 +145,10 @@ def build(strict, pdf, jobs):
 
     # PDF export
     if pdf:
-        from docsforge.pdf import build_pdf as export_pdf
-        from docsforge import cli_core
         import yaml
+
+        from docsforge import cli_core
+        from docsforge.pdf import build_pdf as export_pdf
         config_file = cli_core.find_config_file()
         if config_file:
             docs_dir = "docs"
@@ -164,7 +167,7 @@ def build(strict, pdf, jobs):
 
 
 @docsforge.command()
-@click.option('--fix', is_flag=True, help='Auto-fix common configuration issues')
+@click.option("--fix", is_flag=True, help="Auto-fix common configuration issues")
 def check(fix):
     """Validate configuration without building."""
     _ = State()
@@ -176,9 +179,9 @@ def check(fix):
 
 
 @docsforge.command()
-@click.option('--lan', is_flag=True, help='Serve on all interfaces (0.0.0.0) instead of localhost')
-@click.option('--no-open', is_flag=True, help='Do not open a browser tab automatically')
-@click.option('--strict', is_flag=True, help='Treat warnings as errors during rebuilds')
+@click.option("--lan", is_flag=True, help="Serve on all interfaces (0.0.0.0) instead of localhost")
+@click.option("--no-open", is_flag=True, help="Do not open a browser tab automatically")
+@click.option("--strict", is_flag=True, help="Treat warnings as errors during rebuilds")
 def serve(lan, no_open, strict):
     """Start the live-reloading docs server."""
     _ = State()  # Initialize default logging
@@ -188,7 +191,7 @@ def serve(lan, no_open, strict):
 
     result = Validator.check()
     if result != 0:
-        click.secho("\nConfiguration validation failed. Fix the issues above and try again.", fg='red')
+        click.secho("\nConfiguration validation failed. Fix the issues above and try again.", fg="red")
         sys.exit(result)
 
     _check_optional_deps()
@@ -198,13 +201,13 @@ def serve(lan, no_open, strict):
     # raise Abort (caught by the server's builder, which keeps serving).
     kwargs = {}
     if lan:
-        kwargs['host'] = '0.0.0.0'
+        kwargs["host"] = "0.0.0.0"
     if no_open:
-        kwargs['open_in_browser'] = False
+        kwargs["open_in_browser"] = False
     DevServer.serve(strict=strict, **kwargs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     docsforge()
 
 # Entry point alias for console scripts

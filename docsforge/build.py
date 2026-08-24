@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import copy
 import gzip
 import hashlib
@@ -21,19 +22,19 @@ import jinja2
 from jinja2.exceptions import TemplateNotFound
 
 import docsforge
-from docsforge import utils
-from docsforge.exceptions import Abort, BuildError
+from docsforge import templates, utils
+from docsforge.asset_optimizer import optimize_assets
+from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
+from docsforge.exceptions import Abort, BuildError, BuildErrorGroup
 from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusions
+from docsforge.git_info import get_git_page_info
 from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
-from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
-from docsforge import templates
-from docsforge.git_info import get_git_page_info
-from docsforge.asset_optimizer import optimize_assets
 
 if TYPE_CHECKING:
-    from docsforge.config_defaults import DocsForgeConfig
     import jinja2
+
+    from docsforge.config_defaults import DocsForgeConfig
 
 
 log = logging.getLogger(__name__)
@@ -47,22 +48,22 @@ def get_context(
     files: Sequence[File] | Files,
     config: DocsForgeConfig,
     page: Page | None = None,
-    base_url: str = '',
+    base_url: str = "",
 ) -> templates.TemplateContext:
     """Return the template context for a given page or template."""
     if page is not None:
-        base_url = utils.get_relative_url(page.url, '.')
-        if base_url and not base_url.endswith('/'):
-            base_url += '/'
+        base_url = utils.get_relative_url(page.url, ".")
+        if base_url and not base_url.endswith("/"):
+            base_url += "/"
 
         # Inject git revision info into page meta if available and not disabled
-        extra_cfg = config.get('extra', {})
-        git_enabled = getattr(extra_cfg, 'git_revision_date', True) if extra_cfg else True
-        if git_enabled and not page.meta.get('git_revision_date_localized'):
+        extra_cfg = config.get("extra", {})
+        git_enabled = getattr(extra_cfg, "git_revision_date", True) if extra_cfg else True
+        if git_enabled and not page.meta.get("git_revision_date_localized"):
             git_info = get_git_page_info(page.file.abs_src_path)
             if git_info:
-                page.meta['git_revision_date_localized'] = git_info['updated_display']
-                page.meta['git_creation_date_localized'] = git_info['created_display']
+                page.meta["git_revision_date_localized"] = git_info["updated_display"]
+                page.meta["git_creation_date_localized"] = git_info["created_display"]
 
     extra_javascript = [
         utils.normalize_url(str(script), base_url) for script in config.extra_javascript
@@ -98,11 +99,11 @@ def _build_template(
         # See https://github.com/mkdocs/mkdocs/issues/77.
         # However, if site_url is not set, assume the docs root and server root
         # are the same. See https://github.com/mkdocs/mkdocs/issues/1598.
-        base_url = urlsplit(config.site_url or '/').path
+        base_url = urlsplit(config.site_url or "/").path
     else:
-        base_url = utils.get_relative_url(name, '.')
-        if base_url and not base_url.endswith('/'):
-            base_url += '/'
+        base_url = utils.get_relative_url(name, ".")
+        if base_url and not base_url.endswith("/"):
+            base_url += "/"
 
     context = get_context(nav, files, config, base_url=base_url)
 
@@ -135,19 +136,19 @@ def _build_theme_template(
 
     if output.strip():
         output_path = os.path.join(config.site_dir, template_name)
-        utils.write_file(output.encode('utf-8'), output_path)
+        utils.write_file(output.encode("utf-8"), output_path)
 
-        if template_name == 'sitemap.xml':
+        if template_name == "sitemap.xml":
             log.debug(f"Gzipping template: {template_name}")
-            gz_filename = f'{output_path}.gz'
-            with open(gz_filename, 'wb') as f:
+            gz_filename = f"{output_path}.gz"
+            with open(gz_filename, "wb") as f:
                 timestamp = utils.get_build_timestamp(
                     pages=[f.page for f in files.documentation_pages() if f.page is not None]
                 )
                 with gzip.GzipFile(
-                    fileobj=f, filename=gz_filename, mode='wb', mtime=timestamp
+                    fileobj=f, filename=gz_filename, mode="wb", mtime=timestamp
                 ) as gz_buf:
-                    gz_buf.write(output.encode('utf-8'))
+                    gz_buf.write(output.encode("utf-8"))
     else:
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
@@ -165,8 +166,9 @@ def _build_locale_static_templates(
     written as sibling files (``404.zh.html``) and served by the service worker
     based on the user's stored preference.
     """
-    from docsforge.core.i18n import I18nPlugin
     from urllib.parse import urlsplit
+
+    from docsforge.core.i18n import I18nPlugin
 
     plugin = next(
         (p for p in config.plugins.values() if isinstance(p, I18nPlugin)),
@@ -175,11 +177,11 @@ def _build_locale_static_templates(
     if plugin is None or not plugin._languages:
         return
 
-    base_url = urlsplit(config.site_url or '/').path
-    prev_language = config.theme.get('language')
+    base_url = urlsplit(config.site_url or "/").path
+    prev_language = config.theme.get("language")
     try:
         for template_name in config.theme.static_templates:
-            if not template_name.endswith('.html'):
+            if not template_name.endswith(".html"):
                 continue
             template = env.get_template(template_name)
             for locale in plugin.locales:
@@ -192,7 +194,7 @@ def _build_locale_static_templates(
                 # 404 (absolute base URL, no page fields). The language is
                 # switched via the theme language so partials/language.html
                 # resolves the right translations.
-                config.theme['language'] = locale
+                config.theme["language"] = locale
                 config.extra.i18n_current_locale = locale
                 plugin._fix_locale_nav_titles(locale_nav, locale)
                 context = get_context(
@@ -206,16 +208,16 @@ def _build_locale_static_templates(
                     output, template_name=template_name, config=config
                 )
                 if output.strip():
-                    out_name = template_name.replace('.html', f'.{locale}.html')
+                    out_name = template_name.replace(".html", f".{locale}.html")
                     utils.write_file(
-                        output.encode('utf-8', errors='xmlcharrefreplace'),
+                        output.encode("utf-8", errors="xmlcharrefreplace"),
                         os.path.join(config.site_dir, out_name),
                     )
     finally:
         if prev_language is not None:
-            config.theme['language'] = prev_language
+            config.theme["language"] = prev_language
         else:
-            config.theme.pop('language', None)
+            config.theme.pop("language", None)
 
 
 def _build_extra_template(
@@ -238,7 +240,7 @@ def _build_extra_template(
     output = _build_template(template_name, template, files, config, nav)
 
     if output.strip():
-        utils.write_file(output.encode('utf-8'), file.abs_dest_path)
+        utils.write_file(output.encode("utf-8"), file.abs_dest_path)
     else:
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
@@ -315,7 +317,7 @@ def _build_page(
             context = get_context(nav, doc_files, config, page)
 
             # Allow 'template:' override in md source files.
-            template = env.get_template(page.meta.get('template', 'main.html'))
+            template = env.get_template(page.meta.get("template", "main.html"))
 
             # Run `page_context` plugin events.
             context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
@@ -324,7 +326,7 @@ def _build_page(
                 page.content = (
                     '<div class="docsforge-draft-marker" title="This page will not be included into the built site.">'
                     'DRAFT'
-                    '</div>' + (page.content or '')
+                    '</div>' + (page.content or "")
                 )
 
             # Render the template.
@@ -336,7 +338,7 @@ def _build_page(
             # Write the output file.
             if output.strip():
                 utils.write_file(
-                    output.encode('utf-8', errors='xmlcharrefreplace'), page.file.abs_dest_path
+                    output.encode("utf-8", errors="xmlcharrefreplace"), page.file.abs_dest_path
                 )
             else:
                 log.info(f"Page skipped: '{page.file.src_uri}'. Generated empty output.")
@@ -382,17 +384,17 @@ def _prepare_build(
     # Ensure mermaid fence config is present in markdown extensions.
     # This is done once per build instead of per-page for efficiency.
     # Work on a deep copy so the original config object is not mutated in place.
-    if 'pymdownx.superfences' in config['markdown_extensions']:
+    if "pymdownx.superfences" in config["markdown_extensions"]:
         import pymdownx.superfences as superfences_mod
-        mdx_configs = copy.deepcopy(config.get('mdx_configs') or {})
-        config['mdx_configs'] = mdx_configs
-        sf_cfg = mdx_configs.setdefault('pymdownx.superfences', {})
-        custom_fences = sf_cfg.setdefault('custom_fences', [])
-        if not any(f.get('name') == 'mermaid' for f in custom_fences):
+        mdx_configs = copy.deepcopy(config.get("mdx_configs") or {})
+        config["mdx_configs"] = mdx_configs
+        sf_cfg = mdx_configs.setdefault("pymdownx.superfences", {})
+        custom_fences = sf_cfg.setdefault("custom_fences", [])
+        if not any(f.get("name") == "mermaid" for f in custom_fences):
             custom_fences.append({
-                'name': 'mermaid',
-                'class': 'mermaid',
-                'format': superfences_mod.fence_code_format,
+                "name": "mermaid",
+                "class": "mermaid",
+                "format": superfences_mod.fence_code_format,
             })
 
     # Run `pre_build` plugin events.
@@ -437,37 +439,37 @@ def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
         return {k: d[k] for k in sorted(d)}
 
     def _serialize(item):
-        if getattr(item, 'is_page', False):
+        if getattr(item, "is_page", False):
             return {
-                'type': 'page',
-                'src_uri': item.file.src_uri,
-                'url': item.url,
-                'title': item.title,
-                'is_homepage': item.is_homepage,
-                'i18n_titles': _sorted_dict(item.i18n_titles),
+                "type": "page",
+                "src_uri": item.file.src_uri,
+                "url": item.url,
+                "title": item.title,
+                "is_homepage": item.is_homepage,
+                "i18n_titles": _sorted_dict(item.i18n_titles),
             }
-        if getattr(item, 'is_section', False):
+        if getattr(item, "is_section", False):
             return {
-                'type': 'section',
-                'title': item.title,
-                'i18n_titles': _sorted_dict(item.i18n_titles),
-                'children': [_serialize(c) for c in item.children],
+                "type": "section",
+                "title": item.title,
+                "i18n_titles": _sorted_dict(item.i18n_titles),
+                "children": [_serialize(c) for c in item.children],
             }
-        if getattr(item, 'is_link', False):
+        if getattr(item, "is_link", False):
             return {
-                'type': 'link',
-                'title': item.title,
-                'url': item.url,
-                'i18n_titles': _sorted_dict(item.i18n_titles),
+                "type": "link",
+                "title": item.title,
+                "url": item.url,
+                "i18n_titles": _sorted_dict(item.i18n_titles),
             }
         return {}
 
     data = {
-        'site_url': config.site_url or '',
-        'items': [_serialize(i) for i in nav.items],
+        "site_url": config.site_url or "",
+        "items": [_serialize(i) for i in nav.items],
     }
     hasher = hashlib.sha256()
-    hasher.update(json.dumps(data, ensure_ascii=False, sort_keys=True).encode('utf-8'))
+    hasher.update(json.dumps(data, ensure_ascii=False, sort_keys=True).encode("utf-8"))
     return hasher.hexdigest()[:32]
 
 
@@ -592,7 +594,7 @@ def _populate_changed_pages(
             if errors:
                 if len(errors) == 1:
                     raise errors[0]
-                raise ExceptionGroup("Errors populating pages", errors)
+                raise BuildErrorGroup("Errors populating pages", errors)
 
     if excluded:
         log.info(
@@ -643,8 +645,12 @@ def _write_outputs(
     all_doc_files: list[File],
     inclusion: Callable[[InclusionLevel], bool],
     force_all: bool = False,
-) -> bool:
-    """Copy static assets and build all changed pages in parallel."""
+) -> tuple[bool, set[str]]:
+    """Copy static assets and build all changed pages in parallel.
+
+    Returns ``(built_any, built_sources)``: whether any page was written, and
+    the set of source paths that were rebuilt.
+    """
     # Run `env` plugin events.
     env = config.plugins.on_env(env, config=config, files=files)
 
@@ -678,7 +684,11 @@ def _write_outputs(
         # render dependencies (e.g. a blog entrypoint that lists every post),
         # so an added/removed dependency must force a rebuild here too.
         extra_deps = config.plugins.on_page_deps([], page=file.page, files=files, config=config)
-        if force_all or planner.should_rebuild(source_path, output_path) or planner.deps_changed(source_path, extra_deps):
+        if (
+            force_all
+            or planner.should_rebuild(source_path, output_path)
+            or planner.deps_changed(source_path, extra_deps)
+        ):
             pages_to_build.append((file.page, source_path, output_path))
 
     built_any = False
@@ -753,8 +763,6 @@ def _finalize_build(
     start: float,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
-    nothing_changed = not built_any and not sources_changed and not nav_changed
-
     # Restore link/anchor data for pages not re-rendered this build, so the
     # validation pass below reports every page's problems on EVERY build, not
     # just the first one (a broken cross-link used to surface only when the
@@ -826,8 +834,8 @@ def _finalize_build(
 
     # Save cache after successful build (only if not in strict mode with errors)
     if counts := warning_counter.get_counts():
-        msg = ', '.join(f'{v} {k.lower()}s' for k, v in counts)
-        raise Abort(f'Aborted with {msg} in strict mode!')
+        msg = ", ".join(f"{v} {k.lower()}s" for k, v in counts)
+        raise Abort(f"Aborted with {msg} in strict mode!")
 
     # Run `build_done` plugin events — after EVERYTHING (validation,
     # post-build plugins, asset optimization, PWA manifest + service worker
@@ -835,10 +843,16 @@ def _finalize_build(
     # output. Skipped when the build is aborted in strict mode.
     config.plugins.on_build_done(config=config)
 
-    log.info(f'Documentation built in {time.monotonic() - start:.2f} seconds')
+    log.info(f"Documentation built in {time.monotonic() - start:.2f} seconds")
 
 
-def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool = True, progress: bool | None = None) -> None:
+def build(
+    config: DocsForgeConfig,
+    *,
+    serve_url: str | None = None,
+    dirty: bool = True,
+    progress: bool | None = None,
+) -> None:
     """Perform a site build — always incremental, always complete."""
     logger = logging.getLogger("docsforge")
 
@@ -873,7 +887,7 @@ def build(config: DocsForgeConfig, *, serve_url: str | None = None, dirty: bool 
         config.plugins.on_build_error(error=e)
         if isinstance(e, BuildError):
             log.error(str(e))
-            raise Abort('Aborted with a BuildError!')
+            raise Abort("Aborted with a BuildError!")
         raise
 
     finally:
@@ -889,7 +903,7 @@ def site_directory_contains_stale_files(site_directory: str) -> bool:
 def _parse_svg_length(value: str) -> int | None:
     """Extract a numeric pixel length from an SVG width/height attribute."""
     value = value.strip()
-    match = re.match(r'^([0-9]*\.?[0-9]+)', value)
+    match = re.match(r"^([0-9]*\.?[0-9]+)", value)
     if match:
         try:
             return int(float(match.group(1)))
@@ -901,10 +915,10 @@ def _parse_svg_length(value: str) -> int | None:
 def _svg_dimensions(data: bytes) -> tuple[int | None, int | None]:
     """Return (width, height) for an SVG, derived from width/height/viewBox."""
     try:
-        text = data.decode('utf-8')
+        text = data.decode("utf-8")
     except UnicodeDecodeError:
         return None, None
-    svg_match = re.search(r'<svg[^>]*>', text, re.DOTALL | re.IGNORECASE)
+    svg_match = re.search(r"<svg[^>]*>", text, re.DOTALL | re.IGNORECASE)
     if not svg_match:
         return None, None
     svg_tag = svg_match.group(0)
@@ -934,11 +948,11 @@ def _svg_dimensions(data: bytes) -> tuple[int | None, int | None]:
 
 def _png_dimensions(data: bytes) -> tuple[int | None, int | None]:
     """Return (width, height) from a PNG IHDR chunk."""
-    if data[:8] != b'\x89PNG\r\n\x1a\n' or len(data) < 24:
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) < 24:
         return None, None
     return (
-        int.from_bytes(data[16:20], 'big'),
-        int.from_bytes(data[20:24], 'big'),
+        int.from_bytes(data[16:20], "big"),
+        int.from_bytes(data[20:24], "big"),
     )
 
 
@@ -964,12 +978,12 @@ def _jpeg_dimensions(data: bytes) -> tuple[int | None, int | None]:
             if len(data) < i + 9:
                 return None, None
             return (
-                int.from_bytes(data[i + 7:i + 9], 'big'),
-                int.from_bytes(data[i + 5:i + 7], 'big'),
+                int.from_bytes(data[i + 7:i + 9], "big"),
+                int.from_bytes(data[i + 5:i + 7], "big"),
             )
         if i + 4 > len(data):
             break
-        length = struct.unpack('>H', data[i + 2:i + 4])[0]
+        length = struct.unpack(">H", data[i + 2:i + 4])[0]
         i += 2 + length
     return None, None
 
@@ -982,7 +996,7 @@ def _get_image_info(path: str) -> tuple[int | None, int | None, str | None]:
     """
     mime_type, _ = mimetypes.guess_type(path)
     try:
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             data = f.read()
     except OSError:
         return None, None, mime_type
@@ -990,11 +1004,11 @@ def _get_image_info(path: str) -> tuple[int | None, int | None, str | None]:
         return None, None, mime_type
 
     lower_path = path.lower()
-    if lower_path.endswith('.png') or mime_type == 'image/png':
+    if lower_path.endswith(".png") or mime_type == "image/png":
         width, height = _png_dimensions(data)
-    elif lower_path.endswith(('.jpg', '.jpeg')) or mime_type in ('image/jpeg', 'image/jpg'):
+    elif lower_path.endswith((".jpg", ".jpeg")) or mime_type in ("image/jpeg", "image/jpg"):
         width, height = _jpeg_dimensions(data)
-    elif lower_path.endswith('.svg') or mime_type == 'image/svg+xml':
+    elif lower_path.endswith(".svg") or mime_type == "image/svg+xml":
         width, height = _svg_dimensions(data)
     else:
         width, height = None, None
@@ -1021,10 +1035,8 @@ def _generate_pwa_manifest_and_precache(
         # registration, no sw.js at the site root, no cache/PWA manifest. Drop
         # the template copy of sw.js that was copied into assets so no worker
         # ships with the site at all.
-        try:
-            os.remove(os.path.join(site_dir, 'assets', 'javascripts', 'sw.js'))
-        except OSError:
-            pass
+        with contextlib.suppress(OSError):
+            os.remove(os.path.join(site_dir, "assets", "javascripts", "sw.js"))
         log.debug("offline.mode 'none': skipping service worker and cache manifest")
         return
 
@@ -1038,16 +1050,16 @@ def _generate_pwa_manifest_and_precache(
 
     # Also include static templates (404.html, sitemap.xml, etc.)
     for template in config.theme.static_templates:
-        if template.endswith('.html'):
-            template_url = template.replace('.html', '/')
-            if template == '404.html':
-                template_url = '/404.html'
+        if template.endswith(".html"):
+            template_url = template.replace(".html", "/")
+            if template == "404.html":
+                template_url = "/404.html"
             precache_urls.append(template_url)
 
     # Also include the home page explicitly. Page.url returns '' for the
     # homepage, but File.url uses './'; keep the explicit './' form so the
     # root page survives deduplication and is written into cache-manifest.json.
-    home_url = nav.homepage.url if nav.homepage else './'
+    home_url = nav.homepage.url if nav.homepage else "./"
     if home_url and home_url not in precache_urls:
         precache_urls.insert(0, home_url)
 
@@ -1056,60 +1068,60 @@ def _generate_pwa_manifest_and_precache(
     # So URLs are just relative to root
     sw_relative_urls = []
     for url in precache_urls:
-        if url.startswith('/'):
-            sw_relative_urls.append(url.lstrip('/'))
-        elif url in ('', './'):
-            sw_relative_urls.append('./')
+        if url.startswith("/"):
+            sw_relative_urls.append(url.lstrip("/"))
+        elif url in ("", "./"):
+            sw_relative_urls.append("./")
         else:
             # Already relative, keep as-is
             sw_relative_urls.append(url)
 
     # Always include cache manifest for hash-based syncing
-    sw_relative_urls.append('cache-manifest.json')
+    sw_relative_urls.append("cache-manifest.json")
 
     # Remove duplicates and sort for deterministic output
-    sw_relative_urls = sorted(set(url for url in sw_relative_urls if url))
+    sw_relative_urls = sorted({url for url in sw_relative_urls if url})
 
-# Inject pre-cache list and deterministic build hash into service worker.
+    # Inject pre-cache list and deterministic build hash into service worker.
     # The SW is placed at site root for maximum scope coverage.
-    sw_source = os.path.join(site_dir, 'assets', 'javascripts', 'sw.js')
-    sw_dest = os.path.join(site_dir, 'sw.js')
+    sw_source = os.path.join(site_dir, "assets", "javascripts", "sw.js")
+    sw_dest = os.path.join(site_dir, "sw.js")
     if os.path.isfile(sw_source):
         try:
-            with open(sw_source, 'r', encoding='utf-8') as f:
+            with open(sw_source, encoding="utf-8") as f:
                 content = f.read()
 
-            if '__PRE_CACHE_PAGES__' in content:
+            if "__PRE_CACHE_PAGES__" in content:
                 content = content.replace(
-                    '__PRE_CACHE_PAGES__',
+                    "__PRE_CACHE_PAGES__",
                     json.dumps(sw_relative_urls)
                 )
 
-            if '__DOCSFORGE_BASE_URL__' in content:
+            if "__DOCSFORGE_BASE_URL__" in content:
                 # Inject the site base path so the SW works correctly when the
                 # documentation is deployed under a subpath (e.g. /docs/).
-                base_url_path = urlsplit(config.site_url or '/').path or '/'
-                base_url_path = '/' + base_url_path.strip('/')
-                if base_url_path != '/':
-                    base_url_path += '/'
-                content = content.replace('__DOCSFORGE_BASE_URL__', base_url_path)
+                base_url_path = urlsplit(config.site_url or "/").path or "/"
+                base_url_path = "/" + base_url_path.strip("/")
+                if base_url_path != "/":
+                    base_url_path += "/"
+                content = content.replace("__DOCSFORGE_BASE_URL__", base_url_path)
                 log.debug(f"Injected service worker base URL {base_url_path}")
 
-            if '__DOCSFORGE_BUILD_HASH__' in content:
+            if "__DOCSFORGE_BUILD_HASH__" in content:
                 # Deterministic hash: identical source + config + precache list
                 # produces identical SW hash, so unchanged builds don't force
                 # clients to reinstall the service worker.
                 hasher = hashlib.sha256()
-                hasher.update(content.encode('utf-8'))
-                hasher.update(json.dumps(sw_relative_urls).encode('utf-8'))
-                config_path = Path(config.config_file_path) if config.config_file_path else Path('docsforge.yml')
+                hasher.update(content.encode("utf-8"))
+                hasher.update(json.dumps(sw_relative_urls).encode("utf-8"))
+                config_path = Path(config.config_file_path) if config.config_file_path else Path("docsforge.yml")
                 if config_path.exists():
                     hasher.update(config_path.read_bytes())
                 build_hash = hasher.hexdigest()[:12]
-                content = content.replace('__DOCSFORGE_BUILD_HASH__', build_hash)
+                content = content.replace("__DOCSFORGE_BUILD_HASH__", build_hash)
                 log.debug(f"Injected deterministic build hash {build_hash} into service worker")
 
-            with open(sw_dest, 'w', encoding='utf-8') as f:
+            with open(sw_dest, "w", encoding="utf-8") as f:
                 f.write(content)
 
             # Remove the template copy in assets to avoid a duplicate worker.
@@ -1125,25 +1137,19 @@ def _generate_pwa_manifest_and_precache(
     # Generate manifest.json
     manifest = {
         "name": config.site_name,
-        "short_name": config.site_name[:12] if len(config.site_name) > 12 else config.site_name,
+        "short_name": config.site_name[:12],
         "description": config.site_description or f"Documentation for {config.site_name}",
         "start_url": ".",
         "display": "standalone",
         "background_color": "#fff",
-        "theme_color": "#4051b5",
+        # theme.palette.primary holds a Material palette *name* ("teal"), which
+        # is not a valid CSS color, so it must be resolved to a real one here.
+        "theme_color": templates.primary_color_of(config.theme.get("palette")),
         "icons": []
     }
 
-    # Use primary color from palette if available
-    palette = config.theme.get('palette', {})
-    if isinstance(palette, list) and palette:
-        palette = palette[0]
-    if isinstance(palette, dict):
-        primary = palette.get('primary', 'indigo')
-        manifest["theme_color"] = primary
-
     # Add favicon as icon if available
-    favicon = config.theme.get('favicon', '') or config.theme.get('icon', {}).get('favicon', '')
+    favicon = config.theme.get("favicon", "") or config.theme.get("icon", {}).get("favicon", "")
     if favicon:
         favicon_path = os.path.join(config.docs_dir, favicon)
         if os.path.isfile(favicon_path):
@@ -1156,7 +1162,7 @@ def _generate_pwa_manifest_and_precache(
             manifest["icons"].append(icon)
 
     # Add logo as icon if available
-    logo = config.theme.get('logo', '')
+    logo = config.theme.get("logo", "")
     if logo:
         logo_path = os.path.join(config.docs_dir, logo)
         if os.path.isfile(logo_path):
@@ -1171,16 +1177,16 @@ def _generate_pwa_manifest_and_precache(
     # Add extra icons if specified
     extra = config.extra or {}
     if isinstance(extra, dict):
-        pwa_config = extra.get('pwa', {})
+        pwa_config = extra.get("pwa", {})
         if isinstance(pwa_config, dict):
-            extra_icons = pwa_config.get('icons', [])
+            extra_icons = pwa_config.get("icons", [])
             if extra_icons:
                 manifest["icons"].extend(extra_icons)
 
     # Write manifest.json
-    manifest_path = os.path.join(site_dir, 'manifest.json')
+    manifest_path = os.path.join(site_dir, "manifest.json")
     try:
-        with open(manifest_path, 'w', encoding='utf-8') as f:
+        with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
         log.debug(f"Generated PWA manifest at {manifest_path}")
     except Exception as e:
@@ -1190,7 +1196,12 @@ def _generate_pwa_manifest_and_precache(
     _generate_cache_manifest(site_dir, sw_relative_urls, files, planner)
 
 
-def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files | None = None, planner: BuildPlanner | None = None) -> None:
+def _generate_cache_manifest(
+    site_dir: str,
+    page_urls: list[str],
+    files: Files | None = None,
+    planner: BuildPlanner | None = None,
+) -> None:
     """Generate cache-manifest.json listing every build output + source hash.
 
     Every file written to site_dir is included (pages, theme assets, search
@@ -1217,10 +1228,10 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
                 continue
 
             url = f.url
-            if url in ('', './'):
-                forms = ('./', 'index.html')
+            if url in ("", "./"):
+                forms = ("./", "index.html")
             else:
-                forms = (url, url.rstrip('/'), url.rstrip('/') + '/index.html')
+                forms = (url, url.rstrip("/"), url.rstrip("/") + "/index.html")
             for form in forms:
                 src_by_url[form] = src_path
 
@@ -1230,31 +1241,28 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
         for filename in sorted(filenames):
             abs_path = os.path.join(root, filename)
             rel_path = os.path.relpath(abs_path, site_dir)
-            rel_unix = rel_path.replace(os.sep, '/')
+            rel_unix = rel_path.replace(os.sep, "/")
 
             # The SW should not cache itself or its manifest.
-            if rel_unix in ('cache-manifest.json', 'sw.js'):
+            if rel_unix in ("cache-manifest.json", "sw.js"):
                 continue
 
             # Directory-index pages are addressed by their directory URL.
-            if filename == 'index.html':
+            if filename == "index.html":
                 dir_part = os.path.dirname(rel_unix)
-                url = './' if dir_part == '' else dir_part + '/'
+                url = "./" if dir_part == "" else dir_part + "/"
             else:
                 url = rel_unix
 
             # Source-first hashing for Markdown-backed pages, built-file fallback
             # for everything else (theme assets, 404.html, sitemap, etc.).
             src_path = src_by_url.get(url)
-            if src_path and os.path.isfile(src_path):
-                hash_path = src_path
-            else:
-                hash_path = abs_path
+            hash_path = src_path if src_path and os.path.isfile(src_path) else abs_path
 
             if planner is not None:
                 h = planner._current_hash(Path(hash_path))[:16]
             else:
-                with open(hash_path, 'rb') as f:
+                with open(hash_path, "rb") as f:
                     h = hashlib.sha256(f.read()).hexdigest()[:16]
 
             manifest_files[url] = h
@@ -1266,7 +1274,7 @@ def _generate_cache_manifest(site_dir: str, page_urls: list[str], files: Files |
         "sizes": manifest_sizes,
     }
 
-    manifest_path = os.path.join(site_dir, 'cache-manifest.json')
-    with open(manifest_path, 'w', encoding='utf-8') as f:
+    manifest_path = os.path.join(site_dir, "cache-manifest.json")
+    with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
     log.debug(f"Generated cache manifest with {len(manifest_files)} entries at {manifest_path}")

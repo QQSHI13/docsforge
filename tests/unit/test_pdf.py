@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from docsforge import pdf as pdf_mod
 from docsforge.pdf import _is_within, _tabs_from_memory, build_pdf
 

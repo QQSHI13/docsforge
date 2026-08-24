@@ -10,14 +10,14 @@ import yaml
 log = logging.getLogger(__name__)
 
 COLOR_MAP = {
-    'teal': {'primary': 'teal', 'accent': 'teal'},
-    'indigo': {'primary': 'indigo', 'accent': 'indigo'},
-    'blue': {'primary': 'blue', 'accent': 'blue'},
-    'green': {'primary': 'green', 'accent': 'green'},
-    'red': {'primary': 'red', 'accent': 'red'},
-    'orange': {'primary': 'orange', 'accent': 'orange'},
-    'purple': {'primary': 'purple', 'accent': 'purple'},
-    'pink': {'primary': 'pink', 'accent': 'pink'},
+    "teal": {"primary": "teal", "accent": "teal"},
+    "indigo": {"primary": "indigo", "accent": "indigo"},
+    "blue": {"primary": "blue", "accent": "blue"},
+    "green": {"primary": "green", "accent": "green"},
+    "red": {"primary": "red", "accent": "red"},
+    "orange": {"primary": "orange", "accent": "orange"},
+    "purple": {"primary": "purple", "accent": "purple"},
+    "pink": {"primary": "pink", "accent": "pink"},
 }
 
 
@@ -29,76 +29,76 @@ def _generate_config(
     author_name: str | None = None,
     repo_url: str | None = None,
     site_description: str | None = None,
-    language: str = 'en',
+    language: str = "en",
     copyright: str | None = None,
     favicon: str | None = None,
     logo: str | None = None,
 ) -> str:
     """Generate docsforge.yml content with all core features enabled."""
 
-    color = COLOR_MAP.get(theme_color, COLOR_MAP['teal'])
+    color = COLOR_MAP.get(theme_color, COLOR_MAP["teal"])
 
     config: dict = {
-        'site_name': site_name,
+        "site_name": site_name,
     }
 
     if site_description:
-        config['site_description'] = site_description
+        config["site_description"] = site_description
 
     if site_url:
-        config['site_url'] = site_url
+        config["site_url"] = site_url
 
     if copyright:
-        config['copyright'] = copyright
+        config["copyright"] = copyright
 
     if repo_url:
-        config['repo_url'] = repo_url
-        config['edit_uri'] = 'edit/main/docs/'
+        config["repo_url"] = repo_url
+        config["edit_uri"] = "edit/main/docs/"
 
     theme: dict = {
-        'name': 'material',
-        'palette': [
+        "name": "material",
+        "palette": [
             {
-                'scheme': 'default',
-                'primary': color['primary'],
-                'accent': color['accent'],
-                'toggle': {
-                    'icon': 'material/brightness-7',
-                    'name': 'Switch to dark mode',
+                "scheme": "default",
+                "primary": color["primary"],
+                "accent": color["accent"],
+                "toggle": {
+                    "icon": "material/brightness-7",
+                    "name": "Switch to dark mode",
                 },
             },
             {
-                'scheme': 'slate',
-                'primary': color['primary'],
-                'accent': color['accent'],
-                'toggle': {
-                    'icon': 'material/brightness-4',
-                    'name': 'Switch to light mode',
+                "scheme": "slate",
+                "primary": color["primary"],
+                "accent": color["accent"],
+                "toggle": {
+                    "icon": "material/brightness-4",
+                    "name": "Switch to light mode",
                 },
             },
         ],
-        'language': language,
+        "language": language,
     }
 
     if favicon:
-        theme['favicon'] = favicon
+        theme["favicon"] = favicon
     if logo:
-        theme['logo'] = logo
+        theme["logo"] = logo
 
-    config['theme'] = theme
+    config["theme"] = theme
 
     if privacy:
-        config['privacy'] = True
+        config["privacy"] = True
 
     if author_name:
-        config['extra'] = {'author': author_name}
+        config["extra"] = {"author": author_name}
 
-    config['extra_css'] = ['stylesheets/extra.css']
-    config['extra_javascript'] = ['javascripts/extra.js']
-    config['nav'] = [
-        {'Home': 'index.md'},
-        {'Getting Started': 'getting-started.md'},
-        {'Blog': ['blog/index.md']},
+    config["extra_css"] = ["stylesheets/extra.css"]
+    config["extra_javascript"] = ["javascripts/extra.js"]
+    config["nav"] = [
+        {"Home": "index.md"},
+        {"Getting Started": "getting-started.md"},
+        {"Blog": ["blog/index.md"]},
     ]
 
     return yaml.dump(config, sort_keys=False, default_flow_style=False, allow_unicode=True)
@@ -106,7 +106,7 @@ def _generate_config(
 
 def _generate_github_workflow(site_url: str | None) -> str:
     """Generate GitHub Pages deployment workflow."""
-    return '''name: Deploy Docs
+    return """name: Deploy Docs
 
 on:
   push:
@@ -145,12 +145,12 @@ jobs:
     steps:
       - uses: actions/deploy-pages@v4
         id: deployment
-'''
+"""
 
 
 def _generate_readme(site_name: str) -> str:
     """Generate README.md content."""
-    return f'''# {site_name}
+    return f"""# {site_name}
 
 Documentation built with [DocsForge](https://qqshi13.github.io/docsforge/).
 
@@ -192,12 +192,12 @@ docsforge build
 ## Deployment
 
 Pushes to `main` automatically deploy to GitHub Pages via the workflow in `.github/workflows/pages.yml`.
-'''
+"""
 
 
 def _generate_gitignore() -> str:
     """Generate .gitignore for DocsForge projects."""
-    return '''# DocsForge build output
+    return """# DocsForge build output
 site/
 
 # Python
@@ -218,12 +218,12 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
-'''
+"""
 
 
 def _generate_extra_css() -> str:
     """Generate extra.css with useful defaults."""
-    return '''/* Custom styles for your documentation */
+    return """/* Custom styles for your documentation */
 
 /* Increase content width on large screens */
 .md-grid {
@@ -239,12 +239,12 @@ html {
 .md-content a:hover {
   text-decoration: underline;
 }
-'''
+"""
 
 
 def _generate_extra_js() -> str:
     """Generate extra.js with useful defaults."""
-    return '''// Custom JavaScript for your documentation
+    return """// Custom JavaScript for your documentation
 
 // Add keyboard shortcut for search (Cmd/Ctrl + K)
 document.addEventListener('keydown', function(e) {
@@ -253,13 +253,13 @@ document.addEventListener('keydown', function(e) {
     document.querySelector('[data-md-component=search]').focus();
   }
 });
-'''
+"""
 
 
 def _generate_authors_yml(author_name: str | None = None) -> str:
     """Generate blog authors configuration."""
     name = author_name or "Author Name"
-    return f'''# Blog authors configuration
+    return f"""# Blog authors configuration
 # Add your authors here, then reference them in blog posts
 
 authors:
@@ -267,12 +267,12 @@ authors:
     name: {name}
     description: Brief bio
     avatar: https://github.com/username.png
-'''
+"""
 
 
 def _generate_blog_post() -> str:
     """Generate a demo blog post."""
-    return '''---
+    return """---
 date: 2026-01-01
 authors:
   - default
@@ -301,12 +301,12 @@ DocsForge blog supports:
 - **Archive** by year and month
 - **RSS feeds** automatically generated
 - **Related posts** based on tags
-'''
+"""
 
 
 def _generate_getting_started() -> str:
     """Generate getting-started.md content."""
-    return '''# Getting Started
+    return """# Getting Started
 
 This guide helps you get the most out of DocsForge.
 
@@ -379,19 +379,19 @@ nav:
     - API: api.md
     - CLI: cli.md
 ```
-'''
+"""
 
 
 def _generate_index(site_name: str, author_name: str | None = None, repo_url: str | None = None) -> str:
     """Generate index.md content."""
     lines = [f"# Welcome to {site_name}"]
-    
+
     if author_name:
         lines.append(f"\nBy **{author_name}**")
-    
+
     if repo_url:
-        lines.append(f'\n[:fontawesome-brands-github: Repository]({repo_url})')
-    
+        lines.append(f"\n[:fontawesome-brands-github: Repository]({repo_url})")
+
     lines.append("""
 This documentation is built with [DocsForge](https://qqshi13.github.io/docsforge/).
 
@@ -460,7 +460,7 @@ def init(
     author_name: str | None = None,
     repo_url: str | None = None,
     site_description: str | None = None,
-    language: str = 'en',
+    language: str = "en",
     copyright: str | None = None,
     favicon: str | None = None,
     logo: str | None = None,
@@ -470,25 +470,25 @@ def init(
     All core features (search, tags, blog, info, meta, minify, social, optimize)
     are always enabled. Privacy is the only optional feature.
     """
-    
+
     output_dir = Path(project_directory)
-    docs_dir = output_dir / 'docs'
-    config_path = output_dir / 'docsforge.yml'
-    index_path = docs_dir / 'index.md'
-    
+    docs_dir = output_dir / "docs"
+    config_path = output_dir / "docsforge.yml"
+    index_path = docs_dir / "index.md"
+
     # Create directories
     if not output_dir.exists():
-        log.info(f'Creating project directory: {output_dir}')
+        log.info(f"Creating project directory: {output_dir}")
         output_dir.mkdir(parents=True)
-    
+
     if not docs_dir.exists():
         docs_dir.mkdir()
-    
+
     # Write config
     if config_path.exists():
-        log.warning(f'{config_path} already exists. Skipping config creation.')
+        log.warning(f"{config_path} already exists. Skipping config creation.")
     else:
-        log.info(f'Writing configuration: {config_path}')
+        log.info(f"Writing configuration: {config_path}")
         config_content = _generate_config(
             site_name=site_name,
             site_url=site_url,
@@ -502,84 +502,84 @@ def init(
             favicon=favicon,
             logo=logo,
         )
-        config_path.write_text(config_content, encoding='utf-8')
-    
+        config_path.write_text(config_content, encoding="utf-8")
+
     # Write index.md
     if index_path.exists():
-        log.warning(f'{index_path} already exists. Skipping index creation.')
+        log.warning(f"{index_path} already exists. Skipping index creation.")
     else:
-        log.info(f'Writing homepage: {index_path}')
-        index_path.write_text(_generate_index(site_name, author_name, repo_url), encoding='utf-8')
-    
+        log.info(f"Writing homepage: {index_path}")
+        index_path.write_text(_generate_index(site_name, author_name, repo_url), encoding="utf-8")
+
     # Write getting-started.md
-    getting_started_path = docs_dir / 'getting-started.md'
+    getting_started_path = docs_dir / "getting-started.md"
     if not getting_started_path.exists():
-        log.info(f'Writing guide: {getting_started_path}')
-        getting_started_path.write_text(_generate_getting_started(), encoding='utf-8')
-    
+        log.info(f"Writing guide: {getting_started_path}")
+        getting_started_path.write_text(_generate_getting_started(), encoding="utf-8")
+
     # Write blog index and directories
-    blog_dir = docs_dir / 'blog'
-    posts_dir = blog_dir / 'posts'
-    blog_index_path = blog_dir / 'index.md'
-    
+    blog_dir = docs_dir / "blog"
+    posts_dir = blog_dir / "posts"
+    blog_index_path = blog_dir / "index.md"
+
     if not blog_dir.exists():
         blog_dir.mkdir(exist_ok=True)
     if not posts_dir.exists():
         posts_dir.mkdir(exist_ok=True)
-    
+
     if not blog_index_path.exists():
-        blog_index_path.write_text(_generate_blog_index(), encoding='utf-8')
-    
+        blog_index_path.write_text(_generate_blog_index(), encoding="utf-8")
+
     # Write demo blog post
-    blog_post_path = posts_dir / '2026-01-01-hello-world.md'
+    blog_post_path = posts_dir / "2026-01-01-hello-world.md"
     if not blog_post_path.exists():
-        log.info(f'Writing demo blog post: {blog_post_path}')
-        blog_post_path.write_text(_generate_blog_post(), encoding='utf-8')
-    
+        log.info(f"Writing demo blog post: {blog_post_path}")
+        blog_post_path.write_text(_generate_blog_post(), encoding="utf-8")
+
     # Write blog authors config
-    authors_path = posts_dir / '.authors.yml'
+    authors_path = posts_dir / ".authors.yml"
     if not authors_path.exists():
-        authors_path.write_text(_generate_authors_yml(author_name), encoding='utf-8')
-    
+        authors_path.write_text(_generate_authors_yml(author_name), encoding="utf-8")
+
     # Write stylesheets
-    stylesheets_dir = docs_dir / 'stylesheets'
+    stylesheets_dir = docs_dir / "stylesheets"
     if not stylesheets_dir.exists():
         stylesheets_dir.mkdir(exist_ok=True)
-    css_path = stylesheets_dir / 'extra.css'
+    css_path = stylesheets_dir / "extra.css"
     if not css_path.exists():
-        log.info(f'Writing stylesheet: {css_path}')
-        css_path.write_text(_generate_extra_css(), encoding='utf-8')
-    
+        log.info(f"Writing stylesheet: {css_path}")
+        css_path.write_text(_generate_extra_css(), encoding="utf-8")
+
     # Write javascripts
-    javascripts_dir = docs_dir / 'javascripts'
+    javascripts_dir = docs_dir / "javascripts"
     if not javascripts_dir.exists():
         javascripts_dir.mkdir(exist_ok=True)
-    js_path = javascripts_dir / 'extra.js'
+    js_path = javascripts_dir / "extra.js"
     if not js_path.exists():
-        log.info(f'Writing JavaScript: {js_path}')
-        js_path.write_text(_generate_extra_js(), encoding='utf-8')
-    
+        log.info(f"Writing JavaScript: {js_path}")
+        js_path.write_text(_generate_extra_js(), encoding="utf-8")
+
     # Write README.md
-    readme_path = output_dir / 'README.md'
+    readme_path = output_dir / "README.md"
     if not readme_path.exists():
-        log.info(f'Writing README: {readme_path}')
-        readme_path.write_text(_generate_readme(site_name), encoding='utf-8')
-    
+        log.info(f"Writing README: {readme_path}")
+        readme_path.write_text(_generate_readme(site_name), encoding="utf-8")
+
     # Write .gitignore
-    gitignore_path = output_dir / '.gitignore'
+    gitignore_path = output_dir / ".gitignore"
     if not gitignore_path.exists():
-        log.info(f'Writing .gitignore: {gitignore_path}')
-        gitignore_path.write_text(_generate_gitignore(), encoding='utf-8')
-    
+        log.info(f"Writing .gitignore: {gitignore_path}")
+        gitignore_path.write_text(_generate_gitignore(), encoding="utf-8")
+
     # Write GitHub workflow
-    github_dir = output_dir / '.github' / 'workflows'
+    github_dir = output_dir / ".github" / "workflows"
     if not github_dir.exists():
         github_dir.mkdir(parents=True, exist_ok=True)
-    workflow_path = github_dir / 'pages.yml'
+    workflow_path = github_dir / "pages.yml"
     if not workflow_path.exists():
-        log.info(f'Writing GitHub workflow: {workflow_path}')
-        workflow_path.write_text(_generate_github_workflow(site_url), encoding='utf-8')
-    
+        log.info(f"Writing GitHub workflow: {workflow_path}")
+        workflow_path.write_text(_generate_github_workflow(site_url), encoding="utf-8")
+
     # Print summary
     print()
     print("=" * 60)

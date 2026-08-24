@@ -53,6 +53,8 @@ chinese = ["jieba>=0.42.1"]
 all = ["playwright>=1.62.0", "jieba>=0.42.1", "docsforge[pdf]", "docsforge[social]"]
 pdf = ["playwright>=1.62.0", "pypdf>=6.15.0"]
 social = ["pillow>=12.3.0", "cairosvg>=2.9.0"]
+# Pinned to the version CI enforces, so `ruff check` locally matches the gate.
+dev = ["pytest>=8.0", "pytest-mock>=3.14", "ruff==0.16.4"]
 
 [project.urls]
 Documentation = "https://qqshi13.github.io/docsforge"
@@ -87,3 +89,100 @@ include = ["/docsforge", "/README.md", "/LICENSE"]
 include = ["/docsforge"]
 # Include .icons/ even if historically gitignored
 artifacts = ["/docsforge/templates/.icons/**"]
+
+[tool.ruff]
+# Match requires-python: py310 is what pins F821 on 3.11+ builtins like
+# ExceptionGroup, which is the whole point of running this gate.
+target-version = "py310"
+line-length = 120
+extend-exclude = [
+    # Generated or third-party trees, not authored here.
+    "docsforge/templates",
+    "node_modules",
+    "site",
+    "studio",
+]
+
+[tool.ruff.lint]
+# A correctness *and* style gate. DocsForge no longer tracks upstream
+# ProperDocs / Material for MkDocs, so there is no reason to preserve upstream
+# formatting; the tree is held to one consistent house style instead.
+#
+# Correctness:
+#   F     pyflakes           - undefined names, unused imports/variables
+#   B     flake8-bugbear     - mutable defaults, unbound loop vars, bad zip
+#   PL    pylint             - errors + warnings + the cheap conventions
+#   RUF   ruff-specific      - mutable class defaults, ambiguous unicode, ...
+#   DTZ   flake8-datetimez   - naive datetimes
+#   LOG   flake8-logging     - logger misuse
+# Style:
+#   E, W  pycodestyle        - whitespace, line length, statement layout
+#   I     isort              - import order
+#   N     pep8-naming        - names
+#   Q     flake8-quotes      - double quotes (already 78% of the tree)
+#   UP    pyupgrade          - modern syntax for the supported Python range
+#   C4    comprehensions     - dict()/list() calls, redundant comprehensions
+#   SIM   flake8-simplify    - collapsible branches, contextlib.suppress
+#   RET   flake8-return      - superfluous else/return
+#   ISC   implicit-str-concat
+#   PIE   flake8-pie
+#   ICN   import-conventions - the conventional aliases
+#   FURB  refurb             - modern idiom nits
+#   PERF  perflint           - obviously wasteful loops
+#   PGH   pygrep-hooks       - blanket `# type: ignore`
+#   TID   tidy-imports       - no relative imports beyond the parent
+select = [
+    "F", "B", "PL", "RUF", "DTZ", "LOG",
+    "E", "W", "I", "N", "Q", "UP", "C4", "SIM", "RET",
+    "ISC", "PIE", "ICN", "FURB", "PERF", "PGH", "TID",
+]
+ignore = [
+    # Deferring `raise ... from err` across the tree would touch ~23 call sites
+    # and change traceback output users may match on.
+    "B904",
+    # Lazy imports are load-bearing here: the CLI keeps startup fast by not
+    # importing jinja/markdown/pygments until a command actually needs them,
+    # and several modules import inside functions to break import cycles.
+    "PLC0415",
+    # "Too many x" — these measure size, not correctness, and firing them would
+    # demand restructuring long-but-linear functions (build orchestration,
+    # config validation) into artificial helpers.
+    "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917",
+    # Magic values: comparisons against HTTP codes, byte sizes and version
+    # tuples read better inline than behind a named constant.
+    "PLR2004",
+    # `import xml.etree.ElementTree as etree` is the naming the Markdown
+    # extension API itself uses; matching it keeps extension code readable.
+    # (N813 is the name check, ICN001 the "should be `ET`" convention check.)
+    "N813", "ICN001",
+    # try/except inside a loop is the correct shape when each iteration must
+    # survive its own failure (per-page render, per-option validation).
+    "PERF203",
+    # Ambiguous-unicode: DocsForge renders prose. En dashes, ℹ and friends are
+    # deliberate typography in user-facing strings, not homoglyph smuggling.
+    "RUF001", "RUF002", "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Vendored 'paginate' 0.5.7, kept close to upstream (see the module docstring)
+# because it is a dead dependency we absorbed rather than code we maintain.
+"docsforge/paginate.py" = ["E402", "N", "RET", "SIM", "UP", "C4", "FURB", "PLW", "PERF"]
+# Names fixed by the Markdown extension API (`makeExtension`,
+# `extendMarkdown`) and by the decorator-as-lowercase-class convention.
+"docsforge/preview.py" = ["N802"]
+"docsforge/utils.py" = ["N801"]
+# The name deliberately mirrors the stdlib `ExceptionGroup` it stands in for.
+"docsforge/exceptions.py" = ["N818"]
+# `ParseResult as URL` reads as a type name throughout the privacy plugin,
+# which annotates dozens of parameters with it.
+"docsforge/core/privacy.py" = ["N814"]
+# Tests: asserting on a regression's historical name is more useful than
+# conforming to snake_case.
+"tests/regression/test_regressions.py" = ["N802"]
+# Blog post dates are naive by design (a post is dated, not instantaneous);
+# the fixtures must construct them the same way the config option does.
+"tests/unit/plugins/test_blog.py" = ["DTZ"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+

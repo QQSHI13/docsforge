@@ -5,14 +5,14 @@ bug cannot silently return. Versions referenced are the release that fixed it.
 """
 from __future__ import annotations
 
+import contextlib
 import socket
 from pathlib import Path
 
 import pytest
 
 from docsforge import utils
-from docsforge.cache import DependencyTracker, _SNIPPET_INCLUDE_RE
-
+from docsforge.cache import DependencyTracker
 
 # ---------------------------------------------------------------------------
 # v11.1.3 / v11.1.4 — incremental dependency tracking was a no-op
@@ -117,10 +117,10 @@ def test_regression_10_9_5_port_probe_has_short_timeout(monkeypatch):
         def connect_ex(self, addr): return 0  # port "in use"
 
     monkeypatch.setattr(socket, "socket", lambda *a, **k: FakeSocket())
-    try:
+    # All ports report "in use" -> no port found, which is fine here; the
+    # assertion below is about settimeout, not the outcome.
+    with contextlib.suppress(RuntimeError):
         serve._find_available_port("127.0.0.1", 8000, max_attempts=1)
-    except RuntimeError:
-        pass  # all "in use" -> no port found, that's fine
     assert timeouts, "settimeout was never called"
     assert timeouts[0] <= 1.0
 
@@ -248,8 +248,8 @@ def test_regression_invalid_yaml_does_not_nameerror(tmp_path: Path, monkeypatch)
     """load_config's `except yaml.YAMLError` referenced an unimported `yaml`,
     so a YAML syntax error crashed with NameError instead of a friendly
     DocsForgeException. (Found while writing test_config.py.)"""
-    from docsforge.exceptions import DocsForgeException
     from docsforge.config_base import load_config
+    from docsforge.exceptions import DocsForgeException
 
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "index.md").write_text("# x")
@@ -272,12 +272,14 @@ def test_regression_config_check_appears_before_build_logs(tmp_path: Path):
     docs.mkdir()
     (docs / "index.md").write_text("# Home\n")
     (tmp_path / "docsforge.yml").write_text(
-        "site_name: T\ntheme: {name: material, palette: [{scheme: default, primary: teal, accent: teal}]}\nprivacy: false\n"
+        "site_name: T\n"
+        "theme: {name: material, palette: [{scheme: default, primary: teal, accent: teal}]}\n"
+        "privacy: false\n"
     )
     proc = subprocess.run(
         [sys.executable, "-m", "docsforge", "build"],
         cwd=tmp_path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, timeout=120,
+        text=True, timeout=120, check=False,
     )
     merged = proc.stdout
     check_idx = merged.find("Config check:")

@@ -1,6 +1,25 @@
 ## [12.5.7] — 2026-08-22
 
+### Added
+
+- **Ruff lint gate in CI and release** — `ruff check` now runs as its own job
+  in both the CI and release workflows, and the release is blocked on it, so a
+  correctness regression cannot ship. The gate covers both correctness
+  (pyflakes, bugbear, pylint errors) and style (pycodestyle, isort,
+  pep8-naming, pyupgrade, flake8-simplify and friends): DocsForge no longer
+  tracks upstream ProperDocs / Material for MkDocs, so the tree is held to one
+  consistent house style — double quotes, a 120-column limit, sorted imports,
+  no relative imports beyond the parent package. Every ignored rule and
+  per-file exemption is justified in `[tool.ruff.lint]` in `pyproject.toml`. A
+  new `pip install -e '.[dev]'` extra installs the exact pinned ruff version CI
+  enforces.
+
 ### Fixed
+
+- **Social cards no longer leak between builds** — `SocialPlugin.manifest` was
+  a class attribute that instance code mutated, so every plugin instance shared
+  one dict and card entries accumulated across rebuilds within a single
+  `docsforge serve` session. It is now per-instance.
 
 - **Translated pages keep their index-page identity** — a translation sibling
   such as `index.zh.md` was treated as a regular page instead of an index
@@ -9,6 +28,43 @@
   translated section indexes were not merged into their section with
   `navigation.indexes`. Translation siblings now share the default file's
   stem identity, so `index.zh.md` behaves exactly like `index.md`.
+- **`privacy` no longer crashes when a symlink cannot be created** — on
+  filesystems without symlink support (notably Windows without developer
+  mode) the fallback path that writes the downloaded asset directly read
+  `res.content`, which raises `RuntimeError: The content for this response was
+  already consumed` because the download had already been streamed to enforce
+  the size limit. The already-streamed bytes are now written instead.
+- **PWA manifest and `theme-color` carry a real color** — both emitted the
+  Material palette *name* (e.g. `teal`) where a CSS color is required, so the
+  browser ignored the value and no theme color was applied. Palette names are
+  now resolved to their actual hex color, with literal CSS colors passed
+  through unchanged.
+- **Builds work on Python 3.10** — a parallel page-render failure raised
+  `ExceptionGroup`, a 3.11+ builtin, so on 3.10 (which `requires-python`
+  allows) the error handler itself raised `NameError` and masked the real
+  build error. A compatible fallback is used below 3.11.
+- **TikZ compilation cannot hang the build** — every LaTeX and SVG-converter
+  invocation now runs under a timeout (120s, overridable with
+  `DOCSFORGE_TIKZ_TIMEOUT`). A malformed diagram that put TeX into an
+  interactive prompt previously blocked the build forever, since the
+  compilation runs inside a thread pool the build waits on.
+- **TikZ compile counters are thread-safe** — the compiled/skipped counters
+  and the content-hash map were mutated from the compile thread pool without
+  synchronization, so the reported counts could be wrong and hash entries
+  could be lost, causing unchanged diagrams to recompile on the next build.
+- **Stale build caches are discarded on format change** — `CACHE_VERSION` was
+  never compared against the stored version, so a cache written by an older
+  format revision was read back as if current. It is now invalidated when the
+  format changes.
+- **`cache.invalidate()` clears every cache file** — `validation.json` was
+  missing from the list, so link/anchor validation data survived an
+  invalidation. All cache files now come from a single source of truth.
+- **`docsforge fix` backs up your config** — the auto-fix rewrote
+  `docsforge.yml` through `yaml.dump`, silently discarding comments, blank
+  lines and quoting style. It now writes a `.bak` copy first and says so.
+- **Social card manifest errors no longer swallow interrupts** — a bare
+  `except` around the manifest read caught `KeyboardInterrupt`, so Ctrl-C
+  during that read was ignored.
 
 ## [12.5.6] — 2026-08-20
 

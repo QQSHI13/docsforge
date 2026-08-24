@@ -53,9 +53,8 @@ class TestInherit:
             """,
             "site_name: Parent\n",
         )
-        with open(child, "rb") as fd:
-            with pytest.raises(exceptions.ConfigurationError):
-                yaml_load(fd)
+        with open(child, "rb") as fd, pytest.raises(exceptions.ConfigurationError):
+            yaml_load(fd)
 
     def test_inherit_directory_rejected(self, tmp_path):
         child, _ = self._write_configs(
@@ -67,13 +66,11 @@ class TestInherit:
             "site_name: Parent\n",
         )
         (tmp_path / "subdir").mkdir()
-        with open(child, "rb") as fd:
-            with pytest.raises(exceptions.ConfigurationError):
-                yaml_load(fd)
+        with open(child, "rb") as fd, pytest.raises(exceptions.ConfigurationError):
+            yaml_load(fd)
 
     def test_inherit_missing_rejected(self, tmp_path):
         child = tmp_path / "child.yml"
         child.write_text("INHERIT: missing.yml\nsite_name: Child\n")
-        with open(child, "rb") as fd:
-            with pytest.raises(exceptions.ConfigurationError):
-                yaml_load(fd)
+        with open(child, "rb") as fd, pytest.raises(exceptions.ConfigurationError):
+            yaml_load(fd)

@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
-import sys
-from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, TypeVar, overload
-
-if sys.version_info >= (3, 10):
-    from importlib.metadata import EntryPoint, entry_points
-else:
-    from importlib_metadata import EntryPoint, entry_points
+from collections.abc import Callable, MutableMapping
+from importlib.metadata import EntryPoint, entry_points
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, TypeVar, overload
 
 if TYPE_CHECKING:
     import jinja2.environment
@@ -26,29 +22,31 @@ from docsforge.config_base import (
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
-    from docsforge.livereload import LiveReloadServer
     from docsforge.files import Files
+    from docsforge.livereload import LiveReloadServer
     from docsforge.nav import Navigation
     from docsforge.pages import Page
     from docsforge.templates import TemplateContext
 
 if TYPE_CHECKING:
-    from typing_extensions import Concatenate, ParamSpec
+    from typing import Concatenate
+
+    from typing_extensions import ParamSpec
 else:
     ParamSpec = TypeVar
 
-P = ParamSpec('P')
-T = TypeVar('T')
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
-log = logging.getLogger('docsforge.plugins')
+log = logging.getLogger("docsforge.plugins")
 
 
 def get_plugins() -> dict[str, EntryPoint]:
     """Return a dict of all installed Plugins as {name: EntryPoint}."""
     plugins: dict[str, EntryPoint] = {}
 
-    for plugin in entry_points(group='docsforge.plugins'):
+    for plugin in entry_points(group="docsforge.plugins"):
         # Allow third-party plugins to override core plugins
         if plugin.name in plugins and plugin.value.startswith("docsforge.plugins."):
             continue
@@ -57,7 +55,7 @@ def get_plugins() -> dict[str, EntryPoint]:
     return plugins
 
 
-SomeConfig = TypeVar('SomeConfig', bound=Config)
+SomeConfig = TypeVar("SomeConfig", bound=Config)
 
 
 class BasePlugin(Generic[SomeConfig]):
@@ -69,12 +67,14 @@ class BasePlugin(Generic[SomeConfig]):
 
     config_class: type[SomeConfig] = LegacyConfig  # type: ignore[assignment]
     config_scheme: PlainConfigSchema = ()
-    config: SomeConfig = {}  # type: ignore[assignment]
+    # Not a ClassVar: `load_config` replaces this with a per-instance Config.
+    # The empty dict is only a placeholder for plugins read before validation.
+    config: SomeConfig = {}  # type: ignore[assignment]  # noqa: RUF012
 
     supports_multiple_instances: bool = False
     """Set to true in subclasses to declare support for adding the same plugin multiple times."""
 
-    optional_dependencies: list[str] = []
+    optional_dependencies: ClassVar[list[str]] = []
     """Names of optional Python packages this plugin may use at runtime.
 
     DocsForge warns the user with the matching install command when a configured
@@ -83,8 +83,8 @@ class BasePlugin(Generic[SomeConfig]):
 
     def __class_getitem__(cls, config_class: type[Config]):
         """Eliminates the need to write `config_class = FooConfig` when subclassing BasePlugin[FooConfig]."""
-        name = f'{cls.__name__}[{config_class.__name__}]'
-        return type(name, (cls,), dict(config_class=config_class))
+        name = f"{cls.__name__}[{config_class.__name__}]"
+        return type(name, (cls,), {"config_class": config_class})
 
     def __init_subclass__(cls):
         if not issubclass(cls.config_class, Config):
@@ -99,7 +99,7 @@ class BasePlugin(Generic[SomeConfig]):
     ) -> tuple[ConfigErrors, ConfigWarnings]:
         """Load config from a dict of options. Returns a tuple of (errors, warnings)."""
         if self.config_class is LegacyConfig:
-            self.config = LegacyConfig(self.config_scheme, config_file_path=config_file_path)  # type: ignore
+            self.config = LegacyConfig(self.config_scheme, config_file_path=config_file_path)  # type: ignore[assignment]
         else:
             self.config = self.config_class(config_file_path=config_file_path)
 
@@ -109,7 +109,7 @@ class BasePlugin(Generic[SomeConfig]):
 
     # One-time events
 
-    def on_startup(self, *, command: Literal['build', 'gh-deploy', 'serve'], dirty: bool) -> None:
+    def on_startup(self, *, command: Literal["build", "gh-deploy", "serve"], dirty: bool) -> None:
         """
         The `startup` event runs once at the very beginning of a DocsForge invocation.
 
@@ -463,7 +463,7 @@ EVENTS = tuple(k[3:] for k in BasePlugin.__dict__ if k.startswith("on_"))
 
 # The above definitions were just for docs and type checking, we don't actually want them.
 for k in EVENTS:
-    delattr(BasePlugin, 'on_' + k)
+    delattr(BasePlugin, "on_" + k)
 
 
 def event_priority(priority: float) -> Callable[[T], T]:
@@ -563,19 +563,17 @@ class PluginCollection(dict, MutableMapping[str, BasePlugin]):
                 self._register_event(event_name, sub, plugin_name=plugin_name)
         else:
             events = self.events[event_name]
-            if event_name == 'page_read_source' and len(events) == 1:
-                plugin1 = self._event_origins.get(next(iter(events)), '<unknown>')
-                plugin2 = plugin_name or '<unknown>'
+            if event_name == "page_read_source" and len(events) == 1:
+                plugin1 = self._event_origins.get(next(iter(events)), "<unknown>")
+                plugin2 = plugin_name or "<unknown>"
                 log.warning(
                     "Multiple 'on_page_read_source' handlers can't work "
                     f"(both plugins '{plugin1}' and '{plugin2}' registered one)."
                 )
-            utils.insort(events, method, key=lambda m: -getattr(m, 'mkdocs_priority', 0))
+            utils.insort(events, method, key=lambda m: -getattr(m, "mkdocs_priority", 0))
             if plugin_name:
-                try:
+                with contextlib.suppress(TypeError):  # If the method is somehow not hashable.
                     self._event_origins[method] = plugin_name
-                except TypeError:  # If the method is somehow not hashable.
-                    pass
 
     def __getitem__(self, key: str) -> BasePlugin:
         return super().__getitem__(key)
@@ -583,7 +581,7 @@ class PluginCollection(dict, MutableMapping[str, BasePlugin]):
     def __setitem__(self, key: str, value: BasePlugin) -> None:
         super().__setitem__(key, value)
         # Register all of the event methods defined for this Plugin.
-        for event_name in (x for x in dir(value) if x.startswith('on_')):
+        for event_name in (x for x in dir(value) if x.startswith("on_")):
             method = getattr(value, event_name, None)
             if callable(method):
                 self._register_event(event_name[3:], method, plugin_name=key)
@@ -605,99 +603,96 @@ class PluginCollection(dict, MutableMapping[str, BasePlugin]):
         """
         pass_item = item is not None
         for method in self.events[name]:
-            self._current_plugin = self._event_origins.get(method, '<unknown>')
+            self._current_plugin = self._event_origins.get(method, "<unknown>")
             if log.getEffectiveLevel() <= logging.DEBUG:
                 log.debug(f"Running `{name}` event from plugin '{self._current_plugin}'")
-            if pass_item:
-                result = method(item, **kwargs)
-            else:
-                result = method(**kwargs)
+            result = method(item, **kwargs) if pass_item else method(**kwargs)
             # keep item if method returned `None`
             if result is not None:
                 item = result
         self._current_plugin = None
         return item
 
-    def on_startup(self, *, command: Literal['build', 'gh-deploy', 'serve'], dirty: bool) -> None:
-        return self.run_event('startup', command=command, dirty=dirty)
+    def on_startup(self, *, command: Literal["build", "gh-deploy", "serve"], dirty: bool) -> None:
+        return self.run_event("startup", command=command, dirty=dirty)
 
     def on_shutdown(self) -> None:
-        return self.run_event('shutdown')
+        return self.run_event("shutdown")
 
     def on_serve(
         self, server: LiveReloadServer, *, config: DocsForgeConfig, builder: Callable
     ) -> LiveReloadServer:
-        return self.run_event('serve', server, config=config, builder=builder)
+        return self.run_event("serve", server, config=config, builder=builder)
 
     def on_config(self, config: DocsForgeConfig) -> DocsForgeConfig:
-        return self.run_event('config', config)
+        return self.run_event("config", config)
 
     def on_pre_build(self, *, config: DocsForgeConfig) -> None:
-        return self.run_event('pre_build', config=config)
+        return self.run_event("pre_build", config=config)
 
     def on_files(self, files: Files, *, config: DocsForgeConfig) -> Files:
-        return self.run_event('files', files, config=config)
+        return self.run_event("files", files, config=config)
 
     def on_page_deps(self, deps: list[str], /, *, page, files, config) -> list[str]:
-        return self.run_event('page_deps', deps, page=page, files=files, config=config)
+        return self.run_event("page_deps", deps, page=page, files=files, config=config)
 
     def on_nav(self, nav: Navigation, *, config: DocsForgeConfig, files: Files) -> Navigation:
-        return self.run_event('nav', nav, config=config, files=files)
+        return self.run_event("nav", nav, config=config, files=files)
 
     def on_env(self, env: jinja2.Environment, *, config: DocsForgeConfig, files: Files):
-        return self.run_event('env', env, config=config, files=files)
+        return self.run_event("env", env, config=config, files=files)
 
     def on_post_build(self, *, config: DocsForgeConfig) -> None:
-        return self.run_event('post_build', config=config)
+        return self.run_event("post_build", config=config)
 
     def on_build_error(self, *, error: Exception) -> None:
-        return self.run_event('build_error', error=error)
+        return self.run_event("build_error", error=error)
 
     def on_build_done(self, *, config: DocsForgeConfig) -> None:
-        return self.run_event('build_done', config=config)
+        return self.run_event("build_done", config=config)
 
     def on_pre_template(
         self, template: jinja2.Template, *, template_name: str, config: DocsForgeConfig
     ) -> jinja2.Template:
-        return self.run_event('pre_template', template, template_name=template_name, config=config)
+        return self.run_event("pre_template", template, template_name=template_name, config=config)
 
     def on_template_context(
         self, context: TemplateContext, *, template_name: str, config: DocsForgeConfig
     ) -> TemplateContext:
         return self.run_event(
-            'template_context', context, template_name=template_name, config=config
+            "template_context", context, template_name=template_name, config=config
         )
 
     def on_post_template(
         self, output_content: str, *, template_name: str, config: DocsForgeConfig
     ) -> str:
         return self.run_event(
-            'post_template', output_content, template_name=template_name, config=config
+            "post_template", output_content, template_name=template_name, config=config
         )
 
     def on_pre_page(self, page: Page, *, config: DocsForgeConfig, files: Files) -> Page:
-        return self.run_event('pre_page', page, config=config, files=files)
+        return self.run_event("pre_page", page, config=config, files=files)
 
     def on_page_read_source(self, *, page: Page, config: DocsForgeConfig) -> str | None:
-        return self.run_event('page_read_source', page=page, config=config)
+        return self.run_event("page_read_source", page=page, config=config)
 
     def on_page_markdown(
         self, markdown: str, *, page: Page, config: DocsForgeConfig, files: Files
     ) -> str:
-        return self.run_event('page_markdown', markdown, page=page, config=config, files=files)
+        return self.run_event("page_markdown", markdown, page=page, config=config, files=files)
 
     def on_page_content(
         self, html: str, *, page: Page, config: DocsForgeConfig, files: Files
     ) -> str:
-        return self.run_event('page_content', html, page=page, config=config, files=files)
+        return self.run_event("page_content", html, page=page, config=config, files=files)
 
     def on_page_context(
         self, context: TemplateContext, *, page: Page, config: DocsForgeConfig, nav: Navigation
     ) -> TemplateContext:
-        return self.run_event('page_context', context, page=page, config=config, nav=nav)
+        return self.run_event("page_context", context, page=page, config=config, nav=nav)
 
     def on_post_page(self, output: str, *, page: Page, config: DocsForgeConfig) -> str:
-        return self.run_event('post_page', output, page=page, config=config)
+        return self.run_event("post_page", output, page=page, config=config)
 
 
 class PrefixedLogger(logging.LoggerAdapter):

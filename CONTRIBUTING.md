@@ -41,6 +41,9 @@ cd docsforge
 # Python package (editable, installs all runtime deps incl. pygments)
 pip install -e .
 
+# Python dev tools (pytest + the exact ruff version CI enforces)
+pip install -e '.[dev]'
+
 # Frontend deps (esbuild, sass, svgo, icons, katex, mermaid, ...)
 pnpm install
 
@@ -48,6 +51,31 @@ pnpm install
 cd studio
 npm install
 ```
+
+## Linting
+
+`ruff` gates both CI and the release workflow, so a failing lint blocks a
+release. Run it before pushing:
+
+```bash
+ruff check .          # same command CI runs
+ruff check --fix .    # apply the safe autofixes
+```
+
+The selected rules are a **correctness and style** gate: pyflakes, bugbear and
+pylint errors on the correctness side, plus pycodestyle, isort, pep8-naming,
+pyupgrade, flake8-simplify and friends on the style side. DocsForge no longer
+tracks upstream ProperDocs / Material for MkDocs, so the tree is held to one
+consistent house style rather than kept diffable against upstream.
+
+Notable house rules: double quotes, a 120-column limit, sorted imports, no
+relative imports beyond the parent package, and `ClassVar` on genuine
+class-level constants. Formatting-only churn should land in its own commit,
+separate from behavior changes.
+
+The rationale for every ignored rule and every per-file exemption lives in
+`[tool.ruff.lint]` in `pyproject.toml`. If you must silence a finding, prefer a
+narrow `# noqa: RULE` with a reason over widening the config.
 
 ## Running tests
 

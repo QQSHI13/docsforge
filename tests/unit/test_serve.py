@@ -18,7 +18,6 @@ from docsforge.livereload import (
 )
 from docsforge.serve import _find_available_port
 
-
 # ---------------------------------------------------------------------------
 # Port finding
 # ---------------------------------------------------------------------------
@@ -69,7 +68,7 @@ class TestFindAvailablePort:
                 self.t = t
                 assert t <= 1.0, "probe must use a short timeout (WSL fix)"
             def connect_ex(self, addr):
-                raise socket.timeout("dropped")
+                raise TimeoutError("dropped")
 
         monkeypatch.setattr(socket, "socket", lambda *a, **k: FakeSocket())
         assert _find_available_port("127.0.0.1", 8000) == 8000

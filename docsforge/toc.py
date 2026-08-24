@@ -22,7 +22,7 @@ class _TocToken(TypedDict):
 def get_toc(toc_tokens: list[_TocToken]) -> TableOfContents:
     toc = [_parse_toc_token(i) for i in toc_tokens]
     # For the table of contents, always mark the first element as active
-    if len(toc):
+    if toc:
         toc[0].active = True  # type: ignore[attr-defined]
     return TableOfContents(toc)
 
@@ -40,7 +40,7 @@ class AnchorLink:
     @property
     def url(self) -> str:
         """The hash fragment of a URL pointing to the item."""
-        return '#' + self.id
+        return "#" + self.id
 
     level: int
     """The zero-based level of the item."""
@@ -52,8 +52,8 @@ class AnchorLink:
         return self.indent_print()
 
     def indent_print(self, depth: int = 0) -> str:
-        indent = '    ' * depth
-        ret = f'{indent}{self.title} - {self.url}\n'
+        indent = "    " * depth
+        ret = f"{indent}{self.title} - {self.url}\n"
         for item in self.children:
             ret += item.indent_print(depth + 1)
         return ret
@@ -72,11 +72,11 @@ class TableOfContents(Iterable[AnchorLink]):
         return len(self.items)
 
     def __str__(self) -> str:
-        return ''.join(str(item) for item in self)
+        return "".join(str(item) for item in self)
 
 
 def _parse_toc_token(token: _TocToken) -> AnchorLink:
-    anchor = AnchorLink(token['name'], token['id'], token['level'])
-    for i in token['children']:
+    anchor = AnchorLink(token["name"], token["id"], token["level"])
+    for i in token["children"]:
         anchor.children.append(_parse_toc_token(i))
     return anchor

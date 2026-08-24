@@ -7,10 +7,10 @@ for MkDocs theme and plugins into a single, cohesive package.
 from __future__ import annotations
 
 from docsforge.utils import (
-    clean_directory,
-    copy_file,
     CountHandler,
     DuplicateFilter,
+    clean_directory,
+    copy_file,
     get_build_date,
     get_build_datetime,
     get_markdown_title,
@@ -31,3 +31,29 @@ from docsforge.utils import (
 
 __version__ = "12.5.7"
 __prog_name__ = "docsforge"
+
+# Re-exported for backwards compatibility: these names were importable from
+# `docsforge` directly before the utils split, and third-party plugins rely on
+# it. Listed explicitly so the re-exports are not mistaken for unused imports.
+__all__ = [
+    "CountHandler",
+    "DuplicateFilter",
+    "clean_directory",
+    "copy_file",
+    "get_build_date",
+    "get_build_datetime",
+    "get_markdown_title",
+    "get_relative_url",
+    "get_theme_dir",
+    "get_theme_names",
+    "get_themes",
+    "get_url_path",
+    "is_error_template",
+    "markdown_extensions",
+    "nest_paths",
+    "normalize_url",
+    "reduce_list",
+    "slugify",
+    "weak_property",
+    "write_file",
+]

@@ -5,22 +5,17 @@ from __future__ import annotations
 import functools
 import logging
 import os
-import posixpath
 import re
 import shutil
-import warnings
 from bisect import insort  # noqa: F401 - legacy re-export
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timezone
-from importlib.metadata import EntryPoint, entry_points
-from pathlib import PurePath
+from importlib.metadata import entry_points
 from typing import TYPE_CHECKING, TypeVar
-from urllib.parse import urlsplit
 
-from docsforge import exceptions
-from docsforge.yaml_utils import get_yaml_loader, yaml_load  # noqa: F401 - legacy re-export
 from docsforge.tikz import compile_tikz_files  # noqa: F401 - legacy re-export
+from docsforge.yaml_utils import get_yaml_loader, yaml_load  # noqa: F401 - legacy re-export
 
 # ---------------------------------------------------------------------------
 # weak_property descriptor
@@ -41,24 +36,24 @@ class weak_property:
 if TYPE_CHECKING:
     from docsforge.pages import Page
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
 
 def slugify(name: str) -> str:
     """Convert a site name or title to a URL-friendly directory slug."""
-    slug = re.sub(r'[^\w\s-]', '', name.lower())
-    slug = re.sub(r'[\s_]+', '-', slug)
-    return slug.strip('-') or 'my-docs'
+    slug = re.sub(r"[^\w\s-]", "", name.lower())
+    slug = re.sub(r"[\s_]+", "-", slug)
+    return slug.strip("-") or "my-docs"
 
 
 markdown_extensions = (
-    '.markdown',
-    '.mdown',
-    '.mkdn',
-    '.mkd',
-    '.md',
+    ".markdown",
+    ".mdown",
+    ".mkdn",
+    ".mkd",
+    ".md",
 )
 
 class DuplicateFilter:
@@ -125,14 +120,14 @@ def get_build_datetime() -> datetime:
 
 def get_build_date() -> str:
     """Returns the displayable date string."""
-    return get_build_datetime().strftime('%Y-%m-%d')
+    return get_build_datetime().strftime("%Y-%m-%d")
 
 
 @functools.cache
 def get_themes() -> dict[str, str]:
     """Return a dict of all installed themes as {name: title}."""
     themes = {}
-    for entry in entry_points(group='docsforge.themes'):
+    for entry in entry_points(group="docsforge.themes"):
         themes[entry.name] = entry.value
     return themes
 
@@ -152,16 +147,16 @@ def get_theme_dir(name):
     from importlib import import_module
     from importlib.resources import files
 
-    if name != 'material':
+    if name != "material":
         value = get_themes().get(name)
         if value is not None:
-            module = import_module(value.partition(':')[0])
+            module = import_module(value.partition(":")[0])
             if module.__file__ is not None:
                 return os.path.dirname(os.path.abspath(module.__file__))
             # Namespace package: a plain directory without __init__.py.
             return next(iter(module.__path__))
 
-    return files('docsforge') / 'templates'
+    return files("docsforge") / "templates"
 
 
 def is_markdown_file(path: str) -> bool:
@@ -173,14 +168,14 @@ def is_markdown_file(path: str) -> bool:
     return path.lower().endswith(markdown_extensions)
 
 
-def normalize_url(path, base=''):
+def normalize_url(path, base=""):
     """Normalize a URL to be relative to the given base."""
-    if path.startswith(('http://', 'https://', 'mailto:', 'tel:', 'data:', '#')):
+    if path.startswith(("http://", "https://", "mailto:", "tel:", "data:", "#")):
         return path
-    if base.startswith('/'):
-        if path.startswith('/'):
+    if base.startswith("/"):
+        if path.startswith("/"):
             return path
-        return base.rstrip('/') + '/' + path.lstrip('/')
+        return base.rstrip("/") + "/" + path.lstrip("/")
     if base:
         return _get_relative_url(path, base)
     return path
@@ -188,11 +183,10 @@ def normalize_url(path, base=''):
 
 def _norm_parts(path):
     """Normalize path parts for get_relative_url."""
-    if not path or path == '.':
+    if not path or path == ".":
         return []
-    if path.startswith('/'):
-        path = path[1:]
-    return [part for part in path.split('/') if part and part != '.']
+    path = path.removeprefix("/")
+    return [part for part in path.split("/") if part and part != "."]
 
 
 def _get_relative_url(url: str, other: str) -> str:
@@ -206,8 +200,8 @@ def _get_relative_url(url: str, other: str) -> str:
     root has no effect ('foo/../../bar' ends up just as 'bar').
     """
     # Remove filename from other url if it has one.
-    dirname, _, basename = other.rpartition('/')
-    if '.' in basename:
+    dirname, _, basename = other.rpartition("/")
+    if "." in basename:
         other = dirname
 
     other_parts = _norm_parts(other)
@@ -219,35 +213,35 @@ def _get_relative_url(url: str, other: str) -> str:
         common += 1
 
     if common == len(other_parts) == len(dest_parts):
-        return '.'
+        return "."
 
-    rel_parts = ['..'] * (len(other_parts) - common) + dest_parts[common:]
+    rel_parts = [".."] * (len(other_parts) - common) + dest_parts[common:]
     if not rel_parts:
-        return '.'
-    result = '/'.join(rel_parts)
-    if url.endswith('/') or url == '.':
-        result += '/'
+        return "."
+    result = "/".join(rel_parts)
+    if url.endswith("/") or url == ".":
+        result += "/"
     return result
 
 
 def get_relative_url(current, target):
     """Return the relative path from current to target."""
-    if target.startswith(('http://', 'https://', 'mailto:', 'tel:', 'data:')):
+    if target.startswith(("http://", "https://", "mailto:", "tel:", "data:")):
         return target
     if current == target:
-        return '.'
+        return "."
     return _get_relative_url(target, current)
 
 
 def is_error_template(template_name):
     """Check if a template is an error template."""
-    return template_name in ('404.html', '500.html')
+    return template_name in ("404.html", "500.html")
 
 
 def write_file(content, path):
     """Write content to a file, creating parent directories if needed."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'wb') as f:
+    with open(path, "wb") as f:
         f.write(content)
 
 
@@ -279,15 +273,15 @@ def nest_paths(paths):
     result = {}
     for path in sorted(paths):
         current = result
-        for part in path.split('/'):
+        for part in path.split("/"):
             current = current.setdefault(part, {})
     return result
 
 
 def get_markdown_title(markdown_text):
     """Extract the first H1 heading from markdown text."""
-    for line in markdown_text.split('\n'):
-        if line.startswith('# '):
+    for line in markdown_text.split("\n"):
+        if line.startswith("# "):
             return line[2:].strip()
     return None
 
@@ -295,10 +289,10 @@ def get_markdown_title(markdown_text):
 def get_url_path(path, use_directory_urls=True):
     """Convert a file path to a URL path."""
     if use_directory_urls:
-        if path.endswith('/index.md'):
-            return path[:-len('index.md')]
-        if path.endswith('.md'):
-            return path[:-3] + '/'
+        if path.endswith("/index.md"):
+            return path[:-len("index.md")]
+        if path.endswith(".md"):
+            return path[:-3] + "/"
     return path
 
 

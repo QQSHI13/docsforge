@@ -45,7 +45,7 @@ class TestUnicodeEmoji:
         assert svg.startswith("<svg xmlns")
 
     def test_unknown_codepoint_falls_back_to_pymdownx(self):
-        el, svg = _render("ffffff")  # not part of the vendored set
+        el, _svg = _render("ffffff")  # not part of the vendored set
         assert el.tag == "img"
         assert "ffffff.svg" in el.attrib["src"]
 

@@ -9,21 +9,22 @@ import json
 import logging
 import os
 import re
-from pathlib import Path
-
-from backrefs import bre
 from html import escape
 from html.parser import HTMLParser
+from pathlib import Path
+from typing import ClassVar
+
+from backrefs import bre
 
 from docsforge import utils
-from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, Optional, SubConfig, Type
 from docsforge.config_base import Config
+from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, Optional, SubConfig, Type
 from docsforge.core.plugin_base import BasePlugin
 
 
 def _get_jieba():
     """Lazy-load jieba to avoid dictionary loading penalty for non-Chinese sites."""
-    global jieba
+    global jieba  # noqa: PLW0603 - module-level memo for a lazily imported optional dep
     if jieba is None:
         try:
             import jieba as _jieba
@@ -41,9 +42,9 @@ def _needs_jieba(config) -> bool:
         return True
     lang = config.get("lang")
     if isinstance(lang, str):
-        return lang.startswith('zh')
+        return lang.startswith("zh")
     if isinstance(lang, list):
-        return any(isinstance(l, str) and l.startswith('zh') for l in lang)
+        return any(isinstance(item, str) and item.startswith("zh") for item in lang)
     return False
 
 
@@ -72,7 +73,7 @@ class SearchConfig(Config):
 class SearchPlugin(BasePlugin[SearchConfig]):
     """Full-text search with Lunr.js backend."""
 
-    optional_dependencies = ['jieba']
+    optional_dependencies: ClassVar[list[str]] = ["jieba"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -197,7 +198,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         if self._entries_cache_file is None or not self._entries_cache_file.exists():
             return {}
         try:
-            with open(self._entries_cache_file, "r", encoding="utf-8") as f:
+            with open(self._entries_cache_file, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
                 return data
@@ -256,7 +257,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
 
     def _recover_entries_for_locale(self, config, locale: str, index):
         """Re-render Markdown sources for the locale to rebuild search entries."""
-        from docsforge.files import get_files, InclusionLevel
+        from docsforge.files import InclusionLevel, get_files
         from docsforge.pages import Page
 
         entries_by_uri: dict[str, list[dict]] = {}
@@ -546,10 +547,7 @@ class Parser(HTMLParser):
             return
 
         if "pre" not in self.context:
-            if not data.isspace():
-                data = data.replace("\n", " ")
-            else:
-                data = " "
+            data = " " if data.isspace() else data.replace("\n", " ")
 
         if not self.section:
             self.section = Section(Element("hx"))
@@ -563,9 +561,7 @@ class Parser(HTMLParser):
             if not permalink:
                 self.section.title.append(escape(data, quote=False))
         elif data.isspace():
-            if not self.section.text or not self.section.text[-1].isspace():
-                self.section.text.append(data)
-            elif "pre" in self.context:
+            if not self.section.text or not self.section.text[-1].isspace() or "pre" in self.context:
                 self.section.text.append(data)
         else:
             self.section.text.append(escape(data, quote=False))

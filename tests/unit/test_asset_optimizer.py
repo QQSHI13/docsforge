@@ -1,8 +1,6 @@
 """Unit tests for docsforge.asset_optimizer helpers."""
 from __future__ import annotations
 
-import pytest
-
 from docsforge.asset_optimizer import (
     _AssetReferenceParser,
     _find_referenced_assets,
@@ -15,80 +13,80 @@ from docsforge.asset_optimizer import (
 class TestNormalizeAssetUrl:
     def test_external_urls_return_none(self):
         for url in (
-            'https://example.com/x.css',
-            'http://example.com/x.css',
-            '//example.com/x.css',
-            'data:image/png;base64,abc',
-            'mailto:a@b.com',
-            '#anchor',
+            "https://example.com/x.css",
+            "http://example.com/x.css",
+            "//example.com/x.css",
+            "data:image/png;base64,abc",
+            "mailto:a@b.com",
+            "#anchor",
         ):
-            assert _normalize_asset_url(url, '') is None
+            assert _normalize_asset_url(url, "") is None
 
     def test_absolute_path(self):
-        assert _normalize_asset_url('/assets/style.css', 'any') == 'assets/style.css'
+        assert _normalize_asset_url("/assets/style.css", "any") == "assets/style.css"
 
     def test_relative_path(self):
-        assert _normalize_asset_url('style.css', 'assets/stylesheets') == 'assets/stylesheets/style.css'
+        assert _normalize_asset_url("style.css", "assets/stylesheets") == "assets/stylesheets/style.css"
 
     def test_query_and_fragment_stripped(self):
-        assert _normalize_asset_url('icon.svg?v=1#x', '') == 'icon.svg'
+        assert _normalize_asset_url("icon.svg?v=1#x", "") == "icon.svg"
 
     def test_parent_directory_escape_returns_none(self):
-        assert _normalize_asset_url('../../../etc/passwd', 'assets/stylesheets') is None
+        assert _normalize_asset_url("../../../etc/passwd", "assets/stylesheets") is None
 
 
 class TestAssetReferenceParser:
     def test_quoted_href(self):
         p = _AssetReferenceParser()
         p.feed('<link rel="stylesheet" href="assets/style.css">')
-        assert 'assets/style.css' in p.refs
+        assert "assets/style.css" in p.refs
 
     def test_unquoted_src(self):
         p = _AssetReferenceParser()
-        p.feed('<script src=app.js></script>')
-        assert 'app.js' in p.refs
+        p.feed("<script src=app.js></script>")
+        assert "app.js" in p.refs
 
     def test_img_src(self):
         p = _AssetReferenceParser()
         p.feed('<img src="images/logo.png" alt="logo">')
-        assert 'images/logo.png' in p.refs
+        assert "images/logo.png" in p.refs
 
     def test_svg_image_href(self):
         p = _AssetReferenceParser()
         p.feed('<svg><image href="icons/a.svg"></image></svg>')
-        assert 'icons/a.svg' in p.refs
+        assert "icons/a.svg" in p.refs
 
     def test_data_attribute_with_asset(self):
         p = _AssetReferenceParser()
         p.feed('<div data-icon="icons/home.svg">x</div>')
-        assert 'icons/home.svg' in p.refs
+        assert "icons/home.svg" in p.refs
 
     def test_data_attribute_non_asset_ignored(self):
         p = _AssetReferenceParser()
         p.feed('<div data-id="123">x</div>')
-        assert '123' not in p.refs
+        assert "123" not in p.refs
 
     def test_img_srcset_with_density_descriptors(self):
         p = _AssetReferenceParser()
         p.feed('<img srcset="images/logo-1x.png 1x, images/logo-2x.png 2x" alt="logo">')
-        assert 'images/logo-1x.png' in p.refs
-        assert 'images/logo-2x.png' in p.refs
+        assert "images/logo-1x.png" in p.refs
+        assert "images/logo-2x.png" in p.refs
 
     def test_source_srcset_with_width_descriptors(self):
         p = _AssetReferenceParser()
         p.feed('<source srcset="images/banner-100.jpg 100w, images/banner-200.jpg 200w">')
-        assert 'images/banner-100.jpg' in p.refs
-        assert 'images/banner-200.jpg' in p.refs
+        assert "images/banner-100.jpg" in p.refs
+        assert "images/banner-200.jpg" in p.refs
 
     def test_inline_style_url(self):
         p = _AssetReferenceParser()
-        p.feed('<style>.x { background: url(images/bg.png); }</style>')
-        assert 'images/bg.png' in p.refs
+        p.feed("<style>.x { background: url(images/bg.png); }</style>")
+        assert "images/bg.png" in p.refs
 
     def test_inline_style_import(self):
         p = _AssetReferenceParser()
         p.feed("<style>@import url('fonts/font.woff2');</style>")
-        assert 'fonts/font.woff2' in p.refs
+        assert "fonts/font.woff2" in p.refs
 
 
 class TestFindReferencedAssets:
@@ -117,12 +115,12 @@ class TestFindReferencedAssets:
         (img_dir / "bg.png").write_text("png")
 
         refs = _find_referenced_assets(str(site))
-        assert 'assets/style.css' in refs
-        assert 'images/logo.png' in refs
-        assert 'app.js' in refs
-        assert 'assets/fonts/font.woff2' in refs
-        assert 'images/bg.png' in refs
-        assert 'assets/javascripts/workers/search.js' in refs
+        assert "assets/style.css" in refs
+        assert "images/logo.png" in refs
+        assert "app.js" in refs
+        assert "assets/fonts/font.woff2" in refs
+        assert "images/bg.png" in refs
+        assert "assets/javascripts/workers/search.js" in refs
 
     def test_external_urls_ignored(self, tmp_path):
         site = tmp_path / "site"
@@ -131,7 +129,7 @@ class TestFindReferencedAssets:
             '<script src="https://cdn.example.com/app.js"></script>'
         )
         refs = _find_referenced_assets(str(site))
-        assert 'https://cdn.example.com/app.js' not in refs
+        assert "https://cdn.example.com/app.js" not in refs
 
 
 class TestRemoveUnusedFontFormats:

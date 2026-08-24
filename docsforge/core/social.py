@@ -19,10 +19,6 @@ import os
 import pickle
 import posixpath
 import re
-import requests
-import sys
-import yaml
-
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import copy
@@ -30,20 +26,22 @@ from fnmatch import fnmatch
 from hashlib import sha1
 from html import unescape
 from io import BytesIO
-from jinja2.sandbox import SandboxedEnvironment
-from jinja2.meta import find_undeclared_variables
+from itertools import pairwise
 from statistics import stdev
 from textwrap import dedent
 from threading import Lock
+
+import requests
+import yaml
+from jinja2.meta import find_undeclared_variables
+from jinja2.sandbox import SandboxedEnvironment
 from yaml import SafeLoader
 
 from docsforge.config_base import Config
 from docsforge.config_defaults import DocsForgeConfig
-from docsforge.config_options import (
-    Choice, Deprecated, DictOfItems, ListOfItems, SubConfig, Type
-)
-from docsforge.exceptions import PluginError
+from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, SubConfig, Type
 from docsforge.core.plugin_base import BasePlugin, event_priority
+from docsforge.exceptions import PluginError
 from docsforge.files import File
 from docsforge.pages import Page
 from docsforge.utils import write_file
@@ -1151,14 +1149,20 @@ def get_offset(layer: Layer, image: _Image):
         w, h = get_size(layer)
 
         # Compute origin on x-axis
-        if   "start"  in origin: pass
-        elif "end"    in origin: x += (image.width  - w)  - 2 * x
-        elif "center" in origin: x += (image.width  - w) >> 1
+        if "start" in origin:
+            pass
+        elif "end" in origin:
+            x += (image.width - w) - 2 * x
+        elif "center" in origin:
+            x += (image.width - w) >> 1
 
         # Compute origin on y-axis
-        if   "top"    in origin: pass
-        elif "bottom" in origin: y += (image.height - h)  - 2 * y
-        elif "center" in origin: y += (image.height - h) >> 1
+        if "top" in origin:
+            pass
+        elif "bottom" in origin:
+            y += (image.height - h) - 2 * y
+        elif "center" in origin:
+            y += (image.height - h) >> 1
 
     # Return offset
     return x, y
@@ -1213,12 +1217,14 @@ class SocialConfig(Config):
 class SocialPlugin(BasePlugin[SocialConfig]):
     supports_multiple_instances = True
 
-    # Manifest
-    manifest: dict[str, str] = {}
-
     # Initialize plugin
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Per-instance card manifest. This used to be a class attribute, which
+        # meant every plugin instance shared one dict and entries leaked across
+        # rebuilds within a `docsforge serve` session.
+        self.manifest: dict[str, str] = {}
 
         # Initialize incremental builds
         self.is_serve = False
@@ -1274,8 +1280,11 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             try:
                 with open(self.manifest_file) as f:
                     self.manifest = json.load(f)
-            except:
-                pass
+            except (OSError, ValueError) as e:
+                # A truncated or unreadable manifest just means a cold cache;
+                # cards get regenerated. Bare `except` here also swallowed
+                # KeyboardInterrupt during the read.
+                log.debug(f"Ignoring unreadable social card manifest: {e}")
 
         # Initialize lock for synchronizing downloading of fonts
         self.lock = Lock()
@@ -1290,7 +1299,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
         # Always print a warning when debug mode is active
         if self.config.debug:
-            log.warning("Debug mode is enabled for \"social\" plugin.")
+            log.warning('Debug mode is enabled for "social" plugin.')
 
             # By default, debug mode is disabled when the documentation is
             # built, but not when it is served, for a better user experience
@@ -1300,7 +1309,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # Check if site URL is defined
         if not config.site_url:
             log.warning(
-                "The \"site_url\" option is not set. The cards are generated, "
+                'The "site_url" option is not set. The cards are generated, '
                 "but not linked, so they won't be visible on social media."
             )
 
@@ -1309,14 +1318,14 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # card generation is skipped (and only fails if `log: false` is set)
         if import_errors:
             log.warning(
-                "Required dependencies of \"social\" plugin not found:\n"
-                + str("\n".join(map(lambda x: "- " + x, import_errors)))
+                'Required dependencies of "social" plugin not found:\n'
+                + "\n".join("- " + x for x in import_errors)
                 + "\n\n"
-                + "--> Install with: pip install \"docsforge[social]\""
+                + '--> Install with: pip install "docsforge[social]"'
             )
         if cairosvg_error:
             log.warning(
-                "\"cairosvg\" Python module is installed, but it crashed with:\n"
+                '"cairosvg" Python module is installed, but it crashed with:\n'
                 + cairosvg_error
                 + "\n\n"
                 + "--> Check out the troubleshooting guide: https://t.ly/MfX6u"
@@ -1349,11 +1358,11 @@ class SocialPlugin(BasePlugin[SocialConfig]):
     @event_priority(50)
     def on_post_page(self, output, *, page, config):
         if not self.config.enabled:
-            return
+            return None
 
         # Skip if cards should not be generated
         if self._is_excluded(page):
-            return
+            return None
 
         # Reconcile concurrent jobs - we need to wait for the card job to finish
         # before we can copy the generated files to the output directory. If an
@@ -1367,13 +1376,12 @@ class SocialPlugin(BasePlugin[SocialConfig]):
                 if not isinstance(level, int):
                     level = logging.WARNING
                 log.log(level, e)
-                return
+                return None
 
             # Otherwise throw error
             raise e
-        else:
-            file: File = future.result()
-            file.copy_file()
+        file: File = future.result()
+        file.copy_file()
 
         # Resolve card layout
         name = self._config("cards_layout", page)
@@ -1381,7 +1389,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
         # Stop if no tags are present or site URL is not set
         if not layout.tags or not config.site_url:
-            return
+            return None
 
         # Resolve image dimensions and curate image metadata
         width, height = get_size(layout)
@@ -1398,7 +1406,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         return "\n".join([
             output[:at],
             "\n".join([
-                f"<meta property=\"{property}\" content=\"{content}\" />"
+                f'<meta property="{property}" content="{content}" />'
                     for property, content in _replace(
                         layout.tags, self.card_env, config,
                         page = page, image = image,
@@ -1431,13 +1439,10 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         if not self.config.enabled:
             return
 
-        # Shutdown thread pools - if we're on Python 3.9 and above, cancel all
-        # pending futures that have not yet been scheduled
+        # Shutdown thread pools, cancelling all pending futures that have not
+        # yet been scheduled
         for pool in [self.card_layer_pool, self.card_pool]:
-            if sys.version_info >= (3, 9):
-                pool.shutdown(cancel_futures = True)
-            else:
-                pool.shutdown()
+            pool.shutdown(cancel_futures = True)
 
         # Save manifest if cache should be used
         if self.manifest and self.config.cache:
@@ -1494,13 +1499,13 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # Thus, we generate a hash for each card, which is based on the layers
         # and the values of all variables that are used to generate the card.
         layers: dict[str, Layer] = {}
-        for layer, templates in zip(layout.layers, variables):
+        for layer, templates in zip(layout.layers, variables, strict=True):
             fingerprints = [self.config, layer]
 
             # Compute fingerprints for each layer
             for template in templates:
-                template = _compile(template, self.card_env)
-                fingerprints.append(template.render(
+                compiled = _compile(template, self.card_env)
+                fingerprints.append(compiled.render(
                     config = config, page = page,
                     layout = self._config("cards_layout_options", page)
                 ))
@@ -1540,14 +1545,14 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # can treat this as a warning or an error to abort the build.
         if import_errors:
             raise PluginError(
-                "Required dependencies of \"social\" plugin not found:\n"
-                + str("\n".join(map(lambda x: "- " + x, import_errors)))
+                'Required dependencies of "social" plugin not found:\n'
+                + "\n".join("- " + x for x in import_errors)
                 + "\n\n"
-                + "--> Install with: pip install \"docsforge[social]\""
+                + '--> Install with: pip install "docsforge[social]"'
             )
         if cairosvg_error:
             raise PluginError(
-                "\"cairosvg\" Python module is installed, but it crashed with:\n"
+                '"cairosvg" Python module is installed, but it crashed with:\n'
                 + cairosvg_error
                 + "\n\n"
                 + "--> Check out the troubleshooting guide: https://t.ly/MfX6u"
@@ -1602,13 +1607,10 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             page = page, layout = self._config("cards_layout_options", page)
         )
 
-        # Render background, icon, and typography
+        # Render background, icon, and typography, and return image with layer
         image = self._render_background(layer, image)
         image = self._render_icon(layer, image, config)
-        image = self._render_typography(layer, image)
-
-        # Return image with layer
-        return image
+        return self._render_typography(layer, image)
 
     # Render layer background
     def _render_background(self, layer: Layer, input: _Image):
@@ -1661,7 +1663,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
             # Compute and replace fill color
             fill = f"rgba({r}, {g}, {b}, {opacity})"
-            data = data.replace("<svg", f"<svg fill=\"{fill}\"")
+            data = data.replace("<svg", f'<svg fill="{fill}"')
 
         # Rasterize vector image given by icon to match the size of the
         # input image, resize it and render it on top of the input image
@@ -1766,8 +1768,8 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
             # Create two configurations of lines, one with the last word of the
             # first line moved to the last line, and one without the change
-            a = [len(" ".join(l)) for l in [words[p:q],     words[q:r]]]
-            b = [len(" ".join(l)) for l in [words[p:q - 1], words[q - 1:r]]]
+            a = [len(" ".join(line)) for line in [words[p:q],     words[q:r]]]
+            b = [len(" ".join(line)) for line in [words[p:q - 1], words[q - 1:r]]]
 
             # Compute standard deviation of line lengths before and after the
             # change, and if the standard deviation decreases, move the word
@@ -1781,19 +1783,25 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         anchor = _anchor(typography.align)
 
         # Compute horizontal alignment
-        if   anchor[0] == "l": align, x = "left",   0
-        elif anchor[0] == "m": align, x = "center", input.width  >> 1
-        else:                  align, x = "right",  input.width  >> 0
+        if anchor[0] == "l":
+            align, x = "left", 0
+        elif anchor[0] == "m":
+            align, x = "center", input.width >> 1
+        else:
+            align, x = "right", input.width >> 0
 
         # Compute vertical alignment
-        if   anchor[1] == "a":        y =           0
-        elif anchor[1] == "m":        y =           input.height >> 1
-        else:                         y =           input.height >> 0
+        if anchor[1] == "a":
+            y = 0
+        elif anchor[1] == "m":
+            y = input.height >> 1
+        else:
+            y = input.height >> 0
 
         # Join words with whitespace and lines with line breaks
         text = "\n".join([
             " ".join(words[p:q])
-                for p, q in zip(indexes, indexes[1:])
+                for p, q in pairwise(indexes)
         ])
 
         # Draw text onto image
@@ -1997,9 +2005,8 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
             # 2. Fallback: use regular font - use the shortest one, i.e., prefer
             # "10pt Regular" over "10pt Condensed Regular". This is a heuristic.
-            if "Regular" in name:
-                if not fallback or len(name) < len(fallback):
-                    fallback = name
+            if "Regular" in name and (not fallback or len(name) < len(fallback)):
+                fallback = name
 
         # Fall back to regular font (guess if there are multiple)
         return self._resolve_font(family, fallback)
@@ -2060,6 +2067,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # Dictionary values: merge site- with page-level configuration
         if isinstance(self.config[name], (dict)):
             return { **self.config[name], **meta.get(name, {}) }
+        return None
 
     # Create a file for the given path
     def _path_to_file(self, path: str, config: DocsForgeConfig):
@@ -2097,16 +2105,15 @@ def _extract(data: any, env: SandboxedEnvironment, config: DocsForgeConfig):
         ]
 
     # Traverse list
-    elif isinstance(data, list):
+    if isinstance(data, list):
         return [
             variable for value in data
                 for variable in _extract(value, env, config)
         ]
 
     # Retrieve variables from string
-    elif isinstance(data, str):
-        if find_undeclared_variables(env.parse(data)):
-            return [data]
+    if isinstance(data, str) and find_undeclared_variables(env.parse(data)):
+        return [data]
 
     # Return nothing
     return []
@@ -2139,7 +2146,7 @@ def _replace(
     return data
 
 # Compile template and cache it indefinitely
-@functools.lru_cache(maxsize = None)
+@functools.cache
 def _compile(data: str, env: SandboxedEnvironment):
     return env.from_string(html.unescape(data))
 
@@ -2230,16 +2237,24 @@ def _anchor(data: str):
     axis = re.split(r"\s+", data)
 
     # Determine anchor on x-axis
-    if   "start"  in axis: anchor  = "l"
-    elif "end"    in axis: anchor  = "r"
-    elif "center" in axis: anchor  = "m"
-    else:                  anchor  = "l"
+    if "start" in axis:
+        anchor = "l"
+    elif "end" in axis:
+        anchor = "r"
+    elif "center" in axis:
+        anchor = "m"
+    else:
+        anchor = "l"
 
     # Determine anchor on y-axis
-    if   "top"    in axis: anchor += "a"
-    elif "bottom" in axis: anchor += "d"
-    elif "center" in axis: anchor += "m"
-    else:                  anchor += "a"
+    if "top" in axis:
+        anchor += "a"
+    elif "bottom" in axis:
+        anchor += "d"
+    elif "center" in axis:
+        anchor += "m"
+    else:
+        anchor += "a"
 
     # Return anchor
     return anchor

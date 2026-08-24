@@ -7,17 +7,18 @@ import logging
 import os
 import posixpath
 import re
-import requests
-import sys
-from colorama import Fore, Style
 from concurrent.futures import Future, wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from fnmatch import fnmatch
 from hashlib import sha1
 from html.parser import HTMLParser
 from re import Match
-from urllib.parse import ParseResult as URL, urlparse, unquote
+from urllib.parse import ParseResult as URL
+from urllib.parse import unquote, urlparse
 from xml.etree.ElementTree import Element, tostring
+
+import requests
+from colorama import Fore, Style
 
 from docsforge import is_error_template
 from docsforge.config_base import Config
@@ -156,11 +157,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         # Resolve cache_dir relative to the project root (config file directory)
         # so cached external assets are reused regardless of the current working
         # directory from which docsforge is invoked.
-        cache_dir = self.config['cache_dir']
+        cache_dir = self.config["cache_dir"]
         if not os.path.isabs(cache_dir):
             project_dir = os.path.dirname(config.config_file_path or "") or os.getcwd()
             cache_dir = os.path.normpath(os.path.join(project_dir, cache_dir))
-            self.config['cache_dir'] = cache_dir
+            self.config["cache_dir"] = cache_dir
 
         # Thread pool is created lazily: if a site has no external assets,
         # we avoid the cost of starting and shutting down worker threads.
@@ -219,9 +220,8 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 self._queue(url, config, concurrent=True)
 
         # Process external script files
-        for script in config.extra_javascript:
-            if isinstance(script, str):
-                script = ExtraScriptValue(script)
+        for entry in config.extra_javascript:
+            script = ExtraScriptValue(entry) if isinstance(entry, str) else entry
             url = urlparse(script.path)
             if not self._is_excluded(url):
                 self._queue(url, config, concurrent=True)
@@ -237,7 +237,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
         for match in re.findall(
             r"<img[^>]+src=['\"]?(?:https?:)?//[^>]+>",
-            html, flags=re.I | re.M
+            html, flags=re.IGNORECASE | re.MULTILINE
         ):
             el = self._parse_fragment(match)
             url = urlparse(el.get("src"))
@@ -263,10 +263,10 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     @event_priority(-50)
     def on_post_template(self, output_content, *, template_name, config):
         if not self.config.enabled:
-            return
+            return None
 
         if not template_name.endswith(".html"):
-            return
+            return None
 
         initiator = File(template_name, config.docs_dir, config.site_dir, False)
         return self._parse_html(output_content, initiator, config)
@@ -275,7 +275,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     @event_priority(-50)
     def on_post_page(self, output, *, page, config):
         if not self.config.enabled:
-            return
+            return None
 
         return self._parse_html(output, page.file, config)
 
@@ -306,9 +306,8 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             _, extension = posixpath.splitext(file.dest_uri)
             if extension in [".css", ".js"]:
                 self.pool_jobs.append(self._get_pool().submit(self._patch, file))
-            elif file not in self.assets_done:
-                if os.path.exists(str(file.abs_src_path)):
-                    file.copy_file()
+            elif file not in self.assets_done and os.path.exists(str(file.abs_src_path)):
+                file.copy_file()
 
         wait(self.pool_jobs)
         if self.pool is not None:
@@ -386,7 +385,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not initiator.abs_src_path or not os.path.isfile(initiator.abs_src_path):
             return []
 
-        expr = re.compile(self.assets_expr_map[extension], flags=re.I | re.M)
+        expr = re.compile(self.assets_expr_map[extension], flags=re.IGNORECASE | re.MULTILINE)
         with open(initiator.abs_src_path, encoding="utf-8-sig") as f:
             results = re.finditer(expr, f.read())
             return [urlparse(result.group("url")) for result in results]
@@ -397,8 +396,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             if is_error_template(initiator.src_uri):
                 base = urlparse(config.site_url or "/")
                 return posixpath.join(base.path, file.url)
-            else:
-                return file.url_relative_to(initiator)
+            return file.url_relative_to(initiator)
 
         def replace(match: Match):
             el = self._parse_fragment(match.group())
@@ -407,12 +405,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 for key, value in self.config.links_attr_map.items():
                     el.set(key, value)
 
-                if self.config.links_noopener:
-                    if el.get("target") == "_blank":
-                        rel = re.findall(r"\S+", el.get("rel", ""))
-                        if "noopener" not in rel:
-                            rel.append("noopener")
-                        el.set("rel", " ".join(rel))
+                if self.config.links_noopener and el.get("target") == "_blank":
+                    rel = re.findall(r"\S+", el.get("rel", ""))
+                    if "noopener" not in rel:
+                        rel.append("noopener")
+                    el.set("rel", " ".join(rel))
 
             if el.tag == "link":
                 url = urlparse(el.get("href"))
@@ -425,7 +422,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                         if file:
                             el.set("href", resolve(file))
 
-            if el.tag == "script" or el.tag == "img":
+            if el.tag in {"script", "img"}:
                 url = urlparse(el.get("src"))
                 if not self._is_excluded(url, initiator):
                     file = self._queue(url, config)
@@ -443,7 +440,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
         return re.sub(
             r"<(?:(?:a|link|image)[^>]+href|(?:script|img)[^>]+src)=['\"]?(?:https?:)?//[^>]+>",
-            replace, output, flags=re.I | re.M
+            replace, output, flags=re.IGNORECASE | re.MULTILINE
         )
 
     def _print(self, el: Element):
@@ -471,9 +468,8 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             _, extension = posixpath.splitext(url.path)
             if extension and concurrent:
                 self.pool_jobs.append(self._get_pool().submit(self._fetch, file, config))
-            else:
-                if not self._fetch(file, config):
-                    return None
+            elif not self._fetch(file, config):
+                return None
 
             if not self.assets.get_file_from_path(file.src_uri):
                 self.assets.append(file)
@@ -485,8 +481,6 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
     def _fetch(self, file: File, config: DocsForgeConfig):
         if not os.path.isfile(file.abs_src_path) or not self.config.cache:
-            path = file.abs_src_path
-
             if file.url.startswith("//"):
                 file.url = f"http:{file.url}"
 
@@ -550,10 +544,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         log.warning(f"Couldn't create symbolic link: {file.src_uri}")
-                    self._save_to_file(file.abs_src_path, res.content)
+                    # Write the already-streamed bytes. `res.content` is not
+                    # available here: iter_content above consumed the stream, so
+                    # touching it raises RuntimeError.
+                    self._save_to_file(file.abs_src_path, content)
                     hashed_path = file.abs_src_path
-
-            path = hashed_path
 
             # NOTE: the destination URI keeps the *unhashed* name on purpose.
             # The content-hashed file lives only in the cache (referenced by a
@@ -614,7 +609,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 return match.group().replace(value, url)
 
             _, extension = posixpath.splitext(initiator.dest_uri)
-            expr = re.compile(self.assets_expr_map[extension], re.I | re.M)
+            expr = re.compile(self.assets_expr_map[extension], re.IGNORECASE | re.MULTILINE)
             self._save_to_file(
                 initiator.abs_dest_path,
                 expr.sub(replace, f.read())

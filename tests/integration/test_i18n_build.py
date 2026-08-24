@@ -1,14 +1,13 @@
 """Integration tests for the i18n plugin end-to-end build."""
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
 import pytest
 
-from docsforge.config_base import load_config
 from docsforge.build import build
+from docsforge.config_base import load_config
 
 pytestmark = pytest.mark.slow
 
@@ -85,7 +84,7 @@ class TestI18nBuild:
         zh_html = (site / "index.zh.html").read_text()
         # Links should stay on the same locale-agnostic URL, not jump to /zh/second/.
         assert re.search(r'<a[^>]+href="second/"[^>]*>第二页</a>', zh_html) or \
-               re.search(r'<a[^>]+href=second/[^>]*>第二页</a>', zh_html)
+               re.search(r"<a[^>]+href=second/[^>]*>第二页</a>", zh_html)
 
     def test_no_alternate_head_links(self, tmp_path):
         """i18n alternates are deliberately not emitted: suffix-mode locales
@@ -139,8 +138,8 @@ class TestI18nBuild:
         zh_html = (site / "index.zh.html").read_text()
 
         # <html lang> should follow the page locale.
-        assert re.search(r'<html[^>]+lang=en[\s>]', en_html)
-        assert re.search(r'<html[^>]+lang=zh[\s>]', zh_html)
+        assert re.search(r"<html[^>]+lang=en[\s>]", en_html)
+        assert re.search(r"<html[^>]+lang=zh[\s>]", zh_html)
 
         # Theme UI strings should be in the page language (minified HTML may drop quotes).
         assert re.search(r'aria-label=["\']?Select language[\s>"\']', en_html)
@@ -182,8 +181,8 @@ class TestI18nBuild:
             flags=re.IGNORECASE,
         )
         assert logo_hrefs
-        for href in logo_hrefs:
-            href = href.strip('"').strip("'")
+        for raw_href in logo_hrefs:
+            href = raw_href.strip('"').strip("'")
             assert "zh/" not in href
 
     def test_config_alternates_still_emitted(self, tmp_path):
@@ -267,7 +266,7 @@ class TestI18nTabIcons:
 
     @staticmethod
     def _count_tab_icons(html: str) -> int:
-        match = re.search(r"<nav[^>]*md-tabs[\s>].*?</nav>", html, re.S)
+        match = re.search(r"<nav[^>]*md-tabs[\s>].*?</nav>", html, re.DOTALL)
         assert match, "tabs nav not found"
         return len(re.findall(r"<svg", match.group(0)))
 
@@ -329,7 +328,7 @@ class TestI18nNoFrontmatterTitles:
             nav_match = re.search(
                 r'<nav\b[^>]*?class=["\']?md-nav[^>]*?>.*?</nav>',
                 html,
-                re.S | re.IGNORECASE,
+                re.DOTALL | re.IGNORECASE,
             )
             assert nav_match
             nav_html = nav_match.group(0)

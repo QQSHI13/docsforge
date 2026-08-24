@@ -7,7 +7,7 @@ from typing import IO
 
 from docsforge import config_base as base
 from docsforge import config_options as c
-from docsforge.emoji import twemoji, to_svg
+from docsforge.emoji import to_svg, twemoji
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.yaml_utils import get_yaml_loader, yaml_load
 
@@ -68,7 +68,7 @@ class DocsForgeConfig(base.Config):
 
     nav = c.Optional(c.Nav())
     """Defines the structure of the navigation."""
-    pages = c.Deprecated(removed=True, moved_to='nav')
+    pages = c.Deprecated(removed=True, moved_to="nav")
 
     exclude_docs = c.Optional(c.PathSpec())
     """Gitignore-like patterns of files (relative to docs dir) to exclude from the site."""
@@ -95,10 +95,10 @@ class DocsForgeConfig(base.Config):
     theme = c.DocsForgeTheme()
     """The DocsForge theme for the documentation."""
 
-    docs_dir = c.DocsDir(default='docs', exists=True)
+    docs_dir = c.DocsDir(default="docs", exists=True)
     """The directory containing the documentation markdown."""
 
-    site_dir = c.SiteDir(default='site')
+    site_dir = c.SiteDir(default="site")
     """The directory where the site will be built to"""
 
     copyright = c.Optional(c.Type(str))
@@ -106,16 +106,16 @@ class DocsForgeConfig(base.Config):
 
     google_analytics = c.Deprecated(
         message=(
-            'The configuration option {} has been deprecated and '
-            'will be removed in a future release of DocsForge. See the '
-            'options available on your theme for an alternative.'
+            "The configuration option {} has been deprecated and "
+            "will be removed in a future release of DocsForge. See the "
+            "options available on your theme for an alternative."
         ),
         option_type=c.Type(list, length=2),
     )
     """set of values for Google analytics containing the account IO and domain
     this should look like, ['UA-27795084-5', 'docsforge.dev']"""
 
-    dev_addr = c.IpAddress(default='127.0.0.1:8000')
+    dev_addr = c.IpAddress(default="127.0.0.1:8000")
     """The address on which to serve the live reloading docs server."""
 
     use_directory_urls = c.Type(bool, default=True)
@@ -129,14 +129,14 @@ class DocsForgeConfig(base.Config):
     """Specify a link to the project source repo to be included
     in the documentation pages."""
 
-    repo_name = c.Optional(c.RepoName('repo_url'))
+    repo_name = c.Optional(c.RepoName("repo_url"))
     """A name to use for the link to the project source repo.
     Default, If repo_url is unset then None, otherwise
     "GitHub", "Bitbucket" or "GitLab" for known url or Hostname
     for unknown urls."""
 
-    edit_uri_template = c.Optional(c.EditURITemplate('edit_uri'))
-    edit_uri = c.Optional(c.EditURI('repo_url'))
+    edit_uri_template = c.Optional(c.EditURITemplate("edit_uri"))
+    edit_uri = c.Optional(c.EditURI("repo_url"))
     """Specify a URI to the docs dir in the project source repo, relative to the
     repo_url. When set, a link directly to the page in the source repo will
     be added to the generated HTML. If repo_url is not set also, this option
@@ -152,49 +152,49 @@ class DocsForgeConfig(base.Config):
     Jinja2 and the global context."""
 
     markdown_extensions = c.MarkdownExtensions(
-        builtins=['toc', 'tables', 'fenced_code'],
+        builtins=["toc", "tables", "fenced_code"],
         default=[
-            'admonition',
-            'footnotes',
-            'def_list',
-            'abbr',
-            'attr_list',
-            'md_in_html',
-            'meta',
-            'nl2br',
-            'sane_lists',
-            'wikilinks',
-            {'pymdownx.arithmatex': {'generic': True}},
-            'pymdownx.b64',
-            'pymdownx.betterem',
-            'pymdownx.caret',
-            'pymdownx.critic',
-            'pymdownx.details',
-            {'pymdownx.emoji': {
-                'emoji_index': twemoji,
-                'emoji_generator': to_svg,
+            "admonition",
+            "footnotes",
+            "def_list",
+            "abbr",
+            "attr_list",
+            "md_in_html",
+            "meta",
+            "nl2br",
+            "sane_lists",
+            "wikilinks",
+            {"pymdownx.arithmatex": {"generic": True}},
+            "pymdownx.b64",
+            "pymdownx.betterem",
+            "pymdownx.caret",
+            "pymdownx.critic",
+            "pymdownx.details",
+            {"pymdownx.emoji": {
+                "emoji_index": twemoji,
+                "emoji_generator": to_svg,
             }},
-            'pymdownx.escapeall',
-            'pymdownx.extra',
-            'pymdownx.fancylists',
-            'pymdownx.highlight',
-            'pymdownx.inlinehilite',
-            'pymdownx.keys',
-            'pymdownx.magiclink',
-            'pymdownx.mark',
-            'pymdownx.pathconverter',
-            'pymdownx.progressbar',
-            'pymdownx.quotes',
-            'pymdownx.saneheaders',
-            'pymdownx.smartsymbols',
-            'pymdownx.snippets',
-            'pymdownx.striphtml',
-            'pymdownx.superfences',
-            {'pymdownx.tabbed': {'alternate_style': True}},
-            'pymdownx.tasklist',
-            'pymdownx.tilde',
+            "pymdownx.escapeall",
+            "pymdownx.extra",
+            "pymdownx.fancylists",
+            "pymdownx.highlight",
+            "pymdownx.inlinehilite",
+            "pymdownx.keys",
+            "pymdownx.magiclink",
+            "pymdownx.mark",
+            "pymdownx.pathconverter",
+            "pymdownx.progressbar",
+            "pymdownx.quotes",
+            "pymdownx.saneheaders",
+            "pymdownx.smartsymbols",
+            "pymdownx.snippets",
+            "pymdownx.striphtml",
+            "pymdownx.superfences",
+            {"pymdownx.tabbed": {"alternate_style": True}},
+            "pymdownx.tasklist",
+            "pymdownx.tilde",
         ],
-        configkey='mdx_configs'
+        configkey="mdx_configs"
     )
     """PyMarkdown extension names."""
 
@@ -205,10 +205,10 @@ class DocsForgeConfig(base.Config):
     """Enabling strict mode causes DocsForge to stop the build when a problem is
     encountered rather than display an error."""
 
-    remote_branch = c.Type(str, default='gh-pages')
+    remote_branch = c.Type(str, default="gh-pages")
     """The remote branch to commit to when using gh-deploy."""
 
-    remote_name = c.Type(str, default='origin')
+    remote_name = c.Type(str, default="origin")
     """The remote name to push to when using gh-deploy."""
 
     extra = c.SubConfig()
@@ -233,7 +233,7 @@ class DocsForgeConfig(base.Config):
     rendering, page building, TikZ compilation, social card generation and
     privacy plugin downloads."""
 
-    plugins = c.Plugins(theme_key='theme', default=[])
+    plugins = c.Plugins(theme_key="theme", default=[])
     """A list of plugins. Each item may contain a string name or a key value pair.
     A key value pair should be the string name (as the key) and a dict of config
     options (as the value). Core plugins (search, meta, tags, blog, info) are always loaded automatically."""
@@ -256,7 +256,7 @@ class DocsForgeConfig(base.Config):
     offline = c.SubConfig(Offline)
     """Service worker and offline-caching behavior. See `Offline`."""
 
-    hooks = c.Hooks('plugins')
+    hooks = c.Hooks("plugins")
     """A list of filenames that will be imported as Python modules and used as
     an instance of a plugin each."""
 
@@ -265,30 +265,32 @@ class DocsForgeConfig(base.Config):
 
     class Validation(base.Config):
         class NavValidation(base.Config):
-            omitted_files = _LogLevel(default='info')
+            omitted_files = _LogLevel(default="info")
             """Warning level for when a doc file is never mentioned in the navigation.
             For granular configuration, see `not_in_nav`."""
 
-            not_found = _LogLevel(default='warn')
-            """Warning level for when the navigation links to a relative path that isn't an existing page on the site."""
+            not_found = _LogLevel(default="warn")
+            """Warning level for when the navigation links to a relative path that isn't
+            an existing page on the site."""
 
-            absolute_links = _AbsoluteLinksValidation(default='info')
+            absolute_links = _AbsoluteLinksValidation(default="info")
             """Warning level for when the navigation links to an absolute path (starting with `/`)."""
 
         nav = c.SubConfig(NavValidation)
 
         class LinksValidation(base.Config):
-            not_found = _LogLevel(default='warn')
-            """Warning level for when a Markdown doc links to a relative path that isn't an existing document on the site."""
+            not_found = _LogLevel(default="warn")
+            """Warning level for when a Markdown doc links to a relative path that isn't
+            an existing document on the site."""
 
-            absolute_links = _AbsoluteLinksValidation(default='info')
+            absolute_links = _AbsoluteLinksValidation(default="info")
             """Warning level for when a Markdown doc links to an absolute path (starting with `/`)."""
 
-            unrecognized_links = _LogLevel(default='info')
+            unrecognized_links = _LogLevel(default="info")
             """Warning level for when a Markdown doc links to a relative path that doesn't look like
             it could be a valid internal link. For example, if the link ends with `/`."""
 
-            anchors = _LogLevel(default='info')
+            anchors = _LogLevel(default="info")
             """Warning level for when a Markdown doc links to an anchor that's not present on the target page."""
 
         links = c.SubConfig(LinksValidation)
@@ -301,7 +303,7 @@ class DocsForgeConfig(base.Config):
 
     def load_dict(self, patch: dict) -> None:
         super().load_dict(patch)
-        if 'config_file_path' in patch:
+        if "config_file_path" in patch:
             raise base.ValidationError("Can't set config_file_path in config")
 
     def load_file(self, config_file: IO) -> None:

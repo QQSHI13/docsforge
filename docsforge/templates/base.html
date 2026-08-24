@@ -27,7 +27,7 @@ entries are invalid HTML and trigger the material alternate integration to fetch
 {% if config.offline.mode != 'none' %}
 <link rel="manifest" href="{{ 'manifest.json' | url }}">
 {% endif %} {% set palette = config.theme.palette %} {% if palette and not palette is mapping %} {% set palette = palette | first %} {% endif %}
-<meta name="theme-color" content="{{ palette.primary | d('indigo') if palette else 'indigo' }}">
+<meta name="theme-color" content="{{ (palette.primary if palette else none) | theme_color }}">
 <meta name="generator" content="docsforge">
 {% endblock %} {% block htmltitle %} {% if page.meta and page.meta.title %}
 <title>{{ page.meta.title }} - {{ config.site_name }}</title>

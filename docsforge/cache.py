@@ -7,7 +7,7 @@ import json
 import logging
 import re
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any
+from typing import Any, ClassVar
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class CacheManager:
         if not path.exists():
             return {}
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, OSError, UnicodeDecodeError):
             log.warning(f"Corrupted cache file: {path}, rebuilding from scratch")
@@ -185,7 +185,18 @@ class CacheManager:
 
     def invalidate(self) -> None:
         """Clear all cache files tracked by the manager."""
-        for f in [
+        for f in self.all_cache_files():
+            if f.exists():
+                f.unlink()
+        log.info("Build cache invalidated")
+
+    def all_cache_files(self) -> list[Path]:
+        """Every cache file this manager owns.
+
+        Single source of truth so invalidate() cannot drift out of sync with
+        __init__ when a new cache file is added.
+        """
+        return [
             self.hashes_file,
             self.deps_file,
             self.config_hash_file,
@@ -195,17 +206,15 @@ class CacheManager:
             self.pkg_version_file,
             self.theme_sig_file,
             self.nav_sig_file,
+            self.validation_file,
             self.tikz_file,
-        ]:
-            if f.exists():
-                f.unlink()
-        log.info("Build cache invalidated")
+        ]
 
 
 class DependencyTracker:
     """Track which files depend on templates and config."""
 
-    GLOBAL_DEPS = [
+    GLOBAL_DEPS: ClassVar[list[str]] = [
         "docsforge.yml",
         "docsforge.yaml",
     ]
@@ -254,7 +263,7 @@ class DependencyTracker:
         deps: list[str] = []
         seen: set[str] = set()
         for match in _SNIPPET_INCLUDE_RE.finditer(content):
-            target = match.group('path').strip()
+            target = match.group("path").strip()
             if not target:
                 continue
             # Reject absolute includes (e.g. --8<-- "/etc/passwd"): they would
@@ -290,6 +299,17 @@ class BuildPlanner:
     def __init__(self, cache: CacheManager, hasher: FileHasher):
         self.cache = cache
         self.hasher = hasher
+        # A cache written by an older format revision cannot be interpreted
+        # safely (entry shapes may have changed), so drop it before loading
+        # rather than reading stale keys back as "unchanged". Skipped when
+        # nothing is cached yet, so a first build stays quiet.
+        stored_version = cache.get_version()
+        if stored_version != CACHE_VERSION and any(f.exists() for f in cache.all_cache_files()):
+            log.info(
+                f"Cache format changed (v{stored_version} -> v{CACHE_VERSION}); "
+                "discarding stale build cache"
+            )
+            cache.invalidate()
         self.hashes = cache.get_hashes()
         self.deps = cache.get_deps()
         self.config_hash = cache.get_config_hash()
@@ -327,7 +347,7 @@ class BuildPlanner:
             if key in seen or not dpath.is_dir():
                 continue
             seen.add(key)
-            for pattern in ('*.html', '*.xml'):
+            for pattern in ("*.html", "*.xml"):
                 for p in dpath.rglob(pattern):
                     try:
                         data = p.read_bytes()
@@ -366,7 +386,7 @@ class BuildPlanner:
 
     def should_rebuild(self, source: Path, output: Path) -> bool:
         """Check if a source file needs rebuilding.
-        
+
         Returns True if:
         - Output doesn't exist
         - Source hash changed
@@ -410,9 +430,11 @@ class BuildPlanner:
         """
         return set(self.deps.get(str(source), [])) != set(current_deps)
 
-    def should_full_rebuild(self, config_path: Path, pkg_version: str | None = None, theme_sig: str | None = None) -> bool:
+    def should_full_rebuild(
+        self, config_path: Path, pkg_version: str | None = None, theme_sig: str | None = None
+    ) -> bool:
         """Check if config/global changes require full rebuild.
-        
+
         Returns True if docsforge.yml hash changed, the docsforge package
         version changed, or the theme templates changed.
         """
@@ -429,14 +451,11 @@ class BuildPlanner:
         current_config_hash = self.hasher.hash_file(config_path)
         if self.config_hash is None:
             return True
-        if self.config_hash != current_config_hash:
-            return True
-
-        return False
+        return self.config_hash != current_config_hash
 
     def find_orphaned_outputs(self, source_dir: Path, output_dir: Path) -> list[Path]:
         """Find output files that don't have corresponding source files.
-        
+
         Returns list of orphaned output files to delete.
         """
         orphaned = []
@@ -487,6 +506,13 @@ class BuildPlanner:
         self.config_hash = None
         self.pkg_version = None
         self.theme_sig = None
+        # Cleared alongside the on-disk copies: `cache.invalidate()` unlinks
+        # validation.json and nav_sig, so keeping the in-memory values would
+        # make the planner disagree with the cache it just wiped — a stale
+        # nav_sig can suppress the nav-changed rebuild, and stale validation
+        # data gets re-serialized on the next save.
+        self.nav_sig = None
+        self.validation = {}
         self.cache.invalidate()
 
     def update_cache(self, source: Path, output: Path, deps: list[str] | None = None) -> None:
@@ -518,7 +544,13 @@ class BuildPlanner:
         """Record the source set for this build."""
         self.cache.set_sources(list(current_sources))
 
-    def save(self, config_hash: str | None = None, pkg_version: str | None = None, theme_sig: str | None = None, nav_sig: str | None = None) -> None:
+    def save(
+        self,
+        config_hash: str | None = None,
+        pkg_version: str | None = None,
+        theme_sig: str | None = None,
+        nav_sig: str | None = None,
+    ) -> None:
         """Save all cache state."""
         self.cache.set_hashes(self.hashes)
         self.cache.set_deps(self.deps)

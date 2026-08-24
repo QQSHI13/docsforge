@@ -98,7 +98,9 @@ class Files:
         """Add file to the Files collection."""
         if file.src_uri in self._src_uris:
             warnings.warn(
-                "To replace an existing file, call `remove` before `append`.", DeprecationWarning
+                "To replace an existing file, call `remove` before `append`.",
+                DeprecationWarning,
+                stacklevel=2,
             )
             del self._src_uris[file.src_uri]
         self._src_uris[file.src_uri] = file
@@ -108,7 +110,7 @@ class Files:
         try:
             del self._src_uris[file.src_uri]
         except KeyError:
-            raise ValueError(f'{file.src_uri!r} not in collection')
+            raise ValueError(f"{file.src_uri!r} not in collection")
 
     def copy_static_files(
         self,
@@ -148,7 +150,7 @@ class Files:
 
         def filter(name):
             # '.*' filters dot files/dirs at root level whereas '*/.*' filters nested levels
-            patterns = ['.*', '*/.*', '*.py', '*.pyc', '*.html', '*readme*', 'docsforge_theme.yml']
+            patterns = [".*", "*/.*", "*.py", "*.pyc", "*.html", "*readme*", "docsforge_theme.yml"]
             # Exclude translation files
             patterns.append("locales/*")
             # Dev from upstream mkdocs: the vendored twemoji SVG set under
@@ -157,12 +159,9 @@ class Files:
             # not be copied into every built site (4000+ files would bloat the
             # SW cache manifest and break offline navigation).
             patterns.append("assets/emoji/*")
-            patterns.extend(f'*{x}' for x in utils.markdown_extensions)
+            patterns.extend(f"*{x}" for x in utils.markdown_extensions)
             patterns.extend(config.theme.static_templates)
-            for pattern in patterns:
-                if fnmatch.fnmatch(name.lower(), pattern):
-                    return False
-            return True
+            return not any(fnmatch.fnmatch(name.lower(), pattern) for pattern in patterns)
 
         for path in env.list_templates(filter_func=filter):
             # Theme files do not override docs_dir files
@@ -175,12 +174,12 @@ class Files:
 
     @property
     def _files(self) -> Iterable[File]:
-        warnings.warn("Do not access Files._files.", DeprecationWarning)
+        warnings.warn("Do not access Files._files.", DeprecationWarning, stacklevel=2)
         return self
 
     @_files.setter
     def _files(self, value: Iterable[File]):
-        warnings.warn("Do not access Files._files.", DeprecationWarning)
+        warnings.warn("Do not access Files._files.", DeprecationWarning, stacklevel=2)
         self._src_uris = {f.src_uri: f for f in value}
 
 
@@ -336,7 +335,7 @@ class File:
             use_directory_urls=config.use_directory_urls,
             inclusion=inclusion,
         )
-        f.generated_by = config.plugins.current_plugin or '<unknown>'
+        f.generated_by = config.plugins.current_plugin or "<unknown>"
         f.abs_src_path = abs_src_path
         f._content = content
         return f
@@ -385,7 +384,7 @@ class File:
             return base.name
         filename = posixpath.basename(self.src_uri)
         stem, _ext = posixpath.splitext(filename)
-        return 'index' if stem == 'README' else stem
+        return "index" if stem == "README" else stem
 
     name = cached_property(_get_stem)
     """Return the name of the file without its extension."""
@@ -396,13 +395,12 @@ class File:
             parent, _filename = posixpath.split(self.src_uri)
             if use_directory_urls is None:
                 use_directory_urls = self.use_directory_urls
-            if not use_directory_urls or self.name == 'index':
+            if not use_directory_urls or self.name == "index":
                 # index.md or README.md => index.html
                 # foo.md => foo.html
-                return posixpath.join(parent, self.name + '.html')
-            else:
-                # foo.md => foo/index.html
-                return posixpath.join(parent, self.name, 'index.html')
+                return posixpath.join(parent, self.name + ".html")
+            # foo.md => foo/index.html
+            return posixpath.join(parent, self.name, "index.html")
         return self.src_uri
 
     dest_uri = cached_property(_get_dest_path)
@@ -414,9 +412,9 @@ class File:
         dirname, filename = posixpath.split(url)
         if use_directory_urls is None:
             use_directory_urls = self.use_directory_urls
-        if use_directory_urls and filename == 'index.html':
-            url = (dirname or '.') + '/'
-        return urlquote(url, safe='/')
+        if use_directory_urls and filename == "index.html":
+            url = (dirname or ".") + "/"
+        return urlquote(url, safe="/")
 
     url = cached_property(_get_url)
     """The URI of the destination file relative to the destination directory as a string."""
@@ -456,7 +454,7 @@ class File:
         content = self._content
         if content is None:
             assert self.abs_src_path is not None
-            with open(self.abs_src_path, 'rb') as f:
+            with open(self.abs_src_path, "rb") as f:
                 return f.read()
         if not isinstance(content, bytes):
             content = content.encode()
@@ -480,10 +478,10 @@ class File:
         content = self._content
         if content is None:
             assert self.abs_src_path is not None
-            with open(self.abs_src_path, encoding='utf-8-sig', errors='strict') as f:
+            with open(self.abs_src_path, encoding="utf-8-sig", errors="strict") as f:
                 return f.read()
         if not isinstance(content, str):
-            content = content.decode('utf-8-sig', errors='strict')
+            content = content.decode("utf-8-sig", errors="strict")
         return content
 
     @content_string.setter
@@ -507,10 +505,10 @@ class File:
             with contextlib.suppress(shutil.SameFileError):
                 utils.copy_file(self.abs_src_path, output_path)
         elif isinstance(content, str):
-            with open(output_path, 'w', encoding='utf-8') as output_file:
+            with open(output_path, "w", encoding="utf-8") as output_file:
                 output_file.write(content)
         else:
-            with open(output_path, 'wb') as output_file:
+            with open(output_path, "wb") as output_file:
                 output_file.write(content)
 
     def is_modified(self) -> bool:
@@ -527,7 +525,7 @@ class File:
 
     def is_static_page(self) -> bool:
         """Return True if file is a static page (HTML, XML, JSON)."""
-        return self.src_uri.endswith(('.html', '.htm', '.xml', '.json'))
+        return self.src_uri.endswith((".html", ".htm", ".xml", ".json"))
 
     def is_media_file(self) -> bool:
         """Return True if file is not a documentation or static page."""
@@ -535,22 +533,22 @@ class File:
 
     def is_javascript(self) -> bool:
         """Return True if file is a JavaScript file."""
-        return self.src_uri.endswith(('.js', '.javascript', '.mjs'))
+        return self.src_uri.endswith((".js", ".javascript", ".mjs"))
 
     def is_css(self) -> bool:
         """Return True if file is a CSS file."""
-        return self.src_uri.endswith('.css')
+        return self.src_uri.endswith(".css")
 
 
-_default_exclude = pathspec.gitignore.GitIgnoreSpec.from_lines(['.*', '/templates/'])
+_default_exclude = pathspec.gitignore.GitIgnoreSpec.from_lines([".*", "/templates/"])
 
 
 def set_exclusions(files: Iterable[File], config: DocsForgeConfig) -> None:
     """Re-calculate which files are excluded, based on the patterns in the config."""
-    exclude: pathspec.gitignore.GitIgnoreSpec | None = config.get('exclude_docs')
+    exclude: pathspec.gitignore.GitIgnoreSpec | None = config.get("exclude_docs")
     exclude = _default_exclude + exclude if exclude else _default_exclude
-    drafts: pathspec.gitignore.GitIgnoreSpec | None = config.get('draft_docs')
-    nav_exclude: pathspec.gitignore.GitIgnoreSpec | None = config.get('not_in_nav')
+    drafts: pathspec.gitignore.GitIgnoreSpec | None = config.get("draft_docs")
+    nav_exclude: pathspec.gitignore.GitIgnoreSpec | None = config.get("not_in_nav")
 
     for file in files:
         if file.inclusion == InclusionLevel.UNDEFINED:
@@ -569,8 +567,8 @@ def get_files(config: DocsForgeConfig) -> Files:
     files: list[File] = []
     conflicting_files: list[tuple[File, File]] = []
     visited_inodes: set[tuple[int, int]] = set()
-    for source_dir, dirnames, filenames in os.walk(config['docs_dir'], followlinks=True):
-        relative_dir = os.path.relpath(source_dir, config['docs_dir'])
+    for source_dir, dirnames, filenames in os.walk(config["docs_dir"], followlinks=True):
+        relative_dir = os.path.relpath(source_dir, config["docs_dir"])
 
         # Detect symlink cycles so a recursive symlink does not send the walker
         # into an infinite loop. os.walk(followlinks=True) otherwise has no
@@ -593,9 +591,9 @@ def get_files(config: DocsForgeConfig) -> Files:
         for filename in filenames:
             file = File(
                 os.path.join(relative_dir, filename),
-                config['docs_dir'],
-                config['site_dir'],
-                config['use_directory_urls'],
+                config["docs_dir"],
+                config["site_dir"],
+                config["use_directory_urls"],
             )
             # Skip README.md if an index file also exists in dir (part 1)
             prev_file = files_by_dest.setdefault(file.dest_uri, file)
@@ -636,7 +634,7 @@ def file_sort_key(f: File, /):
 
 def _file_sort_key(f: str):
     """Always sort `index` or `README` as first filename in list. This works only on basenames of files."""
-    return (os.path.splitext(f)[0] not in ('index', 'README'), f)
+    return (os.path.splitext(f)[0] not in ("index", "README"), f)
 
 
 def _sort_files(filenames: Iterable[str]) -> list[str]:
@@ -653,14 +651,15 @@ def _filter_paths(basename: str, path: str, is_dir: bool, exclude: Iterable[str]
     warnings.warn(
         "_filter_paths is not used since DocsForge 1.5 and will be removed soon.",
         DeprecationWarning,
+        stacklevel=2,
     )
     for item in exclude:
         # Items ending in '/' apply only to directories.
-        if item.endswith('/') and not is_dir:
+        if item.endswith("/") and not is_dir:
             continue
         # Items starting with '/' apply to the whole path.
         # In any other cases just the basename is used.
-        match = path if item.startswith('/') else basename
-        if fnmatch.fnmatch(match, item.strip('/')):
+        match = path if item.startswith("/") else basename
+        if fnmatch.fnmatch(match, item.strip("/")):
             return True
     return False

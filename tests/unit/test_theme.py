@@ -27,22 +27,22 @@ class TestRedirectTemplate:
 
     def test_allows_https_url(self):
         out = self._render("https://example.com/page")
-        assert 'url=https://example.com/page' in out
+        assert "url=https://example.com/page" in out
         assert "window.location.replace" in out
 
     def test_allows_site_relative_path(self):
         out = self._render("/new-location/")
-        assert 'url=/new-location/' in out
+        assert "url=/new-location/" in out
         assert "window.location.replace" in out
 
     def test_blocks_javascript_scheme(self):
         out = self._render("javascript:alert(1)")
-        assert "http-equiv=\"refresh\"" not in out
+        assert 'http-equiv="refresh"' not in out
         assert "window.location.replace" not in out
 
     def test_blocks_protocol_relative_url(self):
         out = self._render("//evil.com/")
-        assert "http-equiv=\"refresh\"" not in out
+        assert 'http-equiv="refresh"' not in out
         assert "window.location.replace" not in out
 
 

@@ -6,21 +6,19 @@ shipped broken in v11.1.3 and was fixed in v11.1.4).
 """
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
+import pytest
+
 from docsforge.cache import (
+    _SNIPPET_INCLUDE_RE,
     CACHE_VERSION,
     BuildPlanner,
     CacheManager,
     DependencyTracker,
     FileHasher,
-    _SNIPPET_INCLUDE_RE,
 )
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Snippet include regex
@@ -54,7 +52,7 @@ class TestSnippetIncludeRegex:
         [
             "plain text --8<-- no",        # not at line start
             "## not an include",           # a heading
-            "Use `--8<-- \"x\"` to include",  # inline in backticks
+            'Use `--8<-- "x"` to include',  # inline in backticks
             "",                            # empty
         ],
     )
@@ -127,7 +125,7 @@ class TestGetFileDeps:
     def test_only_existing_files_returned(self, tmp_path: Path):
         # A --8<-- line inside a code fence pointing at a non-existent file
         page = tmp_path / "page.md"
-        page.write_text("# Demo\n\n```\n--8<-- \"hello.py\"\n```\n")
+        page.write_text('# Demo\n\n```\n--8<-- "hello.py"\n```\n')
         deps = DependencyTracker.get_file_deps(page, page.read_text(), base_paths=[tmp_path])
         assert deps == []
 
@@ -142,7 +140,7 @@ class TestGetFileDeps:
     def test_html_input_yields_no_deps(self, tmp_path: Path):
         """Regression guard for the v11.1.3 bug: passing page.content (HTML)."""
         (tmp_path / "h.md").write_text("h")
-        html = "<p>--8<-- \"h.md\"</p>\n<h1>rendered</h1>"
+        html = '<p>--8<-- "h.md"</p>\n<h1>rendered</h1>'
         deps = DependencyTracker.get_file_deps(tmp_path / "p.md", html, base_paths=[tmp_path])
         assert deps == []
 
@@ -329,7 +327,6 @@ class TestBuildPlanner:
     def test_theme_signature_ignores_mtime_bumps(self, tmp_path: Path):
         """Reinstalls/checkouts bump template mtimes without changing content;
         the signature must not change, or every CI run does a full rebuild."""
-        from docsforge.cache import BuildPlanner, CacheManager, FileHasher
         p = self._planner(tmp_path)
         tdir = tmp_path / "tpl"
         tdir.mkdir()
@@ -344,7 +341,6 @@ class TestBuildPlanner:
     def test_theme_signature_is_location_independent(self, tmp_path: Path):
         """Identical templates at different absolute paths (pip reinstall,
         CI toolcache updates) must produce the same signature."""
-        from docsforge.cache import BuildPlanner, CacheManager, FileHasher
         p = self._planner(tmp_path)
         dir_a = tmp_path / "a" / "templates"
         dir_b = tmp_path / "b" / "templates"
@@ -365,7 +361,8 @@ class TestBuildPlanner:
         p = self._planner(tmp_path)
         src = tmp_path / "p.md"
         out = tmp_path / "out.html"
-        src.write_text("x"); out.write_text("built")
+        src.write_text("x")
+        out.write_text("built")
         p.update_cache(src, out, deps=[])
         assert p.hashes, "hashes populated"
         p.invalidate()
@@ -433,7 +430,7 @@ class TestBuildPlanner:
         def counting(path):
             calls["n"] += 1
             return real_hash(path)
-        p.hasher.hash_file = counting  # type: ignore
+        p.hasher.hash_file = counting  # type: ignore[method-assign]
         h1 = p._current_hash(f)
         h2 = p._current_hash(f)        # second call: mtime+size unchanged -> cache hit, no re-read
         assert h1 == h2

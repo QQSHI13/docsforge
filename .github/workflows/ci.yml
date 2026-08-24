@@ -10,6 +10,23 @@ permissions:
   contents: read
 
 jobs:
+  # Ruff runs as a correctness gate (pyflakes + bugbear + pylint errors), not a
+  # style gate — see the rationale in [tool.ruff.lint] in pyproject.toml. Pinned
+  # so a new ruff release can't turn main red without a deliberate bump.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install ruff
+        run: pip install 'ruff==0.16.4'
+      - name: Lint
+        run: ruff check --output-format=github .
+
   test:
     runs-on: ubuntu-latest
     steps:

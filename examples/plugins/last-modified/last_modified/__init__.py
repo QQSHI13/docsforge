@@ -33,7 +33,8 @@ class LastModifiedPlugin(BasePlugin[LastModifiedConfig]):
             mtime = os.path.getmtime(src)
         except OSError:
             return markdown
-        page.meta["last_modified"] = datetime.datetime.fromtimestamp(mtime).strftime(
-            self.config.date_format
-        )
+        # UTC then astimezone() gives the machine-local wall clock as an aware
+        # datetime, which is what a "last modified" stamp should display.
+        stamp = datetime.datetime.fromtimestamp(mtime, tz=datetime.timezone.utc).astimezone()
+        page.meta["last_modified"] = stamp.strftime(self.config.date_format)
         return markdown

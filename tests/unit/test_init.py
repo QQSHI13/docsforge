@@ -1,9 +1,6 @@
 """Unit tests for init.py — the project scaffolding generator."""
 from __future__ import annotations
 
-import textwrap
-from pathlib import Path
-
 from docsforge.init import (
     COLOR_MAP,
     _generate_config,

@@ -19,7 +19,6 @@ Exit codes: 0 = migrated (or dry-run), 1 = nothing to migrate / error.
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -182,7 +181,7 @@ def convert_nav(nav, report: Report) -> list | None:
     def conv(item):
         if isinstance(item, str):
             # bare filename
-            if item.startswith("http://") or item.startswith("https://"):
+            if item.startswith(("http://", "https://")):
                 report.warn(
                     f"external nav link '{item}' dropped — "
                     "add it as a regular Markdown link instead (docsforge nav is internal-only)"
@@ -196,7 +195,7 @@ def convert_nav(nav, report: Report) -> list | None:
                 return {"title": title, "children": children}
             # path (str) or external URL
             if isinstance(value, str):
-                if value.startswith("http://") or value.startswith("https://"):
+                if value.startswith(("http://", "https://")):
                     report.warn(
                         f"external nav link '{title}' dropped — "
                         "add it as a regular Markdown link instead (docsforge nav is internal-only)"
@@ -249,7 +248,7 @@ def convert_plugins(plugins, report: Report) -> list | None:
                 out.append({name: {}})
                 report.copied_plugins.append(name)
                 report.warn(
-                    "social plugin needs: pip install \"docsforge[social]\" (pillow + cairosvg)"
+                    'social plugin needs: pip install "docsforge[social]" (pillow + cairosvg)'
                 )
             else:
                 report.ok(f"plugin:{clean} (auto-loads — declaration dropped)")
@@ -275,12 +274,11 @@ def _flatten_dotted(table: dict, prefix: str = "") -> list[tuple[str, object]]:
     out: list[tuple[str, object]] = []
     for key, value in table.items():
         name = f"{prefix}.{key}" if prefix else key
-        if isinstance(value, dict):
+        if isinstance(value, dict) and value and all(isinstance(v, dict) for v in value.values()):
             # Recurse only if every sub-key is itself a table (nested dotted
             # sections); otherwise treat the whole dict as config values.
-            if value and all(isinstance(v, dict) for v in value.values()):
-                out.extend(_flatten_dotted(value, name))
-                continue
+            out.extend(_flatten_dotted(value, name))
+            continue
         out.append((name, value))
     return out
 
@@ -368,10 +366,8 @@ def convert_yaml_config(data: dict, report: Report) -> dict:
 
 def convert_toml_config(data: dict, report: Report) -> dict:
     project = data.get("project")
-    if isinstance(project, dict):
-        src = project
-    else:
-        src = data  # tolerate bare zensical.toml without [project]
+    # Tolerate a bare zensical.toml without a [project] table.
+    src = project if isinstance(project, dict) else data
 
     out: dict = {}
 
@@ -463,7 +459,7 @@ def load_config(path: Path, report: Report):
             data = tomllib.load(f)
         report.ok("source: zensical.toml")
         return convert_toml_config(data, report), "zensical.toml"
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         try:
             data = yaml.safe_load(f) or {}
         except yaml.YAMLError as e:

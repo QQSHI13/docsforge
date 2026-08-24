@@ -106,7 +106,7 @@ class TestValidation:
     def test_config_file_path_cannot_be_set(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         _write_config(tmp_path, "site_name: T\nconfig_file_path: evil\n")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             load_config()
 
 

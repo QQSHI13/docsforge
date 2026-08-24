@@ -16,7 +16,8 @@ _unescape: Callable[[str], str]
 try:
     _unescape = markdown.treeprocessors.UnescapeTreeprocessor().unescape
 except AttributeError:
-    _unescape = lambda s: s
+    def _unescape(s: str) -> str:
+        return s
 
 # TODO: Most of this file will become unnecessary after https://github.com/Python-Markdown/markdown/pull/1441
 
@@ -40,13 +41,13 @@ class _TextExtractor(HTMLParser):
         self._parts.append(data)
 
     def handle_entityref(self, name: str) -> None:
-        self._parts.append(f'&{name};')
+        self._parts.append(f"&{name};")
 
     def handle_charref(self, name: str) -> None:
-        self._parts.append(f'&#{name};')
+        self._parts.append(f"&#{name};")
 
     def get_text(self) -> str:
-        return ' '.join(''.join(self._parts).split())
+        return " ".join("".join(self._parts).split())
 
 
 def _strip_tags(text: str) -> str:
@@ -57,7 +58,7 @@ def _strip_tags(text: str) -> str:
         extractor.close()
     except Exception:
         # Malformed input should not crash title extraction.
-        return ' '.join(text.split())
+        return " ".join(text.split())
     return extractor.get_text()
 
 
@@ -67,8 +68,8 @@ def _render_inner_html(el: etree.Element, md: markdown.Markdown) -> str:
     text = _unescape(text)
 
     # Strip parent tag
-    start = text.index('>') + 1
-    end = text.rindex('<')
+    start = text.index(">") + 1
+    end = text.rindex("<")
     text = text[start:end].strip()
 
     for pp in md.postprocessors:
@@ -79,38 +80,38 @@ def _render_inner_html(el: etree.Element, md: markdown.Markdown) -> str:
 def _remove_anchorlink(el: etree.Element) -> None:
     """Drop anchorlink from the element, if present."""
     for i, child in enumerate(el):
-        if child.tag == 'a' and child.get('class') == 'headerlink':
-            tail = child.tail or ''
+        if child.tag == "a" and child.get("class") == "headerlink":
+            tail = child.tail or ""
             if i == 0:
-                el.text = (el.text or '') + tail
+                el.text = (el.text or "") + tail
             else:
                 prev = el[i - 1]
-                prev.tail = (prev.tail or '') + tail
+                prev.tail = (prev.tail or "") + tail
             el.remove(child)
             break
 
 
 def _remove_fnrefs(root: etree.Element) -> None:
     """Remove footnote references from the element, if any are present."""
-    for parent in root.findall('.//sup[@id]/..'):
+    for parent in root.findall(".//sup[@id]/.."):
         _replace_elements_with_text(parent, _predicate_for_fnrefs)
 
 
 def _predicate_for_fnrefs(el: etree.Element) -> str | None:
-    if el.tag == 'sup' and el.get('id', '').startswith('fnref'):
-        return ''
+    if el.tag == "sup" and el.get("id", "").startswith("fnref"):
+        return ""
     return None
 
 
 def _extract_alt_texts(root: etree.Element) -> None:
     """For images that have an `alt` attribute, replace them with this content."""
-    for parent in root.findall('.//img[@alt]/..'):
+    for parent in root.findall(".//img[@alt]/.."):
         _replace_elements_with_text(parent, _predicate_for_alt_texts)
 
 
 def _predicate_for_alt_texts(el: etree.Element) -> str | None:
-    if el.tag == 'img':
-        alt = el.get('alt')
+    if el.tag == "img":
+        alt = el.get("alt")
         if alt is not None:
             return alt
     return None

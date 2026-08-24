@@ -24,11 +24,11 @@ except ImportError:  # pragma: no cover
 
     class Locale(NamedTuple):
         language: str
-        territory: str = ''
+        territory: str = ""
 
         def __str__(self):
             if self.territory:
-                return f'{self.language}_{self.territory}'
+                return f"{self.language}_{self.territory}"
             return self.language
 
         @classmethod
@@ -43,7 +43,7 @@ except ImportError:  # pragma: no cover
             return locale
 
 
-log = logging.getLogger('docsforge.localization')
+log = logging.getLogger("docsforge.localization")
 base_path = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -59,25 +59,25 @@ class NoBabelExtension(InternationalizationExtension):  # pragma: no cover
 def parse_locale(locale: str) -> Locale:
     from docsforge.config_base import ValidationError
     try:
-        return Locale.parse(locale, sep='_')
+        return Locale.parse(locale, sep="_")
     except (ValueError, UnknownLocaleError, TypeError) as e:
-        raise ValidationError(f'Invalid value for locale: {e}')
+        raise ValidationError(f"Invalid value for locale: {e}")
 
 
 def install_translations(
     env: jinja2.Environment, locale: Locale, theme_dirs: Sequence[str]
 ) -> None:
     if has_babel:
-        env.add_extension('jinja2.ext.i18n')
-        translations = _get_merged_translations(theme_dirs, 'locales', locale)
+        env.add_extension("jinja2.ext.i18n")
+        translations = _get_merged_translations(theme_dirs, "locales", locale)
         if translations is not None:
             env.install_gettext_translations(translations)  # type: ignore[attr-defined]
         else:
             env.install_null_translations()  # type: ignore[attr-defined]
-            if locale.language != 'en':
+            if locale.language != "en":
                 log.warning(
                     f"No translations could be found for the locale '{locale}'. "
-                    'Defaulting to English.'
+                    "Defaulting to English."
                 )
     else:  # pragma: no cover
         # no babel installed, add dummy support for trans/endtrans blocks
@@ -91,10 +91,7 @@ def _get_merged_translations(
     merged_translations: Translations | None = None
 
     log.debug(f"Looking for translations for locale '{locale}'")
-    if locale.territory:
-        locale_str = f"{locale.language}_{locale.territory}"
-    else:
-        locale_str = locale.language
+    locale_str = f"{locale.language}_{locale.territory}" if locale.territory else locale.language
     for theme_dir in reversed(theme_dirs):
         dirname = os.path.join(theme_dir, locales_dir)
         translations = Translations.load(dirname, [locale_str])

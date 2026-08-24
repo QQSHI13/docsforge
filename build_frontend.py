@@ -8,12 +8,9 @@ docsforge/templates/.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import io
 import json
 import logging
-import os
-import re
 import shutil
 import subprocess
 import sys
@@ -117,12 +114,13 @@ def run(cmd: list[str], **kwargs) -> None:
 
 
 def clean_output() -> None:
-    """Remove generated files while preserving DocsForge-specific files."""
-    preserved = {
-        OUT / "assets" / "javascripts" / "sw.js",
-        OUT / "assets" / "javascripts" / "lunr",
-        OUT / "assets" / "katex",
-    }
+    """Remove generated files while preserving DocsForge-specific files.
+
+    Only the four files this script regenerates are unlinked. Everything else
+    under OUT/assets is left alone — notably sw.js, javascripts/lunr/ and
+    katex/, which are DocsForge additions with no counterpart in src/ and
+    would not be rebuilt if deleted.
+    """
     for sub in [OUT / "assets" / "javascripts" / "bundle.min.js",
                 OUT / "assets" / "javascripts" / "workers" / "search.min.js",
                 OUT / "assets" / "stylesheets" / "main.min.css",

@@ -19,5 +19,5 @@ from __future__ import annotations
 def on_page_markdown(markdown, *, page, config, files):
     src = getattr(page.file, "src_uri", "") or ""
     if "draft" in src.lower():
-        return "!!! warning \"DRAFT\"\n    This page is not finalized.\n\n" + markdown
+        return '!!! warning "DRAFT"\n    This page is not finalized.\n\n' + markdown
     return markdown

@@ -5,11 +5,11 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, TypeVar
 from urllib.parse import urlsplit
 
+from docsforge import nest_paths
 from docsforge.exceptions import BuildError
-from docsforge.structure import StructureItem
 from docsforge.files import file_sort_key
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
-from docsforge import nest_paths
+from docsforge.structure import StructureItem
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
@@ -37,7 +37,7 @@ class Navigation:
     """A flat list of all [page][docsforge.structure.pages.Page] objects contained in the navigation."""
 
     def __str__(self) -> str:
-        return '\n'.join(item._indent_print() for item in self)
+        return "\n".join(item._indent_print() for item in self)
 
     def __iter__(self) -> Iterator:
         return iter(self.items)
@@ -91,9 +91,8 @@ class Section(StructureItem):
 
     def _indent_print(self, depth: int = 0) -> str:
         ret = [super()._indent_print(depth)]
-        for item in self.children:
-            ret.append(item._indent_print(depth + 1))
-        return '\n'.join(ret)
+        ret.extend(item._indent_print(depth + 1) for item in self.children)
+        return "\n".join(ret)
 
 
 class Link(StructureItem):
@@ -104,7 +103,7 @@ class Link(StructureItem):
 
     def __repr__(self):
         name = self.__class__.__name__
-        title = f"{self.title!r}" if self.title is not None else '[blank]'
+        title = f"{self.title!r}" if self.title is not None else "[blank]"
         return f"{name}(title={title}, url={self.url!r})"
 
     title: str | None
@@ -133,7 +132,7 @@ class Link(StructureItem):
 def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
     """Build site navigation from config and files."""
     documentation_pages = files.documentation_pages()
-    nav_config = config['nav']
+    nav_config = config["nav"]
     if nav_config is None:
         documentation_pages = sorted(documentation_pages, key=file_sort_key)
         nav_config = nest_paths(f.src_uri for f in documentation_pages if f.inclusion.is_in_nav())
@@ -162,7 +161,7 @@ def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
             config.validation.nav.omitted_files,
             'The following pages exist in the docs directory, but are not '
             'included in the "nav" configuration:\n  - %s',
-            '\n  - '.join(missing_from_config),
+            "\n  - ".join(missing_from_config),
         )
 
     links = _get_by_type(items, Link)
@@ -171,14 +170,14 @@ def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
         try:
             scheme, netloc, _path, _query, _fragment = urlsplit(link.url)
         except Exception:
-            invalid = 'invalid'
+            invalid = "invalid"
         else:
             if scheme or netloc:
-                invalid = 'external'
+                invalid = "external"
         if invalid:
             log.debug(f"An {invalid} link to '{link.url}' is included in the 'nav' configuration.")
         elif (
-            link.url.startswith('/')
+            link.url.startswith("/")
             and config.validation.nav.absolute_links
             is not _AbsoluteLinksValidationValue.RELATIVE_TO_DOCS
         ):
@@ -263,7 +262,7 @@ def _data_to_navigation(data, files: Files, config: DocsForgeConfig):
                     f"got {type(value).__name__}: {value!r}"
                 )
         return result
-    elif isinstance(data, list):
+    if isinstance(data, list):
         result = []
         for item in data:
             if isinstance(item, dict):
@@ -298,10 +297,10 @@ def _path_to_navigation(title, path, files: Files, config: DocsForgeConfig):
         )
     lookup_path = path
     if (
-        lookup_path.startswith('/')
+        lookup_path.startswith("/")
         and config.validation.nav.absolute_links is _AbsoluteLinksValidationValue.RELATIVE_TO_DOCS
     ):
-        lookup_path = lookup_path.lstrip('/')
+        lookup_path = lookup_path.lstrip("/")
     if file := files.get_file_from_path(lookup_path):
         if file.inclusion.is_excluded():
             log.log(
@@ -318,7 +317,7 @@ def _path_to_navigation(title, path, files: Files, config: DocsForgeConfig):
     return Link(title, path)
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def _get_by_type(nav, t: type[T]) -> list[T]:

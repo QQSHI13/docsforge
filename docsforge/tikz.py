@@ -12,10 +12,21 @@ import os
 import shutil
 import subprocess
 import tempfile
-from docsforge.cache import CacheManager, FileHasher
+import threading
 from pathlib import Path
 
+from docsforge.cache import CacheManager, FileHasher
+
 log = logging.getLogger("docsforge.tikz")
+
+# Wall-clock cap for a single LaTeX/converter invocation. A malformed diagram can
+# put TeX into an interactive prompt or an unbounded loop; without a cap that
+# hangs the whole build forever, since these run inside a thread pool that the
+# build waits on. Overridable with DOCSFORGE_TIKZ_TIMEOUT for very large plots.
+try:
+    TIKZ_TIMEOUT_SECS = max(1, int(os.environ.get("DOCSFORGE_TIKZ_TIMEOUT", "120")))
+except ValueError:
+    TIKZ_TIMEOUT_SECS = 120
 
 # Default preamble for bare diagram sources (files without a \documentclass).
 # Only the tikzpicture / tikzcd / axis body needs to be written; the math
@@ -61,6 +72,36 @@ def _has_tool(name: str) -> bool:
     return shutil.which(name) is not None
 
 
+def _run_tool(
+    cmd: list[str], *, cwd: Path | None = None, name: str
+) -> subprocess.CompletedProcess[str] | None:
+    """Run a toolchain command under TIKZ_TIMEOUT_SECS.
+
+    Returns the completed process, or None if it timed out or the executable
+    vanished between the _has_tool check and here. Callers treat None as a
+    compile failure, so a hung diagram degrades to a warning instead of
+    blocking the build.
+    """
+    try:
+        return subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=TIKZ_TIMEOUT_SECS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        log.warning(
+            f"{cmd[0]} timed out after {TIKZ_TIMEOUT_SECS}s for {name}; skipping. "
+            "Set DOCSFORGE_TIKZ_TIMEOUT to raise the limit."
+        )
+        return None
+    except OSError as e:
+        log.warning(f"Could not run {cmd[0]} for {name}: {e}")
+        return None
+
+
 def _run_dvisvgm(input_file: Path, output_path: Path, cwd: Path, name: str) -> bool:
     """Convert a DVI/PDF to SVG with dvisvgm.
 
@@ -69,12 +110,14 @@ def _run_dvisvgm(input_file: Path, output_path: Path, cwd: Path, name: str) -> b
     ``--no-fonts`` so the diagram still compiles with text drawn as paths.
     """
     for extra in ([], ["--no-fonts"]):
-        result = subprocess.run(
+        result = _run_tool(
             ["dvisvgm", *extra, "--output=" + str(output_path), str(input_file)],
             cwd=cwd,
-            capture_output=True,
-            text=True,
-                    )
+            name=name,
+        )
+        if result is None:
+            # Timed out or unrunnable; _run_tool already warned.
+            return False
         if result.returncode == 0:
             if extra:
                 log.warning(
@@ -139,8 +182,8 @@ def _compile_tex_to_svg(
         log.debug(f"Skipping {tex_path.name} (SVG up to date)")
         return True
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
+    with tempfile.TemporaryDirectory() as raw_tmpdir:
+        tmpdir = Path(raw_tmpdir)
         temp_tex = tmpdir / tex_path.name
         temp_tex.write_text(wrapped, encoding="utf-8")
 
@@ -152,12 +195,13 @@ def _compile_tex_to_svg(
 
         if has_latex and has_dvisvgm:
             # Path: latex -> dvi -> dvisvgm -> svg
-            result = subprocess.run(
+            result = _run_tool(
                 ["latex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                            )
+                name=tex_path.name,
+            )
+            if result is None:
+                return False
             if result.returncode != 0:
                 err = result.stderr[:500] if result.stderr else result.stdout[:500]
                 log.warning(f"latex failed for {tex_path.name}: {err}")
@@ -173,12 +217,13 @@ def _compile_tex_to_svg(
 
         elif has_pdflatex and has_pdf2svg:
             # Path: pdflatex -> pdf -> pdf2svg -> svg
-            result = subprocess.run(
+            result = _run_tool(
                 ["pdflatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                            )
+                name=tex_path.name,
+            )
+            if result is None:
+                return False
             if result.returncode != 0:
                 log.warning(f"pdflatex failed for {tex_path.name}: {result.stderr[:200]}")
                 return False
@@ -188,23 +233,25 @@ def _compile_tex_to_svg(
                 log.warning(f"No PDF produced for {tex_path.name}")
                 return False
 
-            result = subprocess.run(
+            result = _run_tool(
                 ["pdf2svg", str(pdf_file), str(output_path)],
-                capture_output=True,
-                text=True,
-                            )
+                name=tex_path.name,
+            )
+            if result is None:
+                return False
             if result.returncode != 0:
                 log.warning(f"pdf2svg failed for {tex_path.name}: {result.stderr[:200]}")
                 return False
 
         elif has_pdflatex and has_dvisvgm:
             # Path: pdflatex -> pdf -> dvisvgm -> svg (dvisvgm 2.0+ supports PDF)
-            result = subprocess.run(
+            result = _run_tool(
                 ["pdflatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", temp_tex.name],
                 cwd=tmpdir,
-                capture_output=True,
-                text=True,
-                            )
+                name=tex_path.name,
+            )
+            if result is None:
+                return False
             if result.returncode != 0:
                 log.warning(f"pdflatex failed for {tex_path.name}: {result.stderr[:200]}")
                 return False
@@ -246,10 +293,7 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     # in Markdown then resolve to a real file and get rewritten correctly for
     # the output page (and the build copies them into site_dir automatically).
     # Without the docs-tree write, links stay raw and 404 on the deployed site.
-    if output_to_docs:
-        output_dir = docs_dir / "assets" / "tikz"
-    else:
-        output_dir = site_dir / "assets" / "tikz"
+    output_dir = docs_dir / "assets" / "tikz" if output_to_docs else site_dir / "assets" / "tikz"
 
     # Check if tikz config is enabled
     tikz_config = getattr(config, "tikz", None)
@@ -310,9 +354,13 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     cache = CacheManager()
     cached_hashes = cache.get_tikz_hashes()
     new_hashes: dict[str, str] = {}
+    # _compile_one runs on a thread pool, so every mutation of the shared
+    # counters and hash map goes through this lock.
+    results_lock = threading.Lock()
 
     def _compile_one(tex_file: Path) -> Path | None:
         """Compile a single TikZ file; returns output path or None."""
+        nonlocal skipped, newly_compiled
         svg_name = tex_file.with_suffix(".svg").name
         output_path = output_dir / svg_name
         key = str(tex_file.resolve())
@@ -327,11 +375,11 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
             tex_text = ""
 
         if not _needs_rebuild(tex_file, output_path, current_hash, cached_hashes.get(key)):
-            nonlocal skipped
-            skipped += 1
+            with results_lock:
+                skipped += 1
+                if current_hash is not None:
+                    new_hashes[key] = current_hash
             log.debug(f"Skipping {tex_file.name} (SVG up to date)")
-            if current_hash is not None:
-                new_hashes[key] = current_hash
             if output_to_docs:
                 site_output = site_dir / "assets" / "tikz" / svg_name
                 if not site_output.exists():
@@ -341,10 +389,10 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
             return output_path
 
         if _compile_tex_to_svg(tex_file, output_path, preamble=tikz_preamble, cached_hash=cached_hashes.get(key)):
-            nonlocal newly_compiled
-            newly_compiled += 1
-            if current_hash is not None:
-                new_hashes[key] = current_hash
+            with results_lock:
+                newly_compiled += 1
+                if current_hash is not None:
+                    new_hashes[key] = current_hash
             if output_to_docs:
                 site_output = site_dir / "assets" / "tikz" / svg_name
                 site_output.parent.mkdir(parents=True, exist_ok=True)

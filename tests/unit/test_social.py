@@ -89,7 +89,7 @@ class TestConfig:
 
     def test_invalid_option_types_raise(self):
         plugin = SocialPlugin()
-        errors, warnings = plugin.load_config({"cache": "yes"})
+        errors, _warnings = plugin.load_config({"cache": "yes"})
         assert [key for key, _ in errors] == ["cache"]
         assert isinstance(plugin.config, config_options.Config)
 
@@ -143,7 +143,7 @@ class TestMissingDeps:
         monkeypatch.setattr(social_module, "import_errors", {"ModuleNotFoundError('no PIL')"})
         monkeypatch.setattr(social_module, "cairosvg_error", "")
         plugin = SocialPlugin()
-        errors, warnings = plugin.load_config({"cache_dir": str(tmp_path / ".cache")})
+        errors, _warnings = plugin.load_config({"cache_dir": str(tmp_path / ".cache")})
         assert errors == []
         cfg = _load_config(tmp_path)
         with caplog.at_level(logging.WARNING, logger="mkdocs.material.social"):
@@ -228,7 +228,7 @@ def test_layout_template_roundtrip(layout_name):
     data = social_module._LAYOUTS[layout_name]
     layout = social_module.Layout(config_file_path=f"{layout_name}.yml")
     layout.load_dict(social_module.yaml.load(data, social_module.SafeLoader) or {})
-    errors, warnings = layout.validate()
+    errors, _warnings = layout.validate()
     assert errors == []
 
 

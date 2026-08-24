@@ -4,10 +4,9 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
 import yaml
 
-from docsforge.check import check, fix_config
+from docsforge.check import fix_config
 
 
 def _write_config(root: Path, body: str) -> Path:

@@ -1,6 +1,33 @@
 from __future__ import annotations
 
+import sys
+from collections.abc import Sequence
+
 from click import ClickException, echo
+
+if sys.version_info >= (3, 11):
+    # ruff targets py310 (matching requires-python), so it cannot see through
+    # this guard and flags the builtin as undefined.
+    BuildErrorGroup = ExceptionGroup  # noqa: F821
+else:
+    class BuildErrorGroup(Exception):  # name mirrors the stdlib ExceptionGroup
+        """Fallback for the 3.11+ builtin ``ExceptionGroup``.
+
+        ``requires-python`` is >=3.10, where the builtin does not exist. Only
+        the surface the build actually uses is reproduced: the message and the
+        ``exceptions`` tuple. It intentionally does not implement ``split()``
+        or ``except*`` support, which are unavailable on 3.10 anyway.
+        """
+
+        def __init__(self, message: str, exceptions: Sequence[BaseException]) -> None:
+            if not exceptions:
+                raise ValueError("second argument (exceptions) must be a non-empty sequence")
+            super().__init__(message)
+            self.message = message
+            self.exceptions = tuple(exceptions)
+
+        def __str__(self) -> str:
+            return f"{self.message} ({len(self.exceptions)} sub-exceptions)"
 
 
 class DocsForgeException(ClickException):
@@ -19,7 +46,7 @@ class Abort(DocsForgeException, SystemExit):
     code = 1
 
     def show(self, *args, **kwargs) -> None:
-        echo('\n' + self.format_message())
+        echo("\n" + self.format_message())
 
 
 class ConfigurationError(DocsForgeException):

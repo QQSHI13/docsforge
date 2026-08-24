@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from docsforge.core.minify import MinifyPlugin, MINIFIERS
+from docsforge.core.minify import MINIFIERS, MinifyPlugin
 
 
 class TestMinifyPlugin:

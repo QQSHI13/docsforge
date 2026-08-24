@@ -58,7 +58,6 @@ class TestMediaPathReplacement:
 
     def test_does_not_replace_similar_prefix(self, make_file):
         path = "blog/posts"
-        root = "blog"
         file = make_file("blog/posts-extra/image.png")
 
         assert not file.src_uri.startswith(path + "/")

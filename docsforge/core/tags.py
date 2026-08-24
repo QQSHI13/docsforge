@@ -2,30 +2,32 @@
 
 from __future__ import annotations
 
-from docsforge import get_relative_url
-from docsforge.config_base import BaseConfigOption, Config, ValidationError
-from docsforge.config_defaults import DocsForgeConfig
-from docsforge.config_options import DictOfItems, Deprecated, Optional, Type
-from docsforge.exceptions import PluginError
-from docsforge.filter_config import FileFilter, FilterConfig
-from docsforge.nav import Link
-from docsforge.pages import Page
-from docsforge.core.plugin_base import BasePlugin, event_priority
-from docsforge.templates import TemplateContext
-from docsforge.toc import AnchorLink
-from collections.abc import Callable, Iterable, Iterator
-from functools import total_ordering
-from jinja2 import Environment
-from pymdownx.slugs import slugify
-from re import Match
-from typing import Iterator, Set, Tuple
-from urllib.parse import urlparse
 import json
 import logging
 import os
 import posixpath
 import re
+from collections.abc import Callable, Iterable, Iterator
+from functools import total_ordering
+from re import Match
+from urllib.parse import urlparse
+
 import yaml
+from jinja2 import Environment
+from pymdownx.slugs import slugify
+
+from docsforge import get_relative_url
+from docsforge.config_base import BaseConfigOption, Config, ValidationError
+from docsforge.config_defaults import DocsForgeConfig
+from docsforge.config_options import Deprecated, DictOfItems, Optional, Type
+from docsforge.core.plugin_base import BasePlugin, event_priority
+from docsforge.exceptions import PluginError
+from docsforge.filter_config import FileFilter, FilterConfig
+from docsforge.nav import Link
+from docsforge.pages import Page
+from docsforge.templates import TemplateContext
+from docsforge.toc import AnchorLink
+
 
 # ------------------------------------------------------------------------------
 class Mapping:
@@ -126,7 +128,7 @@ class Tag:
     """Whether the tag is hidden."""
 
 
-class TagSet(BaseConfigOption[Set[Tag]]):
+class TagSet(BaseConfigOption[set[Tag]]):
     """A set of tags."""
 
     def __init__(self, allowed = None, *args, **kwargs):
@@ -137,7 +139,7 @@ class TagSet(BaseConfigOption[Set[Tag]]):
     def _repr_fields(self):
         return ("allowed",)
 
-    def run_validation(self, value: object) -> Set[Tag]:
+    def run_validation(self, value: object) -> set[Tag]:
         if not isinstance(value, list):
             raise ValidationError(f"Expected a list of tags, but got: {value}")
 
@@ -154,7 +156,7 @@ class TagSet(BaseConfigOption[Set[Tag]]):
     def pre_validation(self, config: Config, key_name: str):
         return config.get(key_name, set())
 
-    def post_validation(self, config: Config, key_name: str, value: Set[Tag]):
+    def post_validation(self, config: Config, key_name: str, value: set[Tag]):
         return value
 
 
@@ -195,15 +197,15 @@ class TagsConfig(Config):
     shadow_page_limit = Optional(Type(int))
     tags_sort_by = Optional(Type(Callable))
     tags_sort_reverse = Type(bool, default = False)
-    tags_slugify_format = Type(str, default = '{slug}')
-    tags_slugify_separator = Type(str, default = '-')
+    tags_slugify_format = Type(str, default = "{slug}")
+    tags_slugify_separator = Type(str, default = "-")
     export = Type(bool, default = False)
     export_file = Type(str, default = "tags.json")
     export_json_encoder = Optional(Type(str))
     export_json_indent = Optional(Type(int))
     export_json_sort_keys = Type(bool, default = False)
     export_json_ensure_ascii = Type(bool, default = True)
-    export_json_separators = Optional(Type(Tuple[str, str]))
+    export_json_separators = Optional(Type(tuple[str, str]))
     export_only = Type(bool, default = False)
     filters = Optional(Type(FilterConfig))
     filter_on_serve = Type(bool, default = False)
@@ -421,8 +423,7 @@ class ListingManager:
             # remove the listing entirely from the page and table of contents
             if self.config.listings:
                 return "#" * self.depth + f" {id}/name {{ #{id}/slug }}"
-            else:
-                return
+            return None
 
         # Hack: replace directive with an hx headline to mark the injection
         # point for the anchor links we will generate after parsing all pages.
@@ -430,8 +431,8 @@ class ListingManager:
         # will always be a child of the preceding headline.
         directive = self.config.listings_directive
         return re.sub(
-            r"(<!--\s*?{directive}(.*?)\s*-->)".format(directive = directive),
-            replace, markdown, flags = re.I | re.M | re.S
+            rf"(<!--\s*?{directive}(.*?)\s*-->)",
+            replace, markdown, flags = re.IGNORECASE | re.MULTILINE | re.DOTALL
         )
 
     def closest(self, mapping: Mapping) -> list[Listing]:
@@ -451,10 +452,9 @@ class ListingManager:
         """
 
         # Retrieve listings featuring tags of mapping
-        listings: list[Listing] = []
-        for listing in self.data:
-            if any(listing & mapping):
-                listings.append(listing)
+        listings: list[Listing] = [
+            listing for listing in self.data if any(listing & mapping)
+        ]
 
         # Ranking callback
         def rank(listing: Listing) -> int:
@@ -505,7 +505,7 @@ class ListingManager:
             # Populate listing with anchor links to tags
             anchors = populate(listing, self._slugify)
             if not anchors:
-                return ''
+                return ""
 
             # Get reference to first tag in listing
             head = next(iter(anchors.values()))
@@ -513,12 +513,12 @@ class ListingManager:
             # Replace hx with actual level of listing and listing ids with
             # placeholders to create a format string for the headline
             hx = re.sub(
-                r"<(/?)h{}\b".format(self.depth),
-                r"<\g<1>h{}".format(head.level), hx
+                rf"<(/?)h{self.depth}\b",
+                rf"<\g<1>h{head.level}", hx
             )
             hx = re.sub(
-                r"{id}\/(\w+)".format(id = listing.id),
-                r"{\1}", hx, flags = re.I | re.M
+                rf"{listing.id}\/(\w+)",
+                r"{\1}", hx, flags = re.IGNORECASE | re.MULTILINE
             )
 
             # Render listing headlines
@@ -544,7 +544,7 @@ class ListingManager:
             r"<h{x}[^>]+{id}.*?</h{x}>".format(
                 id = f"{listing.id}/slug", x = self.depth
             ),
-            replace, page.content, flags = re.I | re.M
+            replace, page.content, flags = re.IGNORECASE | re.MULTILINE
         )
 
     def populate_all(
@@ -739,11 +739,10 @@ def _print(manager: ListingManager, indent: int = 0) -> str:
         Printable representation.
     """
     lines: list[str] = []
-    lines.append(" " * indent + f"ListingManager()")
+    lines.append(" " * indent + "ListingManager()")
 
     # Print listings
-    for listing in manager:
-        lines.append(" " * (indent + 2) + repr(listing))
+    lines.extend(" " * (indent + 2) + repr(listing) for listing in manager)
 
     # Concatenate everything
     return "\n".join(lines)
@@ -998,15 +997,13 @@ def _print(tree: ListingTree, indent: int = 0) -> str:
         Printable representation.
     """
     lines: list[str] = []
-    lines.append(" " * indent + f"ListingTree({repr(tree.tag)})")
+    lines.append(" " * indent + f"ListingTree({tree.tag!r})")
 
     # Print mappings
-    for mapping in tree.mappings:
-        lines.append(" " * (indent + 2) + repr(mapping))
+    lines.extend(" " * (indent + 2) + repr(mapping) for mapping in tree.mappings)
 
     # Print subtrees
-    for child in tree.children.values():
-        lines.append(_print(child, indent + 2))
+    lines.extend(_print(child, indent + 2) for child in tree.children.values())
 
     # Concatenate everything
     return "\n".join(lines)
@@ -1107,17 +1104,16 @@ class MappingManager:
         # Return nothing if page doesn't have tags
         tags = self.config.tags_name_variable
         if not page.meta.get(tags, []):
-            return
+            return None
 
         # Create mapping and associate with page
         mapping = Mapping(page)
         self.data[page.url] = mapping
 
         # Retrieve and validate tags, and add to mapping
-        for tag in self.format.validate(page.meta[tags]):
+        for raw_tag in self.format.validate(page.meta[tags]):
             # Normalize non-string tags before configuring
-            if not isinstance(tag, (str, Tag)):
-                tag = str(tag)
+            tag = raw_tag if isinstance(raw_tag, (str, Tag)) else str(raw_tag)
 
             # Convert string tags to Tag objects
             if isinstance(tag, str):
@@ -1139,6 +1135,7 @@ class MappingManager:
         """
         if page.url in self.data:
             return self.data[page.url]
+        return None
 
     # -------------------------------------------------------------------------
 
@@ -1159,8 +1156,7 @@ class MappingManager:
         """
         if self.config.tags_hierarchy:
             return self._configure_hierarchy(tag)
-        else:
-            return self._configure_shadow(tag, tag.name)
+        return self._configure_shadow(tag, tag.name)
 
     def _configure_hierarchy(self, tag: Tag) -> Tag:
         """
@@ -1240,11 +1236,10 @@ def _print(manager: MappingManager, indent: int = 0) -> str:
         Printable representation.
     """
     lines: list[str] = []
-    lines.append(" " * indent + f"MappingManager()")
+    lines.append(" " * indent + "MappingManager()")
 
     # Print mappings
-    for mapping in manager:
-        lines.append(" " * (indent + 2) + repr(mapping))
+    lines.extend(" " * (indent + 2) + repr(mapping) for mapping in manager)
 
     # Concatenate everything
     return "\n".join(lines)
@@ -1298,7 +1293,7 @@ class MappingStorage:
         # Save serialized mappings to file
         with open(path, "w", encoding = "utf-8") as f:
             data = [_mapping_to_json(mapping) for mapping in mappings]
-            json.dump(dict(mappings = data), f)
+            json.dump({"mappings": data}, f)
 
     def load(self, path: str) -> Iterable[Mapping]:
         """
@@ -1310,7 +1305,7 @@ class MappingStorage:
         Yields:
             The current mapping.
         """
-        with open(path, "r", encoding = "utf-8") as f:
+        with open(path, encoding = "utf-8") as f:
             data = json.load(f)
 
             # Ensure root dictionary
@@ -1344,10 +1339,10 @@ def _mapping_to_json(mapping: Mapping) -> dict:
     Returns:
         Serializable representation.
     """
-    return dict(
-        item = _mapping_item_to_json(mapping.item),
-        tags = [str(tag) for tag in sorted(mapping.tags)]
-    )
+    return {
+        "item": _mapping_item_to_json(mapping.item),
+        "tags": [str(tag) for tag in sorted(mapping.tags)]
+    }
 
 def _mapping_item_to_json(item: Page | Link) -> dict:
     """
@@ -1359,7 +1354,7 @@ def _mapping_item_to_json(item: Page | Link) -> dict:
     Returns:
         Serializable representation.
     """
-    return dict(url = item.url, title = item.title)
+    return {"url": item.url, "title": item.title}
 
 # -------------------------------------------------------------------------
 
@@ -1491,8 +1486,7 @@ class TagReference(Tag):
         """
         if self.links:
             return self.links[0].url
-        else:
-            return None
+        return None
 
 #-----------------------------------------------------------------------------
 # Renderer class (from renderer/__init__.py)
@@ -1643,7 +1637,7 @@ class TagsPlugin(BasePlugin[TagsConfig]):
                 "[TAGS]", f"<!-- {directive} -->"
             )
 
-        pattern = r"<!--\s+{directive}".format(directive = directive)
+        pattern = rf"<!--\s+{directive}"
         if not re.search(pattern, markdown):
             markdown += f"\n<!-- {directive} -->"
 
@@ -1665,7 +1659,7 @@ class TagsPlugin(BasePlugin[TagsConfig]):
                 "[TAGS]", f"<!-- {directive} -->"
             )
 
-        pattern = r"<!--\s+{directive}".format(directive = re.escape(directive))
+        pattern = rf"<!--\s+{re.escape(directive)}"
         if not re.search(pattern, markdown):
             markdown += f"\n<!-- {directive} -->"
 

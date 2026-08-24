@@ -12,11 +12,9 @@ Requires:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
-import sys
 import urllib.parse
 from pathlib import Path
 
@@ -123,7 +121,7 @@ def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
     except (json.JSONDecodeError, OSError, UnicodeDecodeError):
@@ -274,7 +272,10 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4, cach
             log.info(f"Pages: {total}")
 
         browser_exe = _find_browser()
-        launch_opts = {"args": ["--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--allow-file-access-from-files"]}
+        launch_opts = {"args": [
+            "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage",
+            "--allow-file-access-from-files",
+        ]}
         if browser_exe:
             launch_opts["executable_path"] = browser_exe
             log.info(f"Browser: {browser_exe}")
@@ -300,6 +301,7 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4, cach
                 except Exception:
                     log.debug("Route handling failed", exc_info=True)
                 await route.abort()
+                return None
 
             async def render_one(tab, html_file, pdf_rel, idx):
                 pdf_path = output_path / pdf_rel
@@ -335,7 +337,8 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4, cach
                             }
                         });
                         document.querySelectorAll('.md-tooltip__content, [class*="tooltip"]').forEach(el => {
-                            el.style.cssText = "display:inline !important;visibility:visible !important;position:static !important;";
+                            el.style.cssText = "display:inline !important;" +
+                                "visibility:visible !important;position:static !important;";
                         });
                     }""")
                     await tab.pdf(

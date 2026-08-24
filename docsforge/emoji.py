@@ -8,15 +8,14 @@ from __future__ import annotations
 
 import functools
 import os
-
 from glob import iglob
 from inspect import getfile
-from markdown import Markdown
-from pymdownx import emoji, twemoji_db
 from xml.etree.ElementTree import Element
 
-import docsforge
+from markdown import Markdown
+from pymdownx import emoji, twemoji_db
 
+import docsforge
 
 # ---------------------------------------------------------------------------
 # Functions
@@ -59,14 +58,14 @@ def to_svg(
 # Helper functions
 # ---------------------------------------------------------------------------
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _load(file: str):
     """Load icon SVG content."""
     with open(file, encoding="utf-8") as f:
         return f.read()
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _find_twemoji_svg(uc: str):
     """Return the vendored twemoji SVG file for a unicode codepoint string.
 
@@ -78,14 +77,14 @@ def _find_twemoji_svg(uc: str):
     return path if os.path.isfile(path) else None
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _twemoji_dir() -> str:
     """Return the directory of the vendored twemoji SVG assets."""
     root = os.path.dirname(getfile(docsforge))
     return os.path.join(root, "templates", "assets", "emoji", "twemoji")
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _load_twemoji_index(paths):
     """Load twemoji index and add Material icons."""
     index = {

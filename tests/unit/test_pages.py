@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import textwrap
 from collections import OrderedDict
-from pathlib import Path
 from unittest import mock
 from xml.etree import ElementTree as etree
 
@@ -12,30 +11,6 @@ import pytest
 from docsforge.config_base import load_config
 from docsforge.files import File, Files
 from docsforge.pages import Page, _RelativePathTreeprocessor
-
-
-def _load_config(tmp_path: Path):
-    (tmp_path / "docs").mkdir(exist_ok=True)
-    (tmp_path / "docs" / "index.md").write_text("# Home\n")
-    cfg = tmp_path / "docsforge.yml"
-    cfg.write_text(
-        textwrap.dedent(
-            """
-            site_name: Test
-            docs_dir: docs
-            site_dir: site
-            privacy: false
-            theme:
-              name: material
-              palette:
-                - scheme: default
-                  primary: teal
-                  accent: teal
-            """
-        ).strip()
-        + "\n"
-    )
-    return load_config(config_file=str(cfg_path))
 
 
 @pytest.fixture()
@@ -84,8 +59,6 @@ class TestRelativePathTreeprocessor:
         # Create a target file in the same directory as the source.
         target = File("dir/target.md", page_config.docs_dir, page_config.site_dir, page_config.use_directory_urls)
         source = File("dir/page.md", page_config.docs_dir, page_config.site_dir, page_config.use_directory_urls)
-        real_files = Files([source, target])
-
         # Make the .md-suffix variant resolve while the primary link does not,
         # forcing the "did you mean" suggestion path.
         class _Files:
@@ -104,24 +77,25 @@ class TestRelativePathTreeprocessor:
 
     def test_missing_href_or_src_is_skipped(self, page_config):
         proc = self._processor(page_config)
-        root = etree.Element('div')
-        a_without_href = etree.SubElement(root, 'a')
-        img_without_src = etree.SubElement(root, 'img')
-        a_with_href = etree.SubElement(root, 'a')
-        a_with_href.set('href', 'https://example.com')
+        root = etree.Element("div")
+        a_without_href = etree.SubElement(root, "a")
+        img_without_src = etree.SubElement(root, "img")
+        a_with_href = etree.SubElement(root, "a")
+        a_with_href.set("href", "https://example.com")
 
         result = proc.run(root)
 
         assert result is root
-        assert a_without_href.get('href') is None
-        assert img_without_src.get('src') is None
-        assert a_with_href.get('href') == 'https://example.com'
+        assert a_without_href.get("href") is None
+        assert img_without_src.get("src") is None
+        assert a_with_href.get("href") == "https://example.com"
 
 
 class TestExtractTitle:
     def test_breaks_only_after_h1(self, page_config):
-        from docsforge.pages import _ExtractTitleTreeprocessor
         import markdown
+
+        from docsforge.pages import _ExtractTitleTreeprocessor
 
         md = markdown.Markdown()
         ext = _ExtractTitleTreeprocessor()
@@ -155,7 +129,7 @@ class TestPageInit:
         file = File(
             "page.md", page_config.docs_dir, page_config.site_dir, page_config.use_directory_urls
         )
-        with mock.patch.object(StructureItem, '__init__') as mock_super_init:
+        with mock.patch.object(StructureItem, "__init__") as mock_super_init:
             Page(None, file, page_config)
         mock_super_init.assert_called_once_with()
 
@@ -166,7 +140,7 @@ class TestMarkdownCache:
 
         _md_thread_local.instances = OrderedDict()
         for i in range(_MAX_MD_CACHE_SIZE + 5):
-            _get_markdown_instance([], {f'cfg_{i}': {}})
+            _get_markdown_instance([], {f"cfg_{i}": {}})
 
         assert len(_md_thread_local.instances) <= _MAX_MD_CACHE_SIZE
 
@@ -175,15 +149,15 @@ class TestMarkdownCache:
 
         _md_thread_local.instances = OrderedDict()
         mds = [
-            _get_markdown_instance([], {f'cfg_{i}': {}})
+            _get_markdown_instance([], {f"cfg_{i}": {}})
             for i in range(_MAX_MD_CACHE_SIZE)
         ]
 
         # Touch the first entry so it becomes the most recently used.
-        _get_markdown_instance([], {'cfg_0': {}})
+        _get_markdown_instance([], {"cfg_0": {}})
 
         # Adding a new entry should evict the second entry, not the first.
-        _get_markdown_instance([], {'cfg_new': {}})
+        _get_markdown_instance([], {"cfg_new": {}})
 
         assert mds[0] in _md_thread_local.instances.values()
         assert mds[1] not in _md_thread_local.instances.values()
@@ -202,10 +176,10 @@ class TestRawHTMLAnchors:
         ]
         ext.run(lines)
 
-        assert 'real' in ext.present_anchor_ids
-        assert 'also-real' in ext.present_anchor_ids
-        assert 'fake1' not in ext.present_anchor_ids
-        assert 'fake2' not in ext.present_anchor_ids
+        assert "real" in ext.present_anchor_ids
+        assert "also-real" in ext.present_anchor_ids
+        assert "fake1" not in ext.present_anchor_ids
+        assert "fake2" not in ext.present_anchor_ids
 
     def test_multi_backtick_code_spans_are_skipped(self):
         from docsforge.pages import _RawHTMLPreprocessor
@@ -214,12 +188,12 @@ class TestRawHTMLAnchors:
         lines = [
             '``<a name="fake3"></a>``',
             '```<a name="fake4"></a>```',
-            '``nested `backticks` inside``',
+            "``nested `backticks` inside``",
         ]
         ext.run(lines)
 
-        assert 'fake3' not in ext.present_anchor_ids
-        assert 'fake4' not in ext.present_anchor_ids
+        assert "fake3" not in ext.present_anchor_ids
+        assert "fake4" not in ext.present_anchor_ids
 
     def test_real_raw_html_anchors_are_still_extracted(self):
         from docsforge.pages import _RawHTMLPreprocessor
@@ -228,5 +202,5 @@ class TestRawHTMLAnchors:
         lines = ['<a name="anchor"></a>', '<div id="section"></div>']
         ext.run(lines)
 
-        assert 'anchor' in ext.present_anchor_ids
-        assert 'section' in ext.present_anchor_ids
+        assert "anchor" in ext.present_anchor_ids
+        assert "section" in ext.present_anchor_ids

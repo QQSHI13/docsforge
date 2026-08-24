@@ -10,26 +10,26 @@ import logging
 import re
 import sys
 from pathlib import Path
-from typing import BinaryIO, TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 from urllib.parse import urlparse
 
 from docsforge import slugify
 
 if TYPE_CHECKING:
-    import docsforge.config_base as config_module
+    pass
 
 log = logging.getLogger(__name__)
 
 # Config file priority order (first match wins)
 CONFIG_PRIORITY = [
-    'docsforge.yml',
-    'docsforge.yaml',
+    "docsforge.yml",
+    "docsforge.yaml",
 ]
 
 
 def find_config_file(config_file: str | None = None) -> Path | None:
     """Find the appropriate configuration file.
-    
+
     Returns the path if found, None otherwise.
     """
     if config_file is not None:
@@ -37,18 +37,18 @@ def find_config_file(config_file: str | None = None) -> Path | None:
         if path.exists():
             return path
         return None
-    
+
     for name in CONFIG_PRIORITY:
         path = Path(name)
         if path.exists():
             return path
-    
+
     return None
 
 
 def detect_environment() -> dict:
     """Detect the current docs environment.
-    
+
     Returns dict with:
         - config_found: bool
         - config_path: Path | None
@@ -56,36 +56,36 @@ def detect_environment() -> dict:
         - has_index: bool
     """
     result = {
-        'config_found': False,
-        'config_path': None,
-        'docs_dir_exists': False,
-        'has_index': False,
+        "config_found": False,
+        "config_path": None,
+        "docs_dir_exists": False,
+        "has_index": False,
     }
-    
+
     config_path = find_config_file()
     if config_path:
-        result['config_found'] = True
-        result['config_path'] = config_path
-        
+        result["config_found"] = True
+        result["config_path"] = config_path
+
         # Check if docs/ directory exists
         try:
             from docsforge.config_base import _open_config_file
             with _open_config_file(config_path) as f:
                 import yaml
                 cfg = yaml.load(f, Loader=yaml.FullLoader) or {}
-                docs_dir = cfg.get('docs_dir', 'docs')
+                docs_dir = cfg.get("docs_dir", "docs")
                 docs_path = Path(docs_dir)
-                result['docs_dir_exists'] = docs_path.exists()
-                result['has_index'] = (docs_path / 'index.md').exists()
+                result["docs_dir_exists"] = docs_path.exists()
+                result["has_index"] = (docs_path / "index.md").exists()
         except Exception:
             pass
-    
+
     return result
 
 
 # Allowed theme colors for interactive init.
 _THEME_COLORS = {
-    'teal', 'indigo', 'blue', 'green', 'red', 'orange', 'purple', 'pink'
+    "teal", "indigo", "blue", "green", "red", "orange", "purple", "pink"
 }
 
 
@@ -100,7 +100,7 @@ def _validate_theme_color(value: str) -> str:
 def _validate_language(value: str) -> str:
     """Return language code if it looks like a locale tag."""
     value = value.strip()
-    if not re.fullmatch(r'[a-zA-Z0-9_-]+', value):
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", value):
         raise ValueError("Language code must contain only letters, numbers, hyphens and underscores")
     return value
 
@@ -110,14 +110,14 @@ def _validate_url(value: str | None, field: str) -> str | None:
     if not value:
         return None
     parsed = urlparse(value)
-    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
         raise ValueError(f"{field} must be a valid http/https URL")
     return value
 
 
 class BuildEngine:
     """Production build engine."""
-    
+
     @staticmethod
     def build(
         config_file: str | BinaryIO | None = None,
@@ -127,13 +127,13 @@ class BuildEngine:
         **kwargs,
     ) -> int:
         """Build documentation.
-        
+
         Uses dirty/incremental build by default for speed.
         If config_file is not specified, auto-detects docsforge.yml.
         Returns exit code: 0 = success, 1 = failure.
         """
         from docsforge import build as build_module
-        
+
         try:
             import docsforge.config_base as config_module
             cfg = config_module.load_config(
@@ -141,7 +141,7 @@ class BuildEngine:
                 strict=strict,
                 **kwargs,
             )
-            cfg.plugins.on_startup(command='build', dirty=True)
+            cfg.plugins.on_startup(command="build", dirty=True)
             try:
                 build_module.build(cfg, dirty=True, progress=progress)
             finally:
@@ -182,28 +182,28 @@ class DevServer:
 
 class ProjectManager:
     """Project initialization."""
-    
+
     @staticmethod
     def init(
         project_directory: str | None = None,
         *,
         site_name: str | None = None,
-        theme_color: str = 'teal',
+        theme_color: str = "teal",
         privacy: bool = False,
     ) -> int:
         """Initialize a new project interactively.
-        
+
         Prompts for values in a TTY. Creates a new directory named after the
         site name slug. If not a TTY, returns error.
-        
+
         Returns exit code: 0 = success, 1 = failure.
         """
         from docsforge import init as init_module
-        
+
         if not sys.stdin.isatty():
             log.error("No docsforge.yml found. Run in an interactive terminal to create a project.")
             return 1
-        
+
         # Welcome banner
         print()
         print("=" * 56)
@@ -212,11 +212,12 @@ class ProjectManager:
         print("  Core features (search, tags, blog, etc.) are always included.")
         print("=" * 56)
         print()
-        
+
         try:
             # Step 1: Site name
             print("Step 1/10 — Site name")
-            site_name = input(f"  What should we call your docs? [{site_name or 'My Documentation'}]: ").strip() or site_name or 'My Documentation'
+            prompt = f"  What should we call your docs? [{site_name or 'My Documentation'}]: "
+            site_name = input(prompt).strip() or site_name or "My Documentation"
             print()
 
             # Step 2: Site description
@@ -249,7 +250,7 @@ class ProjectManager:
             # Step 6: Language
             print("Step 6/10 — Language")
             while True:
-                language_input = input("  Site language code [en]: ").strip() or 'en'
+                language_input = input("  Site language code [en]: ").strip() or "en"
                 try:
                     language = _validate_language(language_input)
                     break
@@ -274,7 +275,7 @@ class ProjectManager:
             print("  Where will your docs be hosted? e.g. https://user.github.io/repo/")
             while True:
                 site_url_input = input("  Site URL [Optional]: ").strip()
-                site_url = site_url_input if site_url_input else None
+                site_url = site_url_input or None
                 try:
                     site_url = _validate_url(site_url, "Site URL")
                     break
@@ -293,7 +294,7 @@ class ProjectManager:
             print("  Privacy mode fetches external assets and inlines them locally.")
             print("  This prevents tracking and ensures docs work offline.")
             privacy_input = input("  Enable privacy mode? [Y/n]: ").strip().lower()
-            privacy = privacy_input in ('', 'y', 'yes')
+            privacy = privacy_input in ("", "y", "yes")
             print()
 
         except (EOFError, KeyboardInterrupt):
@@ -308,7 +309,7 @@ class ProjectManager:
         try:
             init_module.init(
                 project_directory=project_directory,
-                site_name=site_name or 'My Documentation',
+                site_name=site_name or "My Documentation",
                 site_url=site_url,
                 theme_color=theme_color,
                 privacy=privacy,
@@ -320,7 +321,7 @@ class ProjectManager:
                 favicon=favicon,
                 logo=logo,
             )
-            
+
             # Summary
             print("=" * 56)
             print("  All done! Here's what was created:")
@@ -344,8 +345,8 @@ class ProjectManager:
 
 # Maps optional package names to the install extra that provides them.
 OPTIONAL_DEPS = {
-    'jieba': 'docsforge[chinese]',
-    'playwright': 'docsforge[pdf]',
+    "jieba": "docsforge[chinese]",
+    "playwright": "docsforge[pdf]",
 }
 
 
@@ -356,6 +357,7 @@ def _check_optional_deps(config_file=None):
     with the exact install command needed.
     """
     import yaml
+
     from docsforge.config_base import _open_config_file
 
     try:
@@ -364,7 +366,7 @@ def _check_optional_deps(config_file=None):
     except Exception:
         return  # Best-effort, don't fail build because dep check failed
 
-    plugins_cfg = cfg.get('plugins', [])
+    plugins_cfg = cfg.get("plugins", [])
     if not isinstance(plugins_cfg, list):
         return
 
@@ -397,7 +399,7 @@ def _check_optional_deps(config_file=None):
             plugin_cls = ep.load()
         except Exception:
             continue
-        for dep in getattr(plugin_cls, 'optional_dependencies', []):
+        for dep in getattr(plugin_cls, "optional_dependencies", []):
             if dep not in OPTIONAL_DEPS:
                 continue
             try:
@@ -406,10 +408,10 @@ def _check_optional_deps(config_file=None):
                 missing.add(f"pip install {OPTIONAL_DEPS[dep]}")
 
     # Legacy key-based checks for configs not yet declaring optional deps.
-    search_cfg = plugin_configs.get('material/search') or plugin_configs.get('search')
-    if isinstance(search_cfg, dict) and search_cfg.get('jieba_dict'):
+    search_cfg = plugin_configs.get("material/search") or plugin_configs.get("search")
+    if isinstance(search_cfg, dict) and search_cfg.get("jieba_dict"):
         try:
-            __import__('jieba')
+            __import__("jieba")
         except ImportError:
             missing.add(f"pip install {OPTIONAL_DEPS['jieba']}")
 
@@ -421,7 +423,7 @@ def _check_optional_deps(config_file=None):
 
 class Validator:
     """Configuration validation."""
-    
+
     @staticmethod
     def check(config_file: str | BinaryIO | None = None, *, full_validation: bool = False) -> int:
         """Validate configuration without building.
@@ -439,7 +441,7 @@ class Validator:
 
 class AutoRouter:
     """Smart routing based on project state."""
-    
+
     @staticmethod
     def route(
         *,
@@ -447,23 +449,23 @@ class AutoRouter:
         **kwargs,
     ) -> int:
         """Smart routing - decides what to do based on project state.
-        
+
         Priority:
         1. If docsforge.yml exists -> show help with project detected notice
         2. If no config exists -> start interactive init
-        
+
         Returns exit code.
         """
         env = detect_environment()
-        
+
         # Smart routing based on environment
-        if not env['config_found']:
+        if not env["config_found"]:
             # No config found -> start interactive init
             if not sys.stdin.isatty():
                 log.error("No docsforge.yml found. Run in an interactive terminal to create a project.")
                 return 1
             return ProjectManager.init()
-        
+
         # Normal docsforge.yml found -> show help with project detected notice
         if ctx:
             print("DocsForge project detected.\n")

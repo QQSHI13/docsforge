@@ -7,6 +7,7 @@ import textwrap
 import threading
 import zlib
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import Mock, patch
 
 import jinja2
@@ -22,7 +23,7 @@ from docsforge.build import (
     _write_outputs,
 )
 from docsforge.config_base import load_config
-from docsforge.exceptions import BuildError
+from docsforge.exceptions import BuildError, BuildErrorGroup
 from docsforge.files import File, Files
 from docsforge.pages import Page
 
@@ -123,7 +124,7 @@ class TestPopulateChangedPagesErrors:
 
         monkeypatch.setattr(build_mod, "_populate_page", _bad_populate)
 
-        with pytest.raises(ExceptionGroup, match="Errors populating pages") as exc_info:
+        with pytest.raises(BuildErrorGroup, match="Errors populating pages") as exc_info:
             _populate_changed_pages(cfg, files, Mock(), [file_a, file_b], lambda level: True, None)
         assert len(exc_info.value.exceptions) == 2
 
@@ -183,22 +184,24 @@ class TestFinalizeBuildOptimizesAssets:
         # they require a full build state this test does not set up.
         cfg.plugins.on_post_build = Mock()
 
-        with patch.object(build_mod, "optimize_assets", fake_optimize):
-            with patch.object(build_mod, "_generate_pwa_manifest_and_precache", Mock()):
-                _finalize_build(
-                    cfg,
-                    Files([]),
-                    Mock(homepage=None),
-                    planner,
-                    warning_counter,
-                    built_any=False,
-                    sources_changed=False,
-                    nav_changed=False,
-                    config_path=Path("docsforge.yml"),
-                    theme_sig="",
-                    built_sources=set(),
-                    start=0.0,
-                )
+        with (
+            patch.object(build_mod, "optimize_assets", fake_optimize),
+            patch.object(build_mod, "_generate_pwa_manifest_and_precache", Mock()),
+        ):
+            _finalize_build(
+                cfg,
+                Files([]),
+                Mock(homepage=None),
+                planner,
+                warning_counter,
+                built_any=False,
+                sources_changed=False,
+                nav_changed=False,
+                config_path=Path("docsforge.yml"),
+                theme_sig="",
+                built_sources=set(),
+                start=0.0,
+            )
 
         assert optimize_calls == [
             (
@@ -222,26 +225,26 @@ class TestInstantNavigationBundleIgnoresI18nAlternates:
     def test_template_does_not_emit_i18n_alternates(self):
         from docsforge import utils
 
-        theme_dir = utils.get_theme_dir('material')
-        base = Path(theme_dir) / 'base.html'
-        content = base.read_text(encoding='utf-8', errors='ignore')
+        theme_dir = utils.get_theme_dir("material")
+        base = Path(theme_dir) / "base.html"
+        content = base.read_text(encoding="utf-8", errors="ignore")
         # Only explicitly configured versioned alternates are emitted.
-        assert 'config.extra.alternate is iterable' in content
+        assert "config.extra.alternate is iterable" in content
         # The i18n alternate suppression is documented in the template.
-        assert 'i18n alternates are deliberately NOT emitted' in content
+        assert "i18n alternates are deliberately NOT emitted" in content
 
     def test_bundle_uses_upstream_alternate_selector(self):
         from docsforge import utils
 
-        theme_dir = utils.get_theme_dir('material')
-        bundle_path = Path(theme_dir) / 'assets' / 'javascripts' / 'bundle.min.js'
+        theme_dir = utils.get_theme_dir("material")
+        bundle_path = Path(theme_dir) / "assets" / "javascripts" / "bundle.min.js"
         if not bundle_path.exists():
-            pytest.skip('Vendored bundle not present')
+            pytest.skip("Vendored bundle not present")
 
-        content = bundle_path.read_text(encoding='utf-8', errors='ignore')
+        content = bundle_path.read_text(encoding="utf-8", errors="ignore")
         # Upstream v9.7.7 selector (all link[rel=alternate]). Safe because
         # base.html never emits i18n alternates (see test above).
-        assert 'link[rel=alternate]' in content
+        assert "link[rel=alternate]" in content
 
 
 class TestBuildPageLock:
@@ -300,15 +303,15 @@ class TestBuildExtraTemplateUsesEnv:
         monkeypatch.chdir(tmp_path)
 
         env = jinja2.Environment()
-        env.globals['custom_global'] = 'rendered-from-env'
+        env.globals["custom_global"] = "rendered-from-env"
 
         extra_file = File(
-            'extra.html',
+            "extra.html",
             src_dir=None,
             dest_dir=cfg.site_dir,
             use_directory_urls=cfg.use_directory_urls,
         )
-        extra_file.content_string = '<span>{{ custom_global }}</span>'
+        extra_file.content_string = "<span>{{ custom_global }}</span>"
         files = Files([extra_file])
 
         cfg.plugins = Mock()
@@ -316,12 +319,12 @@ class TestBuildExtraTemplateUsesEnv:
         cfg.plugins.on_template_context = lambda context, **kw: context
         cfg.plugins.on_post_template = lambda output, **kw: output
 
-        _build_extra_template('extra.html', env, files, cfg, Mock())
+        _build_extra_template("extra.html", env, files, cfg, Mock())
 
         dest_path = Path(extra_file.abs_dest_path)
         assert dest_path.is_file()
         rendered = dest_path.read_text()
-        assert '<span>rendered-from-env</span>' in rendered
+        assert "<span>rendered-from-env</span>" in rendered
 
 
 class TestPwaManifestIcons:
@@ -329,18 +332,18 @@ class TestPwaManifestIcons:
 
     @staticmethod
     def _make_png(width: int, height: int) -> bytes:
-        signature = b'\x89PNG\r\n\x1a\n'
+        signature = b"\x89PNG\r\n\x1a\n"
 
         def chunk(chunk_type: bytes, data: bytes) -> bytes:
-            chunk_data = struct.pack('>I', len(data)) + chunk_type + data
+            chunk_data = struct.pack(">I", len(data)) + chunk_type + data
             crc = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
-            return chunk_data + struct.pack('>I', crc)
+            return chunk_data + struct.pack(">I", crc)
 
-        ihdr = struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0)
+        ihdr = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
         # One filter byte plus one RGBA pixel per row.
-        raw = b''.join(b'\x00' + b'\x00\x00\x00' * width for _ in range(height))
+        raw = b"".join(b"\x00" + b"\x00\x00\x00" * width for _ in range(height))
         idat = zlib.compress(raw)
-        return signature + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b'')
+        return signature + chunk(b"IHDR", ihdr) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
 
     def test_detects_size_and_mime_for_favicon_and_logo(self, tmp_path, monkeypatch):
         from docsforge.build import _generate_pwa_manifest_and_precache
@@ -356,10 +359,10 @@ class TestPwaManifestIcons:
         )
 
         class FakeTheme:
-            static_templates = []
+            static_templates: ClassVar[list] = []
 
             def get(self, key: str, default=None):
-                return {'favicon': 'favicon.png', 'logo': 'logo.svg'}.get(key, default)
+                return {"favicon": "favicon.png", "logo": "logo.svg"}.get(key, default)
 
         class OfflineMode:
             mode = "cache-first"
@@ -370,21 +373,21 @@ class TestPwaManifestIcons:
             site_name = "Test Site"
             site_description = "Test description"
             site_url = None
-            config_file_path = ''
-            extra = {}
+            config_file_path = ""
+            extra: ClassVar[dict] = {}
             theme = FakeTheme()
             offline = OfflineMode()
 
-        with patch.object(build_mod, '_generate_cache_manifest'):
+        with patch.object(build_mod, "_generate_cache_manifest"):
             _generate_pwa_manifest_and_precache(FakeConfig(), Files([]), Mock(homepage=None), None)
 
         manifest = json.loads((site / "manifest.json").read_text())
-        icons = {icon['src']: icon for icon in manifest['icons']}
+        icons = {icon["src"]: icon for icon in manifest["icons"]}
 
-        assert icons['favicon.png']['sizes'] == '48x48'
-        assert icons['favicon.png']['type'] == 'image/png'
-        assert icons['logo.svg']['sizes'] == '128x64'
-        assert icons['logo.svg']['type'] == 'image/svg+xml'
+        assert icons["favicon.png"]["sizes"] == "48x48"
+        assert icons["favicon.png"]["type"] == "image/png"
+        assert icons["logo.svg"]["sizes"] == "128x64"
+        assert icons["logo.svg"]["type"] == "image/svg+xml"
 
 
 class TestPrepareBuildMdxConfigs:
@@ -395,11 +398,11 @@ class TestPrepareBuildMdxConfigs:
 
         cfg = _load_config(tmp_path)
         original = {
-            'pymdownx.superfences': {
-                'custom_fences': [{'name': 'existing'}],
+            "pymdownx.superfences": {
+                "custom_fences": [{"name": "existing"}],
             },
         }
-        cfg['mdx_configs'] = original
+        cfg["mdx_configs"] = original
 
         planner = Mock()
         planner.should_full_rebuild.return_value = False
@@ -414,11 +417,11 @@ class TestPrepareBuildMdxConfigs:
 
         # Original object must be untouched.
         assert original == {
-            'pymdownx.superfences': {
-                'custom_fences': [{'name': 'existing'}],
+            "pymdownx.superfences": {
+                "custom_fences": [{"name": "existing"}],
             },
         }
         # A new copy should have been installed on the config.
-        assert config['mdx_configs'] is not original
-        fences = config['mdx_configs']['pymdownx.superfences']['custom_fences']
-        assert any(fence.get('name') == 'mermaid' for fence in fences)
+        assert config["mdx_configs"] is not original
+        fences = config["mdx_configs"]["pymdownx.superfences"]["custom_fences"]
+        assert any(fence.get("name") == "mermaid" for fence in fences)

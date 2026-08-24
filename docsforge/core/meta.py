@@ -12,11 +12,11 @@ import posixpath
 from mergedeep import Strategy, merge
 from yaml import SafeLoader, load
 
-from docsforge.config_options import Type
 from docsforge.config_base import Config
+from docsforge.config_options import Type
+from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.exceptions import PluginError
 from docsforge.files import InclusionLevel
-from docsforge.core.plugin_base import BasePlugin, event_priority
 
 
 # Plugin configuration

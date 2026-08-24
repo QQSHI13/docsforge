@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from docsforge.config_base import ValidationError
 from docsforge.core.tags import (
     Listing,
     ListingConfig,
@@ -13,8 +14,8 @@ from docsforge.core.tags import (
     Mapping,
     MappingManager,
     Tag,
-    TagSet,
     TagsConfig,
+    TagSet,
     _mapping_from_json,
 )
 from docsforge.nav import Link
@@ -78,7 +79,7 @@ class TestTagSet:
 
     def test_disallowed_tags_raise_validation_error(self):
         tag_set = TagSet(allowed=["a", "b"])
-        with pytest.raises(Exception):  # ValidationError
+        with pytest.raises(ValidationError):
             tag_set.validate(["a", "c"])
 
 

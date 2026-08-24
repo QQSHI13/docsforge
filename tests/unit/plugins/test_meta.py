@@ -4,7 +4,6 @@ Meta files (*.meta.yml) merged into page metadata in level-order.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -75,8 +74,9 @@ class TestMetaPlugin:
         assert "author" not in unmatched_page.meta
 
     def test_corrupt_meta_raises_plugin_error(self, tmp_path):
-        from docsforge.exceptions import PluginError
         from types import SimpleNamespace
+
+        from docsforge.exceptions import PluginError
 
         meta_path = tmp_path / ".meta.yml"
         meta_path.write_text(": : not yaml : :\n")

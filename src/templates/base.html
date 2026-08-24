@@ -45,7 +45,7 @@
       {% if palette and not palette is mapping %}
         {% set palette = palette | first %}
       {% endif %}
-      <meta name="theme-color" content="{{ palette.primary | d('indigo') if palette else 'indigo' }}">
+      <meta name="theme-color" content="{{ (palette.primary if palette else none) | theme_color }}">
       <meta name="generator" content="docsforge">
     {% endblock %}
     {% block htmltitle %}

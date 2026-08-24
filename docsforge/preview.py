@@ -12,14 +12,15 @@
 from __future__ import annotations
 
 import logging
-
-from docsforge.filter_config import FileFilter, FilterConfig
-from docsforge.pages import _RelativePathTreeprocessor
-from markdown import Extension, Markdown
-from markdown.treeprocessors import Treeprocessor
-from docsforge.exceptions import ConfigurationError
 from urllib.parse import urlparse
 from xml.etree.ElementTree import Element
+
+from markdown import Extension, Markdown
+from markdown.treeprocessors import Treeprocessor
+
+from docsforge.exceptions import ConfigurationError
+from docsforge.filter_config import FileFilter, FilterConfig
+from docsforge.pages import _RelativePathTreeprocessor
 
 # -----------------------------------------------------------------------------
 # Classes
@@ -193,7 +194,7 @@ def get_filter(settings: dict, key: str):
         )
 
     # Return file filter
-    return FileFilter(config = config) # type: ignore
+    return FileFilter(config = config) # type: ignore[call-arg]
 
 def makeExtension(**kwargs):
     """
