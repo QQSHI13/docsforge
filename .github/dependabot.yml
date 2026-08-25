@@ -17,6 +17,16 @@ updates:
     directory: "/studio"
     schedule:
       interval: "weekly"
+    ignore:
+      # @types/vscode is a compatibility floor, not a version to keep current:
+      # vsce refuses to package when it exceeds engines.vscode ("@types/vscode
+      # X greater than engines.vscode Y"), because newer typings let the
+      # extension compile against APIs absent from the oldest VS Code it claims
+      # to support. Raising it therefore means dropping users, and the CI
+      # `studio` job would not catch the break -- it never runs `vsce package`,
+      # which only happens in release.yml's build-vsix job, after the tag and
+      # the PyPI publish. Bump engines.vscode first, deliberately, then this.
+      - dependency-name: "@types/vscode"
 
   # Python package dependencies (pyproject.toml at the repo root).
   - package-ecosystem: "pip"

@@ -10,9 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  # Ruff runs as a correctness gate (pyflakes + bugbear + pylint errors), not a
-  # style gate — see the rationale in [tool.ruff.lint] in pyproject.toml. Pinned
-  # so a new ruff release can't turn main red without a deliberate bump.
+  # Ruff runs as a correctness and style gate (pyflakes + bugbear + pylint
+  # errors, plus pycodestyle, isort, pep8-naming and friends) — see the
+  # rationale in [tool.ruff.lint] in pyproject.toml. Pinned so a new ruff
+  # release can't turn main red without a deliberate bump.
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -99,7 +100,26 @@ jobs:
         run: python build_frontend.py
 
       - name: Verify committed templates match the build
-        run: git diff --exit-code -- docsforge/templates
+        # Two separate failure modes, so two separate checks:
+        #
+        # 1. `git diff --exit-code` catches modified and deleted files, but is
+        #    blind to NEW ones. A dependency that *adds* assets (e.g. a
+        #    lucide-static bump shipping 9 new icons) would leave them
+        #    untracked and still pass, silently committing a version bump whose
+        #    entire payload is missing from the tree.
+        # 2. Untracked output is checked with `git status --porcelain`, which
+        #    reports `??` entries. `--untracked-files=all` lists individual
+        #    files rather than collapsing them into a directory name, so the
+        #    error message names exactly what to `git add`.
+        run: |
+          git diff --exit-code -- docsforge/templates
+          untracked="$(git status --porcelain --untracked-files=all -- docsforge/templates)"
+          if [ -n "$untracked" ]; then
+            echo "::error::build_frontend.py produced files that are not committed."
+            echo "Run 'python build_frontend.py' and 'git add docsforge/templates'."
+            echo "$untracked"
+            exit 1
+          fi
 
   # The VS Code extension has its own npm workspace; a PR can break its
   # install (e.g. an incompatible toolchain peer range) without touching any
@@ -128,4 +148,15 @@ jobs:
 
       - name: Test
         run: npm test
+        working-directory: studio
+
+      # `vsce package` enforces constraints that compile/lint/test do not --
+      # notably that @types/vscode never exceeds engines.vscode. Without this
+      # step a dependabot typings bump goes green here and only fails in
+      # release.yml's build-vsix job, which runs AFTER the tag and the PyPI
+      # publish, leaving a published release with no .vsix attached.
+      - name: Verify the extension can be packaged
+        run: |
+          npx --yes @vscode/vsce package --out /tmp/ci-check.vsix
+          rm -f /tmp/ci-check.vsix
         working-directory: studio

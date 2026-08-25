@@ -16,6 +16,23 @@
 
 ### Fixed
 
+- **The template parity gate now catches added files** — CI verified the
+  committed `docsforge/templates` tree against a fresh `build_frontend.py` run
+  with `git diff --exit-code`, which reports modified and deleted files but is
+  blind to new ones. A dependency that *adds* assets (such as a `lucide-static`
+  bump shipping nine new icons) left them untracked and still passed, so the
+  committed tree silently drifted from the build output. Untracked build output
+  is now a CI failure that names the exact files to add.
+
+- **A VS Code typings bump can no longer break the release** — the CI `studio`
+  job compiled, linted and tested the extension but never packaged it, while
+  `vsce package` enforces constraints the compiler does not — notably that
+  `@types/vscode` never exceeds `engines.vscode`. Because packaging only ran in
+  the release workflow, *after* the tag and the PyPI publish, such a bump would
+  have produced a published release with no `.vsix` attached. CI now packages
+  the extension, and `@types/vscode` is pinned to the `engines.vscode`
+  compatibility floor rather than tracked by Dependabot.
+
 - **Dev-server path containment is now a tested boundary** — the live-reload
   server's directory-traversal guard was correct but inline, undocumented and
   entirely untested: the one place where a request path becomes an `open()`
