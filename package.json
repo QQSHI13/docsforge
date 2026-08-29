@@ -29,7 +29,7 @@
     "lucide-static": "^1.33.0",
     "material-design-color": "^2.3.2",
     "material-shadows": "^3.0.1",
-    "mermaid": "^11.17.0",
+    "mermaid": "^11.17.2",
     "postcss": "^8.5.26",
     "postcss-cli": "^11.0.1",
     "postcss-inline-svg": "^6.0.0",
