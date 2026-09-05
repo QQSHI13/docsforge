@@ -26,7 +26,7 @@
     "esbuild": "^0.28.2",
     "html-minifier-terser": "^7.2.0",
     "katex": "^0.18.4",
-    "lucide-static": "^1.33.0",
+    "lucide-static": "^1.39.0",
     "material-design-color": "^2.3.2",
     "material-shadows": "^3.0.1",
     "mermaid": "^11.17.0",
