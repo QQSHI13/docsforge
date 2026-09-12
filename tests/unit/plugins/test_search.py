@@ -1,7 +1,7 @@
 """Unit tests for the search plugin (docsforge.core.search).
 
 Focuses on the pure-logic pieces: SearchIndex entry creation, tag extraction,
-the jieba gating, and the incremental-prev merge. No network.
+the Marz binary export, and the incremental-prev merge. No network.
 """
 from __future__ import annotations
 
@@ -78,12 +78,58 @@ class TestSearchIndex:
         assert data["config"]["lang"] == ["en"]
         assert isinstance(data["docs"], list)
 
-    def test_needs_jieba_only_for_zh(self):
-        assert SearchIndex(lang="zh").needs_jieba is True
-        assert SearchIndex(lang="zh-CN").needs_jieba is True
-        assert SearchIndex(lang="en").needs_jieba is False
-        assert SearchIndex(jieba_dict="d.txt").needs_jieba is True
-        assert SearchIndex().needs_jieba is False
+    def test_generate_marz_index_roundtrips_entries(self):
+        import marz
+
+        idx = SearchIndex(**_full_config())
+        idx.add_entry_from_context(_page("<h1>Guide</h1><p>body words here</p>", url="p/"))
+        raw = idx.generate_marz_index()
+        assert isinstance(raw, bytes) and len(raw) > 64  # past the header
+        loaded = marz.Index.from_bytes(raw)
+        refs = [h.ref for h in loaded.search("words")]
+        assert any(r.startswith("p/") for r in refs)
+
+    def test_generate_marz_index_uses_raw_cjk_text(self):
+        import marz
+
+        cfg = _full_config(lang=["ja"])
+        idx = SearchIndex(**cfg)
+        idx.add_entry_from_context(_page("<p>検索エンジン</p>", url="p/"))
+        # No zero-width segmentation joiners: raw text is indexed as-is.
+        assert all("\u200b" not in e["text"] for e in idx.entries)
+        loaded = marz.Index.from_bytes(idx.generate_marz_index())
+        assert any(h.ref.startswith("p/") for h in loaded.search("検索エンジン"))
+
+    def test_generate_marz_index_applies_boosts(self):
+        import marz
+
+        idx = SearchIndex(**_full_config())
+        idx.add_entry_from_context(_page("<p>same words here</p>", url="a/",
+                                         meta={"search": {"boost": 9}}))
+        idx.add_entry_from_context(_page("<p>same words here</p>", url="b/"))
+        loaded = marz.Index.from_bytes(idx.generate_marz_index())
+        refs = [h.ref for h in loaded.search("words")]
+        assert refs and refs[0].startswith("a/")
+    def test_generate_marz_index_tolerates_bad_boosts(self):
+        idx = SearchIndex(**_full_config())
+        idx.entries = [
+            {"location": "a/", "title": "t", "text": "w", "boost": "junk"},
+            {"location": "b/", "title": "t", "text": "w", "boost": float("inf")},
+        ]
+        raw = idx.generate_marz_index()
+        assert isinstance(raw, bytes)
+
+    def test_generate_marz_index_maps_empty_location_to_root_ref(self):
+        import marz
+
+        from docsforge.core.search import MARZ_ROOT_REF
+
+        idx = SearchIndex(**_full_config())
+        idx.entries = [{"location": "", "title": "Home", "text": "welcome words here"}]
+        loaded = marz.Index.from_bytes(idx.generate_marz_index())
+        refs = [h.ref for h in loaded.search("welcome")]
+        assert refs == [MARZ_ROOT_REF]
+        assert MARZ_ROOT_REF != ""
 
     def test_element_eq_compares_tag_with_other_element(self):
         assert Element("div") == Element("div")

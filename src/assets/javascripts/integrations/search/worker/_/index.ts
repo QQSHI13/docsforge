@@ -30,10 +30,12 @@ import {
  * allows the author to implement custom search functionality, by providing a
  * custom web worker via configuration.
  *
- * Material for MkDocs' built-in search implementation makes use of Lunr.js, an
- * efficient and fast implementation for client-side search. Leveraging a tiny
- * iframe-based web worker shim, search is even supported for the `file://`
- * protocol, enabling search for local non-hosted builds.
+ * DocsForge's built-in search implementation makes use of Marz, an offline
+ * search index with first-class CJK support. The backend emits a prebuilt
+ * binary index next to `search_index.json`, and the worker loads it with the
+ * Marz WebAssembly runtime. Leveraging a tiny iframe-based web worker shim,
+ * search is even supported for the `file://` protocol, enabling search for
+ * local non-hosted builds.
  *
  * If the protocol is `file://`, search initialization is deferred to mitigate
  * freezing, as it's now synchronous by design - see https://bit.ly/3C521EO
@@ -57,11 +59,12 @@ export function setupSearchWorker(
       first(active => active),
       switchMap(() => index$)
     )
-      .subscribe(({ config, docs }) => worker$.next({
+      .subscribe(({ config, docs, marz }) => worker$.next({
         type: SearchMessageType.SETUP,
         data: {
           config,
           docs,
+          marz,
           options: {
             suggest: feature("search.suggest")
           }

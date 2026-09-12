@@ -624,11 +624,9 @@ plugins:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `lang` | `string` | `en` | Search language for stemming |
-| `separator` | `string` | `[\s\-]+` | Word separator regex |
-| `pipeline` | `list` | `[trimmer, stopWordFilter, stemmer]` | Processing pipeline |
-| `jieba_dict` | `string` | `null` | Path to a custom jieba dictionary |
-| `jieba_dict_user` | `string` | `null` | Path to a custom jieba user dictionary |
+| `lang` | `string` | `en` | Search language for stemming (Marz code) |
+| `separator` | `string` | `[\s\-]+` | Word separator regex for match highlighting |
+| `pipeline` | `list` | `[trimmer, stopWordFilter, stemmer]` | Accepted for compatibility; indexing is done by Marz |
 
 #### `tags` plugin
 

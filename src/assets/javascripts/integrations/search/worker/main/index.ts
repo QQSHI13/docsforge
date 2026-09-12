@@ -1,4 +1,7 @@
-import lunr from "lunr"
+import {
+  MarzIndex,
+  initialize
+} from "marz-search"
 
 import { getElement } from "~/browser/element/_"
 import "~/polyfills"
@@ -9,28 +12,6 @@ import {
   SearchMessage,
   SearchMessageType
 } from "../message"
-
-/* ----------------------------------------------------------------------------
- * Types
- * ------------------------------------------------------------------------- */
-
-/**
- * Add support for `iframe-worker` shim
- *
- * While `importScripts` is synchronous when executed inside of a web worker,
- * it's not possible to provide a synchronous shim implementation. The cool
- * thing is that awaiting a non-Promise will convert it into a Promise, so
- * extending the type definition to return a `Promise` shouldn't break anything.
- *
- * @see https://bit.ly/2PjDnXi - GitHub comment
- *
- * @param urls - Scripts to load
- *
- * @returns Promise resolving with no result
- */
-declare global {
-  function importScripts(...urls: string[]): Promise<void> | void
-}
 
 /* ----------------------------------------------------------------------------
  * Data
@@ -46,24 +27,17 @@ let index: Search
  * ------------------------------------------------------------------------- */
 
 /**
- * Fetch (= import) multi-language support through `lunr-languages`
+ * Resolve the base URL for search assets
  *
- * This function automatically imports the stemmers necessary to process the
- * languages which are defined as part of the search configuration.
+ * The Marz WebAssembly module lives next to the worker script, but when the
+ * worker runs inside of an `iframe` (when using `iframe-worker` as a shim),
+ * the base URL must be determined by searching for the first `script` element
+ * with a `src` attribute, which will contain the contents of this script.
  *
- * If the worker runs inside of an `iframe` (when using `iframe-worker` as
- * a shim), the base URL for the stemmers to be loaded must be determined by
- * searching for the first `script` element with a `src` attribute, which will
- * contain the contents of this script.
- *
- * @param config - Search configuration
- *
- * @returns Promise resolving with no result
+ * @returns Base URL for search assets
  */
-async function setupSearchLanguages(
-  config: SearchConfig
-): Promise<void> {
-  let base = "../lunr"
+function assetBase(): string {
+  let base = ".."
 
   /* Detect `iframe-worker` and fix base URL */
   if (typeof parent !== "undefined" && "IFrameWorker" in parent) {
@@ -75,38 +49,49 @@ async function setupSearchLanguages(
     base = base.replace(/^\.\./, path)
   }
 
-  /* Add scripts for languages */
-  const scripts = []
-  for (const lang of config.lang) {
-    switch (lang) {
+  /* Return base URL */
+  return base
+}
 
-      /* Add segmenter for Japanese */
-      case "ja":
-        scripts.push(`${base}/tinyseg.js`)
-        break
-
-      /* Add segmenter for Hindi and Thai */
-      case "hi":
-      case "th":
-        scripts.push(`${base}/wordcut.js`)
-        break
-    }
-
-    /* Add language support */
-    if (lang !== "en")
-      scripts.push(`${base}/min/lunr.${lang}.min.js`)
-  }
-
-  /* Add multi-language support */
-  if (config.lang.length > 1)
-    scripts.push(`${base}/min/lunr.multi.min.js`)
-
-  /* Load scripts synchronously */
-  if (scripts.length)
-    await importScripts(
-      `${base}/min/lunr.stemmer.support.min.js`,
-      ...scripts
+/**
+ * Set up the Marz search index
+ *
+ * This function fetches the WebAssembly module, initializes it, and loads the
+ * prebuilt index that the backend emitted next to `search_index.json`. The
+ * expected language guards against a pipeline shipping the wrong per-locale
+ * file — if it doesn't match the bytes, loading is retried without the
+ * assertion, so a stale file degrades instead of disabling search.
+ *
+ * @param config - Search configuration
+ * @param bytes - Marz binary index
+ *
+ * @returns Promise resolving with the loaded index
+ */
+async function setupSearchIndex(
+  config: SearchConfig, bytes: Uint8Array
+): Promise<MarzIndex> {
+  const response = await fetch(`${assetBase()}/marz/marz_wasm_bg.wasm`)
+  if (!response.ok)
+    throw new Error(
+      `could not fetch Marz runtime: ${response.status} ${response.statusText}`
     )
+
+  /* Initialize WebAssembly from explicit bytes — bundlers rewrite asset
+     paths, so the default resolution next to the glue code can't be trusted */
+  await initialize(new Uint8Array(await response.arrayBuffer()))
+
+  /* Load the prebuilt index */
+  const expected = config.lang.join(",")
+  try {
+    return MarzIndex.load(bytes, expected)
+  } catch (err) {
+    console.warn(
+      `Marz index language mismatch (expected ${expected}), ` +
+        "loading without assertion"
+    )
+    console.warn(err)
+    return MarzIndex.load(bytes)
+  }
 }
 
 /* ----------------------------------------------------------------------------
@@ -127,8 +112,10 @@ export async function handler(
 
     /* Search setup message */
     case SearchMessageType.SETUP:
-      await setupSearchLanguages(message.data.config)
-      index = new Search(message.data)
+      index = new Search(
+        message.data,
+        await setupSearchIndex(message.data.config, message.data.marz)
+      )
       return {
         type: SearchMessageType.READY
       }
@@ -144,7 +131,7 @@ export async function handler(
 
       /* Return empty result in case of error */
       } catch (err) {
-        console.warn(`Invalid query: ${query} – see https://bit.ly/2s3ChXG`)
+        console.warn(`Invalid query: ${query}`)
         console.warn(err)
         return {
           type: SearchMessageType.RESULT,
@@ -161,12 +148,6 @@ export async function handler(
 /* ----------------------------------------------------------------------------
  * Worker
  * ------------------------------------------------------------------------- */
-
-/* Expose Lunr.js in global scope, or stemmers won't work */
-self.lunr = lunr
-
-/* Monkey-patch Lunr.js to mitigate https://t.ly/68TLq */
-lunr.utils.warn = console.warn
 
 /* Handle messages */
 addEventListener("message", async ev => {

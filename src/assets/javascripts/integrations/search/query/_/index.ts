@@ -1,15 +1,22 @@
-import { split } from "../../internal"
-import { transform } from "../transform"
+import { transformMarz } from "../transform"
 
 /* ----------------------------------------------------------------------------
  * Types
  * ------------------------------------------------------------------------- */
 
 /**
+ * Search query clause presence
+ */
+export type SearchQueryPresence =
+  | "required"                         /* Clause is required */
+  | "optional"                         /* Clause is optional */
+  | "prohibited"                       /* Clause is prohibited */
+
+/**
  * Search query clause
  */
 export interface SearchQueryClause {
-  presence: lunr.Query.presence        /* Clause presence */
+  presence: SearchQueryPresence        /* Clause presence */
   term: string                         /* Clause term */
 }
 
@@ -27,53 +34,19 @@ export type SearchQueryTerms = Record<string, boolean>
 /**
  * Transform search query
  *
- * This function lexes the given search query and applies the transformation
- * function to each term, preserving markup like `+` and `-` modifiers.
+ * This function applies the Marz query transformation, so CJK-script terms
+ * are passed through unstarred while Latin-script terms keep the trailing
+ * wildcard that stabilizes ranking for multi-term queries.
  *
  * @param query - Search query
+ * @param fields - Declared index fields
  *
  * @returns Search query
  */
 export function transformSearchQuery(
-  query: string
+  query: string, fields: string[] = ["title", "text", "tags"]
 ): string {
-
-  /* Split query terms with tokenizer */
-  return transform(query, part => {
-    const terms: string[] = []
-
-    /* Initialize lexer and analyze part */
-    const lexer = new lunr.QueryLexer(part)
-    lexer.run()
-
-    /* Extract and tokenize term from lexeme */
-    for (const { type, str: term, start, end } of lexer.lexemes)
-      switch (type) {
-
-        /* Hack: remove colon - see https://bit.ly/3wD3T3I */
-        case "FIELD":
-          if (!["title", "text", "tags"].includes(term))
-            part = [
-              part.slice(0, end),
-              " ",
-              part.slice(end + 1)
-            ].join("")
-          break
-
-        /* Tokenize term */
-        case "TERM":
-          split(term, lunr.tokenizer.separator, (...range) => {
-            terms.push([
-              part.slice(0, start),
-              term.slice(...range),
-              part.slice(end)
-            ].join(""))
-          })
-      }
-
-    /* Return terms */
-    return terms
-  })
+  return transformMarz(query, fields)
 }
 
 /* ------------------------------------------------------------------------- */
@@ -81,10 +54,8 @@ export function transformSearchQuery(
 /**
  * Parse a search query for analysis
  *
- * Lunr.js itself has a bug where it doesn't detect or remove wildcards for
- * query clauses, so we must do this here.
- *
- * @see https://bit.ly/3DpTGtz - GitHub issue
+ * The query is expected in transformed form (see above): whitespace-separated
+ * terms with optional `+`/`-` presence prefixes and `field:` scopes.
  *
  * @param value - Query value
  *
@@ -93,29 +64,28 @@ export function transformSearchQuery(
 export function parseSearchQuery(
   value: string
 ): SearchQueryClause[] {
-  const query  = new lunr.Query(["title", "text", "tags"])
-  const parser = new lunr.QueryParser(value, query)
+  return value
+    .split(/\s+/g)
+    .filter(term => term.length > 0)
+    .map(term => {
+      let presence: SearchQueryPresence = "optional"
+      if (term.startsWith("+")) {
+        presence = "required"
+        term = term.slice(1)
+      } else if (term.startsWith("-")) {
+        presence = "prohibited"
+        term = term.slice(1)
+      }
 
-  /* Parse Search query */
-  parser.parse()
-  for (const clause of query.clauses) {
-    clause.usePipeline = true
+      /* Drop field scope and operator suffixes for display */
+      term = term
+        .replace(/^[A-Za-z_]\w*:/, "")
+        .replace(/[*~^]\d*$/, "")
 
-    /* Handle leading wildcard */
-    if (clause.term.startsWith("*")) {
-      clause.wildcard = lunr.Query.wildcard.LEADING
-      clause.term = clause.term.slice(1)
-    }
-
-    /* Handle trailing wildcard */
-    if (clause.term.endsWith("*")) {
-      clause.wildcard = lunr.Query.wildcard.TRAILING
-      clause.term = clause.term.slice(0, -1)
-    }
-  }
-
-  /* Return query clauses */
-  return query.clauses
+      /* Return clause */
+      return { presence, term }
+    })
+    .filter(clause => clause.term.length > 0)
 }
 
 /**
@@ -129,21 +99,18 @@ export function parseSearchQuery(
 export function getSearchQueryTerms(
   query: SearchQueryClause[], terms: string[]
 ): SearchQueryTerms {
-  const clauses = new Set<SearchQueryClause>(query)
 
   /* Match query clauses against terms */
   const result: SearchQueryTerms = {}
-  for (let t = 0; t < terms.length; t++)
-    for (const clause of clauses)
-      if (terms[t].startsWith(clause.term)) {
-        result[clause.term] = true
-        clauses.delete(clause)
-      }
+  for (const clause of query) {
+    if (clause.term in result)
+      continue
 
-  /* Annotate unmatched non-stopword query clauses */
-  for (const clause of clauses)
-    if (lunr.stopWordFilter?.(clause.term))
-      result[clause.term] = false
+    /* A clause counts as matched when an index term starts with it */
+    result[clause.term] = terms.some(term => (
+      term.startsWith(clause.term) || clause.term.startsWith(term)
+    ))
+  }
 
   /* Return query terms */
   return result

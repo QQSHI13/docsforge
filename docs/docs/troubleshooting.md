@@ -86,7 +86,7 @@ plugins:
 
 **Symptom:** Search box works, but common words return nothing.
 
-**Cause:** Lunr.js excludes common stop words (`the`, `and`, `is`) and requires exact stem matches.
+**Cause:** Marz excludes common stop words (`the`, `and`, `is`) and requires exact stem matches.
 
 **Solution:**
 

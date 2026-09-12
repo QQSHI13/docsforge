@@ -617,11 +617,9 @@ plugins:
 
 | 选项 | 类型 | 默认值 | 描述 |
 |--------|------|---------|-------------|
-| `lang` | `string` | `en` | 搜索词干提取语言 |
-| `separator` | `string` | `[\s\-]+` | 单词分隔符正则 |
-| `pipeline` | `list` | `[trimmer, stopWordFilter, stemmer]` | 处理管道 |
-| `jieba_dict` | `string` | `null` | 自定义 jieba 字典路径 |
-| `jieba_dict_user` | `string` | `null` | 自定义 jieba 用户字典路径 |
+| `lang` | `string` | `en` | 搜索词干提取语言（Marz 语言代码） |
+| `separator` | `string` | `[\s\-]+` | 匹配高亮用的单词分隔符正则 |
+| `pipeline` | `list` | `[trimmer, stopWordFilter, stemmer]` | 为兼容保留，索引由 Marz 构建 |
 
 #### `tags` 插件
 

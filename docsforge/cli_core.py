@@ -350,7 +350,6 @@ class ProjectManager:
 
 # Maps optional package names to the install extra that provides them.
 OPTIONAL_DEPS = {
-    "jieba": "docsforge[chinese]",
     "playwright": "docsforge[pdf]",
 }
 
@@ -384,12 +383,6 @@ def _check_optional_deps(config_file=None):
             for name, opts in p.items():
                 configured[name] = opts if isinstance(opts, dict) else {}
 
-    # Flatten plugin configs for legacy key-based checks.
-    plugin_configs = {}
-    for p in plugins_cfg:
-        if isinstance(p, dict):
-            plugin_configs.update(p)
-
     missing: set[str] = set()
 
     # Query plugins for declared optional dependencies.
@@ -411,14 +404,6 @@ def _check_optional_deps(config_file=None):
                 __import__(dep)
             except ImportError:
                 missing.add(f"pip install {OPTIONAL_DEPS[dep]}")
-
-    # Legacy key-based checks for configs not yet declaring optional deps.
-    search_cfg = plugin_configs.get("material/search") or plugin_configs.get("search")
-    if isinstance(search_cfg, dict) and search_cfg.get("jieba_dict"):
-        try:
-            __import__("jieba")
-        except ImportError:
-            missing.add(f"pip install {OPTIONAL_DEPS['jieba']}")
 
     if missing:
         log.warning("Optional dependencies missing for configured plugins.")

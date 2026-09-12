@@ -70,7 +70,7 @@ MkDocs 插件与 DocsForge 不兼容。以下是常见 MkDocs 插件到 DocsForg
 
 | MkDocs 插件 | DocsForge | 说明 |
 |---------------|-----------|-------|
-| `search` | :material-check-bold: 内置 | Lunr.js 搜索，行为相同。从配置中移除。 |
+| `search` | :material-check-bold: 内置 | Marz 搜索，行为相同。从配置中移除。 |
 | `tags` | :material-check-bold: 内置 | 相同的 `tags:` 前置元数据，相同的标签页面。从配置中移除。 |
 | `blog` | :material-check-bold: 内置 | 包含作者、分类、归档、RSS 的博客。从配置中移除。 |
 | `minify` | :material-check-bold: 内置 | HTML/CSS/JS 压缩在构建后自动运行。 |

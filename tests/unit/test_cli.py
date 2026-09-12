@@ -49,31 +49,18 @@ class TestDetectEnvironment:
 
 
 class TestCheckOptionalDeps:
-    def test_jieba_warning_when_chinese_search_without_jieba(self, tmp_path, caplog):
+    def test_no_chinese_extra_warning_for_search(self, tmp_path, caplog):
         cfg = tmp_path / "docsforge.yml"
         cfg.write_text(
             "site_name: T\n"
             "plugins:\n"
             "  - material/search:\n"
-            "      jieba_dict: dict.txt\n"
+            "      lang: zh\n"
         )
         import logging
         with caplog.at_level(logging.WARNING, logger="docsforge"):
-            # Force jieba import to fail by hiding it
-            import builtins
-            real_import = builtins.__import__
-
-            def fake_import(name, *a, **k):
-                if name == "jieba":
-                    raise ImportError("simulated")
-                return real_import(name, *a, **k)
-
-            builtins.__import__ = fake_import
-            try:
-                cli_core._check_optional_deps(str(cfg))
-            finally:
-                builtins.__import__ = real_import
-        assert any("docsforge[chinese]" in m for m in caplog.messages)
+            cli_core._check_optional_deps(str(cfg))
+        assert not any("docsforge[chinese]" in m for m in caplog.messages)
 
     def test_silent_on_missing_config(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

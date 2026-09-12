@@ -44,13 +44,14 @@ dependencies = [
     "requests >=2.34.2",
     "babel >=2.18.0",
     "pygments >=2.20.0",
-    "lunr >=0.8.0",
+    "marz-search >=0.2.1",
     "minify-go >=2.24.17",
 ]
 
 [project.optional-dependencies]
-chinese = ["jieba>=0.42.1"]
-all = ["playwright>=1.62.0", "jieba>=0.42.1", "docsforge[pdf]", "docsforge[social]"]
+# Transitional no-op: Marz handles CJK natively, jieba is no longer used.
+chinese = []
+all = ["playwright>=1.62.0", "docsforge[pdf]", "docsforge[social]"]
 pdf = ["playwright>=1.62.0", "pypdf>=6.15.0"]
 social = ["pillow>=12.3.0", "cairosvg>=2.9.0"]
 # Pinned to the version CI enforces, so `ruff check` locally matches the gate.

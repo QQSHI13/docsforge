@@ -4,7 +4,7 @@ icon: material/magnify
 
 # Setting up site search
 
-DocsForge includes a powerful client-side search engine. It's enabled by default via the `search` plugin.
+DocsForge includes a powerful client-side search engine, powered by [Marz](https://github.com/QQSHI13/marz). It's enabled by default via the `search` plugin. The backend emits a compact prebuilt index (`.marz`) alongside `search_index.json`, so the browser never builds the index itself — results are instant even for large sites, and Chinese/Japanese/Korean text is matched natively without a segmentation dictionary.
 
 ## Configuration
 
@@ -19,13 +19,15 @@ plugins:
 
 ### Search separator
 
-Control how search terms are split into tokens:
+Control how matched terms are highlighted in results:
 
 ``` yaml
 plugins:
   - search:
       separator: '[\s\u200b\-_,:!=\[\]()"`\/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
 ```
+
+The separator only affects match highlighting in the UI. Indexing is done by Marz with per-language tokenization, so this never needs tuning for stemming or CJK text.
 
 The default separator splits on:
 - Whitespace and zero-width spaces
@@ -42,7 +44,7 @@ plugins:
       lang: en
 ```
 
-Supported languages include: `en`, `de`, `es`, `fr`, `ja`, `pt`, `ru`, `zh`.
+Multiple languages can be combined (`lang: [en, ja]`). Supported codes include `ar`, `cs`, `da`, `de`, `el`, `en`, `es`, `et`, `fi`, `fr`, `hi`, `hu`, `id`, `it`, `ja`, `ko`, `nl`, `no`, `pl`, `pt`, `ro`, `ru`, `sv`, `ta`, `th`, `tr` and `zh` — call `marz.languages()` for the full list. CJK text needs no extra setup: no jieba, no segmentation dictionaries.
 
 ## Search features
 

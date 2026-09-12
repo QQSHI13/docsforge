@@ -53,7 +53,7 @@ docsforge serve
 
     ---
 
-    Full-text search built in, powered by a client-side Lunr.js index.
+    Full-text search built in, powered by a client-side Marz index.
 
 -   :material-palette:{ .lg .middle } &nbsp; **Dark Mode**
 
