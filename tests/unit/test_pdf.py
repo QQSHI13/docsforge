@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from docsforge import pdf as pdf_mod
 from docsforge.pdf import _is_within, _tabs_from_memory, build_pdf
 
@@ -99,6 +101,10 @@ class TestPdfCache:
 class TestBuildPdfConcurrency:
     """Regression: `cfg` must exist even without a docsforge.yml."""
 
+    @pytest.mark.skipif(
+        not getattr(pdf_mod, "HAS_PLAYWRIGHT", False),
+        reason="Playwright not installed (CI `e2e` job covers it)",
+    )
     def test_no_nameerror_without_config_file(self, tmp_path: Path, monkeypatch):
         docs = tmp_path / "docs"
         docs.mkdir()
