@@ -491,6 +491,12 @@ async function respond404() {
 
 // === Request handlers ===
 
+// Cache-key normalization: the SW caches every asset under its canonical
+// URL — no query string. A request carrying one (search-result links add
+// `?h=<query>` for highlight-on-navigation; the asset optimizer appends
+// `?v=<hash>` for cache busting) would otherwise miss the cache entry and,
+// offline, fall straight to the 404 page. `ignoreSearch: true` on
+// `cache.match` fixes the lookup without touching how we *store* entries.
 function buildPageCandidates(url, preferredLocale) {
   const candidates = [];
   if (preferredLocale) {
@@ -519,10 +525,10 @@ async function servePage(request) {
   const candidates = buildPageCandidates(url, preferredLocale);
 
   for (const candidate of candidates) {
-    const cached = await cache.match(candidate);
+    const cached = await cache.match(candidate, { ignoreSearch: true });
     if (cached) {
       log('Serving page from cache:', candidate);
-      await touchAccessTime(candidate);
+      await touchAccessTime(candidate.split('?')[0]);
       return cached;
     }
   }
@@ -557,9 +563,9 @@ async function servePage(request) {
 
 async function serveAsset(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
+  const cached = await cache.match(request, { ignoreSearch: true });
   if (cached) {
-    await touchAccessTime(request.url);
+    await touchAccessTime(request.url.split('?')[0]);
     return cached;
   }
 

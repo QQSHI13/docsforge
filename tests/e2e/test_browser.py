@@ -46,6 +46,23 @@ def test_offline_reload_serves_cached_page(context_page):
     assert "Welcome" in body, "offline reload did not serve the cached page"
 
 
+def test_offline_serves_query_urls(context_page):
+    """Search-result links carry ?h=<query> for highlight-on-navigation.
+
+    The SW caches pages under their clean URL, so a cache.match on
+    `.../<page>/?h=query` must ignore the search params — that URL is the
+    one launched from a search result while offline.
+    """
+    base_url, page, context = context_page
+    page.goto(base_url + "second/", wait_until="networkidle")
+    _sw_ready(page)
+    # Prime the SW cache under the clean URL, then request the ?h= form.
+    context.set_offline(True)
+    page.goto(base_url + "second/?h=searchable", wait_until="networkidle")
+    body = page.inner_text("body")
+    assert "Another page" in body, "?h= URL not served from cache offline: " + body[:120]
+
+
 def test_search_index_is_served(context_page):
     base_url, page, _ = context_page
     page.goto(base_url, wait_until="networkidle")
