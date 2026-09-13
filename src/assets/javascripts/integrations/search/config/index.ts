@@ -46,6 +46,7 @@ export interface SearchOptions {
 export interface SearchIndex {
   config: SearchConfig                 /* Search configuration */
   docs: SearchDocument[]               /* Search documents */
+  marz: Uint8Array                     /* Marz binary index */
   options: SearchOptions               /* Search options */
 }
 

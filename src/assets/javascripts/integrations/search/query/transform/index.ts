@@ -1,53 +1,45 @@
 /* ----------------------------------------------------------------------------
- * Helper types
- * ------------------------------------------------------------------------- */
-
-/**
- * Visitor function
- *
- * @param value - String value
- *
- * @returns String term(s)
- */
-type VisitorFn = (
-  value: string
-) => string | string[]
-
-/* ----------------------------------------------------------------------------
  * Functions
  * ------------------------------------------------------------------------- */
 
 /**
- * Default transformation function
+ * Terms containing characters from these scripts are indexed by Marz as
+ * overlapping n-grams, so a trailing wildcard would narrow them to a prefix
+ * lookup instead — and on single-language indexes may match nothing at all.
+ * Such terms are passed through unstarred.
+ */
+const marzNoWildcard = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Hangul}\p{sc=Thai}]/u
+
+/**
+ * Marz transformation function
  *
  * 1. Trim excess whitespace from left and right.
  *
  * 2. Search for parts in quotation marks and prepend a `+` modifier to denote
  *    that the resulting document must contain all parts, converting the query
- *    to an `AND` query (as opposed to the default `OR` behavior). While users
- *    may expect parts enclosed in quotation marks to map to span queries, i.e.
- *    for which order is important, Lunr.js doesn't support them, so the best
- *    we can do is to convert the parts to an `AND` query.
+ *    to an `AND` query (as opposed to the default `OR` behavior).
  *
  * 3. Replace control characters which are not located at the beginning of the
  *    query or preceded by white space, or are not followed by a non-whitespace
  *    character or are at the end of the query string. Furthermore, filter
- *    unmatched quotation marks.
+ *    unmatched quotation marks, and drop unknown `field:` prefixes (Marz
+ *    rejects queries against undeclared fields, so `foo:bar` becomes `bar`
+ *    instead of failing the whole query).
  *
- * 4. Split the query string at whitespace, then pass each part to the visitor
- *    function for tokenization, and append a wildcard to every resulting term
- *    that is not explicitly marked with a `+`, `-`, `~` or `^` modifier, since
- *    it ensures consistent and stable ranking when multiple terms are entered.
- *    Also, if a fuzzy or boost modifier are given, but no numeric value has
- *    been entered, default to 1 to not induce a query error.
+ * 4. Split the query string at whitespace, then append a wildcard to every
+ *    resulting term that is not explicitly marked with a `+`, `-`, `~` or
+ *    `^` modifier and contains no CJK-script characters, since it ensures
+ *    consistent and stable ranking when multiple terms are entered. Also, if
+ *    a fuzzy or boost modifier are given, but no numeric value has been
+ *    entered, default to 1 to not induce a query error.
  *
  * @param query - Query value
- * @param fn - Visitor function
+ * @param fields - Declared index fields
  *
  * @returns Transformed query value
  */
-export function transform(
-  query: string, fn: VisitorFn = term => term
+export function transformMarz(
+  query: string, fields: string[] = ["title", "text", "tags"]
 ): string {
   return query
 
@@ -65,13 +57,22 @@ export function transform(
     /* => 3 */
     .replace(/"|(?:^|\s+)[*+\-:^~]+(?=\s+|$)/g, "")
 
+    /* Drop unknown field prefixes */
+    .replace(/(^|\s)([A-Za-z_]\w*):(?=\S)/g, (match, space, field) =>
+      fields.includes(field) ? match : space
+    )
+
     /* => 4 */
     .split(/\s+/g)
-      .reduce((prev, term) => {
-        const next = fn(term)
-        return [...prev, ...Array.isArray(next) ? next : [next]]
-      }, [] as string[])
+      /* An empty query splits to [""], which would transform to a bare "*"
+         wildcard matching every document — the placeholder half of the search
+         box must yield nothing, so drop empty terms alongside the guard. */
+      .filter(term => term.length > 0)
       .map(term => /([~^]$)/.test(term) ? `${term}1` : term)
-      .map(term => /(^[+-]|[~^]\d+$)/.test(term) ? term : `${term}*`)
+      .map(term =>
+        /(^[+-]|[~^]\d+$)/.test(term) || marzNoWildcard.test(term)
+          ? term
+          : `${term}*`
+      )
       .join(" ")
 }

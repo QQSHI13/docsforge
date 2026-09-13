@@ -45,9 +45,14 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install DocsForge (editable) + test deps
+      - name: Install DocsForge (editable, all extras) + test deps
+        # `all` pulls playwright + pypdf + pillow + cairosvg, so the social
+        # plugin and PDF tests run instead of silently skipping — a dependabot
+        # bump of pillow or cairosvg shouldn't pass CI with the affected tests
+        # skipped. Playwright is installed but no browser here; the e2e job
+        # covers real-browser behavior.
         run: |
-          pip install -e .
+          pip install -e '.[all]'
           pip install pytest pytest-mock
       - name: Run tests
         run: python -m pytest tests/unit tests/regression tests/integration -q

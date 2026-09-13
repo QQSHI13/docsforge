@@ -43,8 +43,7 @@ DocsForge bundles the following open source components, each under their respect
 | Python Markdown | BSD-3-Clause |
 | Pymdown Extensions | MIT |
 | Pygments | BSD-2-Clause |
-| Lunr.js | MIT |
-| lunr-languages (stemmers) | MPL-1.1 |
+| Marz search (`marz-search`) | Apache-2.0 |
 | Mermaid.js | MIT |
 | KaTeX | MIT |
 | Material Design Icons | Apache-2.0 |

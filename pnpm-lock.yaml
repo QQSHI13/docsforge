@@ -17,12 +17,9 @@ importers:
       focus-visible:
         specifier: ^5.2.1
         version: 5.2.1
-      lunr:
-        specifier: ^2.3.9
-        version: 2.3.9
-      lunr-languages:
-        specifier: ^1.21.0
-        version: 1.21.0
+      marz-search:
+        specifier: ^0.2.2
+        version: 0.2.2
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -42,9 +39,6 @@ importers:
       '@types/escape-html':
         specifier: ^1.0.4
         version: 1.0.4
-      '@types/lunr':
-        specifier: ^2.3.7
-        version: 2.3.7
       autoprefixer:
         specifier: ^10.4.23
         version: 10.5.4(postcss@8.5.26)
@@ -480,9 +474,6 @@ packages:
 
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
-
-  '@types/lunr@2.3.7':
-    resolution: {integrity: sha512-Tb/kUm38e8gmjahQzdCKhbdsvQ9/ppzHFfsJ0dMs3ckqQsRj+P5IkSAwFTBrBxdyr3E/LoMUUrZngjDYAjiE3A==}
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
@@ -1077,16 +1068,13 @@ packages:
   lucide-static@1.33.0:
     resolution: {integrity: sha512-jNGgvTNcLUfVRX4N9PH9pVVTJzoph/BmYmgU838bYBQodkUJL4nAThkuymFz1x3OUYMhJxPndC7rdg1sxOPYKg==}
 
-  lunr-languages@1.21.0:
-    resolution: {integrity: sha512-Hj0VwJP1FGwZzVMMZdDtWY2GB2VVKtvVElYtVajzCZCDr2RTucyLpPibrOPGgTlcq2ENQy2gYLtPnzyFu9jZCg==}
-
-  lunr@2.3.9:
-    resolution: {integrity: sha512-zTU3DaZaF3Rt9rhN3uBMGQD3dD2/vFQqnvZCDv4dl5iOzq2IZQqTxu90r4E5J+nP70J3ilqVCrbho2eWaeW8Ow==}
-
   marked@16.4.2:
     resolution: {integrity: sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA==}
     engines: {node: '>= 20'}
     hasBin: true
+
+  marz-search@0.2.2:
+    resolution: {integrity: sha512-hPmB+YUoceTdj2L9m3JR/Hd8lciF3SmnE/tYb48CBsnWSpYedn1RD1HGbnKBKhWDFfukAmUAg3sl9GwyAdrLag==}
 
   material-design-color@2.3.2:
     resolution: {integrity: sha512-bO7HznYkLqTcm/+Fm4ZR3mCh80cAiNpE8gLBdwaD1qZmllZ8Ez5+iH0kY46amcINX6JmORxuikGsRTk38ZAyag==}
@@ -1678,8 +1666,6 @@ snapshots:
 
   '@types/geojson@7946.0.16': {}
 
-  '@types/lunr@2.3.7': {}
-
   '@types/trusted-types@2.0.7':
     optional: true
 
@@ -2254,11 +2240,9 @@ snapshots:
 
   lucide-static@1.33.0: {}
 
-  lunr-languages@1.21.0: {}
-
-  lunr@2.3.9: {}
-
   marked@16.4.2: {}
+
+  marz-search@0.2.2: {}
 
   material-design-color@2.3.2: {}
 

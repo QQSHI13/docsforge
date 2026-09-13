@@ -71,7 +71,7 @@ These MkDocs plugins have direct built-in equivalents in DocsForge — remove fr
 
 | MkDocs Plugin | DocsForge | Notes |
 |---------------|-----------|-------|
-| `search` | :material-check-bold: Built-in | Lunr.js search, same behavior. Remove from config. |
+| `search` | :material-check-bold: Built-in | Marz search, same behavior. Remove from config. |
 | `tags` | :material-check-bold: Built-in | Same `tags:` front matter, same tag pages. Remove from config. |
 | `blog` | :material-check-bold: Built-in | Blog with authors, categories, archives, RSS. Remove from config. |
 | `minify` | :material-check-bold: Built-in | HTML/CSS/JS minification runs automatically post-build. |

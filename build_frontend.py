@@ -117,9 +117,9 @@ def clean_output() -> None:
     """Remove generated files while preserving DocsForge-specific files.
 
     Only the four files this script regenerates are unlinked. Everything else
-    under OUT/assets is left alone — notably sw.js, javascripts/lunr/ and
-    katex/, which are DocsForge additions with no counterpart in src/ and
-    would not be rebuilt if deleted.
+    under OUT/assets is left alone — notably sw.js, javascripts/marz/ and
+    katex/, which are DocsForge-specific additions that would not be rebuilt
+    if deleted.
     """
     for sub in [OUT / "assets" / "javascripts" / "bundle.min.js",
                 OUT / "assets" / "javascripts" / "workers" / "search.min.js",
@@ -363,25 +363,21 @@ def copy_twemoji() -> None:
     shutil.copytree(src, dst, dirs_exist_ok=True)
 
 
-def copy_lunr() -> None:
-    """Copy Lunr language stemmers from node_modules."""
-    src = NODE_MODULES / "lunr-languages"
-    dst = OUT / "assets" / "javascripts" / "lunr"
+def copy_marz_wasm() -> None:
+    """Copy the Marz WebAssembly runtime from node_modules."""
+    src = NODE_MODULES / "marz-search" / "pkg" / "marz_wasm_bg.wasm"
+    dst = OUT / "assets" / "javascripts" / "marz" / "marz_wasm_bg.wasm"
     if not src.exists():
-        log.warning("lunr-languages missing")
+        log.warning("marz-search WASM runtime missing")
         return
-    if dst.exists():
-        shutil.rmtree(dst)
-    dst.mkdir(parents=True, exist_ok=True)
-    for pattern in ["min/*.js", "tinyseg.js", "wordcut.js"]:
-        for f in src.glob(pattern):
-            rel = f.relative_to(src)
-            out = dst / rel
-            out.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(f, out)
-    # MPL-1.1: the license must travel with the stemmer modules
-    if (src / "LICENSE").exists():
-        shutil.copy2(src / "LICENSE", dst / "LICENSE")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    # License must travel with the runtime (check package for its name)
+    for name in ["LICENSE", "LICENSE.md"]:
+        lic = NODE_MODULES / "marz-search" / name
+        if lic.exists():
+            shutil.copy2(lic, dst.parent / name)
+            break
 
 
 def copy_katex() -> None:
@@ -538,7 +534,7 @@ def main(argv: list[str] | None = None) -> int:
     build_typescript()
     build_styles()
     generate_pygments_css()
-    copy_lunr()
+    copy_marz_wasm()
     copy_katex()
     copy_mermaid()
     copy_twemoji()

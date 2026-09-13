@@ -20,6 +20,7 @@ import {
   at,
   getActiveElement,
   getOptionalElement,
+  request,
   requestJSON,
   setLocation,
   setToggle,
@@ -74,7 +75,26 @@ import "./polyfills"
  * ------------------------------------------------------------------------- */
 
 /**
+ * Fetch raw bytes from the given URL
+ *
+ * @param url - Request URL
+ *
+ * @returns Data observable
+ */
+function requestBytes(url: URL | string): Observable<Uint8Array> {
+  return request(url)
+    .pipe(
+      switchMap(res => res.arrayBuffer()),
+      map(buffer => new Uint8Array(buffer))
+    )
+}
+
+/**
  * Fetch search index
+ *
+ * The document data (`search_index.json`) and the prebuilt Marz retrieval
+ * index (same path with a `.marz` extension) are fetched in parallel and
+ * passed to the search worker together.
  *
  * @returns Search index observable
  */
@@ -85,13 +105,25 @@ function fetchSearchIndex(): Observable<SearchIndex> {
     )
       .pipe(
         // @ts-ignore - @todo fix typings
-        map(() => __index),
+        map(() => ({ ...__index, marz: new Uint8Array() })),
         shareReplay(1)
       )
   } else {
-    return requestJSON<SearchIndex>(
-      new URL(config.search_index || "search/search_index.json", config.base)
-    )
+    const json = new URL(config.search_index || "search/search_index.json", config.base)
+    const url = new URL(json.toString())
+    const path = url.pathname
+    url.pathname = path.endsWith(".json")
+      ? `${path.slice(0, -".json".length)}.marz`
+      : `${path}.marz`
+    return requestJSON<SearchIndex>(json)
+      .pipe(
+        switchMap(index => requestBytes(url)
+          .pipe(
+            map(marz => ({ ...index, marz }))
+          )
+        ),
+        shareReplay(1)
+      )
   }
 }
 

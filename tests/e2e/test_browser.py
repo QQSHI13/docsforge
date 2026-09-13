@@ -352,3 +352,20 @@ def test_accessibility_basics(context_page):
         assert labelled, "search input has no accessible label"
     except Exception:
         pytest.skip("search UI not present")
+
+
+def test_search_empty_query_yields_no_results(context_page):
+    """An empty search box must show the placeholder, never phantom hits.
+
+    The worker's query transform used to produce a bare wildcard for an
+    empty (or whitespace-only) query, matching every indexed term.
+    """
+    base_url, page, _ = context_page
+    page.goto(base_url, wait_until="load")
+    _sw_ready(page)
+    page.keyboard.press("/")
+    page.wait_for_selector("input.md-search__input", timeout=4000)
+    page.fill("input.md-search__input", "   ")
+    page.wait_for_timeout(1500)
+    info = page.inner_text(".md-search-result__item") if page.query_selector(".md-search-result__item") else ""
+    assert "No matching documents" not in info, f"empty query returned results: {info[:120]}"

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ES2020",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -11,9 +11,8 @@
     "declaration": false,
     "sourceMap": true,
     "outDir": "./.tmp/ts",
-    "baseUrl": ".",
     "paths": {
-      "~/*": ["src/assets/javascripts/*"]
+      "~/*": ["./src/assets/javascripts/*"]
     }
   },
   "include": [

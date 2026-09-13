@@ -74,7 +74,7 @@ That's it. All plugins, extensions, and theme settings use sensible defaults. Ad
 - Pygments code highlighting
 
 ### :material-magnify: Discovery
-- Full-text search (Lunr.js)
+- Full-text search (Marz)
 - Tags and tag pages
 - Navigation with sections and tabs
 - Table of contents

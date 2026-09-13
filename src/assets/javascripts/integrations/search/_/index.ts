@@ -1,3 +1,8 @@
+import type {
+  MarzIndex,
+  SearchResult as MarzHit
+} from "marz-search"
+
 import {
   SearchDocument,
   SearchIndex,
@@ -5,17 +10,9 @@ import {
   setupSearchDocumentMap
 } from "../config"
 import {
-  Position,
-  PositionTable,
-  highlight,
-  highlightAll,
-  tokenize
-} from "../internal"
-import {
   SearchQueryTerms,
   getSearchQueryTerms,
   parseSearchQuery,
-  segment,
   transformSearchQuery
 } from "../query"
 
@@ -42,45 +39,80 @@ export interface SearchResult {
 }
 
 /* ----------------------------------------------------------------------------
- * Functions
+ * Data
  * ------------------------------------------------------------------------- */
 
 /**
- * Create field extractor factory
- *
- * @param table - Position table map
- *
- * @returns Extractor factory
+ * Reference the backend uses for root ("") entries, since Marz refs must not
+ * be empty. Keep in sync with MARZ_ROOT_REF in docsforge/core/search.py.
  */
-function extractor(table: Map<string, PositionTable>) {
-  return (name: keyof SearchDocument) => {
-    return (doc: SearchDocument) => {
-      if (typeof doc[name] === "undefined")
-        return undefined
+const MARZ_ROOT_REF = "/"
 
-      /* Compute identifier and initialize table */
-      const id = [doc.location, name].join(":")
-      table.set(id, lunr.tokenizer.table = [])
-
-      /* Return field value */
-      return doc[name]
-    }
-  }
-}
+/* ----------------------------------------------------------------------------
+ * Helper functions
+ * ------------------------------------------------------------------------- */
 
 /**
- * Compute the difference of two lists of strings
+ * Highlight matched terms in a string
  *
- * @param a - 1st list of strings
- * @param b - 2nd list of strings
+ * Every matched term is located in the original value with a literal,
+ * case-insensitive search, and all occurrences are wrapped in `<mark>`
+ * elements, last to first so earlier offsets stay valid.
  *
- * @returns Difference
+ * @param input - Input value
+ * @param terms - Matched index terms
+ *
+ * @returns Highlighted string value
  */
-function difference(a: string[], b: string[]): string[] {
-  const [x, y] = [new Set(a), new Set(b)]
-  return [
-    ...new Set([...x].filter(value => !y.has(value)))
-  ]
+function highlightMatches(input: string, terms: string[]): string {
+  const lowered = input.toLowerCase()
+  const spans: Array<[number, number]> = []
+  for (const term of terms) {
+    if (!term)
+      continue
+
+    /* Locate all occurrences (lowercasing may shift offsets for Turkish dotted capitals — accepted) */
+    const needle = term.toLowerCase()
+    let from = 0
+    for (;;) {
+      const at = lowered.indexOf(needle, from)
+      if (at === -1)
+        break
+      spans.push([at, at + needle.length])
+      from = at + Math.max(needle.length, 1)
+    }
+  }
+
+  /* Return input unchanged, if nothing matched */
+  if (!spans.length)
+    return input
+
+  /* Merge overlapping and abutting spans */
+  spans.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  const merged: Array<[number, number]> = []
+  for (const [start, end] of spans) {
+    const last = merged[merged.length - 1]
+    if (last && start <= last[1])
+      last[1] = Math.max(last[1], end)
+    else
+      merged.push([start, end])
+  }
+
+  /* Wrap occurrences, last to first */
+  let output = input
+  for (let index = merged.length - 1; index >= 0; index--) {
+    const [start, end] = merged[index]
+    output = [
+      output.slice(0, start),
+      "<mark>",
+      output.slice(start, end),
+      "</mark>",
+      output.slice(end)
+    ].join("")
+  }
+
+  /* Return highlighted string */
+  return output
 }
 
 /* ----------------------------------------------------------------------------
@@ -103,76 +135,29 @@ export class Search {
   protected options: SearchOptions
 
   /**
-   * The underlying Lunr.js search index
+   * Declared index fields
    */
-  protected index: lunr.Index
+  protected fields: string[]
 
   /**
-   * Internal position table map
+   * The underlying Marz search index
    */
-  protected table: Map<string, PositionTable>
+  protected index: MarzIndex
 
   /**
    * Create the search integration
    *
    * @param data - Search index
+   * @param index - Loaded Marz index
    */
-  public constructor({ config, docs, options }: SearchIndex) {
-    const field = extractor(this.table = new Map())
-
-    /* Set up document map and options */
+  public constructor({ config, docs, options }: SearchIndex, index: MarzIndex) {
+    /* Set up document map, fields and options */
     this.map = setupSearchDocumentMap(docs)
+    this.fields = Object.keys(config.fields)
     this.options = options
 
     /* Set up document index */
-    this.index = lunr(function () {
-      this.metadataWhitelist = ["position"]
-      this.b(0)
-
-      /* Set up (multi-)language support */
-      if (config.lang.length === 1 && config.lang[0] !== "en") {
-        // @ts-expect-error - namespace indexing not supported
-        this.use(lunr[config.lang[0]])
-      } else if (config.lang.length > 1) {
-        this.use(lunr.multiLanguage(...config.lang))
-      }
-
-      /* Set up custom tokenizer (must be after language setup) */
-      this.tokenizer = tokenize as typeof lunr.tokenizer
-      lunr.tokenizer.separator = new RegExp(config.separator)
-
-      /* Set up custom segmenter, if loaded */
-      lunr.segmenter = "TinySegmenter" in lunr
-        ? new lunr.TinySegmenter()
-        : undefined
-
-      /* Compute functions to be removed from the pipeline */
-      const fns = difference([
-        "trimmer", "stopWordFilter", "stemmer"
-      ], config.pipeline)
-
-      /* Remove functions from the pipeline for registered languages */
-      for (const lang of config.lang.map(language => (
-        // @ts-expect-error - namespace indexing not supported
-        language === "en" ? lunr : lunr[language]
-      )))
-        for (const fn of fns) {
-          this.pipeline.remove(lang[fn])
-          this.searchPipeline.remove(lang[fn])
-        }
-
-      /* Set up index reference */
-      this.ref("location")
-
-      /* Set up index fields */
-      for (const [name, spec] of Object.entries(config.fields))
-        // @ts-expect-error - fix typings, if this proves to be a good idea
-        this.field(name, { ...spec, extractor: field(name) })
-
-      /* Add documents to index */
-      for (const doc of docs)
-        this.add(doc, { boost: doc.boost })
-    })
+    this.index = index
   }
 
   /**
@@ -183,30 +168,32 @@ export class Search {
    * @returns Search result
    */
   public search(query: string): SearchResult {
-
-    // Experimental Chinese segmentation
-    query = query.replace(/\p{sc=Han}+/gu, value => {
-      return [...segment(value, this.index.invertedIndex)]
-        .join("* ")
-    })
-
-    // @todo: move segmenter (above) into transformSearchQuery
-    query = transformSearchQuery(query)
-    if (!query)
+    const transformed = transformSearchQuery(query, this.fields)
+    if (!transformed)
       return { items: [] }
 
     /* Parse query to extract clauses for analysis */
-    const clauses = parseSearchQuery(query)
+    const clauses = parseSearchQuery(transformed)
       .filter(clause => (
-        clause.presence !== lunr.Query.presence.PROHIBITED
+        clause.presence !== "prohibited"
       ))
 
-    /* Perform search and post-process results */
-    const groups = this.index.search(query)
+    /* Perform search — an unparseable query yields no results */
+    let hits: MarzHit[]
+    try {
+      hits = this.index.search(transformed)
+    } catch {
+      return { items: [] }
+    }
+
+    /* Post-process results */
+    const groups = hits
 
       /* Apply post-query boosts based on title and search query terms */
-      .reduce<SearchItem[]>((item, { ref, score, matchData }) => {
+      .reduce<SearchItem[]>((item, { ref, score, matches }) => {
         let doc = this.map.get(ref)
+        if (typeof doc === "undefined" && ref === MARZ_ROOT_REF)
+          doc = this.map.get("")
         if (typeof doc !== "undefined") {
 
           /* Shallow copy document */
@@ -215,41 +202,32 @@ export class Search {
             doc.tags = [...doc.tags]
 
           /* Compute and analyze search query terms */
-          const terms = getSearchQueryTerms(
-            clauses,
-            Object.keys(matchData.metadata)
-          )
+          const matched = Object.keys(matches)
+          const terms = getSearchQueryTerms(clauses, matched)
 
           /* Highlight matches in fields */
-          for (const field of this.index.fields) {
-            if (typeof doc[field] === "undefined")
+          const values = doc as unknown as Record<string, unknown>
+          for (const field of this.fields) {
+            const value = values[field]
+            if (typeof value === "undefined")
               continue
 
-            /* Collect positions from matches */
-            const positions: Position[] = []
-            for (const match of Object.values(matchData.metadata))
-              if (typeof match[field] !== "undefined")
-                positions.push(...match[field].position)
-
-            /* Skip highlighting, if no positions were collected */
-            if (!positions.length)
-              continue
-
-            /* Load table and determine highlighting method */
-            const table = this.table.get([doc.location, field].join(":"))!
-            const fn = Array.isArray(doc[field])
-              ? highlightAll
-              : highlight
-
-            // @ts-expect-error - stop moaning, TypeScript!
-            doc[field] = fn(doc[field], table, positions, field !== "text")
+            /* Highlight strings and string arrays (e.g. tags) */
+            if (Array.isArray(value))
+              values[field] = value.map(entry => (
+                typeof entry === "string"
+                  ? highlightMatches(entry, matched)
+                  : entry
+              ))
+            else if (typeof value === "string")
+              values[field] = highlightMatches(value, matched)
           }
 
           /* Highlight title and text and apply post-query boosts */
           const boost = +!doc.parent +
             Object.values(terms)
               .filter(t => t).length /
-            Object.keys(terms).length
+            Math.max(Object.keys(terms).length, 1)
 
           /* Append item */
           item.push({
@@ -286,19 +264,29 @@ export class Search {
     /* Generate search suggestions, if desired */
     let suggest: string[] | undefined
     if (this.options.suggest) {
-      const titles = this.index.query(builder => {
-        for (const clause of clauses)
-          builder.term(clause.term, {
-            fields: ["title"],
-            presence: lunr.Query.presence.REQUIRED,
-            wildcard: lunr.Query.wildcard.TRAILING
-          })
-      })
+      const wanted = clauses
+        .map(clause => clause.term.toLowerCase())
+        .filter(term => term.length > 0)
 
-      /* Retrieve suggestions for best match */
-      suggest = titles.length
-        ? Object.keys(titles[0].matchData.metadata)
-        : []
+      /* Collect title words starting with a query term */
+      const seen = new Set<string>()
+      suggest = []
+      if (wanted.length) {
+        for (const doc of this.map.values()) {
+          for (const word of doc.title.split(/[\s\-_.,;:!?()[\]{}"'/\\|<>]+/)) {
+            if (!word || seen.has(word))
+              continue
+            if (wanted.some(term => word.toLowerCase().startsWith(term))) {
+              seen.add(word)
+              suggest.push(word)
+              if (suggest.length >= 10)
+                break
+            }
+          }
+          if (suggest.length >= 10)
+            break
+        }
+      }
     }
 
     /* Return search result */

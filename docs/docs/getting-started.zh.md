@@ -74,7 +74,7 @@ site_name: My Project
 - Pygments 代码高亮
 
 ### :material-magnify: 发现
-- 全文搜索（Lunr.js）
+- 全文搜索（Marz）
 - 标签和标签页
 - 分节和标签页导航
 - 目录

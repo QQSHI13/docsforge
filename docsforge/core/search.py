@@ -1,51 +1,34 @@
-"""Search plugin - full-text search with Lunr.js backend.
+"""Search plugin - full-text search with Marz backend.
 
-Always enabled. Supports multiple languages and Chinese segmentation.
+Always enabled. Supports multiple languages; CJK is handled natively by
+Marz overlapping-bigram indexing, so no word segmentation is needed.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 from html import escape
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import ClassVar
 
-from backrefs import bre
+import marz
 
 from docsforge import utils
 from docsforge.config_base import Config
 from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, Optional, SubConfig, Type
 from docsforge.core.plugin_base import BasePlugin
 
+# Default field boosts, mirroring SearchPlugin.on_config.
+MARZ_FIELD_BOOSTS = {"title": 1e3, "text": 1e0, "tags": 1e6}
 
-def _get_jieba():
-    """Lazy-load jieba to avoid dictionary loading penalty for non-Chinese sites."""
-    global jieba  # noqa: PLW0603 - module-level memo for a lazily imported optional dep
-    if jieba is None:
-        try:
-            import jieba as _jieba
-            jieba = _jieba
-        except ImportError:
-            jieba = None
-    return jieba
-
-jieba = None
-
-
-def _needs_jieba(config) -> bool:
-    """Return True if jieba Chinese segmentation should be loaded."""
-    if config.get("jieba_dict") or config.get("jieba_dict_user"):
-        return True
-    lang = config.get("lang")
-    if isinstance(lang, str):
-        return lang.startswith("zh")
-    if isinstance(lang, list):
-        return any(isinstance(item, str) and item.startswith("zh") for item in lang)
-    return False
+# Reference Marz uses for root ("") entries: refs must not be empty, and no
+# real page URL is ever exactly "/". The frontend maps this back to "".
+# Keep in sync with MARZ_ROOT_REF in integrations/search/_/index.ts.
+MARZ_ROOT_REF = "/"
 
 
 # Plugin configuration
@@ -62,8 +45,8 @@ class SearchConfig(Config):
     separator = Optional(Type(str))
     pipeline = Optional(ListOfItems(Choice(pipeline)))
     fields = DictOfItems(SubConfig(SearchFieldConfig), default={})
-    jieba_dict = Optional(Type(str))
-    jieba_dict_user = Optional(Type(str))
+    jieba_dict = Deprecated(message="Unsupported option: Marz handles CJK natively")
+    jieba_dict_user = Deprecated(message="Unsupported option: Marz handles CJK natively")
     indexing = Deprecated(message="Unsupported option")
     prebuild_index = Deprecated(message="Unsupported option")
     min_search_length = Deprecated(message="Unsupported option")
@@ -71,9 +54,7 @@ class SearchConfig(Config):
 
 # Search plugin
 class SearchPlugin(BasePlugin[SearchConfig]):
-    """Full-text search with Lunr.js backend."""
-
-    optional_dependencies: ClassVar[list[str]] = ["jieba"]
+    """Full-text search with Marz backend."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -134,42 +115,6 @@ class SearchPlugin(BasePlugin[SearchConfig]):
                 self.search_indices[locale] = SearchIndex(**idx_config)
         else:
             self.search_index = SearchIndex(**self.config)
-
-        # Configure jieba only when Chinese search is requested. Loading the
-        # default dictionary blocks for ~2 s on first use — do it in a
-        # background thread during the build so the config-check → build
-        # transition doesn't visibly stall.
-        if _needs_jieba(self.config):
-            import threading
-
-            threading.Thread(target=self._init_jieba, daemon=True, name="jieba-init").start()
-
-    def _init_jieba(self):
-        jieba_lib = _get_jieba()
-        if not jieba_lib:
-            log.warning(
-                "Chinese content may not be segmented correctly without jieba. "
-                "Install it for better Chinese search: pip install docsforge[chinese]"
-            )
-            return
-        log.info("Loading jieba dictionary for Chinese search segmentation...")
-        if self.config.jieba_dict:
-            path = os.path.normpath(self.config.jieba_dict)
-            if os.path.isfile(path):
-                jieba_lib.set_dictionary(path)
-            else:
-                log.warning(f"jieba_dict not found: {self.config.jieba_dict}")
-
-        if self.config.jieba_dict_user:
-            path = os.path.normpath(self.config.jieba_dict_user)
-            if os.path.isfile(path):
-                jieba_lib.load_userdict(path)
-            else:
-                log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
-
-        # Prime the dictionary so the first real segmentation is instant.
-        list(jieba_lib.cut("初始化"))
-        log.info("jieba dictionary loaded.")
 
     def _index_for_page(self, page):
         if not self._locales:
@@ -303,11 +248,19 @@ class SearchPlugin(BasePlugin[SearchConfig]):
                 self._prepare_index_entries(index, locale, config)
                 data = index.generate_search_index(prev=None)
                 utils.write_file(data.encode("utf-8"), path)
+                utils.write_file(
+                    index.generate_marz_index(),
+                    os.path.splitext(path)[0] + ".marz",
+                )
         else:
             path = os.path.join(config.site_dir, "search", "search_index.json")
             self._prepare_index_entries(self.search_index, "", config)
             data = self.search_index.generate_search_index(prev=None)
             utils.write_file(data.encode("utf-8"), path)
+            utils.write_file(
+                self.search_index.generate_marz_index(),
+                os.path.splitext(path)[0] + ".marz",
+            )
         self._save_entries_cache()
 
     def on_serve(self, server, *, config, builder):
@@ -322,12 +275,11 @@ class SearchPlugin(BasePlugin[SearchConfig]):
 
 # Search index
 class SearchIndex:
-    """Lunr.js compatible search index."""
+    """Search index entry store with Marz binary export."""
 
     def __init__(self, **config):
         self.config = config
         self.entries = []
-        self.needs_jieba = _needs_jieba(config)
 
     def add_entry_from_context(self, page):
         search = page.meta.get("search") or {}
@@ -355,14 +307,6 @@ class SearchIndex:
         title = "".join(section.title).strip()
         text = "".join(section.text).strip()
 
-        if self.needs_jieba:
-            jieba_lib = _get_jieba()
-            if jieba_lib:
-                title = self._segment_chinese(title)
-                text = self._segment_chinese(text)
-
-        # Zero-width spaces inserted for CJK tokenization must not leak into
-        # the serialized index (they would corrupt copy-paste from results).
         entry = {
             "location": url,
             "title": self._strip_zwsp(title),
@@ -420,27 +364,61 @@ class SearchIndex:
                 return result
         return None
 
+    def generate_marz_index(self) -> bytes:
+        """Build a Marz binary index from the current entries.
+
+        Entries are the same raw (unsegmented) documents serialized to
+        `search_index.json`; the frontend loads these bytes for retrieval
+        and uses the JSON for display data.
+        """
+        lang = self.config.get("lang") or ["en"]
+        if isinstance(lang, str):
+            lang = [lang]
+        builder = marz.IndexBuilder(",".join(lang), ref_field="location")
+
+        fields = ["title", "text"]
+        if any(e.get("tags") for e in self.entries):
+            fields.append("tags")
+        for name in fields:
+            builder.field(name, self._marz_boost(
+                (self.config.get("fields") or {}).get(name),
+                MARZ_FIELD_BOOSTS[name],
+            ))
+
+        entries = sorted(self.entries, key=lambda e: e.get("location", ""))
+        for entry in entries:
+            location = entry.get("location", "")
+            doc = {
+                "location": location if isinstance(location, str) and location else MARZ_ROOT_REF,
+                "title": entry.get("title") or "",
+                "text": entry.get("text") or "",
+            }
+            if "tags" in fields:
+                tags = entry.get("tags")
+                doc["tags"] = " ".join(tags) if isinstance(tags, list) else (tags or "")
+            builder.add(doc, boost=self._marz_boost(
+                entry.get("boost"), 1.0,
+            ))
+        return builder.build().to_bytes()
+
     @staticmethod
-    def _strip_zwsp(data):
-        """Strip zero-width spaces used for CJK tokenization from indexed text."""
+    def _strip_zwsp(data: str) -> str:
+        """Strip zero-width spaces from indexed text.
+
+        Defensive with Marz: no plugin inserts zero-width spaces any more
+        (jieba is gone), but external index-building hooks could. Cheap and
+        keeps the serialized JSON free of invisible characters.
+        """
         return data.replace("\u200b", "")
 
-    def _segment_chinese(self, data):
-        expr = bre.compile(r"(\p{script: Han}+)", bre.UNICODE)
-
-        jieba_lib = _get_jieba()
-        if not jieba_lib:
-            return data
-
-        def replace(match):
-            value = match.group(0)
-            return "".join([
-                "\u200b",
-                "\u200b".join(jieba_lib.cut(value)),
-                "\u200b",
-            ])
-
-        return expr.sub(replace, data).strip("\u200b")
+    @staticmethod
+    def _marz_boost(value, default: float) -> float:
+        """Coerce a boost to a finite float Marz accepts, else the default."""
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return default
+        return number if math.isfinite(number) else default
 
 
 # HTML parser for search index

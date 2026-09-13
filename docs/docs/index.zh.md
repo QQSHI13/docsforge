@@ -53,7 +53,7 @@ docsforge serve
 
     ---
 
-    内置全文搜索，由客户端 Lunr.js 索引驱动。
+    内置全文搜索，由客户端 Marz 索引驱动。
 
 -   :material-palette:{ .lg .middle } &nbsp; **深色模式**
 
