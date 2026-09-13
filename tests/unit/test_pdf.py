@@ -94,3 +94,24 @@ class TestPdfCache:
         # one page changes -> only that one needs rendering
         assert cache.should_render("a.pdf", "h1-changed") is True
         assert cache.should_render("b.pdf", "h2") is False
+
+
+class TestBuildPdfConcurrency:
+    """Regression: `cfg` must exist even without a docsforge.yml."""
+
+    def test_no_nameerror_without_config_file(self, tmp_path: Path, monkeypatch):
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (tmp_path / "site").mkdir()
+        seen: dict[str, int] = {}
+
+        def fake_render(site_path, output_path, concurrency, cache):
+            seen["concurrency"] = concurrency
+
+        async def fake_run(coro):
+            coro.close()
+
+        monkeypatch.setattr(pdf_mod, "_render", fake_render)
+        monkeypatch.setattr(pdf_mod.asyncio, "run", fake_run)
+        assert build_pdf(str(docs)) == 0
+        assert seen["concurrency"] == pdf_mod.DEFAULT_CONCURRENCY

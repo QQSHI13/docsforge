@@ -35,10 +35,13 @@ Extracts, parses and transforms MultiMarkdown style data from documents.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 import yaml
+
+log = logging.getLogger(__name__)
 
 SafeLoader: type[yaml.SafeLoader | yaml.CSafeLoader]
 try:
@@ -50,7 +53,7 @@ except ImportError:  # pragma: no cover
 # Data Parser                                                       #
 #####################################################################
 
-YAML_RE = re.compile(r"^-{3}[ \t]*\n(.*?\n)(?:\.{3}|-{3})[ \t]*\n", re.UNICODE | re.DOTALL)
+YAML_RE = re.compile(r"^-{3}[ \t]*\n(.*?\n)(?:\.{3}|-{3})[ \t]*\n?", re.UNICODE | re.DOTALL)
 META_RE = re.compile(r"^[ ]{0,3}(?P<key>[A-Za-z0-9_-]+):\s*(?P<value>.*)")
 META_MORE_RE = re.compile(r"^([ ]{4}|\t)(\s*)(?P<value>.*)")
 
@@ -71,8 +74,8 @@ def get_data(doc: str) -> tuple[str, dict[str, Any]]:
                 doc = doc[m.end() :].lstrip("\n")
             else:
                 data = {}  # type: ignore[unreachable]
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning(f"Failed to parse YAML meta-data: {e}")
         return doc, data
 
     # No YAML delimiters. Try MultiMarkdown style

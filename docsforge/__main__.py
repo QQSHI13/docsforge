@@ -75,11 +75,6 @@ class State:
             self.stream.name = "DocsForgeStreamHandler"
             self.logger.addHandler(self.stream)
 
-    def __del__(self):
-        # Only remove if we created it
-        for h in list(self.logger.handlers):
-            if h.name == "DocsForgeStreamHandler":
-                self.logger.removeHandler(h)
 
 
 def _enable_warnings():

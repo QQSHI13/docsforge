@@ -135,27 +135,41 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         else:
             self.search_index = SearchIndex(**self.config)
 
-        # Configure jieba only when Chinese search is requested
+        # Configure jieba only when Chinese search is requested. Loading the
+        # default dictionary blocks for ~2 s on first use — do it in a
+        # background thread during the build so the config-check → build
+        # transition doesn't visibly stall.
         if _needs_jieba(self.config):
-            jieba_lib = _get_jieba()
-            if not jieba_lib:
-                log.warning(
-                    "Chinese content may not be segmented correctly without jieba. "
-                    "Install it for better Chinese search: pip install docsforge[chinese]"
-                )
-            elif self.config.jieba_dict:
-                path = os.path.normpath(self.config.jieba_dict)
-                if os.path.isfile(path):
-                    jieba_lib.set_dictionary(path)
-                else:
-                    log.warning(f"jieba_dict not found: {self.config.jieba_dict}")
+            import threading
 
-            if jieba_lib and self.config.jieba_dict_user:
-                path = os.path.normpath(self.config.jieba_dict_user)
-                if os.path.isfile(path):
-                    jieba_lib.load_userdict(path)
-                else:
-                    log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
+            threading.Thread(target=self._init_jieba, daemon=True, name="jieba-init").start()
+
+    def _init_jieba(self):
+        jieba_lib = _get_jieba()
+        if not jieba_lib:
+            log.warning(
+                "Chinese content may not be segmented correctly without jieba. "
+                "Install it for better Chinese search: pip install docsforge[chinese]"
+            )
+            return
+        log.info("Loading jieba dictionary for Chinese search segmentation...")
+        if self.config.jieba_dict:
+            path = os.path.normpath(self.config.jieba_dict)
+            if os.path.isfile(path):
+                jieba_lib.set_dictionary(path)
+            else:
+                log.warning(f"jieba_dict not found: {self.config.jieba_dict}")
+
+        if self.config.jieba_dict_user:
+            path = os.path.normpath(self.config.jieba_dict_user)
+            if os.path.isfile(path):
+                jieba_lib.load_userdict(path)
+            else:
+                log.warning(f"jieba_dict_user not found: {self.config.jieba_dict_user}")
+
+        # Prime the dictionary so the first real segmentation is instant.
+        list(jieba_lib.cut("初始化"))
+        log.info("jieba dictionary loaded.")
 
     def _index_for_page(self, page):
         if not self._locales:
@@ -268,8 +282,10 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             if not Path(file.abs_dest_path).exists():
                 continue
             if file.page is None:
-                Page(None, file, config)
-            page = file.page
+                page = Page(None, file, config)
+                file.page = page
+            else:
+                page = file.page
             page.read_source(config)
             page.render(config, files)
             before = len(index.entries)
@@ -345,10 +361,12 @@ class SearchIndex:
                 title = self._segment_chinese(title)
                 text = self._segment_chinese(text)
 
+        # Zero-width spaces inserted for CJK tokenization must not leak into
+        # the serialized index (they would corrupt copy-paste from results).
         entry = {
             "location": url,
-            "title": title,
-            "text": text
+            "title": self._strip_zwsp(title),
+            "text": self._strip_zwsp(text)
         }
 
         tags = page.meta.get("tags")
@@ -401,6 +419,11 @@ class SearchIndex:
             if result is not None:
                 return result
         return None
+
+    @staticmethod
+    def _strip_zwsp(data):
+        """Strip zero-width spaces used for CJK tokenization from indexed text."""
+        return data.replace("\u200b", "")
 
     def _segment_chinese(self, data):
         expr = bre.compile(r"(\p{script: Han}+)", bre.UNICODE)

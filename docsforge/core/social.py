@@ -1406,7 +1406,10 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         return "\n".join([
             output[:at],
             "\n".join([
-                f'<meta property="{property}" content="{content}" />'
+                # Escape property and content values to prevent attribute
+                # injection via interpolated meta tag values
+                f'<meta property="{html.escape(property, quote = True)}"'
+                    f' content="{html.escape(content, quote = True)}" />'
                     for property, content in _replace(
                         layout.tags, self.card_env, config,
                         page = page, image = image,
@@ -1638,6 +1641,16 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             color = background.color
             if color == "transparent":
                 return input
+
+            # Validate color before passing it to Pillow - an invalid color
+            # string would otherwise raise an opaque ValueError deep inside
+            # Image.new, so we surface the offending option here
+            try:
+                ImageColor.getrgb(color)
+            except ValueError:
+                raise PluginError(
+                    f"Invalid color '{color}' in option 'background_color'"
+                ) from None
 
             # Create image filled with background color
             image = Image.new(mode = "RGBA", size = input.size, color = color)

@@ -94,7 +94,12 @@ def get_build_timestamp(*, pages: Collection[Page] | None = None) -> int:
     if pages:
         # Lexicographic comparison is OK for ISO date.
         date_string = max(p.update_date for p in pages)
-        dt = datetime.fromisoformat(date_string).astimezone(timezone.utc)
+        try:
+            dt = datetime.fromisoformat(date_string).astimezone(timezone.utc)
+        except (ValueError, TypeError):
+            # Empty or malformed update_date: fall back to the build time
+            # instead of crashing the build.
+            dt = get_build_datetime()
     else:
         dt = get_build_datetime()
     return int(dt.timestamp())

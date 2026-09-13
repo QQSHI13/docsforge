@@ -323,3 +323,71 @@ class TestRendering:
         png = tmp_path / ".cache" / "assets" / "images" / "social" / "index.png"
         assert png.is_file()
         assert png.read_bytes().startswith(b"\x89PNG")
+
+
+class TestMetaTagEscaping:
+    def test_meta_tag_values_are_escaped(self, tmp_path, monkeypatch):
+        pytest.importorskip("PIL")
+        pytest.importorskip("cairosvg")
+        font = _find_font()
+        if font is None:
+            pytest.skip("no system font available for rendering")
+
+        from types import SimpleNamespace
+
+        plugin = SocialPlugin()
+        plugin.load_config({
+            "cache_dir": str(tmp_path / ".cache"),
+            "cards_layout_options": {"font_family": "Go"},
+        })
+        cfg = _load_config(tmp_path)
+        plugin.on_config(cfg)
+
+        def fake_resolve_font(family, style, variant=""):
+            return str(font)
+
+        monkeypatch.setattr(plugin, "_resolve_font", fake_resolve_font)
+
+        page = SimpleNamespace(
+            title='Test "Page" </head><script>alert(1)</script>',
+            is_homepage=False,
+            is_index=True,
+            meta={},
+            file=SimpleNamespace(
+                src_uri="index.md",
+                src_path="index.md",
+                dest_uri="index.html",
+            ),
+        )
+
+        plugin.on_startup(command="build", dirty=True)
+        try:
+            plugin.on_page_markdown("# Title", page=page, config=cfg, files=None)
+            out = plugin.on_post_page(
+                "<html><head></head><body></body></html>", page=page, config=cfg
+            )
+        finally:
+            plugin.on_shutdown()
+
+        assert out is not None
+        assert "<script>alert(1)</script>" not in out
+        assert "&lt;script&gt;" in out
+
+    def test_invalid_background_color_raises_plugin_error(self, tmp_path):
+        pytest.importorskip("PIL")
+        pytest.importorskip("cairosvg")
+        from types import SimpleNamespace
+
+        from docsforge.exceptions import PluginError
+
+        plugin = SocialPlugin()
+        plugin.load_config({"cache_dir": str(tmp_path / ".cache")})
+        cfg = _load_config(tmp_path)
+        plugin.on_config(cfg)
+
+        layer = SimpleNamespace(
+            background=SimpleNamespace(image=None, color="not-a-color")
+        )
+        image = social_module.Image.new(mode="RGBA", size=(100, 100))
+        with pytest.raises(PluginError, match="not-a-color"):
+            plugin._render_background(layer, image)

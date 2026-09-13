@@ -7,6 +7,7 @@ import logging
 import os
 import posixpath
 import re
+import time
 from concurrent.futures import Future, wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from fnmatch import fnmatch
@@ -14,7 +15,7 @@ from hashlib import sha1
 from html.parser import HTMLParser
 from re import Match
 from urllib.parse import ParseResult as URL
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 from xml.etree.ElementTree import Element, tostring
 
 import requests
@@ -41,6 +42,12 @@ from docsforge.files import File, Files
 
 DEFAULT_TIMEOUT_IN_SECS = 5
 MAX_DOWNLOAD_SIZE = 16 * 1024 * 1024  # 16 MiB
+# Hard cap on total time spent streaming one asset, so a slow-drip server
+# cannot stall the build indefinitely (the per-socket timeout alone does not
+# bound the overall transfer).
+MAX_DOWNLOAD_TIME = 30
+# Maximum number of redirects followed for a single external asset.
+MAX_REDIRECTS = 5
 
 # Expected file extensions
 extensions = {
@@ -256,6 +263,12 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         for file in self.assets:
             _, extension = posixpath.splitext(file.dest_uri)
             if extension not in [".css", ".js"]:
+                if not os.path.exists(str(file.abs_src_path)):
+                    # Download failed or the cache was wiped after the file
+                    # was queued — skip it so copy_static_files never sees a
+                    # dangling source. The next build re-downloads it.
+                    log.warning(f"Skipping unavailable external asset: {file.src_uri}")
+                    continue
                 self.assets_done.append(file)
                 files.append(file)
 
@@ -491,34 +504,69 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
             log.info(f"Downloading external file: {file.url}")
             try:
-                res = requests.get(
-                    file.url,
-                    headers={
-                        "User-Agent": " ".join([
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                            "AppleWebKit/537.36 (KHTML, like Gecko)",
-                            "Chrome/98.0.4758.102 Safari/537.36",
-                        ])
-                    },
-                    timeout=DEFAULT_TIMEOUT_IN_SECS,
-                    stream=True,
-                )
+                # Validate redirects manually so a https:// asset can never be
+                # silently downgraded to http://, and so a redirect cannot
+                # escape to an unsupported scheme.
+                current_url = file.url
+                for _ in range(MAX_REDIRECTS + 1):
+                    res = requests.get(
+                        current_url,
+                        headers={
+                            "User-Agent": " ".join([
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                                "AppleWebKit/537.36 (KHTML, like Gecko)",
+                                "Chrome/98.0.4758.102 Safari/537.36",
+                            ])
+                        },
+                        timeout=(DEFAULT_TIMEOUT_IN_SECS, DEFAULT_TIMEOUT_IN_SECS),
+                        stream=True,
+                        allow_redirects=False,
+                    )
+                    if res.is_redirect or res.is_permanent_redirect:
+                        location = res.headers.get("location", "")
+                        res.close()
+                        next_url = urljoin(current_url, location)
+                        parsed_next = urlparse(next_url)
+                        if parsed_next.scheme not in ("http", "https"):
+                            log.warning(f"Redirect to unsupported scheme blocked: {file.url} -> {next_url}")
+                            return False
+                        if urlparse(current_url).scheme == "https" and parsed_next.scheme == "http":
+                            log.warning(f"Redirect downgraded https to http, blocked: {file.url} -> {next_url}")
+                            return False
+                        current_url = next_url
+                        continue
+                    break
+                else:
+                    log.warning(f"Too many redirects retrieving {file.url}")
+                    return False
+
                 res.raise_for_status()
             except Exception as error:
                 log.warning(f"Couldn't retrieve {file.url}: {error}")
                 return False
 
-            # Enforce a response size cap while streaming.
+            # Validate the final URL after any redirects resolved.
+            parsed_final = urlparse(res.url) if hasattr(res, "url") else urlparse(current_url)
+            if parsed_final.scheme not in ("http", "https"):
+                log.warning(f"Unsupported URL scheme for external file: {file.url}")
+                return False
+
+            # Enforce a response size cap while streaming, plus a hard overall
+            # deadline so a slow-drip server cannot stall the build forever.
             content_length = res.headers.get("content-length")
             if content_length and int(content_length) > MAX_DOWNLOAD_SIZE:
                 log.warning(f"External file too large: {file.url}")
                 return False
 
             content = b""
+            download_deadline = time.monotonic() + MAX_DOWNLOAD_TIME
             for chunk in res.iter_content(chunk_size=8192):
                 content += chunk
                 if len(content) > MAX_DOWNLOAD_SIZE:
                     log.warning(f"External file too large: {file.url}")
+                    return False
+                if time.monotonic() > download_deadline:
+                    log.warning(f"Download timed out: {file.url}")
                     return False
 
             mime = res.headers.get("content-type", "").split(";")[0]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import logging
@@ -83,7 +84,6 @@ def serve(
     # Cache loaded config by config-file mtime so incremental serve rebuilds
     # don't pay the ~1-2s config-loading cost every time.
     _config_cache: dict[str, tuple[float | None, DocsForgeConfig]] = {}
-    _watch_applied: set[int] = set()
 
     def get_config():
         cf = get_config_file()
@@ -103,24 +103,36 @@ def serve(
             config = load_config(config_file=cf, **kwargs)
 
         # Extend watch list only once per config object to avoid duplicates.
-        if id(config) not in _watch_applied:
+        # Track on the config object itself: a `set[id(config)]` is unsafe
+        # because CPython reuses ids after GC and would skip the extension.
+        if not getattr(config, "_watch_applied", False):
             config.watch.extend(watch or [])
-            _watch_applied.add(id(config))
+            config._watch_applied = True
         return config
 
     config = get_config()
     config.plugins.on_startup(command="serve", dirty=True)
 
-    config_host, config_port = config.dev_addr
-    host = host or config_host
-    port = _find_available_port(host, config_port)
-    if port != config_port:
-        log.info(f"Port {config_port} is in use, using port {port} instead")
-    mount_path = urlsplit(config.site_url or "/").path
+    try:
+        config_host, config_port = config.dev_addr
+        host = host or config_host
+        # `_find_available_port` probes are inherently racy (TOCTOU): a port
+        # found free can be taken before we bind. `LiveReloadServer.serve()`
+        # retries the bind on EADDRINUSE, so ask for a generous range up front.
+        port = _find_available_port(host, config_port, max_attempts=200)
+        if port != config_port:
+            log.info(f"Port {config_port} is in use, using port {port} instead")
+        mount_path = urlsplit(config.site_url or "/").path
 
-    # Use localhost for the display URL when binding to all interfaces.
-    display_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
-    config.site_url = serve_url = _serve_url(display_host, port, mount_path)
+        # Use localhost for the display URL when binding to all interfaces.
+        display_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+        config.site_url = serve_url = _serve_url(display_host, port, mount_path)
+    except Exception:
+        # If port finding/server construction fails, `on_startup()` already
+        # ran — balance it with `on_shutdown()` before propagating.
+        with contextlib.suppress(Exception):
+            config.plugins.on_shutdown()
+        raise
 
     def builder(config: DocsForgeConfig | None = None):
         log.info("Building documentation...")

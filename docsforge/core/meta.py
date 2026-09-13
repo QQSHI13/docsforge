@@ -49,7 +49,9 @@ class MetaPlugin(BasePlugin[MetaConfig]):
             with open(file.abs_src_path, encoding="utf-8-sig") as f:
                 path = file.src_path
                 try:
-                    self.meta[path] = load(f, SafeLoader)
+                    # An empty meta file loads as None — normalize to {} so the
+                    # merge below doesn't choke on a None value.
+                    self.meta[path] = load(f, SafeLoader) or {}
                 except Exception as e:
                     raise PluginError(
                         f"Error reading meta file '{path}' in '{docs}':\n{e}"
@@ -85,6 +87,11 @@ class MetaPlugin(BasePlugin[MetaConfig]):
 
         # Page metadata takes precedence
         page.meta = merge(meta, page.meta, strategy=strategy)
+
+        # The internal __extends bookkeeping must not leak into the rendered
+        # page metadata (it would surface in social cards and anything else
+        # iterating page.meta).
+        page.meta.pop("__extends", None)
 
 
 log = logging.getLogger("docsforge.meta")

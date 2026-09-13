@@ -218,3 +218,52 @@ class TestRemoveSourceMaps:
 
         remove_source_maps(str(site), cache_dir=cache_dir)
         assert "sourceMappingURL" not in js.read_text()
+
+
+class TestCleanupSuffixCheck:
+    """Regression: the substring `rel_path in ref` check kept false positives."""
+
+    def test_similarly_named_asset_is_removed(self, tmp_path):
+        """'.icons/material/home.svg' must not be kept alive by a reference to
+        'assets/images/not-home.svg' (basename shares the suffix string)."""
+        from docsforge.asset_optimizer import cleanup_unused_assets
+
+        site = tmp_path / "site"
+        icon = site / ".icons" / "material" / "home.svg"
+        icon.parent.mkdir(parents=True)
+        icon.write_text("svg")
+        img = site / "assets" / "images" / "not-home.svg"
+        img.parent.mkdir(parents=True)
+        img.write_text("svg")
+
+        # Reference only the images file by a path that previously matched
+        # the bare substring check for the icon's rel_path.
+        referenced = {"assets/images/not-home.svg"}
+        cleanup_unused_assets(str(site), referenced=referenced)
+
+        assert not icon.exists()  # genuinely unreferenced -> removed
+        assert img.exists()
+
+
+class TestReferenceCacheAtomicWrite:
+    """Regression: asset_references.json must be written atomically."""
+
+    def test_save_uses_atomic_replace(self, tmp_path, monkeypatch):
+
+        from docsforge.asset_optimizer import _save_reference_cache
+
+        cache_dir = tmp_path / "cache"
+        writes = []
+
+        real_write_text = type(tmp_path).write_text
+
+        def spy_write_text(self, *args, **kwargs):
+            writes.append(self.name)
+            return real_write_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(type(tmp_path), "write_text", spy_write_text)
+        _save_reference_cache(cache_dir, {"version": 1, "files": {}})
+        # Must have written a .tmp file, never the final path directly.
+        assert writes == ["asset_references.json.tmp"]
+        assert (cache_dir / "asset_references.json").exists()
+        assert not (cache_dir / "asset_references.json.tmp").exists()

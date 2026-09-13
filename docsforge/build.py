@@ -40,7 +40,9 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 # Shared fallback lock for page building when the caller does not provide one.
-_default_page_lock = threading.Lock()
+# An RLock: `_build_page` can be re-entered via plugin hooks even when the
+# caller passes no lock (callers that do pass one always pass `threading.RLock()`).
+_default_page_lock = threading.RLock()
 
 
 def get_context(
@@ -146,7 +148,10 @@ def _build_theme_template(
                     pages=[f.page for f in files.documentation_pages() if f.page is not None]
                 )
                 with gzip.GzipFile(
-                    fileobj=f, filename=gz_filename, mode="wb", mtime=timestamp
+                    # filename="" keeps the build reproducible: writing the
+                    # absolute output path into the gzip header would change
+                    # the bytes of every build.
+                    fileobj=f, filename="", mode="wb", mtime=timestamp
                 ) as gz_buf:
                     gz_buf.write(output.encode("utf-8"))
     else:
@@ -578,7 +583,7 @@ def _populate_changed_pages(
     # (read_source + render/markdown.convert) is thread-safe (per-thread
     # Markdown instance); only plugin events are serialized via plugin_lock.
     plugin_lock = threading.RLock()
-    max_workers = config.concurrency
+    max_workers = max(1, config.concurrency)
     if to_populate:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = [
@@ -614,7 +619,7 @@ def _serialize_validation(page: Page) -> dict:
             to_file.src_uri: links
             for to_file, links in (page.links_to_anchors or {}).items()
         },
-        "anchors": sorted(page.present_anchor_ids or []),
+        "anchors": sorted(a for a in (page.present_anchor_ids or []) if a is not None),
     }
 
 
@@ -694,7 +699,7 @@ def _write_outputs(
     built_any = False
     built_sources: set[str] = set()
     if pages_to_build:
-        max_workers = config.concurrency
+        max_workers = max(1, config.concurrency)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [
                 (

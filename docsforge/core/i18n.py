@@ -143,6 +143,16 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             else:
                 translation_files.setdefault(base_key, {})[locale] = file
 
+        # A file classified as a translation whose base default-locale file
+        # does not exist is really a default-locale file with a dotted name
+        # (e.g. "setup.zh.md") — reclassify it so it is not silently dropped.
+        for base_key, by_locale in list(translation_files.items()):
+            if base_key not in default_files_by_key:
+                for file in by_locale.values():
+                    del self._base_key_lookup[file.src_uri]
+                    default_files_by_key[file.src_uri] = file
+                del translation_files[base_key]
+
         self._default_files_by_key = default_files_by_key
 
         # Only create language files for translations that actually exist.
@@ -360,7 +370,12 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             return context
 
         locale = getattr(page.file, "i18n_locale", self.default_locale)
+        # NOTE: writing the locale onto the shared config races when pages
+        # render in parallel — the per-render value below (context) is
+        # authoritative; the config value is kept for backward compatibility
+        # with templates that read config.extra.i18n_current_locale.
         config["extra"]["i18n_current_locale"] = locale
+        context["i18n_current_locale"] = locale
 
         locale_nav = self._locale_navs.get(locale)
         if locale_nav is not None:

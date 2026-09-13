@@ -31,8 +31,9 @@ def _get_git_page_info(file_path: str) -> dict | None:
         )
         repo_root = result.stdout.strip()
 
-        # Get relative path from repo root
-        rel_path = os.path.relpath(file_path, repo_root)
+        # Get relative path from repo root. realpath both sides so symlinks
+        # don't skew the relative computation and make git log match nothing.
+        rel_path = os.path.relpath(os.path.realpath(file_path), os.path.realpath(repo_root))
 
         # Last updated date
         result = subprocess.run(

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
+import os
 import re
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, ClassVar
@@ -70,12 +72,32 @@ class CacheManager:
             log.warning(f"Corrupted cache file: {path}, rebuilding from scratch")
             return {}
 
+    # Guard against interleaved concurrent writes to the *same* cache file.
+    # Temp files are PID-unique, but two same-PID writers (e.g. threads of one
+    # build) could otherwise race: writer A replaces the file, writer B
+    # replaces it again, then A's cleanup deletes B's file.
+    _write_locks: ClassVar[dict[str, Any]] = {}
+
     def _write_json(self, path: Path, data: dict[str, Any]) -> None:
         """Write JSON file atomically."""
-        tmp = path.with_suffix(".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        tmp.replace(path)
+        # PID-unique temp file: concurrent builds must not clobber each
+        # other's temp file (a fixed `.tmp` suffix would).
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        key = str(path.resolve())
+        lock = self._write_locks.get(key)
+        if lock is None:
+            import threading
+
+            lock = self._write_locks.setdefault(key, threading.Lock())
+        try:
+            lock.acquire()
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            tmp.replace(path)
+        finally:
+            lock.release()
+            with contextlib.suppress(OSError):
+                tmp.unlink()
 
     def get_hashes(self) -> dict[str, str]:
         """Get cached file hashes."""

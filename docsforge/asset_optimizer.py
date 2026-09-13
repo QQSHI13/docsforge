@@ -176,7 +176,9 @@ def _save_reference_cache(cache_dir: Path | None, state: dict[str, Any]) -> None
     try:
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
         path = Path(cache_dir) / "asset_references.json"
-        path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+        tmp_path = path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+        os.replace(tmp_path, path)
     except Exception as e:
         log.debug(f"Could not save asset reference cache: {e}")
 
@@ -331,7 +333,10 @@ def cleanup_unused_assets(
                 # e.g., "../.icons/material/home.svg" from "assets/stylesheets/"
                 is_referenced = False
                 for ref in referenced:
-                    if ref.endswith(os.path.basename(rel_path)) or rel_path in ref:
+                    # Match only full trailing path segments, never bare
+                    # substrings or basenames (which false-positive on
+                    # "not-home.svg" vs "home.svg").
+                    if ref == rel_path or ref.endswith((f"/{rel_path}", f"{os.sep}{rel_path}")):
                         is_referenced = True
                         break
 

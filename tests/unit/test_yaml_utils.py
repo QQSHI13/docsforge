@@ -74,3 +74,18 @@ class TestInherit:
         child.write_text("INHERIT: missing.yml\nsite_name: Child\n")
         with open(child, "rb") as fd, pytest.raises(exceptions.ConfigurationError):
             yaml_load(fd)
+
+    def test_inherit_mixed_drives_rejected(self, tmp_path, monkeypatch):
+        # On Windows, os.path.commonpath raises ValueError for paths on different
+        # drives; that must surface as a clear ConfigurationError.
+        child = tmp_path / "child.yml"
+        child.write_text("INHERIT: D:/other/parent.yml\nsite_name: Child\n")
+
+        def fake_commonpath(paths):
+            raise ValueError("Paths don't have the same drive")
+
+        monkeypatch.setattr("os.path.commonpath", fake_commonpath)
+        with open(child, "rb") as fd, pytest.raises(
+            exceptions.ConfigurationError, match="outside the config directory"
+        ):
+            yaml_load(fd)

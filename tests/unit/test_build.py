@@ -250,8 +250,10 @@ class TestInstantNavigationBundleIgnoresI18nAlternates:
 class TestBuildPageLock:
     def test_default_lock_is_shared_module_singleton(self):
         # The fallback lock used when _page_lock is None must be shared across
-        # calls, otherwise concurrent calls serialize on different locks.
-        assert isinstance(_default_page_lock, type(threading.Lock()))
+        # calls, otherwise concurrent calls serialize on different locks. It
+        # must also be re-entrant: plugin hooks invoked while the lock is held
+        # can re-enter _build_page-adjacent code on the same thread.
+        assert isinstance(_default_page_lock, type(threading.RLock()))
         # _build_page signature keeps _page_lock default as None for callers.
         assert _build_page.__defaults__[-1] is None
 

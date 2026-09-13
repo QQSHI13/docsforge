@@ -276,3 +276,33 @@ class TestDeprecatedHelpers:
 
         with pytest.warns(DeprecationWarning, match="_sort_files is soft-deprecated"):
             _sort_files(["b.md", "a.md", "index.md"])
+
+
+class TestReadmeIndexConflict:
+    """Regression: 3+ files mapping to the same dest_uri must all conflict out."""
+
+    def test_three_way_conflict_removes_all_but_last(self, tmp_path, monkeypatch, caplog):
+        from docsforge.config_base import load_config
+        from docsforge.files import get_files
+
+        (tmp_path / "docsforge.yml").write_text(
+            "site_name: T\ndocs_dir: docs\nsite_dir: site\nprivacy: false\n"
+        )
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        # index.md, index.html and README.md all map to dest_uri index.html.
+        (docs / "index.md").write_text("# I")
+        (docs / "README.md").write_text("# R")
+        (docs / "index.html").write_text("<h1>H</h1>")
+        monkeypatch.chdir(tmp_path)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="docsforge.files"):
+            files = get_files(load_config(config_file=str(tmp_path / "docsforge.yml")))
+        uris = {f.src_uri for f in files}
+        # The last file in sort order (index.md) wins; the other two are
+        # both excluded instead of silently surviving.
+        assert uris == {"index.md"}
+        warned = [r for r in caplog.records if "conflicts with" in r.message]
+        assert len(warned) == 2

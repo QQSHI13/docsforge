@@ -181,6 +181,7 @@ def build_pdf(docs_dir: str, output_dir: str = "pdf", **kwargs) -> int:
 
     config_path = project_dir / "docsforge.yml"
     site_dir = "site"
+    cfg: dict = {}
     if config_path.exists():
         try:
             import yaml

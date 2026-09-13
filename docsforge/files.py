@@ -599,8 +599,11 @@ def get_files(config: DocsForgeConfig) -> Files:
             prev_file = files_by_dest.setdefault(file.dest_uri, file)
             if prev_file is not file:
                 conflicting_files.append((prev_file, file))
+                # Rebind the dict entry to the latest file so a third file
+                # mapping to the same dest_uri conflicts against this one too,
+                # instead of being silently dropped from conflict handling.
+                files_by_dest[file.dest_uri] = file
             files.append(file)
-            prev_file = file
 
     set_exclusions(files, config)
     # Skip README.md if an index file also exists in dir (part 2)

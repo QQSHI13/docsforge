@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 
 from docsforge.tikz import DEFAULT_TIKZ_PREAMBLE, _compile_tex_to_svg, _needs_rebuild, _wrap_with_preamble
@@ -127,3 +128,92 @@ class TestWrapWithPreamble:
     def test_default_preamble_contains_all_math_packages(self):
         for package in ("amsmath", "amssymb", "tikz", "pgfplots", "tikz-cd", "tkz-euclide"):
             assert f"\\usepackage{{{package}}}" in DEFAULT_TIKZ_PREAMBLE
+
+
+class TestOutputLock:
+    """Regression: concurrent compiles of the same output path must serialize."""
+
+    def test_output_lock_serializes_compile(self, tmp_path: Path, monkeypatch):
+        import threading
+        import time
+
+        from docsforge import tikz as tikz_mod
+
+        tex = tmp_path / "a.tex"
+        tex.write_text("\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}")
+        out = tmp_path / "a.svg"
+
+        # Fake a LaTeX toolchain; record whether two compiles overlap.
+        active = 0
+        max_active = 0
+        lock = threading.Lock()
+
+        def fake_run_tool(cmd, **kwargs):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            time.sleep(0.05)
+            with lock:
+                active -= 1
+            if cmd[0] == "latex":
+                dvi = kwargs["cwd"] / tex.with_suffix(".dvi").name
+                dvi.write_text("dvi")
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(tikz_mod, "_has_tool", lambda name: True)
+        monkeypatch.setattr(tikz_mod, "_run_tool", fake_run_tool)
+        monkeypatch.setattr(tikz_mod, "_run_dvisvgm", lambda dvi, output, cwd, name: output.write_text("svg") or True)
+
+        output_lock = threading.Lock()
+        t1 = threading.Thread(target=_compile_tex_to_svg, args=(tex, out), kwargs={"output_lock": output_lock})
+        t2 = threading.Thread(target=_compile_tex_to_svg, args=(tex, out), kwargs={"output_lock": output_lock})
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+        assert max_active == 1  # never overlapped
+
+
+class TestStaleHashCleanup:
+    """Regression: deleted .tex files must not leave stale hash entries."""
+
+    def test_merged_hashes_drop_deleted_files(self, tmp_path: Path, monkeypatch):
+        import docsforge.tikz as tikz_mod
+
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "a.tex").write_text("\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}")
+        stale = str((docs / "gone.tex").resolve())
+
+        class FakeCache:
+            def get_tikz_hashes(self):
+                return {stale: "oldhash"}
+
+            def __init__(self):
+                self.saved = None
+
+            def set_tikz_hashes(self, hashes):
+                self.saved = hashes
+
+        fake = FakeCache()
+        monkeypatch.setattr(tikz_mod, "CacheManager", lambda: fake)
+        # Pretend the toolchain exists, but make every compile fail fast so
+        # no real LaTeX runs; the hash merge happens regardless.
+        monkeypatch.setattr(tikz_mod, "_has_tool", lambda name: True)
+        monkeypatch.setattr(tikz_mod, "_compile_tex_to_svg", lambda *a, **k: False)
+
+        config = type(
+            "C",
+            (),
+            {
+                "docs_dir": str(docs),
+                "site_dir": str(tmp_path / "site"),
+                "tikz": True,
+                "tikz_preamble": [],
+                "concurrency": 1,
+            },
+        )()
+        tikz_mod.compile_tikz_files(config)
+        assert fake.saved is not None
+        assert stale not in fake.saved

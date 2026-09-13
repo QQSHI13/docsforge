@@ -117,3 +117,35 @@ class TestNestPaths:
     def test_nested_dir(self):
         result = utils.nest_paths(["a/b.md"])
         assert isinstance(result, (list, dict))
+
+
+class TestGetBuildTimestamp:
+    """Regression: invalid/empty update_date must not crash the build."""
+
+    def test_empty_date_falls_back_to_build_time(self):
+        from types import SimpleNamespace
+
+        from docsforge.utils import get_build_datetime, get_build_timestamp
+
+        page = SimpleNamespace(update_date="")
+        ts = get_build_timestamp(pages=[page])
+        assert ts == int(get_build_datetime().timestamp())
+
+    def test_invalid_date_falls_back_to_build_time(self):
+        from types import SimpleNamespace
+
+        from docsforge.utils import get_build_datetime, get_build_timestamp
+
+        page = SimpleNamespace(update_date="not-a-date")
+        ts = get_build_timestamp(pages=[page])
+        assert ts == int(get_build_datetime().timestamp())
+
+    def test_valid_date_used(self):
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+
+        from docsforge.utils import get_build_timestamp
+
+        dt = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        page = SimpleNamespace(update_date=dt.isoformat())
+        assert get_build_timestamp(pages=[page]) == int(dt.timestamp())

@@ -94,6 +94,11 @@ def _get_merged_translations(
     locale_str = f"{locale.language}_{locale.territory}" if locale.territory else locale.language
     for theme_dir in reversed(theme_dirs):
         dirname = os.path.join(theme_dir, locales_dir)
+        if not os.path.isdir(dirname):
+            # Missing locales dir: Translations.load may raise IOError
+            # depending on the babel version. Fall back gracefully.
+            log.debug(f"Translations directory not found: '{dirname}'")
+            continue
         translations = Translations.load(dirname, [locale_str])
 
         if type(translations) is NullTranslations:

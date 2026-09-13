@@ -7,6 +7,7 @@ work and is tested directly.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 import pytest
@@ -100,3 +101,94 @@ class TestPathSanitization:
     def test_path_to_file_rejects_escaping_cache_dir(self, plugin: PrivacyPlugin):
         with pytest.raises(PluginError):
             plugin._path_to_file("../../../etc/passwd", None)  # type: ignore[arg-type]
+
+
+class _FakeResponse:
+    """Minimal stand-in for requests.Response."""
+
+    def __init__(self, status_code=200, headers=None, content=b"", url=""):
+        self.status_code = status_code
+        self.headers = headers or {}
+        self._content = content
+        self.url = url
+        self.is_redirect = status_code in (301, 302, 303, 307, 308)
+        self.is_permanent_redirect = status_code == 301
+
+    def raise_for_status(self):
+        import requests
+
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code}", response=self)
+
+    def iter_content(self, chunk_size=8192):
+        yield self._content
+
+    def close(self):
+        pass
+
+
+class TestFetchRedirectValidation:
+    """`_fetch` must validate redirects: no scheme downgrade, bounded hops."""
+
+    def _make_file(self, tmp_path: Path, url: str) -> privacy_mod.File:
+        cache = tmp_path / "cache"
+        target = cache / "example.com" / "app.js"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        file = privacy_mod.File(
+            "example.com/app.js", str(cache), str(tmp_path / "site"), True
+        )
+        file.url = url
+        file.abs_src_path = str(target)
+        return file
+
+    def test_https_redirect_downgrade_blocked(self, tmp_path, monkeypatch, caplog):
+        plugin = PrivacyPlugin()
+        plugin.load_config({"cache_dir": str(tmp_path / "cache")})
+
+        responses = {
+            "https://example.com/app.js": _FakeResponse(
+                302, {"location": "http://evil.example/app.js"}, url="https://example.com/app.js"
+            ),
+            "http://evil.example/app.js": _FakeResponse(
+                200, {"content-type": "application/javascript"}, b"bad()", url="http://evil.example/app.js"
+            ),
+        }
+        calls = []
+
+        def fake_get(url, **kwargs):
+            calls.append(url)
+            assert kwargs.get("allow_redirects") is False
+            return responses[url]
+
+        monkeypatch.setattr(privacy_mod.requests, "get", fake_get)
+        file = self._make_file(tmp_path, "https://example.com/app.js")
+
+        with caplog.at_level("WARNING", logger="docsforge.core.privacy"):
+            assert plugin._fetch(file, config=SimpleNamespace()) is False
+
+        # We must never have followed the downgrade to the http:// host.
+        assert calls == ["https://example.com/app.js"]
+
+    def test_https_redirect_to_https_allowed(self, tmp_path, monkeypatch):
+        plugin = PrivacyPlugin()
+        plugin.load_config({"cache_dir": str(tmp_path / "cache")})
+        plugin.on_config(SimpleNamespace(site_url="https://example.com/", concurrency=4))
+
+        responses = {
+            "https://example.com/app.js": _FakeResponse(
+                302, {"location": "https://cdn.example/app.js"}, url="https://example.com/app.js"
+            ),
+            "https://cdn.example/app.js": _FakeResponse(
+                200,
+                {"content-type": "application/javascript"},
+                b"console.log(1)",
+                url="https://cdn.example/app.js",
+            ),
+        }
+
+        def fake_get(url, **kwargs):
+            return responses[url]
+
+        monkeypatch.setattr(privacy_mod.requests, "get", fake_get)
+        file = self._make_file(tmp_path, "https://example.com/app.js")
+        assert plugin._fetch(file, config=SimpleNamespace()) is True

@@ -7,6 +7,7 @@ Requires a LaTeX toolchain (texlive). If not available, warns and skips.
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import logging
 import os
 import shutil
@@ -152,12 +153,23 @@ def _needs_rebuild(
 
 
 def _compile_tex_to_svg(
-    tex_path: Path, output_path: Path, preamble: list[str] | None = None, cached_hash: str | None = None
+    tex_path: Path,
+    output_path: Path,
+    preamble: list[str] | None = None,
+    cached_hash: str | None = None,
+    output_lock: threading.Lock | None = None,
 ) -> bool:
     """Compile a single .tex file to SVG.
 
     Returns True on success, False on failure.
     """
+    with output_lock or contextlib.nullcontext():
+        return _compile_tex_to_svg_locked(tex_path, output_path, preamble, cached_hash)
+
+
+def _compile_tex_to_svg_locked(
+    tex_path: Path, output_path: Path, preamble: list[str] | None = None, cached_hash: str | None = None
+) -> bool:
     tex_path = tex_path.resolve()
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -313,6 +325,19 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     if not tex_files:
         return []
 
+    # Two .tex files with the same basename in different subdirs produce the
+    # same output SVG name, so the second compile silently overwrites the first.
+    seen_svg_names: dict[str, Path] = {}
+    for tex_file in tex_files:
+        svg_name = tex_file.with_suffix(".svg").name
+        if prev := seen_svg_names.get(svg_name):
+            log.warning(
+                f"TikZ: '{tex_file}' and '{prev}' both produce '{svg_name}'; "
+                "one will overwrite the other. Rename one of them."
+            )
+        else:
+            seen_svg_names[svg_name] = tex_file
+
     # Check for any LaTeX tool
     has_any_latex = _has_tool("latex") or _has_tool("pdflatex")
     has_dvisvgm = _has_tool("dvisvgm")
@@ -357,6 +382,14 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
     # _compile_one runs on a thread pool, so every mutation of the shared
     # counters and hash map goes through this lock.
     results_lock = threading.Lock()
+    # Per-output locks: two workers compiling .tex files with the same output
+    # SVG name must not run LaTeX concurrently or they clobber each other.
+    output_locks: dict[str, threading.Lock] = {}
+
+    def _output_lock(output_path: Path) -> threading.Lock:
+        key = str(output_path)
+        with results_lock:
+            return output_locks.setdefault(key, threading.Lock())
 
     def _compile_one(tex_file: Path) -> Path | None:
         """Compile a single TikZ file; returns output path or None."""
@@ -388,7 +421,13 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
                     log.debug(f"Copied TikZ SVG to site: {site_output}")
             return output_path
 
-        if _compile_tex_to_svg(tex_file, output_path, preamble=tikz_preamble, cached_hash=cached_hashes.get(key)):
+        if _compile_tex_to_svg(
+            tex_file,
+            output_path,
+            preamble=tikz_preamble,
+            cached_hash=cached_hashes.get(key),
+            output_lock=_output_lock(output_path),
+        ):
             with results_lock:
                 newly_compiled += 1
                 if current_hash is not None:
@@ -410,8 +449,13 @@ def compile_tikz_files(config, *, output_to_docs: bool = False) -> list[Path]:
             if result:
                 generated.append(result)
 
-    if new_hashes:
-        cache.set_tikz_hashes(new_hashes)
+    # Merge with the cached hashes: entries for deleted .tex files must be
+    # dropped so the cache doesn't accumulate stale keys forever.
+    current_keys = {str(f.resolve()) for f in tex_files}
+    merged_hashes = {k: v for k, v in cached_hashes.items() if k in current_keys}
+    merged_hashes.update(new_hashes)
+    if merged_hashes != cached_hashes:
+        cache.set_tikz_hashes(merged_hashes)
 
     if skipped:
         log.info(

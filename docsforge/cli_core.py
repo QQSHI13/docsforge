@@ -145,7 +145,12 @@ class BuildEngine:
             try:
                 build_module.build(cfg, dirty=True, progress=progress)
             finally:
-                cfg.plugins.on_shutdown()
+                try:
+                    cfg.plugins.on_shutdown()
+                except Exception:
+                    # `on_shutdown` is best-effort cleanup; a failure here must
+                    # not mask the original build error.
+                    log.warning("Plugin on_shutdown hook raised; ignoring", exc_info=True)
             return 0
         except Exception as e:
             log.exception(f"Build failed: {e}")

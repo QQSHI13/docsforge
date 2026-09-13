@@ -179,7 +179,14 @@ def yaml_load(
             )
         config_dir = os.path.realpath(os.path.dirname(source.name))
         abspath = os.path.realpath(os.path.join(config_dir, relpath))
-        if os.path.commonpath([config_dir, abspath]) != config_dir:
+        try:
+            common = os.path.commonpath([config_dir, abspath])
+        except ValueError as e:
+            # e.g. on Windows, paths on different drives have no common path.
+            raise exceptions.ConfigurationError(
+                f"Inherited config file '{relpath}' resolves outside the config directory."
+            ) from e
+        if common != config_dir:
             raise exceptions.ConfigurationError(
                 f"Inherited config file '{relpath}' resolves outside the config directory."
             )

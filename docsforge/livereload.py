@@ -224,6 +224,13 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         if self._content_unchanged(event):
             log.debug(f"Ignoring no-op modification: {event}")
             return
+        # `_last_seen` is only written by `modified` events; evict the entries
+        # for paths that no longer exist so the dict can't grow unboundedly.
+        if event.event_type in ("deleted", "moved"):
+            self._last_seen.pop(getattr(event, "src_path", ""), None)
+            self._last_seen.pop(getattr(event, "dest_path", ""), None)
+        elif event.event_type == "created":
+            self._last_seen.pop(getattr(event, "src_path", ""), None)
         log.debug(str(event))
         with self._rebuild_cond:
             if self._rebuilding:
@@ -241,8 +248,30 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             self._watched_paths.pop(path)
             self.observer.unschedule(self._watch_refs.pop(path))
 
+    # How many times `serve()` retries the bind when the probed port is taken
+    # by another process between `_find_available_port` and `server_bind` (TOCTOU).
+    _MAX_BIND_ATTEMPTS: ClassVar[int] = 20
+
     def serve(self, *, open_in_browser=False):
-        self.server_bind()
+        for attempt in range(self._MAX_BIND_ATTEMPTS):
+            try:
+                self.server_bind()
+                break
+            except OSError as exc:
+                # EADDRINUSE: the port was grabbed after the probe. Retry on the
+                # next port; re-raise anything else (permission errors, etc.).
+                if exc.errno != 98 or attempt == self._MAX_BIND_ATTEMPTS - 1:
+                    raise
+                host, port = self.server_address[:2]
+                log.warning(f"Port {port} became unavailable before bind; trying port {port + 1}")
+                # TCPServer.server_bind() reads the address from self.server_address,
+                # so swapping the address is enough to re-bind on the next port.
+                if self.address_family == socket.AF_INET6:
+                    self.server_address = (host, port + 1, 0, 0)
+                else:
+                    self.server_address = (host, port + 1)
+                self.socket.close()
+                self.socket = socket.socket(self.address_family, self.socket_type)
         self.server_activate()
 
         if self._watched_paths:
@@ -412,8 +441,16 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             return None  # Not found
 
         # Wait until the ongoing rebuild (if any) finishes, so we're not serving a half-built site.
+        # The timeout guards against a dead build thread: without it the handler
+        # would block forever. On timeout, serve a 500 so the client fails fast.
         with self._epoch_cond:
-            self._epoch_cond.wait_for(lambda: self._visible_epoch == self._wanted_epoch)
+            epoch_settled = self._epoch_cond.wait_for(
+                lambda: self._visible_epoch == self._wanted_epoch, timeout=30
+            )
+        if not epoch_settled:
+            log.error("Timed out waiting for the current build to finish; returning 500")
+            start_response("500 Internal Server Error", [("Content-Type", "text/html")])
+            return [b"500 Internal Server Error"]
 
         try:
             # Deliberately left open: FileWrapper streams it to the client and

@@ -1,6 +1,7 @@
 """Unit tests for config loading and validation (docsforge.config_base / config_defaults)."""
 from __future__ import annotations
 
+import os
 import sys
 import textwrap
 from pathlib import Path
@@ -52,6 +53,18 @@ class TestLoadConfig:
         # passing site_dir=None must NOT override the file's value
         cfg = load_config(site_dir=None)
         assert cfg["site_dir"].endswith("site")
+
+    def test_load_config_with_stringio_stdin(self, tmp_path, monkeypatch):
+        # When stdin is a StringIO (no .buffer), load_config must not blow up
+        # with an AttributeError on sys.stdin.buffer.
+        import io
+
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, "site_name: T\n")
+        monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+        cfg = load_config()
+        assert cfg["site_name"] == "T"
+        assert cfg["config_file_path"].endswith("docsforge.yml")
 
 
 class TestDefaults:
@@ -157,6 +170,12 @@ class TestOptionallyRequired:
         assert len(failed) == 1
         assert failed[0][0] == "required"
 
+    def test_explicit_required_raises_type_error(self):
+        with pytest.raises(TypeError, match="required"):
+
+            class _Schema(Config):
+                bad = Type(str, required=True)
+
 
 class TestValidate:
     def test_collects_all_validation_errors(self):
@@ -168,6 +187,33 @@ class TestValidate:
         failed, _ = cfg.validate()
         assert len(failed) == 2
         assert {key for key, _ in failed} == {"one", "two"}
+
+
+class TestListOfItemsWarnings:
+    def test_reset_warnings_keeps_child_in_sync(self):
+        from docsforge.config_options import ListOfItems
+
+        opt = ListOfItems(Type(str))
+        opt.warnings.append("parent-warning")
+        assert opt.option_type.warnings is opt.warnings
+        opt.reset_warnings()
+        # Child must still share the parent's (now empty) list, not a stale one.
+        assert opt.option_type.warnings is opt.warnings
+        assert opt.option_type.warnings == []
+
+
+class TestThemeValidation:
+    def test_run_validation_does_not_mutate_caller_dict(self, tmp_path):
+        from docsforge.config_options import Theme
+
+        theme_opt = Theme()
+        theme_opt.config_file_path = str(tmp_path / "docsforge.yml")
+        value = {"name": "material", "custom_dir": "overrides"}
+        (tmp_path / "overrides").mkdir()
+        result = theme_opt.run_validation(value)
+        assert result.name == "material"
+        # The caller's dict must not have been mutated (e.g. with an absolutized custom_dir).
+        assert value == {"name": "material", "custom_dir": "overrides"}
 
 
 class TestHooks:
@@ -197,6 +243,38 @@ class TestHooks:
         # ...but the module itself gets a safe internal name, not the raw path.
         assert cfg["plugins"]["myhook.py"].__name__.startswith("_docsforge_hook_")
         assert "myhook.py" not in sys.modules
+
+    def test_broken_hook_module_removed_from_sys_modules(self, tmp_path):
+        import hashlib
+
+        hook_file = tmp_path / "broken.py"
+        hook_file.write_text("raise RuntimeError('boom')\n")
+        with pytest.raises(Exception, match="boom"):
+            Hooks("plugins")._load_hook("broken", str(hook_file))
+        module_name = f"_docsforge_hook_{hashlib.sha256(os.path.abspath(str(hook_file)).encode()).hexdigest()}"
+        assert module_name not in sys.modules
+
+
+class TestPluginDisable:
+    def test_plugin_false_disables_plugin(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, """
+            site_name: T
+            plugins:
+              search: false
+        """)
+        cfg = load_config()
+        assert "search" not in [name.split("/")[-1] for name in cfg["plugins"]]
+
+    def test_plugin_none_still_loads_with_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, """
+            site_name: T
+            plugins:
+              search:
+        """)
+        cfg = load_config()
+        assert "search" in [name.split("/")[-1] for name in cfg["plugins"]]
 
 
 class TestOfflineMode:

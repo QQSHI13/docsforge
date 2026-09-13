@@ -96,7 +96,7 @@ class Tag:
         return self.name
 
     def __hash__(self) -> int:
-        return hash(self.name)
+        return hash((self.name, self.parent.name if self.parent else None))
 
     def __iter__(self) -> Iterator[Tag]:
         tag = self
@@ -110,7 +110,11 @@ class Tag:
 
     def __eq__(self, other: Tag) -> bool:
         assert isinstance(other, Tag)
-        return self.name == other.name
+        if self.name != other.name:
+            return False
+        return (self.parent.name if self.parent else None) == (
+            other.parent.name if other.parent else None
+        )
 
     def __lt__(self, other: Tag) -> bool:
         assert isinstance(other, Tag)
@@ -797,6 +801,7 @@ def populate(listing: Listing, slugify: Slugify) -> dict[Tag, AnchorLink]:
         return anchors
 
     # Create anchor links
+    used_slugs: dict[str, int] = {}
     for tree in listing:
 
         # Iterate over expanded tags
@@ -804,8 +809,17 @@ def populate(listing: Listing, slugify: Slugify) -> dict[Tag, AnchorLink]:
             if tag not in anchors:
                 level = host.level + 1 + i
 
-                # Create anchor link
-                anchors[tag] = AnchorLink(tag.name, slugify(tag), level)
+                # Create anchor link, disambiguating duplicate slugs so that
+                # distinct tags (e.g. "C++", "C#") never share an HTML id
+                base_slug = slugify(tag)
+                slug = base_slug
+                if slug in used_slugs:
+                    used_slugs[base_slug] += 1
+                    slug = f"{base_slug}-{used_slugs[base_slug]}"
+                else:
+                    used_slugs[base_slug] = 1
+
+                anchors[tag] = AnchorLink(tag.name, slug, level)
                 if not tag.parent:
                     continue
 

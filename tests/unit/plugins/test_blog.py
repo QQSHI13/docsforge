@@ -268,3 +268,119 @@ class TestBlogConfigDefaults:
         config1.categories_allowed.append("news")
         assert config1.categories_allowed == ["news"]
         assert config2.categories_allowed == []
+
+
+class TestFeedRendering:
+    def _make_plugin(self):
+        plugin = BlogPlugin()
+        plugin.load_config({})
+        plugin._feed_site_url = "https://example.com/"
+        return plugin
+
+    def _make_post(self, *, created, url="blog/post/", description="", title="Post", updated=None):
+        date = {"created": created}
+        if updated is not None:
+            date["updated"] = updated
+        return SimpleNamespace(
+            title=title,
+            url=url,
+            config=SimpleNamespace(
+                date=SimpleNamespace(**date),
+                authors=[],
+            ),
+            excerpt=SimpleNamespace(content=description) if description else None,
+            markdown="",
+        )
+
+    def test_rss_pubdate_handles_non_utc_datetime(self):
+        """Non-UTC (and naive) datetimes must be normalized to UTC, not crash."""
+        from datetime import timedelta
+
+        from docsforge.core.blog import timezone
+
+        plugin = self._make_plugin()
+        post = self._make_post(created=datetime(2024, 1, 1) + timedelta(hours=8))
+        rss = plugin._render_rss("Blog", "https://example.com/blog/", "Desc", "en", [post])
+        assert "+0800" not in rss
+
+        offset = timezone(timedelta(hours=-5))
+        post = self._make_post(created=datetime(2024, 1, 1, tzinfo=offset))
+        rss = plugin._render_rss("Blog", "https://example.com/blog/", "Desc", "en", [post])
+        assert "05:00:00 GMT" in rss
+
+    def test_rss_last_build_date_handles_updated_date(self):
+        from datetime import timedelta
+
+        from docsforge.core.blog import timezone
+
+        plugin = self._make_plugin()
+        offset = timezone(timedelta(hours=2))
+        post = self._make_post(
+            created=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            updated=datetime(2024, 6, 1, tzinfo=offset),
+        )
+        rss = plugin._render_rss(
+            "Blog", "https://example.com/blog/", "Desc", "en", [post], updated=True
+        )
+        assert "+0200" not in rss
+
+    def test_rss_cdata_terminator_is_escaped(self):
+        """A ']]>' sequence inside the description must not break the CDATA block."""
+        plugin = self._make_plugin()
+        post = self._make_post(
+            created=datetime(2024, 1, 1),
+            description="code: x ]]></script> end",
+        )
+        rss = plugin._render_rss("Blog", "https://example.com/blog/", "Desc", "en", [post])
+        assert "<![CDATA[code: x ]]]]><![CDATA[></script> end]]>" in rss
+
+    def test_atom_cdata_terminator_is_escaped(self):
+        plugin = self._make_plugin()
+        post = self._make_post(
+            created=datetime(2024, 1, 1),
+            description="a ]]> b",
+        )
+        atom = plugin._render_atom("Blog", "https://example.com/blog/", "Desc", [post])
+        assert "<![CDATA[a ]]]]><![CDATA[> b]]>" in atom
+
+
+class TestPostDateCreatedRequired:
+    def test_dict_without_created_raises_validation_error(self):
+        from docsforge.config_base import Config, ValidationError
+
+        option = PostDate()
+        config = Config([])
+        config["date"] = {"updated": datetime(2024, 1, 1)}
+        with pytest.raises(ValidationError, match="created"):
+            option.pre_validation(config, "date")
+
+    def test_scalar_value_still_works(self):
+        from datetime import timezone
+
+        from docsforge.config_base import Config
+
+        option = PostDate()
+        config = Config([])
+        config["date"] = datetime(2024, 1, 1)
+        option.pre_validation(config, "date")
+        assert config["date"].created == datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+
+class TestPaginationStep:
+    def test_zero_per_page_is_clamped_to_one(self):
+        plugin = BlogPlugin()
+        plugin.load_config({"pagination_per_page": 0})
+        view = SimpleNamespace(posts=[object()])
+        assert plugin._pagination_step(view) == 1
+
+    def test_negative_per_page_is_clamped_to_one(self):
+        plugin = BlogPlugin()
+        plugin.load_config({"pagination_per_page": -3})
+        view = SimpleNamespace(posts=[object()])
+        assert plugin._pagination_step(view) == 1
+
+    def test_valid_per_page_is_preserved(self):
+        plugin = BlogPlugin()
+        plugin.load_config({"pagination_per_page": 5})
+        view = SimpleNamespace(posts=[object()])
+        assert plugin._pagination_step(view) == 5

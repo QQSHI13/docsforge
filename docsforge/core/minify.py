@@ -107,7 +107,13 @@ class MinifyPlugin(BasePlugin):
 
     def _minify_html_page(self, output: str) -> str | None:
         """Minify HTML page content. Always enabled."""
-        return minify.string("text/html", output)
+        try:
+            return minify.string("text/html", output)
+        except Exception as e:
+            # The minifier is a CFFI-loaded native library — a failure must
+            # not take down the build; serve the unminified page instead.
+            log.warning(f"Failed to minify HTML for a page: {e}")
+            return output
 
     def on_pre_build(self, *, config: DocsForgeConfig) -> None:
         """Prepare minified extra assets and update config before rendering."""

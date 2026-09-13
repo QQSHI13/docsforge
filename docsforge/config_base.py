@@ -46,7 +46,9 @@ class BaseConfigOption(Generic[T]):
         return self.run_validation(value)
 
     def reset_warnings(self) -> None:
-        self.warnings = []
+        # Clear in place rather than rebinding: child options (e.g. ListOfItems.option_type)
+        # share this list by reference, and rebinding would leave them writing to a stale list.
+        self.warnings.clear()
 
     def pre_validation(self, config: Config, key_name: str) -> None:
         """
@@ -133,9 +135,10 @@ class Config(UserDict):
         cls._schema = tuple(schema.items())
 
         for attr_name, attr in cls._schema:
-            if not getattr(attr, "_required_set", False):
+            required_set = getattr(attr, "_required_set", False)
+            if not required_set:
                 attr.required = True
-            if getattr(attr, "_legacy_required", None) is not None:
+            elif attr.required:
                 raise TypeError(
                     f"{cls.__name__}.{attr_name}: "
                     "Setting 'required' is unsupported in class-based configs. "
@@ -353,7 +356,9 @@ def load_config(
         # Initialize the config with the default schema.
         from docsforge.config_defaults import DocsForgeConfig
 
-        if config_file_path is None and sys.stdin and fd is not sys.stdin.buffer:
+        stdin_buffer = getattr(sys.stdin, "buffer", None)
+        is_stdin = fd is sys.stdin or (stdin_buffer is not None and fd is stdin_buffer)
+        if config_file_path is None and not is_stdin:
             config_file_path = getattr(fd, "name", None)
         cfg = DocsForgeConfig(config_file_path=config_file_path)
         # load the config file

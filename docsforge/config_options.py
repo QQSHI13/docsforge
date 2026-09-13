@@ -808,7 +808,7 @@ class Theme(BaseConfigOption["theme.Theme"]):
         elif isinstance(value, dict):
             if "name" not in value:
                 raise ValidationError("No theme name set.")
-            theme_config = value
+            theme_config = dict(value)
         else:
             raise ValidationError(
                 f"Invalid type {type(value)}. Expected a string or key/value pairs."
@@ -1149,7 +1149,12 @@ class Plugins(OptionallyRequired[PluginCollection]):
         if name not in self.installed_plugins:
             raise ValidationError(f'The "{name}" plugin is not installed')
 
-        config = config or {}  # Users may define a null (None) config
+        if config is None:  # Users may define a null (None) config
+            config = {}
+        elif config is False:  # Explicitly disabled plugin
+            log.debug(f"Plugin '{name}' is disabled in the config, skipping.")
+            plugin_cls = self.installed_plugins[name].load()
+            return plugin_cls()
         if not isinstance(config, dict):
             raise ValidationError(f"Invalid config options for the '{name}' plugin.")
 
@@ -1224,7 +1229,8 @@ class Hooks(BaseConfigOption[list[types.ModuleType]]):
     def run_validation(self, value: object) -> Mapping[str, Any]:
         paths = self._base_option.validate(value)
         self.warnings.extend(self._base_option.warnings)
-        assert isinstance(value, list)
+        if not isinstance(value, list):
+            raise ValidationError(f"Expected a list of hook paths, but a {type(value)} was given.")
 
         hooks = {}
         for name, path in zip(value, paths, strict=True):
@@ -1249,6 +1255,11 @@ class Hooks(BaseConfigOption[list[types.ModuleType]]):
         sys.path.insert(0, os.path.dirname(path))
         try:
             spec.loader.exec_module(module)
+        except Exception:
+            # Don't leave a broken module behind in sys.modules: it would shadow
+            # any later attempt to load a fixed hook with the same path hash.
+            sys.modules.pop(module_name, None)
+            raise
         finally:
             sys.path[:] = old_sys_path
 

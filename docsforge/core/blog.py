@@ -91,6 +91,15 @@ class PostDate(BaseConfigOption[DateDict]):
         if not isinstance(config[key_name], dict):
             config[key_name] = { "created": config[key_name] }
 
+        # The dictionary syntax must contain a `created` key, as we otherwise
+        # cannot sort posts for views - surface this as a validation error
+        # instead of a bare KeyError
+        if "created" not in config[key_name]:
+            raise ValidationError(
+                f"Expected 'created' date when using dictionary syntax "
+                f"for option '{key_name}'"
+            )
+
         # Convert all date values to datetime
         for key, value in config[key_name].items():
 
@@ -955,19 +964,31 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             if updated:
                 return getattr(post.config.date, "updated", None) or post.config.date.created
             return post.config.date.created
+
+        # RSS requires GMT dates - normalize all post dates to UTC before
+        # formatting, treating naive datetimes as already being in UTC
+        def _utc(dt):
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo = timezone.utc)
+            return dt.astimezone(timezone.utc)
+
         items = []
         for post_title, url, created, updated_dt, author, desc in self._feed_posts(posts):
             item = [
                 "  <item>",
                 f"    <title>{escape(post_title)}</title>",
                 f"    <link>{escape(url)}</link>",
-                f"    <pubDate>{_email_format_datetime(updated_dt if updated else created, usegmt=True)}</pubDate>",
+                "    <pubDate>"
+                + _email_format_datetime(_utc(updated_dt if updated else created), usegmt=True)
+                + "</pubDate>",
                 f"    <guid>{escape(url)}</guid>",
             ]
             if author:
                 item.append(f"    <author>{escape(author)}</author>")
             if desc:
-                item.append(f"    <description><![CDATA[{desc}]]></description>")
+                # Split CDATA terminators inside the description, so the
+                # serialized feed stays well-formed
+                item.append(f"    <description><![CDATA[{desc.replace(']]>', ']]]]><![CDATA[>')}]]></description>")
             item.append("  </item>")
             items.append("\n".join(item))
         return "\n".join([
@@ -978,7 +999,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             f"    <link>{escape(link)}</link>",
             f"    <description>{escape(description)}</description>",
             f"    <language>{escape(language)}</language>",
-            f"    <lastBuildDate>{_email_format_datetime(_date(posts[0]), usegmt=True)}</lastBuildDate>",
+            f"    <lastBuildDate>{_email_format_datetime(_utc(_date(posts[0])), usegmt=True)}</lastBuildDate>",
             f'    <atom:link href="{escape(link)}feed_rss_created.xml" rel="self" type="application/rss+xml"/>',
             *items,
             "  </channel>",
@@ -1003,7 +1024,9 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             if author:
                 entry.append(f"    <author><name>{escape(author)}</name></author>")
             if desc:
-                entry.append(f'    <content type="html"><![CDATA[{desc}]]></content>')
+                # Split CDATA terminators inside the content, so the
+                # serialized feed stays well-formed
+                entry.append(f'    <content type="html"><![CDATA[{desc.replace("]]>", "]]]]><![CDATA[>")}]]></content>')
             entry.append("  </entry>")
             entries.append("\n".join(entry))
         return "\n".join([
@@ -1529,7 +1552,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
         # Compute pagination boundaries and create pages - pages are internally
         # handled as copies of a view, as they map to the same source location
-        step = self._config_pagination_per_page(view)
+        step = self._pagination_step(view)
         for at in range(step, len(view.posts), step):
             path = self._format_path_for_pagination(view, 1 + at // step)
 
@@ -1694,7 +1717,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             at = page.pages.index(page)
 
             # Compute pagination boundaries
-            step = self._config_pagination_per_page(page)
+            step = self._pagination_step(page)
             p, q = at * step, at * step + step
 
             # Extract posts in pagination boundaries
@@ -1776,6 +1799,11 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         if isinstance(view, Profile):
             return self._config("authors_profiles_pagination_per_page", default)
         return default
+
+    # Pagination boundaries must be at least 1, or range() would raise a
+    # ValueError - clamp invalid values to a single post per page
+    def _pagination_step(self, view: View):
+        return max(1, self._config_pagination_per_page(view))
 
     # -------------------------------------------------------------------------
 

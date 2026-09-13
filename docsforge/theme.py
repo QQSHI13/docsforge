@@ -220,7 +220,7 @@ class Theme(MutableMapping[str, Any]):
         env = jinja2.Environment(
             loader=loader,
             auto_reload=False,
-            autoescape=jinja2.select_autoescape(["html", "xml"]),
+            autoescape=jinja2.select_autoescape(["html", "htm", "xml", "svg"], default_for_string=True),
         )
         env.filters["url"] = templates.url_filter
         env.filters["script_tag"] = templates.script_tag_filter

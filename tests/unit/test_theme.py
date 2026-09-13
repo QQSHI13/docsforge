@@ -141,3 +141,36 @@ class TestThemeNameSync:
         theme = Theme(name="mytheme", palette=[], direction="ltr")
         assert theme.name == "mytheme"
         assert theme["name"] == "mytheme"
+
+
+class TestAutoescapeCoverage:
+    """Regression: extensionless and svg templates must render escaped."""
+
+    def test_string_templates_autoescape(self):
+        theme = Theme(name="material")
+        env = theme.get_env()
+        tmpl = env.from_string("{{ x }}")
+        assert tmpl.render(x="<script>") == "&lt;script&gt;"
+
+    def test_svg_template_autoescapes(self, tmp_path):
+        # SVG is XML: interpolated values must be escaped or the output breaks.
+        (tmp_path / "icon.svg").write_text("{{ x }}")
+        import jinja2
+
+        env2 = jinja2.Environment(
+            loader=jinja2.FileSystemLoader([str(tmp_path)]),
+            auto_reload=False,
+            autoescape=jinja2.select_autoescape(["html", "htm", "xml", "svg"], default_for_string=True),
+        )
+        assert env2.get_template("icon.svg").render(x="<b>") == "&lt;b&gt;"
+
+    def test_html_template_autoescapes(self, tmp_path):
+        (tmp_path / "page.html").write_text("{{ x }}")
+        import jinja2
+
+        env2 = jinja2.Environment(
+            loader=jinja2.FileSystemLoader([str(tmp_path)]),
+            auto_reload=False,
+            autoescape=jinja2.select_autoescape(["html", "htm", "xml", "svg"], default_for_string=True),
+        )
+        assert env2.get_template("page.html").render(x="<b>") == "&lt;b&gt;"
