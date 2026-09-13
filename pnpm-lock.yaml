@@ -49,7 +49,7 @@ importers:
         specifier: ^7.2.0
         version: 7.2.0
       katex:
-        specifier: ^0.18.7
+        specifier: ^0.18.4
         version: 0.18.7
       lucide-static:
         specifier: ^1.44.0
@@ -79,10 +79,10 @@ importers:
         specifier: ^1.103.1
         version: 1.103.1
       simple-icons:
-        specifier: ^16.30.0
+        specifier: ^16.4.0
         version: 16.30.0
       svgo:
-        specifier: ^4.1.0
+        specifier: ^4.0.2
         version: 4.1.0
       typescript:
         specifier: ^7.0.2
