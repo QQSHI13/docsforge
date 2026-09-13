@@ -64,6 +64,10 @@ export function transformMarz(
 
     /* => 4 */
     .split(/\s+/g)
+      /* An empty query splits to [""], which would transform to a bare "*"
+         wildcard matching every document — the placeholder half of the search
+         box must yield nothing, so drop empty terms alongside the guard. */
+      .filter(term => term.length > 0)
       .map(term => /([~^]$)/.test(term) ? `${term}1` : term)
       .map(term =>
         /(^[+-]|[~^]\d+$)/.test(term) || marzNoWildcard.test(term)

@@ -44,7 +44,7 @@ dependencies = [
     "requests >=2.34.2",
     "babel >=2.18.0",
     "pygments >=2.20.0",
-    "marz-search >=0.2.1",
+    "marz-search >=0.2.2",
     "minify-go >=2.24.17",
 ]
 
