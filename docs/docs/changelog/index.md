@@ -1,99 +1,17 @@
 ## [Unreleased]
 
-### Fixed
+### Changed
 
-- **Social card meta tags are now escaped** — Open Graph/Twitter `<meta>`
-  property and content values were interpolated into HTML attributes without
-  escaping, so a page title containing `"><script>` landed unescaped in every
-  built page's `<head>`. Values now pass through `html.escape(..., quote=True)`.
-
-- **A default-locale page with a dotted name no longer vanishes on i18n
-  sites** — a file such as `setup.zh.md` in the default language (with no
-  `setup.md`) was classified as a Chinese translation, removed from the file
-  set, and silently dropped from the build. Orphan "translations" are now
-  reclassified as default-locale files.
-
-- **Blog feeds no longer crash on non-UTC dates and are valid XML** — feed
-  datetimes are normalised to UTC before `usegmt` formatting, `]]>` in post
-  content no longer breaks CDATA sections, a `date:` mapping without
-  `created` now raises a clear validation error instead of a bare `KeyError`,
-  and `pagination_per_page` is clamped to a minimum of 1.
-
-- **Tag listings no longer emit duplicate HTML anchors** — distinct tags that
-  slugify to the same id (e.g. `C++`, `C#`) now get disambiguated ids (`c`,
-  `c-2`, ...), and hierarchical `Tag` equality/hash include the parent chain
-  so same-named leaves under different parents no longer merge.
-
-- **The privacy plugin handles redirects safely and can't stall a build** —
-  redirects are followed manually with a hop limit; https→http downgrades and
-  redirects to non-http(s) schemes are rejected; and a hard 30-second overall
-  deadline plus split connect/read timeouts bound slow-drip servers. Assets
-  whose download failed or whose cache file was wiped are skipped with a
-  warning instead of crashing `copy_static_files`.
-
-- **`docsforge build --pdf` no longer crashes without a config file** —
-  `pdf.py` referenced an uninitialised variable when `docsforge.yml` was
-  absent and `--concurrency` was not passed.
-
-- **Front matter at end-of-file without a trailing newline is parsed** — the
-  YAML delimiter regex required a newline after the closing `---`, so a
-  document ending `...\ntitle: x\n---` was mis-parsed; malformed YAML now
-  logs a warning instead of being silently discarded.
-
-- **`plugins: {name: false}` now disables a plugin** — previously `False` was
-  coerced to an empty dict and the plugin loaded with defaults. `False`
-  explicitly disables; `None`/omitted still loads defaults.
-
-- **Serve-mode robustness** — the live-reload epoch wait has a 30-second
-  timeout (a dead build thread no longer blocks HTTP handlers forever); the
-  port-probe/bind race retries on `EADDRINUSE`; `on_startup` is balanced with
-  `on_shutdown` when port finding fails; the file-event `_last_seen` map
-  evicts entries on delete/move; and the watch-extension flag is stored on
-  the config object rather than a `set` of recycled `id()`s.
-
-- **Build reproducibility and error clarity** — gzip output no longer embeds
-  the absolute build path in the archive header; a failing `on_shutdown()`
-  no longer masks the original build error; the default page lock is a
-  re-entrant `RLock`; `concurrency` is clamped to at least 1; and the minifier
-  falls back to unminified output instead of taking down the build on a
-  native-library failure.
-
-- **Config validation hardening** — `Hooks` raises `ValidationError` instead
-  of `AssertionError`, cleans `sys.modules` when a hook module fails to
-  exec, and `Theme` validation no longer mutates the caller's dict;
-  `os.path.commonpath` failures on Windows mixed drives surface as a clear
-  `ConfigurationError`; the dead `_legacy_required` check now actually
-  guards legacy `required=` usage; `ListOfItems` composite validators keep
-  their child warning lists in sync after `reset_warnings()`; and
-  `load_config` no longer assumes `sys.stdin` has a `.buffer`.
-
-- **Asset handling** — the privacy reference check matches full path segments
-  (no more `not-home.svg` vs `home.svg` false positives); the reference cache
-  is written atomically; README/index three-way destination conflicts are all
-  reported; TikZ caches drop stale entries for deleted `.tex` files, detect
-  same-basename collisions, and serialise concurrent compiles of the same
-  output; `get_build_timestamp` falls back gracefully on invalid
-  `update_date` strings; and the emoji index collision check is O(n) instead
-  of O(n²).
-
-- **i18n/search/meta polish** — `i18n_current_locale` is exposed on the page
-  context (avoiding a shared-config race during parallel renders); jieba's
-  ~2 s dictionary load happens in a background thread instead of stalling the
-  first build; zero-width spaces from CJK tokenisation no longer leak into the
-  search index; the search-entry recovery path sets `file.page`; the internal
-  `__extends` bookkeeping no longer leaks into page metadata; empty `.meta.yml`
-  files no longer crash the meta plugin; and Jinja autoescape covers `.htm`
-  and `.svg` templates plus string-rendered templates.
-
-- **Cache writes are concurrency-safe** — cache JSON files are written via a
-  PID-unique temp file plus a per-path lock, so concurrent builds (or threads
-  of one build) can no longer clobber or delete each other's cache files.
-
-### Added
-
-- **CI now tests the oldest supported Python (3.10) alongside 3.12** — the
-  test job runs a `['3.10', '3.12']` matrix with `fail-fast: false`, catching
-  version drift at both ends of the supported range.
+- **Mermaid vendored asset upgraded from 11.17 to 12.0** — ELK is now the
+  bundled layout engine upstream, `</br>` is treated as a line break in
+  labels, and DocsForge pins the mermaid-11 appearance (`layout: dagre`,
+  `theme: default`, `look: classic`) so existing diagrams keep their look;
+  per-diagram front matter overrides still win. The IIFE grows ~600 kB
+  gzipped (ELK inlined — counted in the precache manifest), and the CDN
+  fallback URL bumps to `mermaid@12`. Verified: all nine core diagram types
+  (flowchart, sequence, class, state, ER, gantt, pie, mindmap, journey)
+  render in Chromium with the pinned config, and `mermaid.initialize()`
+  accepts DocsForge's config unchanged.
 
 ## [12.5.7] — 2026-08-22
 

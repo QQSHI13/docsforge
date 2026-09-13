@@ -48,7 +48,7 @@ let sequence = 0
 function fetchScripts(): Observable<void> {
   const local = (window as any).docsforge?.mermaidUrl
   const url = typeof local === "string" && local ? local
-    : "https://unpkg.com/mermaid@11/dist/mermaid.min.js"
+    : "https://unpkg.com/mermaid@12/dist/mermaid.min.js"
   return typeof mermaid === "undefined" || mermaid instanceof Element
     ? watchScript(url)
     : of(undefined)
@@ -74,6 +74,13 @@ export function mountMermaid(
       tap(() => mermaid.initialize({
         startOnLoad: false,
         themeCSS,
+        /* Mermaid 12 defaults: ELK layout + redux-color/neo appearance ship as
+           defaults and would silently re-layout and recolour every existing
+           diagram. Pin the mermaid-11 look; authors can still override per
+           diagram in front matter (front matter always wins). */
+        layout: "dagre",
+        theme: "default",
+        look: "classic",
         sequence: {
           actorFontSize: "16px", // Hack: mitigate https://bit.ly/3y0NEi3
           messageFontSize: "16px",

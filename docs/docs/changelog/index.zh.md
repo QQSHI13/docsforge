@@ -1,83 +1,15 @@
-## [Unreleased]
+## [未发布]
 
-### 修复
+### 变更
 
-- **社交卡片 meta 标签现已转义** —— Open Graph/Twitter `<meta>` 标签的
-  property 与 content 值此前未经过转义直接插入 HTML 属性，页面标题中包含
-  `"><script>` 时会原样进入每个构建页面的 `<head>`。现在所有值都会经过
-  `html.escape(..., quote=True)` 处理。
-
-- **i18n 站点中带点号的默认语言页面不再消失** —— 默认语言中名为
-  `setup.zh.md` 的文件（且不存在 `setup.md`）此前会被归类为中文翻译、从
-  文件集中移除并静默丢弃。现在这类“孤儿翻译”会被重新归类为默认语言文件。
-
-- **博客 feed 不再因非 UTC 日期崩溃，且输出合法 XML** —— feed 日期在
-  `usegmt` 格式化前统一归一化为 UTC；正文中的 `]]>` 不再破坏 CDATA 段；
-  缺少 `created` 的 `date:` 映射现在抛出清晰的校验错误而非裸 `KeyError`；
-  `pagination_per_page` 被限制为最小 1。
-
-- **标签列表不再生成重复的 HTML 锚点** —— 不同标签若被 slugify 为相同 id
-  （如 `C++`、`C#`），现在会自动消歧（`c`、`c-2`……）；层级标签的
-  相等性/哈希计算纳入父链，不同父节点下同名的叶子标签不再合并。
-
-- **privacy 插件安全处理重定向且不再卡住构建** —— 重定向改为手动跟随并
-  限制跳数；拒绝 https→http 降级及非 http(s)  scheme 的重定向；新增 30 秒
-  总下载时限与分离的连接/读取超时，约束慢速服务器。下载失败或缓存文件
-  被清除的资源会跳过并给出警告，不再导致 `copy_static_files` 崩溃。
-
-- **无配置文件时 `docsforge build --pdf` 不再崩溃** —— 当 `docsforge.yml`
-  不存在且未传 `--concurrency` 时，`pdf.py` 引用了未初始化的变量。
-
-- **文件末尾无换行的 front matter 现在可被解析** —— YAML 分隔符正则此前
-  要求闭合 `---` 后必须有换行，以 `...\ntitle: x\n---` 结尾的文档会被
-  错误解析；格式错误的 YAML 现在会记录警告而非被静默丢弃。
-
-- **`plugins: {name: false}` 现在可以禁用插件** —— 此前 `False` 会被强制
-  转为空字典，导致插件以默认配置加载。`False` 现在明确表示禁用；
-  `None`/省略仍按默认配置加载。
-
-- **serve 模式健壮性** —— 热重载的 epoch 等待增加 30 秒超时（构建线程
-  死掉不再永久阻塞 HTTP 处理器）；端口探测/绑定竞遇 `EADDRINUSE` 时重试；
-  端口查找失败时 `on_startup` 会被 `on_shutdown` 平衡；文件事件的
-  `_last_seen` 表在删除/移动时清理条目；watch 扩展标志改为存储在 config
-  对象上，而非存储会被 CPython 复用的 `id()` 集合。
-
-- **构建可复现性与错误信息** —— gzip 输出不再把绝对构建路径写入归档头；
-  `on_shutdown()` 失败不再掩盖原始构建错误；默认页面锁改为可重入的
-  `RLock`；`concurrency` 被限制为至少 1；压缩器失败时回退为未压缩输出，
-  不再因原生库故障中断构建。
-
-- **配置校验加固** —— `Hooks` 失败时抛出 `ValidationError` 而非
-  `AssertionError`，hook 模块 exec 失败时清理 `sys.modules`；`Theme` 校验
-  不再修改调用方的字典；Windows 跨盘符时 `os.path.commonpath` 的失败以
-  清晰的 `ConfigurationError` 呈现；失效的 `_legacy_required` 检查现在真正
-  拦截旧式 `required=` 用法；`ListOfItems` 复合校验器在 `reset_warnings()`
-  后保持子警告列表同步；`load_config` 不再假设 `sys.stdin` 一定有
-  `.buffer`。
-
-- **资源处理** —— privacy 的引用检查改为匹配完整路径段（不再出现
-  `not-home.svg` 与 `home.svg` 的误报）；引用缓存改为原子写入；
-  README/index 三方目标冲突现在全部上报；TikZ 缓存会清理已删除 `.tex`
-  文件的过期条目、检测同名 basename 冲突，并对同一输出的并发编译加锁；
-  `get_build_timestamp` 在 `update_date` 非法时优雅回退；emoji 索引的冲突
-  检查从 O(n²) 降为 O(n)。
-
-- **i18n/搜索/meta 细节** —— `i18n_current_locale` 同时暴露到页面上下文
-  （避免并行渲染时共享配置的竞态）；jieba 约 2 秒的字典加载改为在后台
-  线程进行，不再卡住首次构建；CJK 分词产生的零宽空格不再泄漏进搜索索引；
-  搜索条目恢复路径会设置 `file.page`；内部的 `__extends` 记账不再泄漏进
-  页面元数据；空的 `.meta.yml` 不再导致 meta 插件崩溃；Jinja 自动转义现在
-  覆盖 `.htm`、`.svg` 模板以及字符串渲染的模板。
-
-- **缓存写入并发安全** —— 缓存 JSON 文件通过带 PID 唯一后缀的临时文件加
-  每路径锁写入，并发构建（或同一构建的多个线程）不再互相覆盖或删除对方
-  的缓存文件。
-
-### 新增
-
-- **CI 现在在受支持的最早版本 Python（3.10）上与 3.12 一起运行测试** ——
-  测试任务以 `['3.10', '3.12']` 矩阵运行，并设置 `fail-fast: false`，在
-  支持范围的两侧都能捕获版本漂移。
+- **内置 Mermaid 从 11.17 升级到 12.0** —— 上游将 ELK 布局引擎直接内嵌，
+  `</br>` 现被识别为换行；DocsForge 固定了 v11 的外观默认值
+  （`layout: dagre`、`theme: default`、`look: classic`），确保现有图表
+  渲染效果不变；逐图 front matter 覆盖仍然有效。IIFE 产物增大约 600 kB
+  压缩体积（含内嵌 ELK；已计入 precache 清单），备用 CDN 路径升级到
+  `mermaid@12`。已在 Chromium 中验证全部 9 类核心图（flowchart、sequence、
+  class、state、ER、gantt、pie、mindmap、journey）渲染正常，
+  `initialize()` 无需改动即可接受 DocsForge 的既有配置。
 
 ## [12.5.7] — 2026-08-22
 
