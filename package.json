@@ -23,8 +23,8 @@
     "autoprefixer": "^10.4.23",
     "esbuild": "^0.28.2",
     "html-minifier-terser": "^7.2.0",
-    "katex": "^0.18.7",
-    "lucide-static": "^1.33.0",
+    "katex": "^0.18.4",
+    "lucide-static": "^1.44.0",
     "material-design-color": "^2.3.2",
     "material-shadows": "^3.0.1",
     "mermaid": "^11.17.0",
@@ -33,8 +33,8 @@
     "postcss-inline-svg": "^6.0.0",
     "preact": "^10.28.2",
     "sass": "^1.103.1",
-    "simple-icons": "^16.30.0",
-    "svgo": "^4.1.0",
+    "simple-icons": "^16.4.0",
+    "svgo": "^4.0.2",
     "typescript": "^7.0.2"
   }
 }
