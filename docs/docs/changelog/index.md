@@ -15,6 +15,12 @@
 
 ### Fixed
 
+- **Config loading no longer stalls ~13s on the emoji index** — the twemoji
+  index builder rebuilt the set of all known names once per vendored icon
+  file (O(N²) over ~10k SVGs), blocking every fresh `build`/`serve`/`check`
+  invocation with no output. Taken names are now tracked incrementally;
+  cold load dropped to well under a second with identical results.
+
 - **Reference docs no longer swallow headings and diagrams into code blocks**
   — the `markdown` example fences in the diagrams, content-tabs,
   admonitions, lists, creating-your-site, publishing usage, and

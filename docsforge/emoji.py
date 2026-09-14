@@ -97,6 +97,9 @@ def _load_twemoji_index(paths):
     root = os.path.dirname(getfile(docsforge))
     root = os.path.join(root, "templates", ".icons")
 
+    # Snapshot the taken names once: rebuilding this set per file turned
+    # indexing into O(N^2) (~13s on first load) over the vendored icon set.
+    taken = {n for key in ["emoji", "aliases"] for n in index[key]}
     for path in [*paths, root]:
         base = os.path.normpath(path)
         if not os.path.exists(base):
@@ -110,8 +113,8 @@ def _load_twemoji_index(paths):
 
             # Add icon to index
             name = f":{icon}:"
-            taken = {n for key in ["emoji", "aliases"] for n in index[key]}
             if name not in taken:
+                taken.add(name)
                 index["emoji"][name] = {"name": name, "path": file}
 
     return index

@@ -13,6 +13,12 @@
 
 ### 修复
 
+- **配置加载不再因表情索引卡顿约 13 秒** —— twemoji
+  索引构建曾对每个内置图标文件重建一次全量名称集合（约 1
+  万个 SVG 上的 O(N²)），导致每次全新的 `build`/`serve`/`check`
+  调用都无输出地阻塞。现在改为增量记录已占用名称，冷加载降到
+  1 秒以内，结果完全一致。
+
 - **参考文档不再把标题和图表吞进代码块** —— diagrams、content-tabs、
   admonitions、lists、creating-your-site、publishing usage 和 troubleshooting
   页面的 `markdown` 示例围栏使用三反引号，但内部又包含三反引号围栏，导致
