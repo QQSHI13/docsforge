@@ -242,7 +242,7 @@ Material Design
 
 列表可以包含代码块和其他块级元素：
 
-``` markdown
+```` markdown
 1. First step
    ``` bash
    echo "Hello"
@@ -251,7 +251,7 @@ Material Design
    ``` bash
    echo "World"
    ```
-```
+````
 
 1. First step
    ``` bash

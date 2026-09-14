@@ -242,7 +242,7 @@ Material Design
 
 Lists can contain code blocks and other block elements:
 
-``` markdown
+```` markdown
 1. First step
    ``` bash
    echo "Hello"
@@ -251,7 +251,7 @@ Lists can contain code blocks and other block elements:
    ``` bash
    echo "World"
    ```
-```
+````
 
 1. First step
    ``` bash

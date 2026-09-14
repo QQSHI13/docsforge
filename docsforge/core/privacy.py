@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import errno
 import logging
 import os
@@ -161,6 +162,16 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not self.config.enabled:
             return
 
+        # Serve reuses this plugin instance across rebuilds, and an
+        # interrupted build never reaches on_post_build (where the pool is
+        # normally shut down). Reap any leaked pool here instead of
+        # abandoning its threads. Never wait: workers may be stuck in
+        # network I/O with their own timeouts; queued jobs are cancelled.
+        old_pool = getattr(self, "pool", None)
+        if old_pool is not None:
+            with contextlib.suppress(Exception):
+                old_pool.shutdown(wait=False, cancel_futures=True)
+
         # Resolve cache_dir relative to the project root (config file directory)
         # so cached external assets are reused regardless of the current working
         # directory from which docsforge is invoked.
@@ -189,6 +200,22 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             log.disabled = True
         else:
             log.setLevel(self.config.log_level.upper())
+
+    def on_shutdown(self) -> None:
+        """Stop the download pool promptly so Ctrl-C exits immediately.
+
+        Workers blocked in network I/O finish on their own socket timeouts;
+        queued (not yet started) downloads are cancelled instead of joined.
+        Without this, interrupting `serve` during the initial build leaves
+        pool threads alive and the interpreter hangs joining them until
+        every download times out on its own.
+        """
+        self.pool_jobs = []
+        pool = getattr(self, "pool", None)
+        self.pool = None
+        if pool is not None:
+            with contextlib.suppress(Exception):
+                pool.shutdown(wait=False, cancel_futures=True)
 
     # -----------------------------------------------------------------------
     # Global events
@@ -560,14 +587,20 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
             content = b""
             download_deadline = time.monotonic() + MAX_DOWNLOAD_TIME
-            for chunk in res.iter_content(chunk_size=8192):
-                content += chunk
-                if len(content) > MAX_DOWNLOAD_SIZE:
-                    log.warning(f"External file too large: {file.url}")
-                    return False
-                if time.monotonic() > download_deadline:
-                    log.warning(f"Download timed out: {file.url}")
-                    return False
+            try:
+                for chunk in res.iter_content(chunk_size=8192):
+                    content += chunk
+                    if len(content) > MAX_DOWNLOAD_SIZE:
+                        log.warning(f"External file too large: {file.url}")
+                        return False
+                    if time.monotonic() > download_deadline:
+                        log.warning(f"Download timed out: {file.url}")
+                        return False
+            finally:
+                # Always release the connection back to the pool, including
+                # on the early-return paths above. iter_content() consumed
+                # the stream, so res.content is unavailable here.
+                res.close()
 
             mime = res.headers.get("content-type", "").split(";")[0]
             extension = extensions.get(mime)

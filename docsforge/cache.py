@@ -207,10 +207,16 @@ class CacheManager:
 
     def invalidate(self) -> None:
         """Clear all cache files tracked by the manager."""
+        removed = 0
         for f in self.all_cache_files():
             if f.exists():
                 f.unlink()
-        log.info("Build cache invalidated")
+                removed += 1
+        # Log only when something was actually discarded: a full rebuild
+        # invalidates twice in a row (version check, then config check) and
+        # the second call would otherwise print a confusing duplicate line.
+        if removed:
+            log.info("Build cache invalidated")
 
     def all_cache_files(self) -> list[Path]:
         """Every cache file this manager owns.
@@ -327,8 +333,9 @@ class BuildPlanner:
         # nothing is cached yet, so a first build stays quiet.
         stored_version = cache.get_version()
         if stored_version != CACHE_VERSION and any(f.exists() for f in cache.all_cache_files()):
+            prev = f"v{stored_version}" if cache.version_file.exists() else "unversioned"
             log.info(
-                f"Cache format changed (v{stored_version} -> v{CACHE_VERSION}); "
+                f"Cache format changed ({prev} -> v{CACHE_VERSION}); "
                 "discarding stale build cache"
             )
             cache.invalidate()

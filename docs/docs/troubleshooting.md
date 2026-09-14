@@ -259,12 +259,12 @@ markdown_extensions:
 
 2. Specify a valid language after the opening backticks:
 
-```markdown
+````markdown
 ```python
 def hello():
     print("hello")
 ```
-```
+````
 
 3. Check the [Pygments lexers list](https://pygments.org/docs/lexers/) for the correct language name.
 

@@ -425,6 +425,35 @@ def _ensure_nav_titles(nav: Navigation, config: DocsForgeConfig) -> None:
         except Exception:
             pass
 
+    # i18n: locale navs hold distinct Page objects (e.g. setup/index.zh.md)
+    # whose frontmatter (title, meta.icon for tabs/sidebar) is otherwise only
+    # loaded when that file is dirty. On incremental rebuilds skipped locale
+    # index pages kept meta={} so translated tabs lost their icons. Preload
+    # them here just like the default nav.
+    try:
+        plugins = getattr(config, "plugins", None)
+        i18n_plugin = None
+        if plugins is not None:
+            for key in ("material/i18n", "i18n"):
+                try:
+                    i18n_plugin = plugins[key]
+                    break
+                except KeyError:
+                    continue
+        locale_navs = getattr(i18n_plugin, "_locale_navs", None) if i18n_plugin is not None else None
+        if locale_navs:
+            for locale_nav in list(locale_navs.values()):
+                if locale_nav is nav:
+                    continue
+                for page in getattr(locale_nav, "pages", []):
+                    try:
+                        if getattr(page, "markdown", None) is None:
+                            page.read_source(config)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
 
 def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
     """Return a deterministic hash of the navigation structure.
@@ -445,6 +474,13 @@ def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
 
     def _serialize(item):
         if getattr(item, "is_page", False):
+            meta = getattr(item, "meta", None)
+            icon = None
+            try:
+                if isinstance(meta, dict):
+                    icon = meta.get("icon")
+            except Exception:
+                icon = None
             return {
                 "type": "page",
                 "src_uri": item.file.src_uri,
@@ -452,6 +488,7 @@ def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
                 "title": item.title,
                 "is_homepage": item.is_homepage,
                 "i18n_titles": _sorted_dict(item.i18n_titles),
+                "icon": icon,
             }
         if getattr(item, "is_section", False):
             return {
@@ -473,6 +510,28 @@ def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
         "site_url": config.site_url or "",
         "items": [_serialize(i) for i in nav.items],
     }
+    # i18n: locale nav titles/icons must also invalidate the signature.
+    # Otherwise a zh-only frontmatter title/icon change rebuilds just that
+    # file while other zh pages keep stale nav text/icons.
+    try:
+        plugins = getattr(config, "plugins", None)
+        i18n_plugin = None
+        if plugins is not None:
+            for key in ("material/i18n", "i18n"):
+                try:
+                    i18n_plugin = plugins[key]
+                    break
+                except KeyError:
+                    continue
+        locale_navs = getattr(i18n_plugin, "_locale_navs", None) if i18n_plugin is not None else None
+        if locale_navs:
+            data["i18n"] = {
+                str(locale): [_serialize(i) for i in locale_nav.items]
+                for locale, locale_nav in sorted(locale_navs.items(), key=lambda kv: str(kv[0]))
+                if locale_nav is not nav
+            }
+    except Exception:
+        pass
     hasher = hashlib.sha256()
     hasher.update(json.dumps(data, ensure_ascii=False, sort_keys=True).encode("utf-8"))
     return hasher.hexdigest()[:32]
@@ -585,7 +644,9 @@ def _populate_changed_pages(
     plugin_lock = threading.RLock()
     max_workers = max(1, config.concurrency)
     if to_populate:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        log.info(f"Rendering {len(to_populate)} pages...")
+        ex = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        try:
             futures = [
                 ex.submit(_populate_page, p, config, files, True, plugin_lock)
                 for p in to_populate
@@ -600,6 +661,14 @@ def _populate_changed_pages(
                 if len(errors) == 1:
                     raise errors[0]
                 raise BuildErrorGroup("Errors populating pages", errors)
+        except BaseException:
+            # Interrupted (e.g. Ctrl-C during serve): don't join running
+            # workers, just cancel what's queued so shutdown is prompt.
+            # Pages keep no partial cache state, so the next build retries.
+            ex.shutdown(wait=False, cancel_futures=True)
+            raise
+        else:
+            ex.shutdown(wait=True)
 
     if excluded:
         log.info(
@@ -700,7 +769,9 @@ def _write_outputs(
     built_sources: set[str] = set()
     if pages_to_build:
         max_workers = max(1, config.concurrency)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        log.info(f"Writing {len(pages_to_build)} pages...")
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+        try:
             futures = [
                 (
                     executor.submit(
@@ -749,6 +820,13 @@ def _write_outputs(
                 planner.validation[page.file.src_uri] = _serialize_validation(page)
                 built_sources.add(page.file.src_uri)
                 built_any = True
+        except BaseException:
+            # Interrupted: cancel queued pages instead of joining them so
+            # Ctrl-C during serve stops promptly.
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+        else:
+            executor.shutdown(wait=True)
 
     return built_any, built_sources
 

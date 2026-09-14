@@ -131,14 +131,14 @@ Add `+` to make it expanded by default:
 
 Admonitions can contain any Markdown, including code blocks:
 
-``` markdown
+```` markdown
 !!! example "Configuration example"
     ``` yaml
     theme:
       palette:
         primary: teal
     ```
-```
+````
 
 !!! example "Configuration example"
     ``` yaml

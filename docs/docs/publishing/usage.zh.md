@@ -165,7 +165,7 @@ plugins:
 ```
 
 ### 代码块
-```markdown
+````markdown
 ```python
 print("hello")
 ```
@@ -173,19 +173,19 @@ print("hello")
 ```yaml
 key: value
 ```
-```
+````
 
 带有注释：
-```markdown
+````markdown
 ```python
 print("hello")  # (1)!
 ```
 
 1.  :man_raising_hand: This is an annotation!
-```
+````
 
 ### 内容标签页
-```markdown
+````markdown
 === "Python"
 
     ```python
@@ -197,7 +197,7 @@ print("hello")  # (1)!
     ```javascript
     console.log("hello");
     ```
-```
+````
 
 ### 任务列表
 ```markdown
@@ -207,14 +207,14 @@ print("hello")  # (1)!
 ```
 
 ### Mermaid 图表
-```markdown
+````markdown
 ```mermaid
 graph LR
     A[Start] --> B{Decision}
     B -->|Yes| C[Action 1]
     B -->|No| D[Action 2]
 ```
-```
+````
 
 ### 数学公式（KaTeX）
 ```markdown

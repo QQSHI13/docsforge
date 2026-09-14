@@ -131,14 +131,14 @@ icon: material/alert-decagram-outline
 
 提示框可以包含任何 Markdown 内容，包括代码块：
 
-``` markdown
+```` markdown
 !!! example "配置示例"
     ``` yaml
     theme:
       palette:
         primary: teal
     ```
-```
+````
 
 !!! example "配置示例"
     ``` yaml

@@ -20,7 +20,7 @@ icon: material/tab
 
 ## 示例：安装方法
 
-``` markdown
+```` markdown
 === "pip"
     ``` bash
     pip install mypackage
@@ -35,7 +35,7 @@ icon: material/tab
     ``` bash
     docker pull mypackage:latest
     ```
-```
+````
 
 === "pip"
     ``` bash
@@ -54,7 +54,7 @@ icon: material/tab
 
 ## 示例：操作系统
 
-``` markdown
+```` markdown
 === "Linux"
     ``` bash
     docsforge serve
@@ -69,7 +69,7 @@ icon: material/tab
     ``` powershell
     docsforge serve
     ```
-```
+````
 
 === "Linux"
     ``` bash
@@ -88,7 +88,7 @@ icon: material/tab
 
 ## 示例：编程语言
 
-``` markdown
+```` markdown
 === "Python"
     ``` python
     def greet(name):
@@ -108,7 +108,7 @@ icon: material/tab
         format!("Hello, {}!", name)
     }
     ```
-```
+````
 
 === "Python"
     ``` python
@@ -134,7 +134,7 @@ icon: material/tab
 
 标签页可以包含任何 Markdown 内容，包括其他标签页：
 
-``` markdown
+```` markdown
 === "设置"
     === "Linux"
         ``` bash
@@ -148,7 +148,7 @@ icon: material/tab
 
 === "配置"
     编辑 `docsforge.yml` 以自定义你的网站。
-```
+````
 
 ## 带图标的标签页标签
 

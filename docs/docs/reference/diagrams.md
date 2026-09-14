@@ -39,7 +39,7 @@ graph LR
     B ---->|No| E[End]
 ```
 
-``` markdown
+```` markdown
 ```mermaid
 graph LR
     A[Start] --> B{Is it?}
@@ -48,7 +48,7 @@ graph LR
     D --> B
     B ---->|No| E[End]
 ```
-```
+````
 
 ### Flowchart direction
 
@@ -100,7 +100,7 @@ sequenceDiagram
     GitHub-->>User: Deployed site
 ```
 
-``` markdown
+```` markdown
 ```mermaid
 sequenceDiagram
     participant User
@@ -113,7 +113,7 @@ sequenceDiagram
     User->>GitHub: git push
     GitHub-->>User: Deployed site
 ```
-```
+````
 
 ### Arrow types
 
@@ -178,7 +178,7 @@ stateDiagram-v2
     Published --> [*]
 ```
 
-``` markdown
+```` markdown
 ```mermaid
 stateDiagram-v2
     [*] --> Draft
@@ -187,7 +187,7 @@ stateDiagram-v2
     Review --> Draft: Reject
     Published --> [*]
 ```
-```
+````
 
 ---
 
@@ -207,7 +207,7 @@ gantt
     Documentation    :a4, 2025-05-01, 2025-06-30
 ```
 
-``` markdown
+```` markdown
 ```mermaid
 gantt
     title DocsForge Roadmap
@@ -219,7 +219,7 @@ gantt
     Release          :a3, 2025-04-01, 2025-04-30
     Documentation    :a4, 2025-05-01, 2025-06-30
 ```
-```
+````
 
 ### Status indicators
 

@@ -20,7 +20,7 @@ Use `===` to define tabs:
 
 ## Example: Installation methods
 
-``` markdown
+```` markdown
 === "pip"
     ``` bash
     pip install mypackage
@@ -35,7 +35,7 @@ Use `===` to define tabs:
     ``` bash
     docker pull mypackage:latest
     ```
-```
+````
 
 === "pip"
     ``` bash
@@ -54,7 +54,7 @@ Use `===` to define tabs:
 
 ## Example: Operating systems
 
-``` markdown
+```` markdown
 === "Linux"
     ``` bash
     docsforge serve
@@ -69,7 +69,7 @@ Use `===` to define tabs:
     ``` powershell
     docsforge serve
     ```
-```
+````
 
 === "Linux"
     ``` bash
@@ -88,7 +88,7 @@ Use `===` to define tabs:
 
 ## Example: Programming languages
 
-``` markdown
+```` markdown
 === "Python"
     ``` python
     def greet(name):
@@ -108,7 +108,7 @@ Use `===` to define tabs:
         format!("Hello, {}!", name)
     }
     ```
-```
+````
 
 === "Python"
     ``` python
@@ -134,7 +134,7 @@ Use `===` to define tabs:
 
 Tabs can contain any Markdown, including other tabs:
 
-``` markdown
+```` markdown
 === "Setup"
     === "Linux"
         ``` bash
@@ -148,7 +148,7 @@ Tabs can contain any Markdown, including other tabs:
 
 === "Configuration"
     Edit `docsforge.yml` to customize your site.
-```
+````
 
 ## Tab labels with icons
 

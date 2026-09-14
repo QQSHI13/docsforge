@@ -259,12 +259,12 @@ markdown_extensions:
 
 2. 在开头的反引号后指定有效语言：
 
-```markdown
+````markdown
 ```python
 def hello():
     print("hello")
 ```
-```
+````
 
 3. 查看 [Pygments 词法分析器列表](https://pygments.org/docs/lexers/)获取正确的语言名称。
 

@@ -11,6 +11,28 @@
   class、state、ER、gantt、pie、mindmap、journey）渲染正常，
   `initialize()` 无需改动即可接受 DocsForge 的既有配置。
 
+### 修复
+
+- **参考文档不再把标题和图表吞进代码块** —— diagrams、content-tabs、
+  admonitions、lists、creating-your-site、publishing usage 和 troubleshooting
+  页面的 `markdown` 示例围栏使用三反引号，但内部又包含三反引号围栏，导致
+  外层提前闭合，后续标题、表格和实时图表都被渲染成代码。现在外层统一改
+  为四反引号（英文与中文 twin 一并修复）。
+
+- **增量构建时翻译后的标签页图标不再丢失** —— 顶栏图标取自各分节首页
+  front-matter 的 `icon`，但模板渲染前只预读了默认语言的源文件，因此重建
+  的 setup/reference 之外的中文页面会丢失 setup/reference/首页图标。现在
+  locale 导航的源文件同样预读，导航签名也覆盖 locale 标题与图标，纯中文
+  改动也能正确触发重建。
+
+- **构建中途 Ctrl-C 中断 `serve` 不再卡死** —— privacy
+  下载线程池缺少 shutdown 钩子，中断后网络线程残留，解释器在 join
+  它们时一直阻塞到所有下载超时。现在 shutdown 时取消排队中的下载（下次
+  `on_config` 回收残留池），HTTP 响应必定关闭，页面构建线程池在中断时取
+  消排队任务，缓存失效提示只打印一次，未版本化的残留缓存显示为
+  `unversioned` 而非 `v0`。首次长构建还会输出 `Rendering N pages...` /
+  `Writing N pages...`，慢与卡死可区分。
+
 ## [12.5.7] — 2026-08-22
 
 ### 新增

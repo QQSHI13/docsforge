@@ -165,7 +165,7 @@ plugins:
 ```
 
 ### Code Blocks
-```markdown
+````markdown
 ```python
 print("hello")
 ```
@@ -173,19 +173,19 @@ print("hello")
 ```yaml
 key: value
 ```
-```
+````
 
 With annotations:
-```markdown
+````markdown
 ```python
 print("hello")  # (1)!
 ```
 
 1.  :man_raising_hand: This is an annotation!
-```
+````
 
 ### Content Tabs
-```markdown
+````markdown
 === "Python"
 
     ```python
@@ -197,7 +197,7 @@ print("hello")  # (1)!
     ```javascript
     console.log("hello");
     ```
-```
+````
 
 ### Task Lists
 ```markdown
@@ -207,14 +207,14 @@ print("hello")  # (1)!
 ```
 
 ### Mermaid Diagrams
-```markdown
+````markdown
 ```mermaid
 graph LR
     A[Start] --> B{Decision}
     B -->|Yes| C[Action 1]
     B -->|No| D[Action 2]
 ```
-```
+````
 
 ### Math (KaTeX)
 ```markdown

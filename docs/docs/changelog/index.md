@@ -13,6 +13,34 @@
   render in Chromium with the pinned config, and `mermaid.initialize()`
   accepts DocsForge's config unchanged.
 
+### Fixed
+
+- **Reference docs no longer swallow headings and diagrams into code blocks**
+  — the `markdown` example fences in the diagrams, content-tabs,
+  admonitions, lists, creating-your-site, publishing usage, and
+  troubleshooting pages used triple backticks while containing triple-backtick
+  inner fences, so the outer block closed early and the following headings,
+  tables, and live diagrams rendered as code. The outer fences are now
+  quadruple backticks (English and Chinese twins fixed together).
+
+- **Translated tabs keep their icons on incremental builds** — the tab-bar
+  icons come from each section index page's front-matter `icon`, but only
+  default-locale sources were preloaded before template rendering, so a
+  rebuilt Chinese page outside setup/reference lost the setup/reference/home
+  icons. Locale nav sources are now preloaded too, and the navigation
+  signature covers locale titles and icons so zh-only changes rebuild
+  correctly.
+
+- **Interrupting `serve` during the initial build no longer hangs** — the
+  privacy download pool had no shutdown hook, so Ctrl-C left network threads
+  alive and the interpreter blocked joining them until every download timed
+  out. The pool is now cancelled on shutdown (and reaped on the next
+  `on_config`), HTTP responses are always closed, page-build executors cancel
+  queued work on interrupt, the cache-invalidate message prints once instead
+  of twice, and an unversioned partial cache reports as `unversioned` rather
+  than `v0`. Long first builds also log `Rendering N pages...` /
+  `Writing N pages...` so slow progress is distinguishable from a hang.
+
 ## [12.5.7] — 2026-08-22
 
 ### Added
