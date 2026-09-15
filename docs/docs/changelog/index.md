@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.0b1] — 2026-09-15
+
 ### Changed
 
 - **Mermaid vendored asset upgraded from 11.17 to 12.0** — ELK is now the
