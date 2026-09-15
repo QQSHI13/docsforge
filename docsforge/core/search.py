@@ -25,6 +25,12 @@ from docsforge.core.plugin_base import BasePlugin
 # Default field boosts, mirroring SearchPlugin.on_config.
 MARZ_FIELD_BOOSTS = {"title": 1e3, "text": 1e0, "tags": 1e6}
 
+# Matches data-search-* attributes stripped from page content before indexing.
+DATA_SEARCH_ATTRS_PATTERN = re.compile(r"\s?data-search-\w+=\"[^\"]+\"")
+
+# Heading tags that delimit index sections.
+HEADING_TAGS = frozenset({"h1", "h2", "h3", "h4", "h5", "h6"})
+
 # Reference Marz uses for root ("") entries: refs must not be empty, and no
 # real page URL is ever exactly "/". The frontend maps this back to "".
 # Keep in sync with MARZ_ROOT_REF in integrations/search/_/index.ts.
@@ -134,11 +140,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             page_entries = index.entries[before:]
             locale = self._locale_for_page(page)
             self._entries_cache.setdefault(locale, {})[page.file.src_uri] = page_entries
-        page.content = re.sub(
-            r"\s?data-search-\w+=\"[^\"]+\"",
-            "",
-            page.content
-        )
+        page.content = DATA_SEARCH_ATTRS_PATTERN.sub("", page.content)
         # Tell the frontend which search index this locale page should use.
         locale = self._locale_for_page(page)
         context["search_index_url"] = self._search_index_url(locale)
@@ -468,11 +470,19 @@ class Parser(HTMLParser):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.skip = {"object", "script", "style"}
+        self.skip_tags = {"object", "script", "style"}
+        self._skip_ids: set[int] = set()
         self.keep = {"p", "code", "pre", "li", "ol", "ul", "sub", "sup"}
         self.context = []
         self.section = None
         self.data = []
+
+    def _is_skipped(self):
+        """Return True if the current context is inside skipped content."""
+        return any(
+            el.tag in self.skip_tags or id(el) in self._skip_ids
+            for el in self.context
+        )
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
@@ -482,7 +492,7 @@ class Parser(HTMLParser):
         else:
             return
 
-        if tag in [f"h{x}" for x in range(1, 7)]:
+        if tag in HEADING_TAGS:
             depth = len(self.context)
             if "id" in attrs:
                 if tag != "h1" and not self.data:
@@ -499,13 +509,13 @@ class Parser(HTMLParser):
 
         for key, value in attrs.items():
             if key == "data-search-exclude":
-                self.skip.add(el)
+                self._skip_ids.add(id(el))
                 return
             if key == "class" and value == "linenodiv":
-                self.skip.add(el)
+                self._skip_ids.add(id(el))
                 return
 
-        if not self.skip.intersection(self.context) and tag in self.keep:
+        if not self._is_skipped() and tag in self.keep:
             data = self.section.text
             if self.section.el in self.context:
                 data = self.section.title
@@ -523,12 +533,11 @@ class Parser(HTMLParser):
                     break
 
         el = self.context.pop()
-        if el in self.skip:
-            if el.tag not in ["script", "style", "object"]:
-                self.skip.remove(el)
+        if id(el) in self._skip_ids:
+            self._skip_ids.discard(id(el))
             return
 
-        if not self.skip.intersection(self.context) and tag in self.keep:
+        if not self._is_skipped() and tag in self.keep:
             data = self.section.text
             if self.section.el in self.context:
                 data = self.section.title
@@ -544,7 +553,7 @@ class Parser(HTMLParser):
                 data.append(f"</{tag}>")
 
     def handle_data(self, data):
-        if self.skip.intersection(self.context):
+        if self._is_skipped():
             return
 
         if "pre" not in self.context:
