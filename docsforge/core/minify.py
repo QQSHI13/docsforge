@@ -76,6 +76,12 @@ class MinifyPlugin(BasePlugin):
 
         for idx, extra_item in enumerate(extra_files):
             file_path = self._item_path(extra_item)
+            # Strip a stale cache-busting query string left by a previous
+            # build - serve rebuilds re-run on_pre_build on the mutated
+            # config, so without this the source path would resolve with
+            # "?v=..." appended and never be found. The hash is re-derived
+            # below and appended afresh each build.
+            file_path = file_path.split("?", 1)[0]
             # Skip absolute/external URLs and empty paths.
             if not file_path or file_path.startswith(("http://", "https://", "//")):
                 continue

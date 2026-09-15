@@ -355,7 +355,7 @@ class ListingManager:
                     # they may be present in links extracted from remote tags.
                     # Additionally, we need to fallback to `.` if the URL is
                     # empty (= homepage) or the links will be incorrect.
-                    url = urlparse(value, allow_fragments = False)
+                    url = urlparse(value)
                     url = url._replace(fragment = self._slugify(tag))
 
                     # Add listing link to tag reference
@@ -521,7 +521,7 @@ class ListingManager:
                 rf"<\g<1>h{head.level}", hx
             )
             hx = re.sub(
-                rf"{listing.id}\/(\w+)",
+                rf"{re.escape(listing.id)}\/(\w+)",
                 r"{\1}", hx, flags = re.IGNORECASE | re.MULTILINE
             )
 
@@ -546,7 +546,7 @@ class ListingManager:
         # generated from mapping over the listing, or remove them.
         page.content = re.sub(
             r"<h{x}[^>]+{id}.*?</h{x}>".format(
-                id = f"{listing.id}/slug", x = self.depth
+                id = f"{re.escape(listing.id)}/slug", x = self.depth
             ),
             replace, page.content, flags = re.IGNORECASE | re.MULTILINE
         )

@@ -1143,7 +1143,7 @@ def get_offset(layer: Layer, image: _Image):
     # Compute offset from origin - if an origin is given, compute the offset
     # relative to the image and layer size to allow for flexible positioning
     if layer.origin != "start top":
-        origin = re.split(r"\s+", layer.origin)
+        origin = layer.origin.split()
 
         # Get layer size
         w, h = get_size(layer)
@@ -1226,6 +1226,10 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # rebuilds within a `docsforge serve` session.
         self.manifest: dict[str, str] = {}
 
+        # Lock guarding concurrent dispatch of card layer jobs in _generate,
+        # so cards sharing a layer hash submit exactly one render job.
+        self._layer_lock = Lock()
+
         # Initialize incremental builds
         self.is_serve = False
 
@@ -1244,6 +1248,15 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
     # Resolve and load manifest and initialize environment
     def on_config(self, config):
+        if not self.config.enabled:
+            return
+
+        # Shut down pools from a previous configuration (serve rebuilds call
+        # on_config again) before creating new ones, or threads would leak.
+        for pool in [getattr(self, "card_pool", None), getattr(self, "card_layer_pool", None)]:
+            if pool is not None:
+                pool.shutdown(cancel_futures = True)
+
         # Thread pools sized by the global `concurrency` setting; created here
         # (on_config receives the global config; on_startup does not).
         self.card_pool = ThreadPoolExecutor(config.concurrency)
@@ -1252,9 +1265,6 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # Initialize thread pool for card layers
         self.card_layer_pool = ThreadPoolExecutor(config.concurrency)
         self.card_layer_pool_jobs: dict[str, Future] = {}
-
-        if not self.config.enabled:
-            return
 
         # Resolve cache directory (once) - this is necessary, so the cache is
         # always relative to the configuration file, and thus project, and not
@@ -1403,6 +1413,8 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # Find offset of closing head tag, so we can insert meta tags before
         # it - a bit hacky, but much faster than regular expressions
         at = output.find("</head>")
+        if at == -1:
+            return output
         return "\n".join([
             output[:at],
             "\n".join([
@@ -1439,13 +1451,14 @@ class SocialPlugin(BasePlugin[SocialConfig]):
     # generated cards, so we can run this after all of them
     @event_priority(-100)
     def on_shutdown(self):
+        # Shut down thread pools if they were created - on_config returns
+        # early when the plugin is disabled, so they may not exist.
+        for pool in [getattr(self, "card_pool", None), getattr(self, "card_layer_pool", None)]:
+            if pool is not None:
+                pool.shutdown(cancel_futures = True)
+
         if not self.config.enabled:
             return
-
-        # Shutdown thread pools, cancelling all pending futures that have not
-        # yet been scheduled
-        for pool in [self.card_layer_pool, self.card_pool]:
-            pool.shutdown(cancel_futures = True)
 
         # Save manifest if cache should be used
         if self.manifest and self.config.cache:
@@ -1562,18 +1575,18 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             )
 
         # Spawn concurrent jobs to render layers - we only need to render layers
-        # that we haven't already dispatched, reducing work by deduplication
+        # that we haven't already dispatched, reducing work by deduplication.
+        # Dispatch is guarded by a lock, so concurrent cards sharing a layer
+        # hash submit exactly one render job. Futures are awaited below,
+        # outside the lock.
         for h, layer in layers.items():
-            sentinel = Future()
-
-            # We need to use a hack here to avoid locking the thread pool while
-            # we check if the layer was already dispatched. If we don't do this,
-            # layers might be dispatched multiple times. The trick is to use a
-            # sentinel value to check if the layer was already dispatched.
-            if sentinel == self.card_layer_pool_jobs.setdefault(h, sentinel):
-                self.card_layer_pool_jobs[h] = self.card_layer_pool.submit(
-                    self._render, layer, page, config
-                )
+            with self._layer_lock:
+                fut = self.card_layer_pool_jobs.get(h)
+                if fut is None:
+                    fut = self.card_layer_pool.submit(
+                        self._render, layer, page, config
+                    )
+                    self.card_layer_pool_jobs[h] = fut
 
         # Reconcile concurrent jobs to render layers and compose card - since
         # layers are rendered in parallel, we can compose the card as soon as
@@ -2035,7 +2048,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # URLs to font files, as we're going to rename them anyway. This should
         # be more resilient than trying to correct the JSON syntax.
         url = f"https://fonts.google.com/download/list?family={family}"
-        res = requests.get(url)
+        res = requests.get(url, timeout = (5, 30))
 
         # Ensure that the download succeeded
         if res.status_code != 200:
@@ -2048,7 +2061,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         for match in re.findall(
             r"\"(https:(?:.*?)\.[ot]tf)\"", str(res.content)
         ):
-            with requests.get(match) as res:
+            with requests.get(match, timeout = (5, 30)) as res:
                 res.raise_for_status()
 
                 # Construct image font for analysis by directly reading the
@@ -2247,7 +2260,7 @@ def _metrics(path: str, line: Line, ref: _Image):
 # Compute anchor, determining the alignment of text relative to the given
 # coordinates, with the default being "top left" - see https://bit.ly/3NEfr07
 def _anchor(data: str):
-    axis = re.split(r"\s+", data)
+    axis = data.split()
 
     # Determine anchor on x-axis
     if "start" in axis:

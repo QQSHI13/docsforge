@@ -31,6 +31,7 @@ class MetaPlugin(BasePlugin[MetaConfig]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.meta = {}
+        self._sorted_meta: list = []
 
     def on_files(self, files, *, config):
         if not self.config.enabled:
@@ -57,6 +58,18 @@ class MetaPlugin(BasePlugin[MetaConfig]):
                         f"Error reading meta file '{path}' in '{docs}':\n{e}"
                     )
 
+        # Pre-sort meta files shallowest-first, so on_page_markdown doesn't
+        # re-sort on every page. Paths are normalized to "/" separators, as
+        # src_uri values always use forward slashes.
+        self._sorted_meta = self._sorted_meta_entries()
+
+    def _sorted_meta_entries(self):
+        """Return meta files ordered shallowest-first for level-order merge."""
+        return sorted(
+            self.meta.items(),
+            key=lambda item: item[0].replace(os.sep, "/").count("/"),
+        )
+
     @event_priority(50)
     def on_page_markdown(self, markdown, *, page, config, files):
         if not self.config.enabled:
@@ -65,11 +78,16 @@ class MetaPlugin(BasePlugin[MetaConfig]):
         meta = {}
         strategy = Strategy.TYPESAFE_ADDITIVE
 
-        # Merge matching meta files in level-order (shallowest first)
-        for path, defaults in sorted(self.meta.items(), key=lambda item: item[0].count(os.sep)):
-            dir_path = os.path.dirname(path)
-            page_dir = os.path.dirname(page.file.src_path)
-            if dir_path and page_dir != dir_path and not page_dir.startswith(dir_path + os.sep):
+        # Merge matching meta files in level-order (shallowest first). The
+        # ordering is precomputed in on_files; re-sort here if the mapping
+        # changed since (e.g. meta files registered another way).
+        entries = self._sorted_meta
+        if len(entries) != len(self.meta):
+            entries = self._sorted_meta_entries()
+        for path, defaults in entries:
+            dir_path = os.path.dirname(path).replace(os.sep, "/")
+            page_dir = os.path.dirname(page.file.src_path).replace(os.sep, "/")
+            if dir_path and page_dir != dir_path and not page_dir.startswith(dir_path + "/"):
                 continue
 
             page.meta.setdefault("__extends", [])
