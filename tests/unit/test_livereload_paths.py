@@ -11,9 +11,10 @@ is expected; these tests are what actually establishes the guard holds.
 """
 from __future__ import annotations
 
+import logging
 import os
 
-from docsforge.livereload import LiveReloadServer
+from docsforge.livereload import LiveReloadServer, _Handler
 
 
 def _make_server(root, mount_path="/"):
@@ -25,6 +26,29 @@ def _make_server(root, mount_path="/"):
         root=str(root),
         mount_path=mount_path,
     )
+
+
+class TestRequestLogLevels:
+    """Routine dev-server traffic must not show up as red errors."""
+
+    def _level_for(self, code, caplog):
+        handler = object.__new__(_Handler)
+        handler.requestline = "GET /x HTTP/1.1"
+        with caplog.at_level(logging.DEBUG, logger="docsforge.livereload"):
+            _Handler.log_request(handler, code=code)
+        return caplog.records[-1].levelno
+
+    def test_404_is_info_not_error(self, caplog):
+        assert self._level_for("404", caplog) == logging.INFO
+
+    def test_500_stays_error(self, caplog):
+        assert self._level_for("500", caplog) == logging.ERROR
+
+    def test_200_stays_debug(self, caplog):
+        assert self._level_for("200", caplog) == logging.DEBUG
+
+    def test_other_4xx_warn(self, caplog):
+        assert self._level_for("403", caplog) == logging.WARNING
 
 
 class TestResolveWithinRoot:

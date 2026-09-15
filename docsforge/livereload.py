@@ -571,7 +571,17 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
 class _Handler(wsgiref.simple_server.WSGIRequestHandler):
     def log_request(self, code="-", size="-"):
-        level = logging.DEBUG if str(code) in ("200", "301", "302", "304") else logging.ERROR
+        code = str(code)
+        if code in ("200", "301", "302", "304"):
+            level = logging.DEBUG
+        elif code == "404":
+            # Missing files during dev (typo'd links, favicon probes,
+            # drafts) are routine — not an error.
+            level = logging.INFO
+        elif code.startswith("4"):
+            level = logging.WARNING
+        else:
+            level = logging.ERROR
         log.log(level, f'"{self.requestline}" code {code}')
 
     def log_message(self, format, *args):

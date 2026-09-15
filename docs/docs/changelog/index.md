@@ -15,6 +15,15 @@
 
 ### Fixed
 
+- **Dev-server 404s are info, not errors** — every missing file (typo'd
+  links, favicon probes, drafts) used to log a red `ERROR` line; 404s now
+  log at info level (other 4xx warn, 5xx stay errors). The log prefix also
+  no longer paints the `-` separator red/yellow along with the level name.
+- **Friendlier CLI output** — `docsforge --help` shows examples and a
+  colorful command list, `docsforge check` reports with green/red/yellow
+  status lines and hints, and the setup wizard uses color for its banner,
+  steps, errors, and summary.
+
 - **Builds survive slow or blocked networks** — the social plugin retried an
   unreachable Google Fonts host once per page (94 serial connect-timeout
   cascades, one error per page, minute-long stalls). Timeouts are unchanged,

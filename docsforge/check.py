@@ -9,6 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
+import click
 import yaml
 
 from docsforge.config_base import load_config
@@ -52,7 +53,8 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
         log.error(f"Failed to parse {config_path}: {e}")
         return 1
 
-    print("  YAML syntax:   ✓ Valid")
+    print("  YAML syntax:   ", end="")
+    click.secho("✓ Valid", fg="green")
 
     # 3. Validate required keys
     issues = []
@@ -120,7 +122,8 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
     if theme_name not in available_themes:
         issues.append(f"Theme '{theme_name}' not found. Available: {', '.join(available_themes)}")
     else:
-        print(f"  Theme:         {theme_name} ✓")
+        print(f"  Theme:         {theme_name} ", end="")
+        click.secho("✓", fg="green")
 
     # Warn if theme keys are placed at the top level instead of under `theme:`
     top_level_theme_keys = {
@@ -154,13 +157,13 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
 
             clean_name = name.split("/")[-1] if "/" in name else name
             if clean_name in BUILTIN_PLUGINS or name in BUILTIN_PLUGINS:
-                print(f"                   ✓ {name}")
+                click.secho(f"                   ✓ {name}", fg="green")
                 if clean_name in AUTOLOAD_PLUGINS:
                     warnings_list.append(
                         f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
                     )
             else:
-                print(f"                   • {name} (third-party plugin)")
+                click.secho(f"                   • {name} (third-party plugin)", fg="cyan")
     else:
         print("  Plugins:       default set (search, meta, etc.)")
 
@@ -197,22 +200,26 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
 
     print()
     if full_validation_ok and not issues:
-        print("  Config check:  passed")
+        print("  Config check:  ", end="")
+        click.secho("passed ✓  — ready to build!", fg="green", bold=True)
     elif not full_validation_ok:
-        print("  Config check:  failed")
+        print("  Config check:  ", end="")
+        click.secho("failed ✗", fg="red", bold=True)
     else:
-        print("  Config check:  passed (with issues above)")
+        print("  Config check:  ", end="")
+        click.secho("passed (with issues below)", fg="yellow", bold=True)
 
     # 8. Print lightweight results
     if issues:
-        print(f"  ERRORS ({len(issues)}):")
+        click.secho(f"  ERRORS ({len(issues)}):", fg="red", bold=True)
         for issue in issues:
-            print(f"    ✗ {issue}")
+            click.secho(f"    ✗ {issue}", fg="red")
+        print("  See above — fix these, then run 'docsforge check' again.")
 
     if warnings_list:
-        print(f"  WARNINGS ({len(warnings_list)}):")
+        click.secho(f"  WARNINGS ({len(warnings_list)}):", fg="yellow", bold=True)
         for warning in warnings_list:
-            print(f"    ⚠ {warning}")
+            click.secho(f"    ⚠ {warning}", fg="yellow")
 
     # Flush stdout so the whole check summary appears BEFORE the build/serve
     # logs that follow. build/serve log to stderr (logging.StreamHandler
@@ -241,13 +248,13 @@ def fix_config(config_file=None) -> int:
     site_url = raw.get("site_url", "")
     if site_url and isinstance(site_url, str) and not site_url.endswith("/"):
         raw["site_url"] = site_url + "/"
-        print(f"  ✓ Added trailing slash to site_url: {raw['site_url']}")
+        click.secho(f"  ✓ Added trailing slash to site_url: {raw['site_url']}", fg="green")
         changed = True
 
     # Fix 2: Add edit_uri if repo_url is set
     if raw.get("repo_url") and "edit_uri" not in raw:
         raw["edit_uri"] = "edit/main/docs/"
-        print("  ✓ Added edit_uri: edit/main/docs/")
+        click.secho("  ✓ Added edit_uri: edit/main/docs/", fg="green")
         changed = True
 
     # Fix 3: Remove built-in plugins from explicit list
@@ -261,7 +268,7 @@ def fix_config(config_file=None) -> int:
             if clean not in known and name not in known:
                 new_plugins.append(p)
             else:
-                print(f"  ✓ Removed built-in plugin: {name}")
+                click.secho(f"  ✓ Removed built-in plugin: {name}", fg="green")
                 changed = True
         raw["plugins"] = new_plugins
 
@@ -279,12 +286,12 @@ def fix_config(config_file=None) -> int:
             theme = {}
         for key in misplaced:
             theme[key] = raw.pop(key)
-            print(f"  ✓ Moved '{key}' under 'theme:'")
+            click.secho(f"  ✓ Moved '{key}' under 'theme:'", fg="green")
             changed = True
         raw["theme"] = theme
 
     if not changed:
-        print("  No issues found. Configuration is clean.")
+        click.secho("  No issues found. Configuration is clean. ✓", fg="green")
         return 0
 
     # yaml.dump() re-serializes from the parsed tree, so comments, key order

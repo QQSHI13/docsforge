@@ -50,14 +50,38 @@ class ColorFormatter(logging.Formatter):
 
     def format(self, record):
         message = super().format(record)
-        prefix = f"{record.levelname:<8}-  "
+        # Color the level name only — the trailing "-  " separator stays
+        # plain so it doesn't glow red/yellow along with the label.
+        level = f"{record.levelname:<8}"
         if record.levelname in self.colors:
-            prefix = click.style(prefix, fg=self.colors[record.levelname])
+            level = click.style(level, fg=self.colors[record.levelname])
+        prefix = level + "-  "
         if self.text_wrapper.width:
             indent = self.text_wrapper.initial_indent
             msg = "\n".join(self.text_wrapper.fill(line) for line in message.splitlines())
             return prefix + msg[len(indent):]
         return prefix + message
+
+
+class DocsForgeGroup(click.Group):
+    """Command group with a colorful command list (plain text when piped)."""
+
+    def format_commands(self, ctx, formatter):
+        commands = []
+        for subcommand in self.list_commands(ctx):
+            cmd = self.get_command(ctx, subcommand)
+            if cmd is None or cmd.hidden:
+                continue
+            commands.append((subcommand, cmd))
+        if not commands:
+            return
+        with formatter.section("Commands"):
+            formatter.write_dl(
+                [
+                    (click.style(name, fg="cyan", bold=True), cmd.get_short_help_str())
+                    for name, cmd in commands
+                ]
+            )
 
 
 class State:
@@ -89,17 +113,25 @@ def _enable_warnings():
 # ---- Main CLI ----
 
 @click.group(
+    cls=DocsForgeGroup,
     invoke_without_command=True,
-    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 120}
+    context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 120},
+    epilog="Examples:\n"
+    "\n"
+    "\b\n"
+    "  docsforge serve    Preview your docs with live reload\n"
+    "  docsforge build    Build the site into ./site\n"
+    "  docsforge check    Validate docsforge.yml without building\n"
+    "\n"
+    "Run 'docsforge COMMAND -h' for details on each command.",
 )
 @click.version_option(__version__, "-v", "--version", prog_name="docsforge")
 @click.pass_context
 def docsforge(ctx):
-    """DocsForge - Project documentation with Markdown.
+    """📚 DocsForge — turn Markdown into a fast, polished docs site.
 
-    Smart default: run 'docsforge' alone in a project directory to see
-    available commands. If no docsforge.yml exists, starts interactive
-    project creation.
+    Run 'docsforge' alone inside a project to see available commands.
+    Run it where no docsforge.yml exists and it will help you start one.
     """
     _ = State()  # Initialize default logging
 
@@ -116,7 +148,7 @@ def docsforge(ctx):
               help="Number of parallel tabs for PDF rendering "
                    "(default: global `concurrency`, capped by available memory)")
 def build(strict, pdf, jobs):
-    """Build the DocsForge documentation for production."""
+    """Build the site for production (fast incremental rebuilds)."""
     _ = State()  # Initialize default logging
     _enable_warnings()
 
@@ -164,7 +196,7 @@ def build(strict, pdf, jobs):
 @docsforge.command()
 @click.option("--fix", is_flag=True, help="Auto-fix common configuration issues")
 def check(fix):
-    """Validate configuration without building."""
+    """Check docsforge.yml and friends without building anything."""
     _ = State()
     if fix:
         from docsforge.check import fix_config
@@ -178,7 +210,7 @@ def check(fix):
 @click.option("--no-open", is_flag=True, help="Do not open a browser tab automatically")
 @click.option("--strict", is_flag=True, help="Treat warnings as errors during rebuilds")
 def serve(lan, no_open, strict):
-    """Start the live-reloading docs server."""
+    """Preview your docs locally with live reload as you edit."""
     _ = State()  # Initialize default logging
 
     # Auto-check config and dependencies before serving

@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
 from urllib.parse import urlparse
 
+import click
+
 from docsforge import slugify
 
 if TYPE_CHECKING:
@@ -211,37 +213,37 @@ class ProjectManager:
 
         # Welcome banner
         print()
-        print("=" * 56)
-        print("  Welcome to DocsForge!")
-        print("  Let's set up your documentation project.")
-        print("  Core features (search, tags, blog, etc.) are always included.")
-        print("=" * 56)
+        click.secho("=" * 56, fg="cyan")
+        click.secho("  Welcome to DocsForge! 📚", fg="cyan", bold=True)
+        click.secho("  Let's set up your documentation project.", fg="cyan")
+        click.secho("  Core features (search, tags, blog, etc.) are always included.", fg="cyan")
+        click.secho("=" * 56, fg="cyan")
         print()
 
         try:
             # Step 1: Site name
-            print("Step 1/10 — Site name")
+            click.secho("Step 1/10 — Site name", fg="cyan", bold=True)
             prompt = f"  What should we call your docs? [{site_name or 'My Documentation'}]: "
             site_name = input(prompt).strip() or site_name or "My Documentation"
             print()
 
             # Step 2: Site description
-            print("Step 2/10 — Site description")
+            click.secho("Step 2/10 — Site description", fg="cyan", bold=True)
             site_description = input("  Short description [Optional]: ").strip() or None
             print()
 
             # Step 3: Author / Organization
-            print("Step 3/10 — Author / Organization")
+            click.secho("Step 3/10 — Author / Organization", fg="cyan", bold=True)
             author_name = input("  Who is the author or organization? [Optional]: ").strip() or None
             print()
 
             # Step 4: Copyright
-            print("Step 4/10 — Copyright")
+            click.secho("Step 4/10 — Copyright", fg="cyan", bold=True)
             copyright_notice = input("  Copyright notice [Optional]: ").strip() or None
             print()
 
             # Step 5: Theme color
-            print("Step 5/10 — Theme color")
+            click.secho("Step 5/10 — Theme color", fg="cyan", bold=True)
             print("  Available: teal, indigo, blue, green, red, orange, purple, pink")
             while True:
                 theme_input = input(f"  Pick a color [{theme_color}]: ").strip() or theme_color
@@ -249,22 +251,22 @@ class ProjectManager:
                     theme_color = _validate_theme_color(theme_input)
                     break
                 except ValueError as e:
-                    print(f"  Invalid: {e}")
+                    click.secho(f"  Invalid: {e}", fg="red")
             print()
 
             # Step 6: Language
-            print("Step 6/10 — Language")
+            click.secho("Step 6/10 — Language", fg="cyan", bold=True)
             while True:
                 language_input = input("  Site language code [en]: ").strip() or "en"
                 try:
                     language = _validate_language(language_input)
                     break
                 except ValueError as e:
-                    print(f"  Invalid: {e}")
+                    click.secho(f"  Invalid: {e}", fg="red")
             print()
 
             # Step 7: GitHub repository
-            print("Step 7/10 — GitHub repository")
+            click.secho("Step 7/10 — GitHub repository", fg="cyan", bold=True)
             print("  Used for social cards and edit links. Format: https://github.com/user/repo")
             while True:
                 repo_url = input("  GitHub repo URL [Optional]: ").strip() or None
@@ -272,11 +274,11 @@ class ProjectManager:
                     repo_url = _validate_url(repo_url, "Repository URL")
                     break
                 except ValueError as e:
-                    print(f"  Invalid: {e}")
+                    click.secho(f"  Invalid: {e}", fg="red")
             print()
 
             # Step 8: Site URL (for social cards, RSS, etc.)
-            print("Step 8/10 — Site URL")
+            click.secho("Step 8/10 — Site URL", fg="cyan", bold=True)
             print("  Where will your docs be hosted? e.g. https://user.github.io/repo/")
             while True:
                 site_url_input = input("  Site URL [Optional]: ").strip()
@@ -285,17 +287,17 @@ class ProjectManager:
                     site_url = _validate_url(site_url, "Site URL")
                     break
                 except ValueError as e:
-                    print(f"  Invalid: {e}")
+                    click.secho(f"  Invalid: {e}", fg="red")
             print()
 
             # Step 9: Branding assets
-            print("Step 9/10 — Branding assets")
+            click.secho("Step 9/10 — Branding assets", fg="cyan", bold=True)
             favicon = input("  Path to favicon (relative to docs/) [Optional]: ").strip() or None
             logo = input("  Path to logo (relative to docs/) [Optional]: ").strip() or None
             print()
 
             # Step 10: Privacy
-            print("Step 10/10 — Privacy mode")
+            click.secho("Step 10/10 — Privacy mode", fg="cyan", bold=True)
             print("  Privacy mode fetches external assets and inlines them locally.")
             print("  This prevents tracking and ensures docs work offline.")
             privacy_input = input("  Enable privacy mode? [Y/n]: ").strip().lower()
@@ -304,7 +306,7 @@ class ProjectManager:
 
         except (EOFError, KeyboardInterrupt):
             print()
-            print("  Cancelled.")
+            click.secho("  Cancelled.", fg="yellow")
             return 1
 
         # Use site name slug as project directory if not explicitly provided
@@ -328,19 +330,19 @@ class ProjectManager:
             )
 
             # Summary
-            print("=" * 56)
-            print("  All done! Here's what was created:")
+            click.secho("=" * 56, fg="green")
+            click.secho("  All done! 🎉 Here's what was created:", fg="green", bold=True)
             print()
             print(f"  Directory:  ./{project_directory}/")
             print(f"  Config:     ./{project_directory}/docsforge.yml")
             print(f"  Docs:       ./{project_directory}/docs/index.md")
             print()
-            print("  Next steps:")
+            click.secho("  Next steps:", fg="cyan", bold=True)
             print(f"    cd {project_directory}")
             print("    docsforge serve")
             print()
-            print("  Happy documenting! 📚")
-            print("=" * 56)
+            click.secho("  Happy documenting! 📚", fg="green")
+            click.secho("=" * 56, fg="green")
             print()
             return 0
         except Exception as e:

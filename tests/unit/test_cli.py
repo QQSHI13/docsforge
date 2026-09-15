@@ -150,3 +150,30 @@ class TestValidatorCheckFullValidation:
         captured = capsys.readouterr()
         assert "CONFIGURATION ERROR" in captured.out
         assert "plugins.does_not_exist" in captured.out
+
+
+class TestColorFormatter:
+    """Only the level name gets color — the '-  ' separator stays plain."""
+
+    def test_hyphen_not_colored(self):
+        import logging
+
+        from docsforge.__main__ import ColorFormatter
+
+        record = logging.LogRecord(
+            "docsforge", logging.ERROR, __file__, 1, "boom", (), None
+        )
+        out = ColorFormatter().format(record)
+        assert out.startswith("\x1b[31mERROR   \x1b[0m-  ")
+
+    def test_help_lists_commands_with_examples(self):
+        from click.testing import CliRunner
+
+        from docsforge.__main__ import docsforge
+
+        result = CliRunner().invoke(docsforge, ["--help"])
+        assert result.exit_code == 0
+        assert "Examples:" in result.output
+        assert "docsforge serve" in result.output
+        for command in ("build", "check", "serve"):
+            assert command in result.output
