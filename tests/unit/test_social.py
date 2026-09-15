@@ -391,3 +391,82 @@ class TestMetaTagEscaping:
         image = social_module.Image.new(mode="RGBA", size=(100, 100))
         with pytest.raises(PluginError, match="not-a-color"):
             plugin._render_background(layer, image)
+
+
+class TestFontFetchResilience:
+    """Slow/blocked networks must cost one fetch attempt per build, not one
+    per page, and pages must still build (without cards)."""
+
+    def _plugin(self, tmp_path):
+        plugin = SocialPlugin()
+        plugin.load_config({"cache_dir": str(tmp_path / ".cache")})
+        cfg = _load_config(tmp_path)
+        plugin.on_config(cfg)
+        return plugin, cfg
+
+    def test_failed_fetch_retried_never_within_build(self, tmp_path, monkeypatch):
+        from unittest.mock import Mock
+
+        import requests
+
+        plugin, _ = self._plugin(tmp_path)
+        fetch = Mock(
+            side_effect=requests.exceptions.ConnectTimeout("Connection timed out")
+        )
+        monkeypatch.setattr(plugin, "_fetch_font_from_google_fonts", fetch)
+        with pytest.raises(social_module._FontUnavailableError):
+            plugin._resolve_font("Roboto", "Regular")
+        with pytest.raises(social_module._FontUnavailableError):
+            plugin._resolve_font("Roboto", "Bold")
+        assert fetch.call_count == 1
+        plugin.on_shutdown()
+
+    def test_font_unavailable_is_plugin_error(self, tmp_path):
+        from docsforge.exceptions import PluginError
+
+        assert issubclass(social_module._FontUnavailableError, PluginError)
+
+    def test_post_page_skips_card_quietly_when_font_unavailable(
+        self, tmp_path, caplog
+    ):
+        from concurrent.futures import Future
+        from types import SimpleNamespace
+
+        plugin, cfg = self._plugin(tmp_path)
+        page = SimpleNamespace(
+            title="Home",
+            meta={},
+            file=SimpleNamespace(src_uri="index.md", src_path="index.md"),
+        )
+        future: Future = Future()
+        future.set_exception(
+            social_module._FontUnavailableError("Font unavailable")
+        )
+        plugin.card_pool_jobs = {"index.md": future}
+        with caplog.at_level(logging.WARNING, logger="mkdocs.material.social"):
+            assert plugin.on_post_page("<p>x</p>", page=page, config=cfg) is None
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+        plugin.on_shutdown()
+
+    def test_failed_fetch_retried_on_next_build(self, tmp_path, monkeypatch):
+        from unittest.mock import Mock
+
+        import requests
+
+        plugin, cfg = self._plugin(tmp_path)
+        monkeypatch.setattr(
+            plugin,
+            "_fetch_font_from_google_fonts",
+            Mock(
+                side_effect=requests.exceptions.ConnectTimeout(
+                    "Connection timed out"
+                )
+            ),
+        )
+        with pytest.raises(social_module._FontUnavailableError):
+            plugin._resolve_font("Roboto", "Regular")
+        assert plugin._font_fetch_failed == {"Roboto"}
+        # A new build clears the failure set, so recovery is retried once.
+        plugin.on_config(cfg)
+        assert plugin._font_fetch_failed == set()
+        plugin.on_shutdown()

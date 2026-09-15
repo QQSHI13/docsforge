@@ -15,6 +15,14 @@
 
 ### Fixed
 
+- **Builds survive slow or blocked networks** — the social plugin retried an
+  unreachable Google Fonts host once per page (94 serial connect-timeout
+  cascades, one error per page, minute-long stalls). Font families are now
+  fetched at most once per build: on failure pages build normally without
+  cards after a single warning, and the next build retries. Card/layer pools
+  also shut down without waiting on stuck network workers, so a single
+  Ctrl-C stops the build promptly instead of needing a second one.
+
 - **Parallel page builds actually run in parallel** — `_build_page` held one
   shared lock across template rendering and file writes, so `concurrency`
   was a no-op. The lock now covers only shared state (`page.active`,

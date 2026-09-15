@@ -1213,6 +1213,13 @@ class SocialConfig(Config):
 # Classes (from social/plugin.py)
 # -----------------------------------------------------------------------------
 
+# Raised when a font family cannot be fetched (slow/blocked network) after the
+# single per-build attempt. Unlike other PluginErrors it is never logged per
+# page: the fetch site warns once, and pages then build without cards.
+class _FontUnavailableError(PluginError):
+    pass
+
+
 # Social plugin
 class SocialPlugin(BasePlugin[SocialConfig]):
     supports_multiple_instances = True
@@ -1248,14 +1255,24 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
     # Resolve and load manifest and initialize environment
     def on_config(self, config):
-        if not self.config.enabled:
-            return
-
         # Shut down pools from a previous configuration (serve rebuilds call
         # on_config again) before creating new ones, or threads would leak.
+        # wait=False: workers blocked in network I/O must not stall a rebuild
+        # or Ctrl-C; they finish on their own socket timeouts. Runs even when
+        # the plugin is now disabled, so enable->disable flips leak nothing.
         for pool in [getattr(self, "card_pool", None), getattr(self, "card_layer_pool", None)]:
             if pool is not None:
-                pool.shutdown(cancel_futures = True)
+                pool.shutdown(wait = False, cancel_futures = True)
+        self.card_pool = None
+        self.card_layer_pool = None
+
+        # Families whose single per-build fetch attempt failed. Cleared on
+        # every (re-)configuration so the next build retries once instead of
+        # once per page.
+        self._font_fetch_failed: set[str] = set()
+
+        if not self.config.enabled:
+            return
 
         # Thread pools sized by the global `concurrency` setting; created here
         # (on_config receives the global config; on_startup does not).
@@ -1381,6 +1398,10 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         future = self.card_pool_jobs[page.file.src_uri]
         if future.exception():
             e = future.exception()
+            # Unreachable font host: warned once at fetch time, so skip the
+            # card quietly instead of erroring every page.
+            if isinstance(e, _FontUnavailableError):
+                return None
             if self.config.log and isinstance(e, PluginError):
                 level = logging.getLevelName(self.config.log_level.upper())
                 if not isinstance(level, int):
@@ -1452,10 +1473,16 @@ class SocialPlugin(BasePlugin[SocialConfig]):
     @event_priority(-100)
     def on_shutdown(self):
         # Shut down thread pools if they were created - on_config returns
-        # early when the plugin is disabled, so they may not exist.
+        # early when the plugin is disabled, so they may not exist. wait=False
+        # so workers blocked in network I/O can't stall Ctrl-C: queued cards
+        # are cancelled and running workers finish on socket timeouts, while
+        # the interpreter is free to exit (blocking joins here are what used
+        # to demand a second Ctrl-C and then hang in threading._shutdown).
         for pool in [getattr(self, "card_pool", None), getattr(self, "card_layer_pool", None)]:
             if pool is not None:
-                pool.shutdown(cancel_futures = True)
+                pool.shutdown(wait = False, cancel_futures = True)
+        self.card_pool = None
+        self.card_layer_pool = None
 
         if not self.config.enabled:
             return
@@ -2001,10 +2028,34 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # we need the double path check, which makes sure that we only use the
         # lock when we actually need to download a font that doesn't exist. If
         # we already downloaded it, we don't want to block at all.
+        #
+        # A family whose single per-build fetch attempt failed is never
+        # retried within the same build: without this, N pages each pay the
+        # full connect-timeout cascade (slow/blocked networks stall the whole
+        # build and spam one error per page). Pages then build without cards.
         if not os.path.isdir(path):
+            if family in self._font_fetch_failed:
+                raise _FontUnavailableError(
+                    f"Font family '{family}' unavailable, skipping social cards"
+                )
             with self.lock:
+                if family in self._font_fetch_failed:
+                    raise _FontUnavailableError(
+                        f"Font family '{family}' unavailable, skipping social cards"
+                    )
                 if not os.path.isdir(path):
-                    self._fetch_font_from_google_fonts(family)
+                    try:
+                        self._fetch_font_from_google_fonts(family)
+                    except Exception as e:
+                        self._font_fetch_failed.add(family)
+                        log.warning(
+                            f"Couldn't fetch font family '{family}' ({e}); "
+                            "building pages without social cards. "
+                            "Cards will be retried on the next build."
+                        )
+                        raise _FontUnavailableError(
+                            f"Font family '{family}' unavailable, skipping social cards"
+                        ) from e
 
         # Assemble fully qualified style - see https://t.ly/soDF0
         if variant:
