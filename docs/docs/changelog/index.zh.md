@@ -13,6 +13,30 @@
 
 ### 修复
 
+- **并行页面构建真正并行** —— `_build_page`
+  曾用一把共享锁包住模板渲染与文件写入，`concurrency`
+  形同虚设。现在锁只保护共享状态（`page.active`、`config._current_page`、`get_context`
+  的 git-meta 写入与插件钩子），渲染与原子写入在锁外执行。`active`
+  清除改为 sibling-aware，`_current_page` 在每个加锁钩子内重新确认，并发构建不再互相闪烁侧栏高亮。
+- **片段包含页面在增量构建中收敛** —— 新鲜度检查只用插件依赖，而缓存记录的是片段依赖，导致任何带
+  `--8<--` 的页面永远重建；空依赖列表还会被丢弃。现在两处检查都提前计算片段依赖并与
+  `update_cache` 共用，后者持久化空列表并清理已移除依赖。
+- **增量 I/O 不再空转** —— 静态文件改用 `dirty=True`
+  与 size+mtime_ns 比较，theme/extra/manifest 输出改为内容无变化不写，孤儿扫描排除生成物（`assets/`、sitemap、搜索索引、PWA
+  文件）并参考已知 `dest_uri` 集合，所有文件/缓存写入均为原子写入（tmp + `os.replace`）。
+- **中文导航正确性** —— locale 导航使用自己的 homepage（而非英文对象），拥有独立的 prev/next
+  链，翻译页与回退页（含已物化页面）保留 `i18n_titles`，不再覆盖单页 description 或用导航标签改写文档标题，locale
+  标题幂等重算，回退条目按 `src_uri` 高亮。
+- **Social、搜索、标签与 minify 健壮性** —— 卡片层分发加锁（消除 sentinel
+  死锁），字体下载加超时且仅在启用时建池，缺失 `</head>` 不再损坏输出，搜索排除按元素身份跟踪（嵌套同标签
+  `div` 保持排除），tag listing ID 正则转义且 fragment 处理正确，`?v=`
+  哈希在 serve 重建后存活，meta 文件一次排序并统一 `/` 路径。
+- **Serve 重建可中断且无竞态** —— `KeyboardInterrupt` /
+  `SystemExit` 重新抛出而非吞掉，重建标志在锁内变更，端口占用重试使用 `errno.EADDRINUSE`，自定义
+  `site_dir` 按路径忽略（非硬编码 `site`），通配符主机探测回环地址，privacy
+  下载排空至静止并上报错误，超大或不可解码资源安全跳过，配置缓存键为
+  `(mtime_ns, size)`，shutdown 等待 observer，`check --fix` 原子写入。
+
 - **配置加载不再因表情索引卡顿约 13 秒** —— twemoji
   索引构建曾对每个内置图标文件重建一次全量名称集合（约 1
   万个 SVG 上的 O(N²)），导致每次全新的 `build`/`serve`/`check`

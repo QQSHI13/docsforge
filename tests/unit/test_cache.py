@@ -249,6 +249,10 @@ class TestBuildPlanner:
         assert p.should_rebuild(src, out) is False
         # source changes -> rebuild
         src.write_text("v2")
+        # Bump mtime explicitly: a same-size rewrite within one mtime tick
+        # is indistinguishable via the stat fast-path (and flakes).
+        st = src.stat()
+        os.utime(src, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000))
         assert p.should_rebuild(src, out) is True
 
     def test_rebuild_when_dependency_changed(self, tmp_path: Path):
@@ -266,6 +270,9 @@ class TestBuildPlanner:
         assert p.should_rebuild(src, out) is False
         # edit the include -> rebuild even though page source is unchanged
         inc.write_text("v2")
+        # Same mtime-tick guard as above (same-size rewrite).
+        st = inc.stat()
+        os.utime(inc, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000))
         assert p.should_rebuild(src, out) is True
 
     def test_no_rebuild_when_unchanged(self, tmp_path: Path):

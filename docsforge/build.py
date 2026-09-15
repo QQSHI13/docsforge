@@ -336,29 +336,30 @@ def _build_page(
 ) -> None:
     """Pass a Page to theme template and write output to site_dir.
 
-    Only shared-state mutations (``config._current_page``, ``page.active``,
-    ``get_context`` git-meta writes, and plugin hooks) run under the lock.
-    ``env.get_template`` is thread-safe and ``template.render``/``write_file``
-    are thread-local, so they run outside the lock for real concurrency.
+    Only shared-state work runs under the lock (``page.active`` toggling,
+    ``config._current_page`` for plugin hooks, ``get_context`` git-meta
+    writes, and plugin hooks). ``_current_page`` is (re-)set inside each
+    locked block and only cleared when still ours, so a concurrent build
+    cannot observe or clear another page. ``env.get_template`` is
+    thread-safe and ``template.render``/``write_file`` are thread-local,
+    so they run outside the lock for real concurrency.
     """
     lock = _page_lock or _default_page_lock  # Always have a lock
 
-    with lock:
-        config._current_page = page
-        page.active = True
     try:
-        log.debug(f"Building page {page.file.src_uri}")
-
         with lock:
+            page.active = True
+            config._current_page = page
+            log.debug(f"Building page {page.file.src_uri}")
+
             context = get_context(nav, doc_files, config, page)
+
+            # Run `page_context` plugin events.
+            context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
 
         # Allow 'template:' override in md source files.
         # Jinja Environment.get_template is thread-safe; no locking needed.
         template = env.get_template(page.meta.get("template", "main.html"))
-
-        with lock:
-            # Run `page_context` plugin events.
-            context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
 
         if excluded:
             page.content = (
@@ -371,6 +372,9 @@ def _build_page(
         output = template.render(context)
 
         with lock:
+            # Re-assert current page: another build may have overwritten the
+            # shared pointer while we rendered without the lock.
+            config._current_page = page
             # Run `post_page` plugin events.
             output = config.plugins.on_post_page(output, page=page, config=config)
 
@@ -394,9 +398,11 @@ def _build_page(
         return
     finally:
         with lock:
-            # Deactivate page
+            # Deactivate page (sibling-aware: parent stays active while a
+            # concurrent build in the same section is still rendering).
             page.active = False
-            config._current_page = None
+            if config._current_page is page:
+                config._current_page = None
 
 
 def _prepare_build(

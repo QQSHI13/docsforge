@@ -178,7 +178,17 @@ class Page(StructureItem):  # noqa: PLW1641 - see __eq__ below
         """Set active status of page and ancestors."""
         self.__active = bool(value)
         if self.parent is not None:
-            self.parent.active = bool(value)
+            if value:
+                self.parent.active = True
+            else:
+                # Only clear the parent when no sibling stays active, so
+                # concurrent page builds sharing a section don't flicker
+                # each other's sidebar highlight.
+                siblings = getattr(self.parent, "children", None)
+                if siblings is None or not any(
+                    getattr(s, "active", False) for s in siblings if s is not self
+                ):
+                    self.parent.active = False
 
     @property
     def is_index(self) -> bool:

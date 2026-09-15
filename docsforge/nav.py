@@ -78,7 +78,17 @@ class Section(StructureItem):
         """Set active status of section and ancestors."""
         self.__active = bool(value)
         if self.parent is not None:
-            self.parent.active = bool(value)
+            if value:
+                self.parent.active = True
+            else:
+                # Sibling-aware clear (see Page.active): concurrent builds
+                # share section objects, so only clear when nothing underneath
+                # stays active.
+                siblings = getattr(self.parent, "children", None)
+                if siblings is None or not any(
+                    getattr(s, "active", False) for s in siblings if s is not self
+                ):
+                    self.parent.active = False
 
     is_section: bool = True
     """Indicates that the navigation object is a "section" object. Always `True` for section objects."""

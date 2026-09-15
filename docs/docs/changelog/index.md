@@ -15,6 +15,45 @@
 
 ### Fixed
 
+- **Parallel page builds actually run in parallel** — `_build_page` held one
+  shared lock across template rendering and file writes, so `concurrency`
+  was a no-op. The lock now covers only shared state (`page.active`,
+  `config._current_page`, `get_context` git-meta writes, plugin hooks);
+  rendering and atomic writes run outside it. `active` clearing is
+  sibling-aware and `_current_page` is re-asserted per hook, so concurrent
+  builds no longer flicker each other's sidebar highlight.
+- **Snippet-include pages converge on incremental builds** — freshness checks
+  used plugin-only deps while the cache recorded snippet deps, so any
+  `--8<--` page rebuilt forever; empty dep lists were also dropped. Both
+  check paths now compute snippet deps up front and share them with
+  `update_cache`, which persists empty lists and prunes removed deps.
+- **Incremental I/O no longer churns** — static files copy with `dirty=True`
+  and size+mtime_ns comparison, theme/extra/manifest outputs are
+  compare-before-write, orphan scans exclude generated outputs (`assets/`,
+  sitemap, search index, PWA files) and consult known `dest_uri`s, and all
+  file/cache writes are atomic (tmp + `os.replace`).
+- **Chinese nav correctness** — locale navs use their own homepage (not the
+  English object), get their own prev/next chain, preserve `i18n_titles` on
+  translated and fallback pages (including already-materialized pages),
+  no longer clobber per-page descriptions or rewrite doc titles from nav
+  labels, recompute locale titles idempotently, and highlight fallback
+  entries by `src_uri`.
+- **Social, search, tags and minify robustness** — card layer dispatch is
+  lock-guarded (no sentinel deadlock), font downloads time out and pools are
+  created only when enabled, missing `</head>` no longer corrupts output,
+  search exclusion tracks element identity (nested same-tag `div`s stay
+  excluded), tag listing IDs are regex-escaped with correct fragment
+  handling, `?v=` hashes survive serve rebuilds, and meta files sort once
+  with `/`-normalized paths.
+- **Serve rebuilds are interruptible and race-free** — `KeyboardInterrupt` /
+  `SystemExit` re-raise instead of being swallowed, rebuild flags mutate
+  under lock, bind retries use `errno.EADDRINUSE`, custom `site_dir`s are
+  ignored by path (not a hardcoded `site`), wildcard hosts probe loopback,
+  privacy downloads drain until quiescent with errors surfaced, oversized or
+  undecodable assets are skipped safely, the config cache keys on
+  `(mtime_ns, size)`, shutdown joins the observer, and `check --fix` writes
+  atomically.
+
 - **Config loading no longer stalls ~13s on the emoji index** — the twemoji
   index builder rebuilt the set of all known names once per vendored icon
   file (O(N²) over ~10k SVGs), blocking every fresh `build`/`serve`/`check`

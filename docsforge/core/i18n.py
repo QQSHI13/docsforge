@@ -342,6 +342,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
                 new_page.i18n_titles = dict(page.i18n_titles)
             elif title is not None:
                 lang_file.page.title = title
+                if not lang_file.page.i18n_titles and page.i18n_titles:
+                    lang_file.page.i18n_titles = dict(page.i18n_titles)
             # Remember the default-language file so nav titles can be resolved
             # after Markdown sources (and frontmatter titles) have been read.
             lang_file.page.i18n_base_file = page.file  # type: ignore[attr-defined]
