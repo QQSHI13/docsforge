@@ -1,5 +1,14 @@
 ## [未发布]
 
+### 新增
+
+- **Studio 可自我更新** —— 新增 `DocsForge: Check for Updates`
+  命令，对比已安装引擎（PyPI）与扩展（GitHub releases）的最新版本，用 pip
+  在原解释器配置中升级引擎，下载新版 VSIX 并安装、提示重载。启动 45
+  秒后静默检查一次（仅在有更新时通知，同版本只提醒一次，可用
+  `docsforge.autoCheckUpdates` 关闭），`docsforge.includePrereleases`
+  可把 beta/alpha 纳入检查。
+
 ## [13.0.0b1] — 2026-09-15
 
 ### 变更

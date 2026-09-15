@@ -152,6 +152,26 @@ async function pipInstall(
   );
 }
 
+/** Upgrade an installed docsforge to an exact version via pip.
+ *
+ * Reuses the installer's progress UI and output panel. Returns true when
+ * pip exited 0 (the caller should re-probe the version afterwards).
+ */
+export async function upgradeDocsforge(
+  python: string, workspaceRoot: string,
+  installKind: EnvironmentState['installKind'], version: string,
+  onLine: (line: string) => void,
+): Promise<boolean> {
+  const target = `docsforge==${version}`;
+  const pipArgs = installKind === 'user'
+    ? ['--user', '--upgrade', target]
+    : ['--upgrade', target];
+  return pipInstall(
+    python, workspaceRoot, pipArgs,
+    `Updating DocsForge to ${version}…`, onLine,
+  );
+}
+
 /** Ensure docsforge is installed, offering venv / user / global installs.
  *
  * Returns the interpreter to use, or null if the user cancelled / install failed.

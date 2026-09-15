@@ -55,3 +55,95 @@ export function shouldEscalateToSigkill(
 ): boolean {
   return proc.exitCode === null && proc.signalCode == null;
 }
+
+/** Pre-release precedence: stable > rc > beta/b > alpha/a. */
+const PRE_ORDER: Record<string, number> = { a: 0, alpha: 0, b: 1, beta: 1, rc: 2 };
+
+/** Normalize a version for comparison: `13.0.0-beta.1` -> `13.0.0b1`. */
+export function normalizeVersion(raw: string): string {
+  return raw.trim().replace(/[-_.]?(alpha|beta|rc|a|b)[-_.]?(\d*)$/i, (_, pre: string, num: string) => {
+    const short = pre.toLowerCase().startsWith('alpha') ? 'a' : pre.toLowerCase().startsWith('beta') ? 'b' : pre.toLowerCase();
+    return `${short}${num || '0'}`;
+  });
+}
+
+interface ParsedVersion {
+  major: number;
+  minor: number;
+  patch: number;
+  preKind: string | null;
+  preNum: number;
+}
+
+/** Parse `12.5.7`, `13.0.0b1`, `13.0.0-beta.1` (local `+...` suffix ignored). */
+export function parseVersion(raw: string): ParsedVersion | null {
+  const cleaned = normalizeVersion(raw).split('+', 1)[0];
+  const match = cleaned.match(/^(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d*))?$/i);
+  if (!match) {
+    return null;
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    preKind: match[4] ? match[4].toLowerCase() : null,
+    preNum: match[5] ? Number(match[5]) : 0,
+  };
+}
+
+/** Compare versions: -1 if a < b, 0 if equal, 1 if a > b. Unparseable loses. */
+export function compareVersions(a: string, b: string): -1 | 0 | 1 {
+  const pa = parseVersion(a);
+  const pb = parseVersion(b);
+  if (!pa && !pb) {
+    return 0;
+  }
+  if (!pa) {
+    return -1;
+  }
+  if (!pb) {
+    return 1;
+  }
+  for (const key of ['major', 'minor', 'patch'] as const) {
+    if (pa[key] !== pb[key]) {
+      return pa[key] < pb[key] ? -1 : 1;
+    }
+  }
+  if (pa.preKind === pb.preKind) {
+    if (pa.preNum === pb.preNum) {
+      return 0;
+    }
+    return pa.preNum < pb.preNum ? -1 : 1;
+  }
+  if (pa.preKind === null) {
+    return 1;
+  }
+  if (pb.preKind === null) {
+    return -1;
+  }
+  const orderA = PRE_ORDER[pa.preKind] ?? -1;
+  const orderB = PRE_ORDER[pb.preKind] ?? -1;
+  return orderA < orderB ? -1 : 1;
+}
+
+/** Whether a version string is a pre-release (alpha/beta/rc). */
+export function isPrereleaseVersion(raw: string): boolean {
+  return parseVersion(raw)?.preKind !== null && parseVersion(raw) !== null;
+}
+
+/** Pick the newest version from a list, skipping pre-releases unless asked. */
+export function pickLatestVersion(versions: string[], includePre: boolean): string | null {
+  let best: string | null = null;
+  for (const v of versions) {
+    if (!parseVersion(v)) {
+      continue;
+    }
+    if (!includePre && isPrereleaseVersion(v)) {
+      continue;
+    }
+    if (best === null || compareVersions(v, best) > 0) {
+      best = v;
+    }
+  }
+  return best;
+}

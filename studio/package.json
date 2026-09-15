@@ -34,6 +34,7 @@
     "onCommand:docsforge.refreshDiagnostics",
     "onCommand:docsforge.openLinkTarget",
     "onCommand:docsforge.openPage",
+    "onCommand:docsforge.checkForUpdates",
     "onCommand:docsforge.refreshSidebar",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
@@ -133,6 +134,12 @@
         "title": "Open Built Page",
         "icon": "$(globe)",
         "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.checkForUpdates",
+        "title": "Check for Updates",
+        "icon": "$(cloud-download)",
+        "category": "DocsForge"
       }
     ],
     "viewsContainers": {
@@ -196,6 +203,16 @@
           "type": "boolean",
           "default": false,
           "description": "Format the markdown document on save (trailing whitespace, blank-line runs). Off by default; enables automatically once set."
+        },
+        "docsforge.autoCheckUpdates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically check for DocsForge engine and extension updates after startup. Only notifies when an update is available."
+        },
+        "docsforge.includePrereleases": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include beta/alpha releases when checking for updates."
         }
       }
     },

@@ -9,6 +9,7 @@ import { detectEnvironment, ensureDocsforge } from './environment';
 import { DocsForgeDiagnostics } from './diagnostics';
 import { registerProviders, srcUriOf } from './providers';
 import { registerRenameCommands, registerAutoRename } from './rename';
+import { registerUpdateCommands } from './update';
 import { docsDirFromConfig, resolveLinkTarget, stripLocaleSuffix } from './links';
 
 let serverManager: ServerManager;
@@ -196,8 +197,12 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('docsforge.openDocs', () => {
       vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse('https://qqshi13.github.io/docsforge/'));
-    })
+    }),
   );
+
+  // Self-update: manual command + silent delayed startup check (notifies
+  // only when an update is found).
+  registerUpdateCommands(context);
 
   // Editor intelligence per workspace root that already has a config
   // (multi-root: every folder, not just workspaceFolders[0]).

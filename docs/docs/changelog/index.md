@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+### Added
+
+- **Studio can update itself** — new `DocsForge: Check for Updates` command
+  compares the installed engine (PyPI) and extension (GitHub releases)
+  against the latest versions, upgrades the engine with pip in the same
+  interpreter setup, and downloads + installs a newer VSIX with a reload
+  prompt. A silent startup check (45 s delay, once per version, off via
+  `docsforge.autoCheckUpdates`) notifies only when something is newer, and
+  `docsforge.includePrereleases` opts betas into the check.
+
 ## [13.0.0b1] — 2026-09-15
 
 ### Changed
