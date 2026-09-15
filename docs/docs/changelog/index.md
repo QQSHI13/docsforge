@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.0b3] — 2026-09-15
+
 ### Added
 
 - **Studio update check in the sidebar** — the Actions view has a
