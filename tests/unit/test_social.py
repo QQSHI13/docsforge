@@ -404,7 +404,9 @@ class TestFontFetchResilience:
         plugin.on_config(cfg)
         return plugin, cfg
 
-    def test_failed_fetch_retried_never_within_build(self, tmp_path, monkeypatch):
+    def test_failed_fetch_attempted_once_per_build(
+        self, tmp_path, monkeypatch, caplog
+    ):
         from unittest.mock import Mock
 
         import requests
@@ -414,11 +416,66 @@ class TestFontFetchResilience:
             side_effect=requests.exceptions.ConnectTimeout("Connection timed out")
         )
         monkeypatch.setattr(plugin, "_fetch_font_from_google_fonts", fetch)
+        # No local fonts either: pages give up quietly after one attempt.
+        monkeypatch.setattr(plugin, "_fallback_font", lambda style: None)
         with pytest.raises(social_module._FontUnavailableError):
             plugin._resolve_font("Roboto", "Regular")
         with pytest.raises(social_module._FontUnavailableError):
             plugin._resolve_font("Roboto", "Bold")
         assert fetch.call_count == 1
+        fetch_warnings = [
+            r for r in caplog.records if "Couldn't fetch font family" in r.message
+        ]
+        assert len(fetch_warnings) == 1
+        plugin.on_shutdown()
+
+    def test_unavailable_family_uses_local_fallback(self, tmp_path, monkeypatch):
+        from unittest.mock import Mock
+
+        import requests
+
+        plugin, _ = self._plugin(tmp_path)
+        fonts = tmp_path / "sysfonts"
+        (fonts / "nested").mkdir(parents=True)
+        for name in ("FakeSans.ttf", "FakeSans-Bold.ttf", "FakeSans-Italic.ttf"):
+            (fonts / "nested" / name).write_bytes(b"")
+        monkeypatch.setattr(social_module, "_system_font_dirs", lambda: [str(fonts)])
+        fetch = Mock(
+            side_effect=requests.exceptions.ConnectTimeout("Connection timed out")
+        )
+        monkeypatch.setattr(plugin, "_fetch_font_from_google_fonts", fetch)
+        assert plugin._resolve_font("Roboto", "Regular").endswith("FakeSans.ttf")
+        assert plugin._resolve_font("Roboto", "Bold").endswith("FakeSans-Bold.ttf")
+        assert plugin._resolve_font("Roboto", "Italic").endswith("FakeSans-Italic.ttf")
+        # One fetch attempt total; one warning total — no per-page spam.
+        assert fetch.call_count == 1
+        plugin.on_shutdown()
+
+    def test_fallback_prefers_cached_families(self, tmp_path, monkeypatch):
+        from unittest.mock import Mock
+
+        import requests
+
+        plugin, _ = self._plugin(tmp_path)
+        cached = Path(plugin.config.cache_dir) / "fonts" / "Cached"
+        cached.mkdir(parents=True)
+        (cached / "Cached-Regular.ttf").write_bytes(b"")
+        fonts = tmp_path / "sysfonts"
+        fonts.mkdir()
+        (fonts / "Other-Regular.ttf").write_bytes(b"")
+        monkeypatch.setattr(social_module, "_system_font_dirs", lambda: [str(fonts)])
+        monkeypatch.setattr(
+            plugin,
+            "_fetch_font_from_google_fonts",
+            Mock(
+                side_effect=requests.exceptions.ConnectTimeout(
+                    "Connection timed out"
+                )
+            ),
+        )
+        assert plugin._resolve_font("Roboto", "Regular").endswith(
+            str(Path("Cached") / "Cached-Regular.ttf")
+        )
         plugin.on_shutdown()
 
     def test_font_unavailable_is_plugin_error(self, tmp_path):
@@ -454,6 +511,7 @@ class TestFontFetchResilience:
         import requests
 
         plugin, cfg = self._plugin(tmp_path)
+        monkeypatch.setattr(plugin, "_fallback_font", lambda style: None)
         monkeypatch.setattr(
             plugin,
             "_fetch_font_from_google_fonts",

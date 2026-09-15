@@ -19,6 +19,7 @@ import os
 import pickle
 import posixpath
 import re
+import sys
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import copy
@@ -1220,6 +1221,26 @@ class _FontUnavailableError(PluginError):
     pass
 
 
+def _system_font_dirs() -> list[str]:
+    """Local font directories used when a Google Fonts fetch fails."""
+    if sys.platform == "win32":
+        roots = [os.path.join(os.environ.get("SYSTEMROOT", r"C:\Windows"), "Fonts")]
+    elif sys.platform == "darwin":
+        roots = [
+            "/System/Library/Fonts",
+            "/Library/Fonts",
+            os.path.expanduser("~/Library/Fonts"),
+        ]
+    else:
+        roots = [
+            "/usr/share/fonts",
+            "/usr/local/share/fonts",
+            os.path.expanduser("~/.fonts"),
+            os.path.expanduser("~/.local/share/fonts"),
+        ]
+    return [root for root in roots if os.path.isdir(root)]
+
+
 # Social plugin
 class SocialPlugin(BasePlugin[SocialConfig]):
     supports_multiple_instances = True
@@ -1236,6 +1257,12 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # Lock guarding concurrent dispatch of card layer jobs in _generate,
         # so cards sharing a layer hash submit exactly one render job.
         self._layer_lock = Lock()
+
+        # Families whose Google Fonts fetch failed (one attempt per build),
+        # and memoized local fallback fonts per style. Both are reset on
+        # every (re-)configuration; see on_config.
+        self._font_fetch_failed: set[str] = set()
+        self._fallback_fonts: dict[str, str | None] = {}
 
         # Initialize incremental builds
         self.is_serve = False
@@ -1266,10 +1293,11 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         self.card_pool = None
         self.card_layer_pool = None
 
-        # Families whose single per-build fetch attempt failed. Cleared on
-        # every (re-)configuration so the next build retries once instead of
-        # once per page.
-        self._font_fetch_failed: set[str] = set()
+        # Families whose single per-build fetch attempt failed, and memoized
+        # fallback fonts. Cleared on every (re-)configuration so the next
+        # build retries the fetch once instead of once per page.
+        self._font_fetch_failed = set()
+        self._fallback_fonts = {}
 
         if not self.config.enabled:
             return
@@ -2029,33 +2057,32 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # lock when we actually need to download a font that doesn't exist. If
         # we already downloaded it, we don't want to block at all.
         #
-        # A family whose single per-build fetch attempt failed is never
-        # retried within the same build: without this, N pages each pay the
-        # full connect-timeout cascade (slow/blocked networks stall the whole
-        # build and spam one error per page). Pages then build without cards.
+        # A family whose fetch failed is attempted only once per build:
+        # without this, N pages each pay the full connect-timeout cascade and
+        # slow/blocked networks stall the whole build. After a failure the
+        # card falls back to a local font below, so pages still render.
         if not os.path.isdir(path):
-            if family in self._font_fetch_failed:
+            if family not in self._font_fetch_failed:
+                with self.lock:
+                    if family not in self._font_fetch_failed and not os.path.isdir(path):
+                        try:
+                            self._fetch_font_from_google_fonts(family)
+                        except Exception as e:
+                            self._font_fetch_failed.add(family)
+                            log.warning(
+                                f"Couldn't fetch font family '{family}' ({e}); social "
+                                "cards will use a local fallback font when available. "
+                                "The family will be retried on the next build."
+                            )
+            if not os.path.isdir(path) and family in self._font_fetch_failed:
+                merged = f"{variant} {style}" if variant else style
+                fallback = self._fallback_font(merged)
+                if fallback is not None:
+                    log.debug(f"Using fallback font '{fallback}' for '{family} {merged}'")
+                    return fallback
                 raise _FontUnavailableError(
                     f"Font family '{family}' unavailable, skipping social cards"
                 )
-            with self.lock:
-                if family in self._font_fetch_failed:
-                    raise _FontUnavailableError(
-                        f"Font family '{family}' unavailable, skipping social cards"
-                    )
-                if not os.path.isdir(path):
-                    try:
-                        self._fetch_font_from_google_fonts(family)
-                    except Exception as e:
-                        self._font_fetch_failed.add(family)
-                        log.warning(
-                            f"Couldn't fetch font family '{family}' ({e}); "
-                            "building pages without social cards. "
-                            "Cards will be retried on the next build."
-                        )
-                        raise _FontUnavailableError(
-                            f"Font family '{family}' unavailable, skipping social cards"
-                        ) from e
 
         # Assemble fully qualified style - see https://t.ly/soDF0
         if variant:
@@ -2087,6 +2114,50 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
         # Fall back to regular font (guess if there are multiple)
         return self._resolve_font(family, fallback)
+
+    def _fallback_font(self, style: str) -> str | None:
+        """Return a locally available font file matching style, if any.
+
+        Used when the Google Fonts fetch failed, so cards still render with a
+        best-effort local font instead of failing every page. Other already
+        cached families win over system fonts; among the rest, the file whose
+        name matches most of the style words wins, ties broken by shortest
+        name. Results are memoized per style for the lifetime of the build.
+        """
+        if style in self._fallback_fonts:
+            return self._fallback_fonts[style]
+        candidates: list[tuple[str, bool]] = []
+        fonts_root = os.path.join(self.config.cache_dir, "fonts")
+        if os.path.isdir(fonts_root):
+            for entry in sorted(os.listdir(fonts_root)):
+                entry_path = os.path.join(fonts_root, entry)
+                if os.path.isdir(entry_path):
+                    candidates.extend(
+                        (os.path.join(entry_path, name), True)
+                        for name in sorted(os.listdir(entry_path))
+                        if name.lower().endswith((".ttf", ".otf"))
+                    )
+        for root in _system_font_dirs():
+            for dirpath, _, files in os.walk(root):
+                candidates.extend(
+                    (os.path.join(dirpath, name), False)
+                    for name in sorted(files)
+                    if name.lower().endswith((".ttf", ".otf"))
+                )
+        wants = [word for word in re.split(r"[^a-z]+", style.lower()) if word]
+        best: str | None = None
+        best_key: tuple[int, int, int] | None = None
+        for candidate, cached in candidates:
+            name = os.path.basename(candidate).lower()
+            key = (
+                sum(1 for word in wants if word in name),
+                1 if cached else 0,
+                -len(name),
+            )
+            if best_key is None or key > best_key:
+                best, best_key = candidate, key
+        self._fallback_fonts[style] = best
+        return best
 
     # -------------------------------------------------------------------------
 
