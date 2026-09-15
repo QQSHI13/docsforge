@@ -254,7 +254,7 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         # Build a per-locale copy of the nav with translated titles but the same
         # locale-agnostic URLs. This avoids mutating shared nav items during
         # parallel page rendering.
-        from docsforge.nav import _add_parent_links
+        from docsforge.nav import _add_parent_links, _add_previous_and_next_links
 
         self._locale_navs[self.default_locale] = nav
         for locale in self.locales:
@@ -264,8 +264,14 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             lang_items = self._clone_nav_items(nav.items, locale, lang_config, config)
             lang_pages = self._collect_pages(lang_items)
             locale_nav = Navigation(lang_items, lang_pages)
-            locale_nav.homepage = nav.homepage
+            # Navigation.__init__ derives homepage from lang_pages; prefer the
+            # locale Page when present, falling back to the default homepage.
+            locale_nav.homepage = next((p for p in lang_pages if p.is_homepage), nav.homepage)
             _add_parent_links(locale_nav.items)
+            # Mirror get_navigation(): locale navs need their own prev/next
+            # chain over lang_pages (which includes fallback entries as they
+            # appear in nav) so sidebar prev/next links stay within the locale.
+            _add_previous_and_next_links(lang_pages)
             self._locale_navs[locale] = locale_nav
 
         return nav
@@ -332,7 +338,8 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         if lang_file is not None:
             if lang_file.page is None:
-                Page(title, lang_file, config)
+                new_page = Page(title, lang_file, config)
+                new_page.i18n_titles = dict(page.i18n_titles)
             elif title is not None:
                 lang_file.page.title = title
             # Remember the default-language file so nav titles can be resolved
@@ -342,12 +349,16 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         # No translation exists: still produce a nav entry pointing at the
         # default page, but with a translated nav title if one is configured.
-        # Do not overwrite the original file.page.
+        # Do not overwrite the original file.page (Page.__init__ sets
+        # file.page=self, so save/restore in a finally-safe path).
         original_page = page.file.page
         nav_title = title if title is not None else page.title
-        nav_page = Page(nav_title, page.file, config)
-        nav_page.i18n_base_file = page.file  # type: ignore[attr-defined]
-        page.file.page = original_page
+        try:
+            nav_page = Page(nav_title, page.file, config)
+            nav_page.i18n_titles = dict(page.i18n_titles)
+            nav_page.i18n_base_file = page.file  # type: ignore[attr-defined]
+        finally:
+            page.file.page = original_page
         return nav_page
 
     def _resolve_locale_title(
@@ -371,9 +382,11 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         locale = getattr(page.file, "i18n_locale", self.default_locale)
         # NOTE: writing the locale onto the shared config races when pages
-        # render in parallel — the per-render value below (context) is
-        # authoritative; the config value is kept for backward compatibility
-        # with templates that read config.extra.i18n_current_locale.
+        # render in parallel — the caller must hold page_lock when invoking
+        # this hook. The per-render value below (context) is authoritative;
+        # prefer context["i18n_current_locale"] where already set. The config
+        # value is kept for backward compatibility with templates that read
+        # config.extra.i18n_current_locale.
         config["extra"]["i18n_current_locale"] = locale
         context["i18n_current_locale"] = locale
 
@@ -386,9 +399,12 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             # entries copied from the default page carry the correct title.
             self._fix_locale_nav_titles(locale_nav, locale)
             # Activate the current page in the locale nav so the sidebar/top bar
-            # highlight the right item.
+            # highlight the right item. Compare src_uri (not File identity):
+            # fallback entries are distinct Pages sharing the default File
+            # object, so `is` never matches them. Page.active propagates to
+            # Section.active via the parent chain.
             for nav_page in locale_nav.pages:
-                if nav_page.file is page.file:
+                if nav_page.file.src_uri == page.file.src_uri:
                     nav_page.active = True
                     break
 
@@ -410,10 +426,11 @@ class I18nPlugin(BasePlugin[I18nConfig]):
 
         Explicit nav translations win over frontmatter. Fallback entries that
         point to the default-language file are synced from the original page.
+
+        Idempotent: recomputes every call so re-runs are safe. Must be called
+        with the caller's page_lock held (on_page_context runs under lock);
+        this function takes no lock itself.
         """
-        if getattr(locale_nav, "_i18n_titles_fixed", False):
-            return
-        locale_nav._i18n_titles_fixed = True  # type: ignore[attr-defined]
 
         lang_config = self._get_language_config(locale)
         for nav_page in locale_nav.pages:
@@ -447,17 +464,16 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         page.i18n_locale = locale  # type: ignore[attr-defined]
         page.i18n_alternates = self._get_alternates(page)  # type: ignore[attr-defined]
 
-        # Override site_name/site_description for non-default languages if configured.
+        # Override site_description for non-default languages if configured.
+        # templates/base.html prefers page.meta.description over
+        # config.site_description, so only fill in when frontmatter did not
+        # already set one. (page.title_prefix is write-only — no template
+        # reads it — so site_name overrides are intentionally not applied
+        # here. Nav labels are handled in the nav clone/fix passes, not by
+        # rewriting page.title, so doc titles keep frontmatter/H1 values.)
         lang_config = self._get_language_config(locale)
-        if lang_config:
-            if lang_config.site_name:
-                page.title_prefix = lang_config.site_name  # type: ignore[attr-defined]
-            if lang_config.site_description:
-                page.meta["description"] = lang_config.site_description
-
-        # Apply nav title translations to the page title as well.
-        if lang_config and lang_config.nav_translations and page.title in lang_config.nav_translations:
-            page.title = lang_config.nav_translations[page.title]
+        if lang_config and lang_config.site_description and "description" not in page.meta:
+            page.meta["description"] = lang_config.site_description
 
         return html
 
