@@ -1,5 +1,35 @@
 ## [Unreleased]
 
+## [13.0.0] — 2026-09-15
+
+### Highlights
+
+DocsForge 13 is a correctness and performance major. Everything below
+shipped across the 13.0.0b1–b3 betas (see those entries for the full
+per-fix detail); since b3 only the updater messaging fix and a Studio
+docs rewrite landed.
+
+- **Parallel incremental builds that converge** — page rendering actually
+  uses `concurrency` now, snippet-include pages no longer rebuild forever,
+  static copies are incremental, and manifests are compare-before-write.
+- **Chinese navigation correctness** — own homepage, prev/next chains,
+  preserved `i18n_titles`, per-page descriptions no longer clobbered.
+- **Offline-proof assets** — one Google Fonts fetch per build with local
+  font fallback, atomic file writes, missing outputs restored, social
+  cards no longer deleted as "unused".
+- **Calmer serve and CLI** — interruptible rebuilds, 404s logged as info,
+  friendlier help/check/setup output.
+- **Self-updating Studio extension** — engine + VSIX updates from the
+  palette, sidebar, or a silent startup check, with pre-release opt-in.
+
+### Behavior changes
+
+- Non-default-locale pages keep their own frontmatter/H1 titles and
+  descriptions; nav-label translations no longer rewrite them.
+- Dev-server 404 request logs moved from error to info level.
+- Pre-release versions are excluded from update checks unless
+  `docsforge.includePrereleases` is enabled.
+
 ## [13.0.0b3] — 2026-09-15
 
 ### Added
