@@ -15,6 +15,14 @@
 
 ### Fixed
 
+- **Missing outputs are restored instead of staying gone** — cached social
+  cards absent from the site (deleted by older optimizer revisions or by
+  hand) are copied back in `on_post_build`; they used to stay missing
+  forever on incremental builds because up-to-date cards are skipped and
+  only rebuilt pages copy. A post-optimization pass now does the same for
+  every other expected static output with a live source, while pages
+  (rebuilt when their output is missing) and optimizer-managed directories
+  (deliberate pruning) are never touched.
 - **Social cards no longer deleted as "unused assets"** — card PNGs are
   referenced only via absolute same-origin `og:image`/`twitter:image` meta
   tags, which the reference scanner neither collected (no `meta` handling)

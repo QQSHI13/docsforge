@@ -18,6 +18,11 @@ _ASSET_EXTENSIONS = frozenset({
     "woff", "woff2", "ttf", "eot", "otf",
 })
 
+# Site-relative directories whose contents the optimizer intentionally prunes
+# (unreferenced files are deleted). The post-optimizer restore pass in
+# build.py must not resurrect files here — deletions are deliberate.
+OPTIMIZER_MANAGED_DIRS = (".icons", "assets/images", "assets/fonts")
+
 
 class _AssetReferenceParser(HTMLParser):
     """Extract relative asset references from HTML."""
@@ -348,7 +353,7 @@ def cleanup_unused_assets(
 
     # Find all files that might be candidates for removal
     # Focus on heavy directories: icons, fonts, images
-    candidate_dirs = [".icons", "assets/images", "assets/fonts"]
+    candidate_dirs = list(OPTIMIZER_MANAGED_DIRS)
 
     removed_count = 0
     removed_size = 0

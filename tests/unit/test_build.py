@@ -20,6 +20,7 @@ from docsforge.build import (
     _finalize_build,
     _populate_changed_pages,
     _remove_orphaned_output,
+    _restore_missing_static_outputs,
     _write_outputs,
 )
 from docsforge.config_base import load_config
@@ -428,3 +429,52 @@ class TestPrepareBuildMdxConfigs:
         assert config["mdx_configs"] is not original
         fences = config["mdx_configs"]["pymdownx.superfences"]["custom_fences"]
         assert any(fence.get("name") == "mermaid" for fence in fences)
+
+
+class TestRestoreMissingStaticOutputs:
+    """Post-optimizer safety net: missing site outputs with a live source
+    come back; intentional deletions and pages are never touched."""
+
+    def test_restores_missing_static_file(self, tmp_path, monkeypatch):
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        src = tmp_path / "docs" / "extra.css"
+        src.write_text("body {}\n")
+        dest = Path(cfg.site_dir) / "extra.css"
+        assert not dest.exists()
+        files = Files([File("extra.css", cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)])
+        assert _restore_missing_static_outputs(files) == 1
+        assert dest.exists()
+
+    def test_skips_present_and_missing_source(self, tmp_path, monkeypatch):
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        src = tmp_path / "docs" / "keep.css"
+        src.write_text("a {}\n")
+        files = Files([File("keep.css", cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)])
+        assert _restore_missing_static_outputs(files) == 1
+        # Present now: no-op.
+        assert _restore_missing_static_outputs(files) == 0
+        # Source gone: skipped, not an error.
+        ghost = File("ghost.css", cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)
+        assert _restore_missing_static_outputs(Files([ghost])) == 0
+
+    def test_skips_docs_pages_and_optimizer_dirs(self, tmp_path, monkeypatch):
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        # Sources exist, so only the managed-dir / page skips can explain
+        # a zero restore count.
+        (tmp_path / "docs" / ".icons").mkdir(parents=True)
+        (tmp_path / "docs" / ".icons" / "a.svg").write_text("<svg></svg>")
+        (tmp_path / "docs" / "assets" / "images" / "social").mkdir(parents=True)
+        (tmp_path / "docs" / "assets" / "images" / "social" / "card.png").write_bytes(b"png")
+        page = File("index.md", cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)
+        icon = File(".icons/a.svg", cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)
+        image = File(
+            "assets/images/social/card.png",
+            cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls,
+        )
+        files = Files([page, icon, image])
+        assert _restore_missing_static_outputs(files) == 0
+        assert not (Path(cfg.site_dir) / ".icons" / "a.svg").exists()
+        assert not (Path(cfg.site_dir) / "assets" / "images" / "social" / "card.png").exists()

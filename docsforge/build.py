@@ -23,7 +23,7 @@ from jinja2.exceptions import TemplateNotFound
 
 import docsforge
 from docsforge import templates, utils
-from docsforge.asset_optimizer import optimize_assets
+from docsforge.asset_optimizer import OPTIMIZER_MANAGED_DIRS, optimize_assets
 from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
 from docsforge.exceptions import Abort, BuildError, BuildErrorGroup
 from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusions
@@ -884,6 +884,54 @@ def _write_outputs(
     return built_any, built_sources
 
 
+def _restore_missing_static_outputs(files: Files) -> int:
+    """Re-copy expected static outputs absent from the site directory.
+
+    Safety net running after asset optimization: if a produced file (theme
+    asset, downloaded external asset, extra file) went missing from the
+    site — hand-deleted, lost to a crash, or removed by an older optimizer
+    that didn't track its reference kind — copy it back from its source when
+    the source still exists. Returns the number of files restored.
+
+    Deliberately narrow so it can never undo intentional work:
+    - Documentation pages are skipped (a missing page output triggers a
+      rebuild via ``should_rebuild``, not a copy — copying the .md source
+      would be wrong).
+    - ``OPTIMIZER_MANAGED_DIRS`` are skipped (deletions there are the
+      optimizer's deliberate pruning of unreferenced files).
+    - Files whose source is gone (failed downloads, in-memory-only content
+      is still restored) are skipped.
+    """
+    restored = 0
+    for file in files:
+        if file.is_documentation_page():
+            continue
+        dest_uri = (file.dest_uri or "").replace("\\", "/")
+        if any(
+            dest_uri == managed or dest_uri.startswith(f"{managed}/")
+            for managed in OPTIMIZER_MANAGED_DIRS
+        ):
+            continue
+        src = file.abs_src_path
+        if src is None or not os.path.isfile(src):
+            continue
+        try:
+            dest = file.abs_dest_path
+        except Exception:
+            continue
+        if os.path.isfile(dest):
+            continue
+        try:
+            file.copy_file()
+        except OSError as e:
+            log.debug(f"Could not restore static output '{dest_uri}': {e}")
+            continue
+        restored += 1
+    if restored:
+        log.info(f"Restored {restored} static output(s) missing from the site")
+    return restored
+
+
 def _finalize_build(
     config: DocsForgeConfig,
     files: Files,
@@ -950,6 +998,14 @@ def _finalize_build(
         cache_dir=planner.cache.cache_dir,
         site_url=config.site_url or "",
     )
+
+    # Safety net after optimization: re-copy expected static outputs that are
+    # absent from the site but still have a source (hand-deleted, crash-lost,
+    # or pruned by an older optimizer revision). Per-producer restore already
+    # covers pages (rebuild on missing output), templates/manifests (write if
+    # missing), and social cards (cache copy in on_post_build); this covers
+    # everything else carried in the Files collection.
+    _restore_missing_static_outputs(files)
 
     # Generate PWA manifest + pre-cache list + service worker build hash.
     # Runs AFTER optimize_assets (so the manifest reflects the final file

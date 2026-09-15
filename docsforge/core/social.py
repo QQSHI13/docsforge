@@ -45,7 +45,7 @@ from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.exceptions import PluginError
 from docsforge.files import File
 from docsforge.pages import Page
-from docsforge.utils import write_file
+from docsforge.utils import copy_file, write_file
 
 try:
     from PIL import Image, ImageColor, ImageDraw, ImageFont
@@ -1485,10 +1485,44 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         if not self.config.enabled:
             return
 
+        # Restore cached cards missing from the site (e.g. deleted by older
+        # optimizer versions that didn't track og:image refs, or removed by
+        # hand). Without this they stay missing forever: _generate skips
+        # up-to-date cards via the manifest, and on_post_page only copies
+        # cards for pages rebuilt in this build. Stale cards (page deleted)
+        # are harmless here — the optimizer pass running later deletes
+        # whatever no page references anymore.
+        self._restore_missing_cards(config)
+
         # Save manifest if cache should be used
         if self.config.cache:
             with open(self.manifest_file, "w") as f:
                 f.write(json.dumps(self.manifest, indent = 2, sort_keys = True))
+
+    def _restore_missing_cards(self, config: DocsForgeConfig) -> None:
+        """Copy cached card PNGs absent from the site output."""
+        cards_root = os.path.join(self.config.cache_dir, self.config.cards_dir)
+        if not os.path.isdir(cards_root):
+            return
+        restored = 0
+        for dirpath, _, filenames in os.walk(cards_root):
+            for name in filenames:
+                if not name.lower().endswith(".png"):
+                    continue
+                src = os.path.join(dirpath, name)
+                rel = os.path.relpath(src, cards_root).replace(os.sep, "/")
+                dest = os.path.join(
+                    config.site_dir, *rel.split("/")
+                )
+                if not os.path.isfile(dest):
+                    try:
+                        copy_file(src, dest)
+                    except OSError as e:
+                        log.debug(f"Could not restore social card '{rel}': {e}")
+                        continue
+                    restored += 1
+        if restored:
+            log.info(f"Restored {restored} social card(s) missing from the site")
 
     # Add custom layout directory to watched files
     def on_serve(self, server, *, config, builder):
