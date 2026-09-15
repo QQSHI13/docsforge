@@ -166,14 +166,16 @@ class TestColorFormatter:
         out = ColorFormatter().format(record)
         assert out.startswith("\x1b[31mERROR   \x1b[0m-  ")
 
-    def test_help_lists_commands_with_examples(self):
+    def test_help_lists_commands_untruncated(self):
         from click.testing import CliRunner
 
         from docsforge.__main__ import docsforge
 
         result = CliRunner().invoke(docsforge, ["--help"])
         assert result.exit_code == 0
-        assert "Examples:" in result.output
-        assert "docsforge serve" in result.output
         for command in ("build", "check", "serve"):
             assert command in result.output
+        # Short help must fit click's 45-char limit instead of truncating.
+        assert "Build the site into ./site." in result.output
+        assert "Validate docsforge.yml without building." in result.output
+        assert "Serve the docs locally with live reload." in result.output

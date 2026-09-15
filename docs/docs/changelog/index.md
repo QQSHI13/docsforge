@@ -15,6 +15,17 @@
 
 ### Fixed
 
+- **Social cards no longer deleted as "unused assets"** — card PNGs are
+  referenced only via absolute same-origin `og:image`/`twitter:image` meta
+  tags, which the reference scanner neither collected (no `meta` handling)
+  nor resolved (absolute URLs were dropped as external). The cleanup then
+  deleted every generated card in the same build. Meta image/video/audio
+  references are now collected and same-origin absolute URLs resolve
+  site-relative (foreign origins stay excluded); the reference cache is
+  keyed by origin so build/serve scans can't leak into each other.
+- **Help output tweaks** — no emoji, no examples block, and command blurbs
+  shortened to fit instead of truncating mid-word.
+
 - **Dev-server 404s are info, not errors** — every missing file (typo'd
   links, favicon probes, drafts) used to log a red `ERROR` line; 404s now
   log at info level (other 4xx warn, 5xx stay errors). The log prefix also

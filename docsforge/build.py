@@ -948,6 +948,7 @@ def _finalize_build(
         built_any=built_any,
         sources_changed=sources_changed,
         cache_dir=planner.cache.cache_dir,
+        site_url=config.site_url or "",
     )
 
     # Generate PWA manifest + pre-cache list + service worker build hash.

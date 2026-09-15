@@ -5,6 +5,7 @@ from docsforge.asset_optimizer import (
     _AssetReferenceParser,
     _find_referenced_assets,
     _normalize_asset_url,
+    cleanup_unused_assets,
     remove_source_maps,
     remove_unused_font_formats,
 )
@@ -267,3 +268,59 @@ class TestReferenceCacheAtomicWrite:
         assert writes == ["asset_references.json.tmp"]
         assert (cache_dir / "asset_references.json").exists()
         assert not (cache_dir / "asset_references.json.tmp").exists()
+
+
+class TestSocialCardReferences:
+    """Social-card PNGs are referenced only via og:image meta tags with
+    absolute same-origin URLs. The cleanup must keep them."""
+
+    def test_meta_og_image_collected(self):
+        p = _AssetReferenceParser()
+        p.feed(
+            '<head><meta property="og:image" content="assets/images/social/a.png" />'
+            '<meta name="twitter:image" content="assets/images/social/a.png" />'
+            '<meta name="description" content="not an asset" /></head>'
+        )
+        assert "assets/images/social/a.png" in p.refs
+        assert "not an asset" not in p.refs
+
+    def test_same_origin_absolute_resolves_site_relative(self):
+        assert (
+            _normalize_asset_url(
+                "https://example.com/assets/images/social/a.png",
+                "",
+                "https://example.com",
+            )
+            == "assets/images/social/a.png"
+        )
+
+    def test_foreign_absolute_url_ignored(self):
+        assert (
+            _normalize_asset_url(
+                "https://other.example/assets/images/social/a.png",
+                "",
+                "https://example.com",
+            )
+            is None
+        )
+
+    def test_cleanup_keeps_card_referenced_only_by_meta(self, tmp_path):
+        site = tmp_path / "site"
+        (site / "assets" / "images" / "social").mkdir(parents=True)
+        (site / "assets" / "images" / "social" / "card.png").write_bytes(b"png")
+        (site / "index.html").write_text(
+            '<html><head>'
+            '<meta property="og:image" '
+            'content="https://example.com/assets/images/social/card.png" />'
+            "</head><body></body></html>"
+        )
+        cleanup_unused_assets(str(site), site_url="https://example.com")
+        assert (site / "assets" / "images" / "social" / "card.png").exists()
+
+    def test_cleanup_still_removes_truly_unreferenced_card(self, tmp_path):
+        site = tmp_path / "site"
+        (site / "assets" / "images" / "social").mkdir(parents=True)
+        (site / "assets" / "images" / "social" / "stale.png").write_bytes(b"png")
+        (site / "index.html").write_text("<html><body></body></html>")
+        cleanup_unused_assets(str(site), site_url="https://example.com")
+        assert not (site / "assets" / "images" / "social" / "stale.png").exists()

@@ -210,6 +210,7 @@ class TestFinalizeBuildOptimizesAssets:
                     "built_any": False,
                     "sources_changed": False,
                     "cache_dir": planner.cache.cache_dir,
+                    "site_url": cfg.site_url or "",
                 },
             )
         ]

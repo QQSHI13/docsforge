@@ -5,6 +5,7 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +70,13 @@ class _AssetReferenceParser(HTMLParser):
                 self._collect_srcset(attr_dict.get("srcset"))
         elif tag == "image":
             self._collect(attr_dict.get("href"))
+        elif tag == "meta":
+            # Social-card images (and video/audio) are referenced only via
+            # meta tags, e.g. <meta property="og:image" content="...">. Without
+            # this, generated card PNGs look unreferenced and get deleted.
+            key = (attr_dict.get("property") or attr_dict.get("name") or "").lower()
+            if key.startswith(("og:image", "twitter:image", "og:video", "og:audio")):
+                self._collect(attr_dict.get("content"))
         else:
             # data-* attributes that reference assets.
             for name, value in attr_dict.items():
@@ -128,10 +136,15 @@ def _is_external_url(url: str) -> bool:
     return url.startswith(("http://", "https://", "//", "data:", "mailto:", "tel:", "#"))
 
 
-def _normalize_asset_url(url: str, file_dir: str) -> str | None:
+def _normalize_asset_url(url: str, file_dir: str, site_origin: str = "") -> str | None:
     """Return a site-relative posix path for a local asset URL, or None."""
     if _is_external_url(url):
-        return None
+        # Social cards emit absolute og:image URLs on our own origin
+        # (site_url + path). Strip the origin so they resolve site-relative;
+        # genuinely foreign URLs stay excluded.
+        if not site_origin or not url.startswith(site_origin + "/"):
+            return None
+        url = url[len(site_origin):]
     url = url.split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]
     if not url:
         return None
@@ -183,7 +196,18 @@ def _save_reference_cache(cache_dir: Path | None, state: dict[str, Any]) -> None
         log.debug(f"Could not save asset reference cache: {e}")
 
 
-def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str) -> list[str]:
+def _site_origin(site_url: str) -> str:
+    """Return the ``scheme://host[:port]`` origin for a site URL, or ""."""
+    try:
+        parts = urlsplit(site_url or "")
+        if parts.scheme and parts.netloc:
+            return f"{parts.scheme}://{parts.netloc}"
+    except Exception:
+        pass
+    return ""
+
+
+def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str, site_origin: str = "") -> list[str]:
     """Parse asset references from a single HTML, CSS, or JS file."""
     try:
         content = file_path.read_text(encoding="utf-8", errors="ignore")
@@ -195,19 +219,19 @@ def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str) -> list[str]:
         parser = _AssetReferenceParser()
         parser.feed(content)
         for url in parser.refs:
-            normalized = _normalize_asset_url(url, file_dir_str)
+            normalized = _normalize_asset_url(url, file_dir_str, site_origin)
             if normalized:
                 refs.append(normalized)
 
     elif ext == ".css":
         for match in _CSS_URL_RE.finditer(content):
             url = next(g for g in match.groups() if g is not None)
-            normalized = _normalize_asset_url(url, file_dir_str)
+            normalized = _normalize_asset_url(url, file_dir_str, site_origin)
             if normalized:
                 refs.append(normalized)
         for match in _CSS_IMPORT_RE.finditer(content):
             url = next(g for g in match.groups() if g is not None)
-            normalized = _normalize_asset_url(url, file_dir_str)
+            normalized = _normalize_asset_url(url, file_dir_str, site_origin)
             if normalized:
                 refs.append(normalized)
 
@@ -219,7 +243,7 @@ def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str) -> list[str]:
             re.IGNORECASE,
         ):
             url = match.group(1)
-            normalized = _normalize_asset_url(url, file_dir_str)
+            normalized = _normalize_asset_url(url, file_dir_str, site_origin)
             if normalized:
                 refs.append(normalized)
 
@@ -227,19 +251,28 @@ def _parse_file_refs(file_path: Path, ext: str, file_dir_str: str) -> list[str]:
 
 
 def _find_referenced_assets(
-    site_dir: str, cache_dir: Path | None = None
+    site_dir: str, cache_dir: Path | None = None, site_url: str = ""
 ) -> set[str]:
     """Scan all HTML, CSS, and JS files in site_dir for referenced assets.
 
     Results are cached by file mtime+size in ``cache_dir`` so unchanged files
     are skipped on incremental builds.
 
+    ``site_url`` lets same-origin absolute URLs (e.g. social-card og:image
+    tags) resolve to site-relative paths instead of being dropped.
+
     Returns a set of relative paths (from site_dir) of referenced assets.
     """
     referenced: set[str] = set()
     site_path = Path(site_dir)
+    site_origin = _site_origin(site_url)
 
     state = _load_reference_cache(cache_dir)
+    if state.get("site_origin", "") != site_origin:
+        # Same-origin absolute URLs (social og:image tags) resolve against
+        # the origin: a cached scan from another origin (build vs serve)
+        # cannot be reused.
+        state["files"] = {}
     file_state: dict[str, dict[str, Any]] = state.setdefault("files", {})
     new_file_state: dict[str, dict[str, Any]] = {}
 
@@ -259,7 +292,7 @@ def _find_referenced_assets(
         else:
             file_dir = file_path.parent.relative_to(site_path)
             file_dir_str = str(file_dir).replace("\\", "/") if str(file_dir) != "." else ""
-            refs = _parse_file_refs(file_path, ext, file_dir_str)
+            refs = _parse_file_refs(file_path, ext, file_dir_str, site_origin)
             try:
                 st = file_path.stat()
                 new_file_state[rel_path] = {"mtime": st.st_mtime, "size": st.st_size, "refs": refs}
@@ -269,6 +302,7 @@ def _find_referenced_assets(
         referenced.update(refs)
 
     state["version"] = _OPTIMIZER_STATE_VERSION
+    state["site_origin"] = site_origin
     state["files"] = new_file_state
     _save_reference_cache(cache_dir, state)
 
@@ -279,6 +313,7 @@ def cleanup_unused_assets(
     site_dir: str,
     extra_whitelist: set[str] | None = None,
     referenced: set[str] | None = None,
+    site_url: str = "",
 ) -> None:
     """Remove unused static assets from the built site.
 
@@ -289,13 +324,15 @@ def cleanup_unused_assets(
         site_dir: The built site directory
         extra_whitelist: Additional file paths to keep (relative to site_dir)
         referenced: Pre-computed referenced asset set. If None, it is computed.
+        site_url: Site origin, so same-origin absolute URLs (social-card
+            og:image tags) resolve instead of being dropped.
     """
     site_path = Path(site_dir)
     if not site_path.exists():
         return
 
     if referenced is None:
-        referenced = _find_referenced_assets(site_dir)
+        referenced = _find_referenced_assets(site_dir, site_url=site_url)
 
     # Add whitelist patterns
     if extra_whitelist:
@@ -484,7 +521,7 @@ def remove_source_maps(site_dir: str, cache_dir: Path | None = None) -> None:
 
 
 def remove_unused_font_formats(
-    site_dir: str, referenced: set[str] | None = None
+    site_dir: str, referenced: set[str] | None = None, site_url: str = ""
 ) -> None:
     """Remove font formats that are not needed (keep only WOFF2).
 
@@ -506,7 +543,7 @@ def remove_unused_font_formats(
 
     # Collect referenced assets first so fonts still in use are not deleted.
     if referenced is None:
-        referenced = _find_referenced_assets(site_dir) if font_dirs else set()
+        referenced = _find_referenced_assets(site_dir, site_url=site_url) if font_dirs else set()
 
     for font_dir in font_dirs:
         if not font_dir.is_dir():
@@ -552,6 +589,7 @@ def optimize_assets(
     built_any: bool = True,
     sources_changed: bool = True,
     cache_dir: Path | None = None,
+    site_url: str = "",
 ) -> None:
     """Run all asset optimization passes on the built site.
 
@@ -577,7 +615,7 @@ def optimize_assets(
     # Compute referenced assets once and reuse for both cleanup passes.
     # The scan is incremental: unchanged HTML/CSS/JS files are skipped using
     # cached mtime+size.
-    referenced = _find_referenced_assets(site_dir, cache_dir=cache_dir)
+    referenced = _find_referenced_assets(site_dir, cache_dir=cache_dir, site_url=site_url)
 
     # Remove unused font formats
     remove_unused_font_formats(site_dir, referenced=referenced)

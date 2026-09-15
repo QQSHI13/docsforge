@@ -116,19 +116,11 @@ def _enable_warnings():
     cls=DocsForgeGroup,
     invoke_without_command=True,
     context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 120},
-    epilog="Examples:\n"
-    "\n"
-    "\b\n"
-    "  docsforge serve    Preview your docs with live reload\n"
-    "  docsforge build    Build the site into ./site\n"
-    "  docsforge check    Validate docsforge.yml without building\n"
-    "\n"
-    "Run 'docsforge COMMAND -h' for details on each command.",
 )
 @click.version_option(__version__, "-v", "--version", prog_name="docsforge")
 @click.pass_context
 def docsforge(ctx):
-    """📚 DocsForge — turn Markdown into a fast, polished docs site.
+    """DocsForge — turn Markdown into a fast, polished docs site.
 
     Run 'docsforge' alone inside a project to see available commands.
     Run it where no docsforge.yml exists and it will help you start one.
@@ -148,7 +140,7 @@ def docsforge(ctx):
               help="Number of parallel tabs for PDF rendering "
                    "(default: global `concurrency`, capped by available memory)")
 def build(strict, pdf, jobs):
-    """Build the site for production (fast incremental rebuilds)."""
+    """Build the site into ./site."""
     _ = State()  # Initialize default logging
     _enable_warnings()
 
@@ -196,7 +188,7 @@ def build(strict, pdf, jobs):
 @docsforge.command()
 @click.option("--fix", is_flag=True, help="Auto-fix common configuration issues")
 def check(fix):
-    """Check docsforge.yml and friends without building anything."""
+    """Validate docsforge.yml without building."""
     _ = State()
     if fix:
         from docsforge.check import fix_config
@@ -210,7 +202,7 @@ def check(fix):
 @click.option("--no-open", is_flag=True, help="Do not open a browser tab automatically")
 @click.option("--strict", is_flag=True, help="Treat warnings as errors during rebuilds")
 def serve(lan, no_open, strict):
-    """Preview your docs locally with live reload as you edit."""
+    """Serve the docs locally with live reload."""
     _ = State()  # Initialize default logging
 
     # Auto-check config and dependencies before serving
