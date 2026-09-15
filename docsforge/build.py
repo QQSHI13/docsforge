@@ -118,6 +118,18 @@ def _build_template(
     return config.plugins.on_post_template(output, template_name=name, config=config)
 
 
+def _write_if_changed(path: str, data: bytes) -> bool:
+    """Write data to path only when the content differs (avoids mtime churn)."""
+    try:
+        with open(path, "rb") as f:
+            if f.read() == data:
+                return False
+    except OSError:
+        pass
+    utils.write_file(data, path)
+    return True
+
+
 def _build_theme_template(
     template_name: str,
     env: jinja2.Environment,
@@ -138,9 +150,14 @@ def _build_theme_template(
 
     if output.strip():
         output_path = os.path.join(config.site_dir, template_name)
-        utils.write_file(output.encode("utf-8"), output_path)
+        data = output.encode("utf-8")
+        changed = _write_if_changed(output_path, data)
+        if changed:
+            log.debug(f"Wrote theme template: {template_name}")
 
         if template_name == "sitemap.xml":
+            if not changed and os.path.exists(f"{output_path}.gz"):
+                return
             log.debug(f"Gzipping template: {template_name}")
             gz_filename = f"{output_path}.gz"
             with open(gz_filename, "wb") as f:
@@ -153,7 +170,7 @@ def _build_theme_template(
                     # the bytes of every build.
                     fileobj=f, filename="", mode="wb", mtime=timestamp
                 ) as gz_buf:
-                    gz_buf.write(output.encode("utf-8"))
+                    gz_buf.write(data)
     else:
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
@@ -184,6 +201,8 @@ def _build_locale_static_templates(
 
     base_url = urlsplit(config.site_url or "/").path
     prev_language = config.theme.get("language")
+    prev_locale = getattr(config.extra, "i18n_current_locale", None)
+    had_prev_locale = hasattr(config.extra, "i18n_current_locale")
     try:
         for template_name in config.theme.static_templates:
             if not template_name.endswith(".html"):
@@ -223,6 +242,11 @@ def _build_locale_static_templates(
             config.theme["language"] = prev_language
         else:
             config.theme.pop("language", None)
+        if had_prev_locale:
+            config.extra.i18n_current_locale = prev_locale
+        else:
+            with contextlib.suppress(AttributeError):
+                del config.extra.i18n_current_locale
 
 
 def _build_extra_template(
@@ -245,7 +269,7 @@ def _build_extra_template(
     output = _build_template(template_name, template, files, config, nav)
 
     if output.strip():
-        utils.write_file(output.encode("utf-8"), file.abs_dest_path)
+        _write_if_changed(file.abs_dest_path, output.encode("utf-8"))
     else:
         log.info(f"Template skipped: '{template_name}' generated empty output.")
 
@@ -310,55 +334,66 @@ def _build_page(
     excluded: bool = False,
     _page_lock: threading.RLock | None = None,
 ) -> None:
-    """Pass a Page to theme template and write output to site_dir."""
+    """Pass a Page to theme template and write output to site_dir.
+
+    Only shared-state mutations (``config._current_page``, ``page.active``,
+    ``get_context`` git-meta writes, and plugin hooks) run under the lock.
+    ``env.get_template`` is thread-safe and ``template.render``/``write_file``
+    are thread-local, so they run outside the lock for real concurrency.
+    """
     lock = _page_lock or _default_page_lock  # Always have a lock
 
     with lock:
         config._current_page = page
         page.active = True
-        try:
-            log.debug(f"Building page {page.file.src_uri}")
+    try:
+        log.debug(f"Building page {page.file.src_uri}")
 
+        with lock:
             context = get_context(nav, doc_files, config, page)
 
-            # Allow 'template:' override in md source files.
-            template = env.get_template(page.meta.get("template", "main.html"))
+        # Allow 'template:' override in md source files.
+        # Jinja Environment.get_template is thread-safe; no locking needed.
+        template = env.get_template(page.meta.get("template", "main.html"))
 
+        with lock:
             # Run `page_context` plugin events.
             context = config.plugins.on_page_context(context, page=page, config=config, nav=nav)
 
-            if excluded:
-                page.content = (
-                    '<div class="docsforge-draft-marker" title="This page will not be included into the built site.">'
-                    'DRAFT'
-                    '</div>' + (page.content or "")
-                )
+        if excluded:
+            page.content = (
+                '<div class="docsforge-draft-marker" title="This page will not be included into the built site.">'
+                'DRAFT'
+                '</div>' + (page.content or "")
+            )
 
-            # Render the template.
-            output = template.render(context)
+        # Render the template.
+        output = template.render(context)
 
+        with lock:
             # Run `post_page` plugin events.
             output = config.plugins.on_post_page(output, page=page, config=config)
 
-            # Write the output file.
-            if output.strip():
-                utils.write_file(
-                    output.encode("utf-8", errors="xmlcharrefreplace"), page.file.abs_dest_path
-                )
-            else:
-                log.info(f"Page skipped: '{page.file.src_uri}'. Generated empty output.")
+        # Write the output file.
+        if output.strip():
+            utils.write_file(
+                output.encode("utf-8", errors="xmlcharrefreplace"), page.file.abs_dest_path
+            )
+        else:
+            log.info(f"Page skipped: '{page.file.src_uri}'. Generated empty output.")
 
-        except Exception as e:
-            message = f"Error building page '{page.file.src_uri}':"
-            # Prevent duplicated the error message because it will be printed immediately afterwards.
-            if not isinstance(e, BuildError):
-                message += f" {e}"
-            log.error(message)
-            # Continue building other pages instead of crashing
-            if config.strict:
-                raise
-            return
-        finally:
+    except Exception as e:
+        message = f"Error building page '{page.file.src_uri}':"
+        # Prevent duplicated the error message because it will be printed immediately afterwards.
+        if not isinstance(e, BuildError):
+            message += f" {e}"
+        log.error(message)
+        # Continue building other pages instead of crashing
+        if config.strict:
+            raise
+        return
+    finally:
+        with lock:
             # Deactivate page
             page.active = False
             config._current_page = None
@@ -565,7 +600,8 @@ def _collect_files_and_nav(
     prev_sources = set(planner.cache.get_sources())
     sources_changed = prev_sources != current_sources
     if planner.should_scan_orphans(current_sources):
-        orphaned = planner.find_orphaned_outputs(docs_dir, site_dir)
+        known_dest_uris = {f.dest_uri for f in files}
+        orphaned = planner.find_orphaned_outputs(docs_dir, site_dir, known_dest_uris)
         for f in orphaned:
             log.debug(f"Removing orphaned output: {f}")
             _remove_orphaned_output(f)
@@ -623,10 +659,18 @@ def _populate_changed_pages(
         source_path = Path(file.abs_src_path)
         output_path = Path(file.abs_dest_path)
 
+        # Snippet includes are file dependencies: compute them up front so
+        # the freshness check sees the same set that update_cache records.
+        # Otherwise pages with includes would rebuild on every build.
+        file_deps = DependencyTracker.get_file_deps(
+            source_path,
+            file.page.markdown,
+            base_paths=[Path(config.docs_dir)],
+        )
         # Let plugins declare render dependencies (e.g. a blog entrypoint
         # whose listing derives from every post). An added/removed dependency
         # forces a re-render even when the page's own source is unchanged.
-        extra_deps = config.plugins.on_page_deps([], page=file.page, files=files, config=config)
+        extra_deps = config.plugins.on_page_deps(file_deps, page=file.page, files=files, config=config)
 
         if (
             not force_all
@@ -731,7 +775,7 @@ def _write_outputs(
     # Start writing files to site_dir now that all data is gathered. Note that order matters. Files
     # with lower precedence get written first so that files with higher precedence can overwrite them.
     log.debug("Copying static assets.")
-    files.copy_static_files(dirty=False, inclusion=inclusion)
+    files.copy_static_files(dirty=True, inclusion=inclusion)
 
     for template in config.theme.static_templates:
         _build_theme_template(template, env, files, config, nav)
@@ -749,21 +793,28 @@ def _write_outputs(
 
     # Collect pages that need rebuilding first so we don't create an executor
     # (and pay its worker-thread shutdown cost) when nothing changed.
-    pages_to_build: list[tuple[Page, Path, Path]] = []
+    pages_to_build: list[tuple[Page, Path, Path, list[str]]] = []
     for file in all_doc_files:
         assert file.page is not None
         source_path = Path(file.abs_src_path)
         output_path = Path(file.abs_dest_path)
-        # Same freshness rule as _populate_changed_pages: plugins may declare
-        # render dependencies (e.g. a blog entrypoint that lists every post),
-        # so an added/removed dependency must force a rebuild here too.
-        extra_deps = config.plugins.on_page_deps([], page=file.page, files=files, config=config)
+        # Same freshness rule as _populate_changed_pages: snippet includes
+        # are file deps, computed up front so the check sees the same set
+        # that update_cache records. Plugins may declare extra render
+        # dependencies (e.g. a blog entrypoint that lists every post), so an
+        # added/removed dependency must force a rebuild here too.
+        file_deps = DependencyTracker.get_file_deps(
+            source_path,
+            file.page.markdown,
+            base_paths=[Path(config.docs_dir)],
+        )
+        extra_deps = config.plugins.on_page_deps(file_deps, page=file.page, files=files, config=config)
         if (
             force_all
             or planner.should_rebuild(source_path, output_path)
             or planner.deps_changed(source_path, extra_deps)
         ):
-            pages_to_build.append((file.page, source_path, output_path))
+            pages_to_build.append((file.page, source_path, output_path, file_deps))
 
     built_any = False
     built_sources: set[str] = set()
@@ -783,12 +834,13 @@ def _write_outputs(
                     source_path,
                     output_path,
                     page,
+                    file_deps,
                 )
-                for page, source_path, output_path in pages_to_build
+                for page, source_path, output_path, file_deps in pages_to_build
             ]
 
             # Wait for all pages to complete
-            for future, source_path, output_path, page in futures:
+            for future, source_path, output_path, page, file_deps in futures:
                 try:
                     future.result()
                 except Exception:
@@ -801,19 +853,14 @@ def _write_outputs(
                         raise
                     continue
 
-                # Update cache after successful build. Use page.markdown (the
-                # raw source) not page.content (rendered HTML): the snippet
-                # include markers are consumed during md.convert(), so only
-                # the raw markdown still contains them.
-                deps = DependencyTracker.get_file_deps(
-                    source_path,
-                    page.markdown or "",
-                    base_paths=[Path(config.docs_dir)],
-                )
+                # Update cache after successful build. Reuse the file_deps
+                # computed up front (same raw markdown — snippet markers are
+                # consumed during md.convert(), so page.content cannot be
+                # used) to avoid a double parse.
                 # Merge plugin-declared render dependencies (blog views list
                 # their posts) so they are recorded for future incremental
                 # builds.
-                deps = config.plugins.on_page_deps(deps, page=page, files=files, config=config)
+                deps = config.plugins.on_page_deps(file_deps, page=page, files=files, config=config)
                 planner.update_cache(source_path, output_path, deps)
                 # Persist link/anchor validation data so skipped pages can be
                 # re-validated on later incremental builds.
@@ -1204,8 +1251,7 @@ def _generate_pwa_manifest_and_precache(
                 content = content.replace("__DOCSFORGE_BUILD_HASH__", build_hash)
                 log.debug(f"Injected deterministic build hash {build_hash} into service worker")
 
-            with open(sw_dest, "w", encoding="utf-8") as f:
-                f.write(content)
+            _write_if_changed(sw_dest, content.encode("utf-8"))
 
             # Remove the template copy in assets to avoid a duplicate worker.
             try:
@@ -1269,8 +1315,7 @@ def _generate_pwa_manifest_and_precache(
     # Write manifest.json
     manifest_path = os.path.join(site_dir, "manifest.json")
     try:
-        with open(manifest_path, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2)
+        _write_if_changed(manifest_path, json.dumps(manifest, indent=2).encode("utf-8"))
         log.debug(f"Generated PWA manifest at {manifest_path}")
     except Exception as e:
         log.warning(f"Failed to generate PWA manifest: {e}")
@@ -1358,6 +1403,5 @@ def _generate_cache_manifest(
     }
 
     manifest_path = os.path.join(site_dir, "cache-manifest.json")
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2)
+    _write_if_changed(manifest_path, json.dumps(manifest, indent=2).encode("utf-8"))
     log.debug(f"Generated cache manifest with {len(manifest_files)} entries at {manifest_path}")

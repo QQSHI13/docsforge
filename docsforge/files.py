@@ -505,19 +505,22 @@ class File:
             with contextlib.suppress(shutil.SameFileError):
                 utils.copy_file(self.abs_src_path, output_path)
         elif isinstance(content, str):
-            with open(output_path, "w", encoding="utf-8") as output_file:
-                output_file.write(content)
+            utils.write_file(content.encode("utf-8"), output_path)
         else:
-            with open(output_path, "wb") as output_file:
-                output_file.write(content)
+            utils.write_file(content, output_path)
 
     def is_modified(self) -> bool:
         if self._content is not None:
             return True
         assert self.abs_src_path is not None
-        if os.path.isfile(self.abs_dest_path):
-            return os.path.getmtime(self.abs_dest_path) < os.path.getmtime(self.abs_src_path)
-        return True
+        try:
+            src_stat = os.stat(self.abs_src_path)
+            dest_stat = os.stat(self.abs_dest_path)
+        except OSError:
+            return True
+        if src_stat.st_size != dest_stat.st_size:
+            return True
+        return src_stat.st_mtime_ns > dest_stat.st_mtime_ns
 
     def is_documentation_page(self) -> bool:
         """Return True if file is a Markdown page."""

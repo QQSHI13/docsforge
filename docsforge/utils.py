@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import logging
 import os
@@ -244,16 +245,32 @@ def is_error_template(template_name):
 
 
 def write_file(content, path):
-    """Write content to a file, creating parent directories if needed."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "wb") as f:
-        f.write(content)
+    """Write content to a file atomically, creating parent directories if needed."""
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        with open(tmp, "wb") as f:
+            f.write(content)
+        os.replace(tmp, path)
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
 
 
 def copy_file(source_path, output_path):
-    """Copy source_path to output_path, making sure any parent directories exist."""
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    shutil.copy2(source_path, output_path)
+    """Copy source_path to output_path atomically, making sure any parent directories exist."""
+    parent = os.path.dirname(output_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    tmp = f"{output_path}.{os.getpid()}.tmp"
+    try:
+        shutil.copy2(source_path, tmp)
+        os.replace(tmp, output_path)
+    finally:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
 
 
 def clean_directory(path):
