@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.0b2] — 2026-09-15
+
 ### Added
 
 - **Studio can update itself** — new `DocsForge: Check for Updates` command

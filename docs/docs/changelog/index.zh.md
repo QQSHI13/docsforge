@@ -1,5 +1,7 @@
 ## [未发布]
 
+## [13.0.0b2] — 2026-09-15
+
 ### 新增
 
 - **Studio 可自我更新** —— 新增 `DocsForge: Check for Updates`
