@@ -25,9 +25,12 @@ log = logging.getLogger(__name__)
 def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> int:
     """Find an available port starting from start_port, incrementing until one works."""
     import ipaddress
-    # Use the correct address family for the host (IPv4 vs IPv6)
+    # Probing a wildcard address (0.0.0.0/::) with connect_ex is unreliable,
+    # so probe the loopback interface instead when bound to all interfaces.
+    probe_host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+    # Use the correct address family for the probe host (IPv4 vs IPv6)
     try:
-        is_v6 = isinstance(ipaddress.ip_address(host), ipaddress.IPv6Address)
+        is_v6 = isinstance(ipaddress.ip_address(probe_host), ipaddress.IPv6Address)
         family = socket.AF_INET6 if is_v6 else socket.AF_INET
     except ValueError:
         family = socket.AF_INET
@@ -36,7 +39,7 @@ def _find_available_port(host: str, start_port: int, max_attempts: int = 20) -> 
         with socket.socket(family, socket.SOCK_STREAM) as s:
             s.settimeout(0.3)  # Prevent WSL firewall hangs (dropped SYN packets)
             try:
-                result = s.connect_ex((host, port))
+                result = s.connect_ex((probe_host, port))
             except (TimeoutError, OSError):
                 # Port is likely available but firewall drops the probe
                 return port
@@ -81,23 +84,26 @@ def serve(
         def get_config_file() -> str | BinaryIO | None:
             return config_file.name if getattr(config_file, "closed", False) else config_file
 
-    # Cache loaded config by config-file mtime so incremental serve rebuilds
-    # don't pay the ~1-2s config-loading cost every time.
-    _config_cache: dict[str, tuple[float | None, DocsForgeConfig]] = {}
+    # Cache loaded config by config-file mtime+size so incremental serve
+    # rebuilds don't pay the ~1-2s config-loading cost every time. Both are
+    # compared: mtime alone can reuse a mutated config when an edit lands
+    # inside the filesystem timestamp granularity.
+    _config_cache: dict[str, tuple[tuple[int, int] | None, DocsForgeConfig]] = {}
 
     def get_config():
         cf = get_config_file()
         if isinstance(cf, str):
             try:
-                mtime = os.path.getmtime(cf)
+                st = os.stat(cf)
+                stat_key = (st.st_mtime_ns, st.st_size)
             except OSError:
-                mtime = None
+                stat_key = None
             cached = _config_cache.get(cf)
-            if cached is not None and cached[0] == mtime:
+            if cached is not None and cached[0] == stat_key:
                 config = cached[1]
             else:
                 config = load_config(config_file=cf, **kwargs)
-                _config_cache[cf] = (mtime, config)
+                _config_cache[cf] = (stat_key, config)
         else:
             # BinaryIO (e.g. stdin) cannot be cached by mtime; reload each time.
             config = load_config(config_file=cf, **kwargs)
@@ -218,7 +224,7 @@ def serve(
         log.info("Shutting down...")
         sys.exit(0)
     finally:
-        server.shutdown()
+        server.shutdown(wait=True)
         config.plugins.on_shutdown()
         # Clean up pidfile
         try:

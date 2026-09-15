@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import ipaddress
 import logging
 import os
@@ -148,7 +149,14 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
     def _is_ignored_event(self, event) -> bool:
         """Return True if the event targets an editor temp/backup/cache file."""
-        path = getattr(event, "src_path", "")
+        paths = [getattr(event, "src_path", "")]
+        dest = getattr(event, "dest_path", "")
+        if dest:
+            paths.append(dest)
+        return any(path and self._is_ignored_path(path) for path in paths)
+
+    def _is_ignored_path(self, path: str) -> bool:
+        """Return True if a single filesystem path should never trigger a rebuild."""
         if not path:
             return False
 
@@ -158,10 +166,41 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         except Exception:
             return False
 
+        suffix = p.suffix.lower()
+        # Markdown sources are never build output: unit tests (and any setup
+        # where the serve root doubles as the watched tree) place ``.md``
+        # files directly inside ``self.root``, while real site output is
+        # built HTML/assets. Only apply the site-dir ignore below to
+        # non-Markdown paths so source edits still rebuild.
+        is_source_md = suffix in (".md", ".markdown")
+
+        # Ignore anything inside the build output directory (site_dir),
+        # which is ``self.root``. Compares by abspath so a custom
+        # ``site_dir`` (e.g. ``public``) is ignored just like the default
+        # ``site``. The basename check below covers the case where the
+        # event path is reported relatively.
+        if not is_source_md:
+            try:
+                abs_path = os.path.abspath(path)
+                if abs_path == self.root or abs_path.startswith(self.root + os.sep):
+                    return True
+            except Exception:
+                pass
+
         # Ignore events inside known cache/build/tool directories.
         parts = set(p.parts)
         if parts & self._IGNORED_DIR_SEGMENTS:
             return True
+        # Also ignore the configured output directory's basename, so a
+        # custom ``site_dir`` is filtered even for relative event paths
+        # that never resolve inside ``self.root`` above.
+        if not is_source_md:
+            try:
+                site_base = os.path.basename(self.root)
+            except Exception:
+                site_base = ""
+            if site_base and site_base in parts:
+                return True
 
         name = p.name
 
@@ -174,7 +213,6 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         if name in self._IGNORED_NAMES:
             return True
 
-        suffix = p.suffix.lower()
         if suffix in self._IGNORED_SUFFIXES:
             return True
 
@@ -260,7 +298,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
             except OSError as exc:
                 # EADDRINUSE: the port was grabbed after the probe. Retry on the
                 # next port; re-raise anything else (permission errors, etc.).
-                if exc.errno != 98 or attempt == self._MAX_BIND_ATTEMPTS - 1:
+                if exc.errno != errno.EADDRINUSE or attempt == self._MAX_BIND_ATTEMPTS - 1:
                     raise
                 host, port = self.server_address[:2]
                 log.warning(f"Port {port} became unavailable before bind; trying port {port + 1}")
@@ -308,14 +346,31 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 self._wanted_epoch = _timestamp()
                 self._want_rebuild = False
 
-            try:
+            with self._rebuild_cond:
                 self._rebuilding = True
+            try:
                 self.builder()
-            except BaseException as e:
-                if isinstance(e, SystemExit):
-                    print(e, file=sys.stderr)
-                else:
-                    traceback.print_exc()
+            except KeyboardInterrupt:
+                # Never swallow interrupts: roll back the epoch so waiters
+                # unblock, flag shutdown, and re-raise.
+                with self._epoch_cond:
+                    self._wanted_epoch = self._visible_epoch
+                    self._epoch_cond.notify_all()
+                with self._rebuild_cond:
+                    self._shutdown = True
+                    self._rebuild_cond.notify_all()
+                raise
+            except SystemExit as e:
+                print(e, file=sys.stderr)
+                with self._epoch_cond:
+                    self._wanted_epoch = self._visible_epoch
+                    self._epoch_cond.notify_all()
+                with self._rebuild_cond:
+                    self._shutdown = True
+                    self._rebuild_cond.notify_all()
+                raise
+            except Exception:
+                traceback.print_exc()
                 log.error(
                     "An error happened during the rebuild. The server will continue serving the last successful build."
                 )
@@ -323,11 +378,12 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 # condition variable are unblocked instead of blocking forever.
                 with self._epoch_cond:
                     self._wanted_epoch = self._visible_epoch
+                    self._epoch_cond.notify_all()
                 continue
             finally:
-                self._rebuilding = False
-                # If events were queued during rebuild, trigger a new rebuild
                 with self._rebuild_cond:
+                    self._rebuilding = False
+                    # If events were queued during rebuild, trigger a new rebuild
                     if self._pending_rebuild:
                         self._pending_rebuild = False
                         self._want_rebuild = True
