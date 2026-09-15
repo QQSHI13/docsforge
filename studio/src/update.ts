@@ -10,7 +10,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { hasConfig, compareVersions, pickLatestVersion } from './pure';
+import { hasConfig, compareVersions, isPrereleaseVersion, pickLatestVersion } from './pure';
 import { detectEnvironment, upgradeDocsforge } from './environment';
 import { DocsForgeLogPanel } from './logPanel';
 
@@ -237,6 +237,10 @@ async function collectUpdates(root: string): Promise<{
   engine: EngineUpdate | null;
   extension: ExtensionUpdate | null;
   offline: boolean;
+  /** Installed versions, for messaging when nothing newer is found. */
+  ownVersion: string | null;
+  engineCurrent: string | null;
+  includePre: boolean;
 }> {
   const cfg = vscode.workspace.getConfiguration('docsforge');
   const includePre = cfg.get<boolean>('includePrereleases', false);
@@ -259,7 +263,7 @@ async function collectUpdates(root: string): Promise<{
       tag: extLatest.tag, vsixUrl: extLatest.vsixUrl,
     };
   }
-  return { engine, extension, offline };
+  return { engine, extension, offline, ownVersion: own, engineCurrent: state.docsforgeVersion, includePre };
 }
 
 /** Hook for surfacing update state elsewhere (e.g. the sidebar badge). */
@@ -304,7 +308,7 @@ export async function checkForUpdates(hooks?: UpdateHooks): Promise<void> {
   const { engine, extension } = updates;
   hooks?.onUpdateKnown(summarize(engine, extension));
   if (!engine && !extension) {
-    vscode.window.showInformationMessage('DocsForge is up to date.');
+    await reportUpToDate(updates, hooks);
     return;
   }
   if (engine && extension) {
@@ -334,6 +338,41 @@ export async function checkForUpdates(hooks?: UpdateHooks): Promise<void> {
   if (extension) {
     await offerExtensionUpdate(extension);
   }
+}
+
+/** Explain "up to date": flag prerelease tracking and unknown versions. */
+async function reportUpToDate(
+  updates: {
+    ownVersion: string | null;
+    engineCurrent: string | null;
+    includePre: boolean;
+  },
+  hooks?: UpdateHooks,
+): Promise<void> {
+  if (updates.ownVersion === null) {
+    vscode.window.showWarningMessage(
+      'DocsForge: could not determine the installed extension version, '
+      + 'so only the engine was checked (up to date).',
+    );
+    return;
+  }
+  const onPre = (updates.ownVersion && isPrereleaseVersion(updates.ownVersion))
+    || (updates.engineCurrent && isPrereleaseVersion(updates.engineCurrent));
+  if (onPre && !updates.includePre) {
+    const action = await vscode.window.showInformationMessage(
+      'DocsForge is up to date on stable releases, but you are running a '
+      + 'pre-release. Turn on pre-release tracking to be offered betas.',
+      'Check pre-releases', 'Later',
+    );
+    if (action === 'Check pre-releases') {
+      await vscode.workspace.getConfiguration('docsforge').update(
+        'includePrereleases', true, vscode.ConfigurationTarget.Global,
+      );
+      await checkForUpdates(hooks);
+    }
+    return;
+  }
+  vscode.window.showInformationMessage('DocsForge is up to date.');
 }
 
 /** Silent startup check: notifies only when an update is found (once per version). */
