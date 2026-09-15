@@ -8,6 +8,7 @@ import logging
 import os
 import posixpath
 import re
+import threading
 import time
 from concurrent.futures import Future, wait
 from concurrent.futures.thread import ThreadPoolExecutor
@@ -147,9 +148,35 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
     def _get_pool(self) -> ThreadPoolExecutor:
         """Return the thread pool, creating it on first use."""
+        lock = getattr(self, "_jobs_lock", None)
+        if lock is not None:
+            with lock:
+                if self.pool is None:
+                    self.pool = ThreadPoolExecutor(self._concurrency)
+                return self.pool
         if self.pool is None:
             self.pool = ThreadPoolExecutor(self._concurrency)
         return self.pool
+
+    def _drain_jobs(self) -> None:
+        """Wait for queued jobs until quiescent, surfacing failures as warnings.
+
+        Jobs may queue further jobs while we wait (nested CSS/JS URLs), so
+        loop until no jobs remain. Each future's result is consumed so
+        exceptions are logged instead of silently dropped.
+        """
+        while True:
+            with self._jobs_lock:
+                jobs = list(self.pool_jobs)
+                self.pool_jobs.clear()
+            if not jobs:
+                break
+            wait(jobs)
+            for f in jobs:
+                try:
+                    f.result()
+                except Exception as e:
+                    log.warning(f"External asset job failed: {e}")
 
     # -----------------------------------------------------------------------
     # One-time events
@@ -159,6 +186,8 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         self.site = urlparse(config.site_url or "")
         # Global `concurrency` setting sizes the download pool.
         self._concurrency = config.concurrency
+        if not hasattr(self, "_jobs_lock"):
+            self._jobs_lock = threading.Lock()
         if not self.config.enabled:
             return
 
@@ -185,6 +214,8 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         # we avoid the cost of starting and shutting down worker threads.
         self.pool: ThreadPoolExecutor | None = None
         self.pool_jobs: list[Future] = []
+        if not hasattr(self, "_jobs_lock"):
+            self._jobs_lock = threading.Lock()
 
         # Initialize collections of external assets
         self.assets = Files([])
@@ -210,7 +241,12 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         pool threads alive and the interpreter hangs joining them until
         every download times out on its own.
         """
-        self.pool_jobs = []
+        lock = getattr(self, "_jobs_lock", None)
+        if lock is not None:
+            with lock:
+                self.pool_jobs = []
+        else:
+            self.pool_jobs = []
         pool = getattr(self, "pool", None)
         self.pool = None
         if pool is not None:
@@ -244,7 +280,9 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                             config.extra_javascript.append(script)
 
             if file:
-                self.assets.append(initiator)
+                with self._jobs_lock:
+                    if not self.assets.get_file_from_path(initiator.src_uri):
+                        self.assets.append(initiator)
                 files.remove(initiator)
 
         # Process external style sheet files
@@ -284,10 +322,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not self.config.enabled:
             return
 
-        wait(self.pool_jobs)
-        self.pool_jobs.clear()
+        self._drain_jobs()
 
-        for file in self.assets:
+        with self._jobs_lock:
+            assets_snapshot = list(self.assets)
+        for file in assets_snapshot:
             _, extension = posixpath.splitext(file.dest_uri)
             if extension not in [".css", ".js"]:
                 if not os.path.exists(str(file.abs_src_path)):
@@ -325,12 +364,13 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not self.config.enabled:
             return
 
-        wait(self.pool_jobs)
-        self.pool_jobs.clear()
+        self._drain_jobs()
 
         # First pass: discover nested URLs in downloaded CSS/JS files
         # (e.g., font files referenced inside Google Fonts CSS)
-        for file in list(self.assets):
+        with self._jobs_lock:
+            assets_snapshot = list(self.assets)
+        for file in assets_snapshot:
             _, extension = posixpath.splitext(file.dest_uri)
             if extension in [".css", ".js"]:
                 for url in self._parse_media(file):
@@ -338,20 +378,26 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                         self._queue(url, config, concurrent=True)
 
         # Wait for nested downloads
-        wait(self.pool_jobs)
-        self.pool_jobs.clear()
+        self._drain_jobs()
 
         # Second pass: patch CSS/JS files with local URLs and copy remaining assets
-        for file in self.assets:
+        with self._jobs_lock:
+            assets_snapshot = list(self.assets)
+        for file in assets_snapshot:
             _, extension = posixpath.splitext(file.dest_uri)
             if extension in [".css", ".js"]:
-                self.pool_jobs.append(self._get_pool().submit(self._patch, file))
+                pool = self._get_pool()
+                with self._jobs_lock:
+                    self.pool_jobs.append(pool.submit(self._patch, file))
             elif file not in self.assets_done and os.path.exists(str(file.abs_src_path)):
                 file.copy_file()
 
-        wait(self.pool_jobs)
-        if self.pool is not None:
-            self.pool.shutdown()
+        self._drain_jobs()
+        pool = self.pool
+        self.pool = None
+        if pool is not None:
+            with contextlib.suppress(Exception):
+                pool.shutdown(wait=False, cancel_futures=True)
 
     # -----------------------------------------------------------------------
     # URL helpers
@@ -426,9 +472,14 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             return []
 
         expr = re.compile(self.assets_expr_map[extension], flags=re.IGNORECASE | re.MULTILINE)
-        with open(initiator.abs_src_path, encoding="utf-8-sig") as f:
-            results = re.finditer(expr, f.read())
-            return [urlparse(result.group("url")) for result in results]
+        try:
+            with open(initiator.abs_src_path, encoding="utf-8-sig") as f:
+                content = f.read()
+        except (OSError, UnicodeDecodeError) as e:
+            log.warning(f"Skipping unparsable file {initiator.src_uri}: {e}")
+            return []
+        results = re.finditer(expr, content)
+        return [urlparse(result.group("url")) for result in results]
 
     def _parse_html(self, output: str, initiator: File, config: DocsForgeConfig):
 
@@ -500,22 +551,36 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         path = self._path_from_url(url)
         full = posixpath.join(self.config.assets_fetch_dir, path)
 
-        file = self.assets.get_file_from_path(full)
+        with self._jobs_lock:
+            file = self.assets.get_file_from_path(full)
         if not file:
             file = self._path_to_file(path, config)
             file.url = url.geturl()
 
             _, extension = posixpath.splitext(url.path)
             if extension and concurrent:
-                self.pool_jobs.append(self._get_pool().submit(self._fetch, file, config))
+                pool = self._get_pool()
+                fut = pool.submit(self._fetch, file, config)
+                with self._jobs_lock:
+                    # Another thread may have queued the same URL while we
+                    # were creating the File; prefer the existing entry.
+                    existing = self.assets.get_file_from_path(full)
+                    self.pool_jobs.append(fut)
+                    if existing is not None:
+                        file = existing
+                    elif not self.assets.get_file_from_path(file.src_uri):
+                        self.assets.append(file)
             elif not self._fetch(file, config):
                 return None
-
-            if not self.assets.get_file_from_path(file.src_uri):
-                self.assets.append(file)
+            else:
+                with self._jobs_lock:
+                    if not self.assets.get_file_from_path(file.src_uri):
+                        self.assets.append(file)
 
         if url.fragment:
-            file.url += f"#{url.fragment}"
+            with self._jobs_lock:
+                if not file.url.endswith(f"#{url.fragment}"):
+                    file.url += f"#{url.fragment}"
 
         return file
 
@@ -530,6 +595,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 return False
 
             log.info(f"Downloading external file: {file.url}")
+            res = None
             try:
                 # Validate redirects manually so a https:// asset can never be
                 # silently downgraded to http://, and so a redirect cannot
@@ -552,6 +618,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                     if res.is_redirect or res.is_permanent_redirect:
                         location = res.headers.get("location", "")
                         res.close()
+                        res = None
                         next_url = urljoin(current_url, location)
                         parsed_next = urlparse(next_url)
                         if parsed_next.scheme not in ("http", "https"):
@@ -566,31 +633,54 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 else:
                     log.warning(f"Too many redirects retrieving {file.url}")
                     return False
+            except Exception as error:
+                if res is not None:
+                    with contextlib.suppress(Exception):
+                        res.close()
+                log.warning(f"Couldn't retrieve {file.url}: {error}")
+                return False
 
+            try:
                 res.raise_for_status()
             except Exception as error:
+                with contextlib.suppress(Exception):
+                    res.close()
                 log.warning(f"Couldn't retrieve {file.url}: {error}")
                 return False
 
             # Validate the final URL after any redirects resolved.
             parsed_final = urlparse(res.url) if hasattr(res, "url") else urlparse(current_url)
             if parsed_final.scheme not in ("http", "https"):
+                with contextlib.suppress(Exception):
+                    res.close()
                 log.warning(f"Unsupported URL scheme for external file: {file.url}")
                 return False
 
             # Enforce a response size cap while streaming, plus a hard overall
             # deadline so a slow-drip server cannot stall the build forever.
             content_length = res.headers.get("content-length")
-            if content_length and int(content_length) > MAX_DOWNLOAD_SIZE:
-                log.warning(f"External file too large: {file.url}")
-                return False
+            if content_length:
+                try:
+                    if int(str(content_length).strip()) > MAX_DOWNLOAD_SIZE:
+                        with contextlib.suppress(Exception):
+                            res.close()
+                        log.warning(f"External file too large: {file.url}")
+                        return False
+                except ValueError:
+                    # Ignore malformed content-length; the streaming cap below
+                    # still bounds the download.
+                    pass
 
-            content = b""
+            chunks: list[bytes] = []
+            total_size = 0
             download_deadline = time.monotonic() + MAX_DOWNLOAD_TIME
             try:
                 for chunk in res.iter_content(chunk_size=8192):
-                    content += chunk
-                    if len(content) > MAX_DOWNLOAD_SIZE:
+                    if not chunk:
+                        continue
+                    chunks.append(chunk)
+                    total_size += len(chunk)
+                    if total_size > MAX_DOWNLOAD_SIZE:
                         log.warning(f"External file too large: {file.url}")
                         return False
                     if time.monotonic() > download_deadline:
@@ -601,6 +691,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 # on the early-return paths above. iter_content() consumed
                 # the stream, so res.content is unavailable here.
                 res.close()
+            content = b"".join(chunks)
 
             mime = res.headers.get("content-type", "").split(";")[0]
             extension = extensions.get(mime)
@@ -662,39 +753,46 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not os.path.isfile(initiator.abs_src_path):
             log.debug(f"Skipping patch for unavailable file: {initiator.src_uri}")
             return
-        with open(initiator.abs_src_path, encoding="utf-8-sig") as f:
-            def replace(match: Match):
-                value = match.group("url")
-                path = self._path_from_url(urlparse(value))
-                full = posixpath.join(self.config.assets_fetch_dir, path)
+        try:
+            with open(initiator.abs_src_path, encoding="utf-8-sig") as f:
+                raw = f.read()
+        except (OSError, UnicodeDecodeError) as e:
+            log.warning(f"Skipping patch for unreadable file {initiator.src_uri}: {e}")
+            return
+        def replace(match: Match):
+            value = match.group("url")
+            path = self._path_from_url(urlparse(value))
+            full = posixpath.join(self.config.assets_fetch_dir, path)
 
-                file = self.assets.get_file_from_path(full)
-                if not file:
-                    try:
-                        name = os.readlink(os.path.join(self.config.cache_dir, full))
-                        full = posixpath.join(posixpath.dirname(full), name)
-                        file = self.assets.get_file_from_path(full)
-                    except (OSError, FileNotFoundError):
-                        log.warning(f"Skipping unavailable asset: {full}")
-                        return match.group()
-
-                if not file:
-                    log.warning(f"Skipping unavailable asset (not in cache): {full}")
+            file = self.assets.get_file_from_path(full)
+            if not file:
+                try:
+                    name = os.readlink(os.path.join(self.config.cache_dir, full))
+                    full = posixpath.join(posixpath.dirname(full), name)
+                    file = self.assets.get_file_from_path(full)
+                except (OSError, FileNotFoundError):
+                    log.warning(f"Skipping unavailable asset: {full}")
                     return match.group()
 
-                if file.url.endswith(".js"):
-                    url = posixpath.join(self.site.geturl(), file.url)
-                else:
-                    url = file.url_relative_to(initiator)
+            if not file:
+                log.warning(f"Skipping unavailable asset (not in cache): {full}")
+                return match.group()
 
-                return match.group().replace(value, url)
+            if file.url.endswith(".js"):
+                url = posixpath.join(self.site.geturl(), file.url)
+            else:
+                url = file.url_relative_to(initiator)
 
-            _, extension = posixpath.splitext(initiator.dest_uri)
-            expr = re.compile(self.assets_expr_map[extension], re.IGNORECASE | re.MULTILINE)
-            self._save_to_file(
-                initiator.abs_dest_path,
-                expr.sub(replace, f.read())
-            )
+            return match.group().replace(value, url)
+
+        _, extension = posixpath.splitext(initiator.dest_uri)
+        if extension not in self.assets_expr_map:
+            return
+        expr = re.compile(self.assets_expr_map[extension], re.IGNORECASE | re.MULTILINE)
+        self._save_to_file(
+            initiator.abs_dest_path,
+            expr.sub(replace, raw)
+        )
 
     # -----------------------------------------------------------------------
     # Path helpers

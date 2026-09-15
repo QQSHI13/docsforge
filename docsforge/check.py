@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
@@ -297,8 +298,19 @@ def fix_config(config_file=None) -> int:
         log.error(f"Could not back up {config_path}: {e}. Aborting without changes.")
         return 1
 
-    with open(config_path, "w", encoding="utf-8") as f:
-        yaml.dump(raw, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    # Write to a PID-unique temp file in the same directory, then atomically
+    # replace the config. Dumping straight into the config would truncate it
+    # before serialization succeeds, destroying the file on dump failure.
+    tmp_path = f"{config_path}.tmp.{os.getpid()}"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            yaml.dump(raw, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        os.replace(tmp_path, config_path)
+    except Exception as e:
+        log.error(f"Could not write {config_path}: {e}. Original preserved at {backup_path}.")
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        return 1
     print(f"  \nConfiguration updated: {config_path}")
     print(f"  Comments and formatting are not preserved; original saved to {backup_path}")
     return 0
