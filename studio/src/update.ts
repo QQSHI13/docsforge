@@ -262,8 +262,24 @@ async function collectUpdates(root: string): Promise<{
   return { engine, extension, offline };
 }
 
+/** Hook for surfacing update state elsewhere (e.g. the sidebar badge). */
+export interface UpdateHooks {
+  onUpdateKnown(summary: string | null): void;
+}
+
+/** One-line summary of available updates, or null when up to date. */
+function summarize(
+  engine: EngineUpdate | null, extension: ExtensionUpdate | null,
+): string | null {
+  const parts = [
+    engine ? `engine ${engine.current} → ${engine.latest}` : '',
+    extension ? `extension ${extension.current} → ${extension.latest}` : '',
+  ].filter(Boolean);
+  return parts.length ? parts.join(', ') : null;
+}
+
 /** Manual command: check for engine + extension updates with progress UI. */
-export async function checkForUpdates(): Promise<void> {
+export async function checkForUpdates(hooks?: UpdateHooks): Promise<void> {
   const root = resolveRoot();
   if (!root || !hasConfig(root)) {
     vscode.window.showInformationMessage(
@@ -286,6 +302,7 @@ export async function checkForUpdates(): Promise<void> {
     return;
   }
   const { engine, extension } = updates;
+  hooks?.onUpdateKnown(summarize(engine, extension));
   if (!engine && !extension) {
     vscode.window.showInformationMessage('DocsForge is up to date.');
     return;
@@ -321,7 +338,7 @@ export async function checkForUpdates(): Promise<void> {
 
 /** Silent startup check: notifies only when an update is found (once per version). */
 export async function autoCheckUpdates(
-  context: vscode.ExtensionContext,
+  context: vscode.ExtensionContext, hooks?: UpdateHooks,
 ): Promise<void> {
   const cfg = vscode.workspace.getConfiguration('docsforge');
   if (!cfg.get<boolean>('autoCheckUpdates', true)) {
@@ -341,6 +358,8 @@ export async function autoCheckUpdates(
   if (updates.offline || (!updates.engine && !updates.extension)) {
     return;
   }
+  const summary = summarize(updates.engine, updates.extension);
+  hooks?.onUpdateKnown(summary);
   const seen = [
     updates.engine ? `engine:${updates.engine.latest}` : '',
     updates.extension ? `extension:${updates.extension.latest}` : '',
@@ -348,25 +367,25 @@ export async function autoCheckUpdates(
   if (context.globalState.get<string>('docsforge.update.dismissed', '') === seen) {
     return;
   }
-  const parts = [
-    updates.engine ? `engine ${updates.engine.current} → ${updates.engine.latest}` : '',
-    updates.extension ? `extension ${updates.extension.current} → ${updates.extension.latest}` : '',
-  ].filter(Boolean).join(', ');
   const action = await vscode.window.showInformationMessage(
-    `DocsForge update available (${parts}).`,
+    `DocsForge update available (${summary}).`,
     'Update now', 'Later', "Don't ask again",
   );
   if (action === 'Update now') {
-    await checkForUpdates();
+    await checkForUpdates(hooks);
   } else if (action === "Don't ask again") {
     await context.globalState.update('docsforge.update.dismissed', seen);
   }
 }
 
 /** Register the update command (always available; guards live in handlers). */
-export function registerUpdateCommands(context: vscode.ExtensionContext): void {
+export function registerUpdateCommands(
+  context: vscode.ExtensionContext, hooks?: UpdateHooks,
+): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('docsforge.checkForUpdates', () => checkForUpdates()),
+    vscode.commands.registerCommand(
+      'docsforge.checkForUpdates', () => checkForUpdates(hooks),
+    ),
   );
-  void autoCheckUpdates(context);
+  void autoCheckUpdates(context, hooks);
 }

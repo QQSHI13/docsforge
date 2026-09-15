@@ -6,6 +6,7 @@ export interface DocsForgeTreeItem {
   icon: string;
   tooltip: string;
   when?: string;
+  description?: string;
 }
 
 const ROOT_ITEMS: DocsForgeTreeItem[] = [
@@ -93,6 +94,12 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     icon: 'refresh',
     tooltip: 'Re-read the build validation cache and refresh squiggles',
   },
+  {
+    label: 'Check for Updates',
+    command: 'docsforge.checkForUpdates',
+    icon: 'cloud-download',
+    tooltip: 'Check for DocsForge engine and extension updates',
+  },
 ];
 
 function evalWhen(
@@ -113,6 +120,8 @@ export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsFor
 
   serverRunning = false;
   buildRunning = false;
+  /** Set when an update check found something newer; shown on the item. */
+  updateAvailable: string | null = null;
 
   refresh() { this._onDidChangeTreeData.fire(); }
 
@@ -121,6 +130,9 @@ export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsFor
     item.command = { command: element.command, title: element.label };
     item.iconPath = new vscode.ThemeIcon(element.icon);
     item.tooltip = element.tooltip;
+    if (element.description) {
+      item.description = element.description;
+    }
     item.contextValue = element.command.slice('docsforge.'.length);
     return item;
   }
@@ -129,7 +141,16 @@ export class DocsForgeSidebarProvider implements vscode.TreeDataProvider<DocsFor
     return Promise.resolve(
       ROOT_ITEMS.filter(item =>
         evalWhen(item.when, { serverRunning: this.serverRunning, buildRunning: this.buildRunning })
-      )
+      ).map((item) => {
+        if (item.command === 'docsforge.checkForUpdates' && this.updateAvailable) {
+          return {
+            ...item,
+            description: this.updateAvailable,
+            tooltip: `Update available: ${this.updateAvailable} — click to update`,
+          };
+        }
+        return item;
+      })
     );
   }
 }

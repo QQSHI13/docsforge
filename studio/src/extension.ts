@@ -201,8 +201,13 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Self-update: manual command + silent delayed startup check (notifies
-  // only when an update is found).
-  registerUpdateCommands(context);
+  // only when an update is found). Findings feed the sidebar item badge.
+  registerUpdateCommands(context, {
+    onUpdateKnown: (summary) => {
+      sidebarProvider.updateAvailable = summary;
+      sidebarProvider.refresh();
+    },
+  });
 
   // Editor intelligence per workspace root that already has a config
   // (multi-root: every folder, not just workspaceFolders[0]).

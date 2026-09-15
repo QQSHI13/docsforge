@@ -172,6 +172,11 @@
           "command": "docsforge.refreshSidebar",
           "group": "navigation",
           "when": "view == docsforge.sidebar"
+        },
+        {
+          "command": "docsforge.checkForUpdates",
+          "group": "navigation",
+          "when": "view == docsforge.sidebar"
         }
       ],
       "view/item/context": []

@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Added
+
+- **Studio update check in the sidebar** — the Actions view has a
+  Check for Updates item (plus a title-bar button) that shows the available
+  versions inline once a check finds something newer.
+
 ## [13.0.0b2] — 2026-09-15
 
 ### Added
