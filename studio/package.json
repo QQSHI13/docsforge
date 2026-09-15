@@ -34,6 +34,7 @@
     "onCommand:docsforge.refreshDiagnostics",
     "onCommand:docsforge.openLinkTarget",
     "onCommand:docsforge.openPage",
+    "onCommand:docsforge.refreshSidebar",
     "onView:docsforge.sidebar",
     "workspaceContains:docsforge.yml",
     "workspaceContains:mkdocs.yml",

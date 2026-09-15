@@ -463,3 +463,141 @@ export function computeFolderRename(
   }
   return { files, edits };
 }
+
+/* ------------------------------------------------------------------ */
+/* Extension-side pure helpers (vscode-free, unit-tested)             */
+/* ------------------------------------------------------------------ */
+
+/** Docs-relative URI for a file, or null when outside the docs dir.
+ *  Guards non-docs .md files (e.g. root README.md) that match the broad
+ *  `root/**​/*.md` selector but would otherwise produce garbage via
+ *  `fsPath.slice(docsDir.length + 1)`. */
+export function srcUriOfPath(docsDirAbs: string, fsPath: string): string | null {
+  if (fsPath !== docsDirAbs && !fsPath.startsWith(docsDirAbs + path.sep)) {
+    return null;
+  }
+  if (fsPath === docsDirAbs) {
+    return null;
+  }
+  return fsPath.slice(docsDirAbs.length + 1).split(path.sep).join('/');
+}
+
+/** Whether the cursor is inside a markdown link destination `](…)`.
+ *  Returns the partial target, or null when not in link context (so plain
+ *  `(…)` parens don't trigger path completions on every keystroke). */
+export function linkTargetPrefix(beforeCursor: string): string | null {
+  const m = beforeCursor.match(/\]\(([^)]*)$/);
+  return m ? m[1] : null;
+}
+
+/** Filter cached docs URIs by a typed prefix (with directory-prune). */
+export function filterDocsByPrefix(
+  files: Array<{ srcUri: string }>, partial: string, limit: number,
+): string[] {
+  const out: string[] = [];
+  let prefixDir: string | null = null;
+  const slash = partial.lastIndexOf('/');
+  if (slash > 0) {
+    prefixDir = partial.slice(0, slash + 1);
+  }
+  for (const f of files) {
+    if (prefixDir && !f.srcUri.startsWith(prefixDir)) {
+      continue;
+    }
+    if (!f.srcUri.startsWith(partial)) {
+      continue;
+    }
+    out.push(f.srcUri);
+    if (out.length >= limit) {
+      break;
+    }
+  }
+  return out;
+}
+
+/** Whether an onDidRenameFiles entry is a folder rename.
+ *  Post-move `oldFsPath` no longer exists, so stat `newFsPath`; fall back to
+ *  an extension heuristic (folders lack a `.md` suffix on both ends). */
+export function isFolderRenameEvent(oldFsPath: string, newFsPath: string): boolean {
+  try {
+    if (fs.existsSync(newFsPath)) {
+      return fs.statSync(newFsPath).isDirectory();
+    }
+  } catch {
+    /* fall through to heuristic */
+  }
+  const oldIsMd = oldFsPath.endsWith('.md');
+  const newIsMd = newFsPath.endsWith('.md');
+  return !oldIsMd && !newIsMd;
+}
+
+/** Pre-validate rename targets: return the first colliding target, if any
+ *  (existing file on disk or duplicate target within the map). */
+export function findRenameCollision(files: Map<string, string>): string | null {
+  const seen = new Set<string>();
+  for (const [, newAbs] of files) {
+    if (seen.has(newAbs)) {
+      return newAbs;
+    }
+    seen.add(newAbs);
+    if (fs.existsSync(newAbs)) {
+      return newAbs;
+    }
+  }
+  return null;
+}
+
+/** Collect footnote warnings for every .md file under the docs dir,
+ *  independent of validation.json coverage. */
+export function collectFootnoteWarnings(
+  docsDirAbs: string,
+): Map<string, Array<{ line: number; message: string }>> {
+  const out = new Map<string, Array<{ line: number; message: string }>>();
+  let docs: Array<{ absPath: string; srcUri: string }>;
+  try {
+    docs = walkDocs(docsDirAbs);
+  } catch {
+    return out;
+  }
+  for (const doc of docs) {
+    let text: string;
+    try {
+      text = fs.readFileSync(doc.absPath, 'utf-8');
+    } catch {
+      continue;
+    }
+    const warnings = checkFootnotes(text);
+    if (warnings.length) {
+      out.set(
+        doc.absPath,
+        warnings.map((w) => ({ line: w.line, message: w.message })),
+      );
+    }
+  }
+  return out;
+}
+
+/** Parse validation.json without swallowing the failure mode.
+ *  `{ ok: true, data }` on success (including file-missing → empty),
+ *  `{ ok: false }` when the file exists but cannot be parsed (e.g. mid
+ *  atomic-write) so callers keep stale diagnostics instead of flashing. */
+export function tryLoadValidation(
+  workspaceRoot: string,
+): { ok: true; data: Record<string, { warnings?: number[][] }> } | { ok: false } {
+  const p = path.join(workspaceRoot, '.docsforge', 'cache', 'validation.json');
+  let raw: string;
+  try {
+    raw = fs.readFileSync(p, 'utf-8');
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code === 'ENOENT') {
+      return { ok: true, data: {} };
+    }
+    return { ok: false };
+  }
+  try {
+    return { ok: true, data: JSON.parse(raw) as Record<string, { warnings?: number[][] }> };
+  } catch {
+    return { ok: false };
+  }
+}

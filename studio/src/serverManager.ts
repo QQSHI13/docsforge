@@ -2,9 +2,12 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
-import { findConfig as findConfigPure, hasConfig as hasConfigPure, extractServerUrl } from './pure';
+import { findConfig as findConfigPure, hasConfig as hasConfigPure, extractServerUrl, shouldEscalateToSigkill } from './pure';
 import { DocsForgeLogPanel } from './logPanel';
 import { detectEnvironment, ensureDocsforge } from './environment';
+
+/** Re-exported for backwards compatibility (pure helper lives in pure.ts). */
+export { shouldEscalateToSigkill };
 
 export class ServerManager {
   private process: ChildProcess | null = null;
@@ -16,14 +19,36 @@ export class ServerManager {
   private _processCloseHandler: ((code: number | null) => void) | null = null;
   private _processErrorHandler: ((err: Error) => void) | null = null;
   private _startSafetyTimeout: NodeJS.Timeout | null = null;
+  private pollTimer: NodeJS.Timeout | null = null;
+  private watchedPidfile: string | null = null;
   private static stateChangeEmitter = new vscode.EventEmitter<void>();
+  private static emitterDisposed = false;
   static instance: ServerManager | undefined;
 
+  private static ensureEmitter(): vscode.EventEmitter<void> {
+    if (ServerManager.emitterDisposed || !ServerManager.stateChangeEmitter) {
+      ServerManager.stateChangeEmitter = new vscode.EventEmitter<void>();
+      ServerManager.emitterDisposed = false;
+    }
+    return ServerManager.stateChangeEmitter;
+  }
+
+  /** Dispose the shared state-change emitter (call on extension deactivate). */
+  static disposeStateEmitter(): void {
+    if (!ServerManager.emitterDisposed) {
+      ServerManager.emitterDisposed = true;
+      ServerManager.stateChangeEmitter.dispose();
+    }
+  }
+
   static onStateChange(listener: () => void): vscode.Disposable {
-    return ServerManager.stateChangeEmitter.event(listener);
+    return ServerManager.ensureEmitter().event(listener);
   }
 
   private static emitStateChange() {
+    if (ServerManager.emitterDisposed) {
+      return;
+    }
     ServerManager.stateChangeEmitter.fire();
   }
 
@@ -80,7 +105,10 @@ export class ServerManager {
       }
     };
     poll();
-    setInterval(poll, 3000);
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+    }
+    this.pollTimer = setInterval(poll, 3000);
   }
 
   /** Watch .docsforge/server.json for create/delete events. */
@@ -90,6 +118,10 @@ export class ServerManager {
 
     const pidfile = path.join(root, '.docsforge', 'server.json');
     try {
+      if (this.watchedPidfile) {
+        fs.unwatchFile(this.watchedPidfile);
+      }
+      this.watchedPidfile = pidfile;
       fs.watchFile(pidfile, (curr, prev) => {
         if (curr.size > 0 && prev.size === 0) {
           // File was created — server started
@@ -350,9 +382,13 @@ export class ServerManager {
       this.process = null;
       if (this._processCloseHandler) { proc.removeListener('close', this._processCloseHandler); }
       if (this._processErrorHandler) { proc.removeListener('error', this._processErrorHandler); }
+      let exited = false;
+      proc.once('close', () => { exited = true; });
       proc.kill('SIGTERM');
       const sigkillTimer = setTimeout(() => {
-        if (!proc.killed) { proc.kill('SIGKILL'); }
+        if (!exited && shouldEscalateToSigkill(proc)) {
+          try { proc.kill('SIGKILL'); } catch { /* already exited */ }
+        }
       }, 2000);
       proc.once('close', () => {
         clearTimeout(sigkillTimer);
@@ -398,9 +434,13 @@ export class ServerManager {
     this.buildProcess = null;
     vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
     ServerManager.emitStateChange();
+    let exited = false;
+    proc.once('close', () => { exited = true; });
     proc.kill('SIGTERM');
     setTimeout(() => {
-      if (!proc.killed) { proc.kill('SIGKILL'); }
+      if (!exited && shouldEscalateToSigkill(proc)) {
+        try { proc.kill('SIGKILL'); } catch { /* already exited */ }
+      }
     }, 2000);
   }
 
@@ -520,6 +560,14 @@ export class ServerManager {
 
   dispose() {
     this._clearStartSafetyTimeout();
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    if (this.watchedPidfile) {
+      fs.unwatchFile(this.watchedPidfile);
+      this.watchedPidfile = null;
+    }
     this.stop(/* silent */ true);
     this.statusBarItem.dispose();
   }

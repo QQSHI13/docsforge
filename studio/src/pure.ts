@@ -46,3 +46,12 @@ export function parseDocsforgeVersion(raw: string): string | null {
   const match = raw.trim().match(/^\d+\.\d+\.\d+/);
   return match ? match[0] : null;
 }
+
+/** Whether a spawned process still needs SIGKILL escalation.
+ *  `ChildProcess.killed` only means a signal was delivered, so it must not
+ *  gate escalation — check real exit state instead. */
+export function shouldEscalateToSigkill(
+  proc: { exitCode: number | null; signalCode: NodeJS.Signals | null },
+): boolean {
+  return proc.exitCode === null && proc.signalCode == null;
+}

@@ -11,20 +11,29 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  loadValidation,
   docAbsPath,
   severityForLevel,
   linkFromWarning,
   linesOfLink,
   docsDirFromConfig,
   checkFootnotes,
+  collectFootnoteWarnings,
+  tryLoadValidation,
 } from './links';
+
+/** Re-exported pure helpers (canonical implementations live in links.ts). */
+export { collectFootnoteWarnings, tryLoadValidation };
+
+/** Debounce interval for validation.json change → refresh. */
+export const DIAGNOSTICS_DEBOUNCE_MS = 250;
 
 export class DocsForgeDiagnostics {
   private collection: vscode.DiagnosticCollection;
   private watcher: fs.FSWatcher | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
+  private refreshTimer: NodeJS.Timeout | null = null;
   private lastMtimeMs = 0;
+  private published = new Set<string>();
   private root: string;
   private docsDir: string;
   private validationPath: string;
@@ -59,7 +68,7 @@ export class DocsForgeDiagnostics {
       if (fs.existsSync(this.cacheDir)) {
         this.watcher = fs.watch(this.cacheDir, (_event, filename) => {
           if (filename === 'validation.json') {
-            this.refresh();
+            this.scheduleRefresh();
           }
         });
       }
@@ -71,16 +80,37 @@ export class DocsForgeDiagnostics {
     this.pollTimer = setInterval(() => {
       const mtime = this.mtimeMs();
       if (mtime !== this.lastMtimeMs) {
-        this.lastMtimeMs = mtime;
-        this.refresh();
+        this.scheduleRefresh();
       }
     }, 2000);
   }
 
-  /** Re-read validation.json and publish diagnostics. */
+  /** Debounced refresh trigger shared by the directory watcher and poll. */
+  private scheduleRefresh(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      this.refresh();
+    }, DIAGNOSTICS_DEBOUNCE_MS);
+  }
+
+  /** Re-read validation.json and publish diagnostics.
+   *
+   * Parses first and only mutates the collection on success: a missing file
+   * publishes an empty (cleared-diff) state, while a corrupt/mid-write file
+   * keeps stale squiggles so the update is retried on the next tick instead
+   * of being lost. Footnotes are computed over the whole docs tree,
+   * independent of validation.json coverage.
+   */
   refresh(): void {
-    this.collection.clear();
-    const data = loadValidation(this.root);
+    const parsed = tryLoadValidation(this.root);
+    if (!parsed.ok) {
+      return;
+    }
+    this.lastMtimeMs = this.mtimeMs();
+    const data = parsed.data;
     const byFile = new Map<string, vscode.Diagnostic[]>();
 
     for (const [srcUri, entry] of Object.entries(data)) {
@@ -148,6 +178,32 @@ export class DocsForgeDiagnostics {
       byFile.set(absPath, diags);
     }
 
+    // Footnotes for files absent from validation.json (never built / clean).
+    const docsDirAbs = path.join(this.root, this.docsDir);
+    for (const [absPath, warnings] of collectFootnoteWarnings(docsDirAbs)) {
+      if (byFile.has(absPath)) {
+        continue;
+      }
+      const diags: vscode.Diagnostic[] = warnings.map((fn) => {
+        const diag = new vscode.Diagnostic(
+          new vscode.Range(fn.line, 0, fn.line, 1000),
+          fn.message,
+          vscode.DiagnosticSeverity.Warning,
+        );
+        diag.source = 'docsforge';
+        return diag;
+      });
+      byFile.set(absPath, diags);
+    }
+
+    // Per-file set/delete diff instead of clear() so a failed parse above
+    // never flashes squiggles off (we return early on failure).
+    for (const prev of this.published) {
+      if (!byFile.has(prev)) {
+        this.collection.delete(vscode.Uri.file(prev));
+      }
+    }
+    this.published = new Set(byFile.keys());
     for (const [absPath, diags] of byFile) {
       this.collection.set(vscode.Uri.file(absPath), diags);
     }
@@ -155,8 +211,14 @@ export class DocsForgeDiagnostics {
 
   dispose(): void {
     this.watcher?.close();
+    this.watcher = null;
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
     }
     this.collection.dispose();
   }

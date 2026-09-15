@@ -16,7 +16,13 @@ import {
   computeDocumentRename,
   computeFolderRename,
   computeAnchorRenameEdits,
+  isFolderRenameEvent as isFolderRenameEventPure,
+  findRenameCollision as findRenameCollisionPure,
 } from './links';
+
+/** Re-exported pure helpers (canonical implementations live in links.ts). */
+export const isFolderRenameEvent = isFolderRenameEventPure;
+export const findRenameCollision = findRenameCollisionPure;
 
 /** Register the rename commands. */
 export function registerRenameCommands(
@@ -53,6 +59,15 @@ export function registerRenameCommands(
         vscode.window.showWarningMessage('DocsForge: no files matched the rename.');
         return;
       }
+      // Pre-validate ALL targets before mutating anything: a later collision
+      // must not leave earlier files already renamed (non-atomic).
+      const collision = findRenameCollision(files);
+      if (collision) {
+        vscode.window.showErrorMessage(
+          `DocsForge: target file already exists: ${path.relative(docsDirAbs, collision)}`,
+        );
+        return;
+      }
       const edit = new vscode.WorkspaceEdit();
       for (const [absPath, fileEdits] of edits) {
         const uri = vscode.Uri.file(absPath);
@@ -63,20 +78,22 @@ export function registerRenameCommands(
           edit.replace(uri, new vscode.Range(start, end), e.text);
         }
       }
+      // Apply text edits BEFORE renames: offsets/URIs are pre-rename, and a
+      // failed edit aborts before any file moves. A single WorkspaceEdit with
+      // renameFile entries is deliberately avoided: renameFile would re-fire
+      // onDidRenameFiles and double-apply link updates via registerAutoRename.
+      const applied = await vscode.workspace.applyEdit(edit);
+      if (!applied) {
+        vscode.window.showErrorMessage('DocsForge: rename aborted (could not update links).');
+        return;
+      }
       // Rename every variant file (base + translations).
       const renamedFiles: string[] = [];
       for (const [oldAbs, newAbs] of files) {
-        if (fs.existsSync(newAbs)) {
-          vscode.window.showErrorMessage(
-            `DocsForge: target file already exists: ${path.relative(docsDirAbs, newAbs)}`,
-          );
-          return;
-        }
         fs.mkdirSync(path.dirname(newAbs), { recursive: true });
         fs.renameSync(oldAbs, newAbs);
         renamedFiles.push(path.relative(docsDirAbs, newAbs));
       }
-      await vscode.workspace.applyEdit(edit);
       const opened = renamedFiles.find((f) => f.endsWith('.md'));
       if (opened) {
         await vscode.window.showTextDocument(vscode.Uri.file(path.join(docsDirAbs, opened)));
@@ -179,8 +196,9 @@ export function registerAutoRename(
         }
         const oldSrc = oldRel.split(path.sep).join('/');
         const newSrc = newRel.split(path.sep).join('/');
-        // Folder rename: everything under it moves.
-        const isFolder = fs.existsSync(f.oldUri.fsPath) && fs.statSync(f.oldUri.fsPath).isDirectory();
+        // Folder rename: everything under it moves. Stat the NEW uri: the old
+        // path no longer exists post-move, so oldUri stat never detects dirs.
+        const isFolder = isFolderRenameEvent(f.oldUri.fsPath, f.newUri.fsPath);
         const result = isFolder
           ? computeFolderRename(workspaceRoot, oldSrc, newSrc)
           : computeDocumentRename(workspaceRoot, oldSrc, newSrc.replace(/\.md$/, ''));

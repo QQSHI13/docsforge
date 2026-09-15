@@ -29,13 +29,14 @@ export class InitWizard {
   private static async resolvePython(workspaceRoot: string): Promise<string | null> {
     const state = await detectEnvironment(workspaceRoot);
     if (!state.docsforgeVersion) {
-      const ok = await ensureDocsforge(
+      const venvPython = await ensureDocsforge(
         workspaceRoot, state,
         (line) => DocsForgeLogPanel.get().append(line),
       );
-      if (!ok) {
+      if (!venvPython) {
         return null;
       }
+      return venvPython;
     }
     return state.python;
   }

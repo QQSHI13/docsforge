@@ -14,7 +14,127 @@ import {
   resolveLinkTarget,
   docsDirFromConfig,
   formatMarkdown,
+  slugifyHeading,
+  walkDocs,
+  srcUriOfPath,
+  linkTargetPrefix,
+  filterDocsByPrefix,
 } from './links';
+
+/** Re-exported pure helpers (canonical implementations live in links.ts). */
+export { linkTargetPrefix, filterDocsByPrefix };
+
+/** Docs-relative URI for a file, or null when outside the docs dir.
+ *  Central guard for non-docs .md files (e.g. root README.md) that match the
+ *  broad `root/**​/*.md` selector but would otherwise produce garbage via
+ *  `fsPath.slice(docsDir.length + 1)`. */
+export function srcUriOf(
+  root: string, docsDirAbs: string, fsPath: string,
+): string | null {
+  void root;
+  return srcUriOfPath(docsDirAbs, fsPath);
+}
+
+/** Cached docs file list per workspace root (avoids readdirSync walks on
+ *  hot paths like completion keystrokes and lightbulb requests). */
+export class DocsFileCache {
+  private files: Array<{ absPath: string; srcUri: string }> | null = null;
+  private nameIndex: Map<string, string[]> | null = null;
+  private watcher: vscode.FileSystemWatcher | null = null;
+  private debounce: NodeJS.Timeout | null = null;
+
+  constructor(
+    private root: string,
+    private docsDirAbs: string,
+  ) {}
+
+  getFiles(): Array<{ absPath: string; srcUri: string }> {
+    if (!this.files) {
+      try {
+        this.files = fs.existsSync(this.docsDirAbs) ? walkDocs(this.docsDirAbs) : [];
+      } catch {
+        this.files = [];
+      }
+    }
+    return this.files;
+  }
+
+  /** Basename → srcUris index (single walk per request, not per link). */
+  findByName(wanted: string): string[] {
+    if (!this.nameIndex) {
+      this.nameIndex = new Map<string, string[]>();
+      for (const f of this.getFiles()) {
+        const base = f.srcUri.slice(f.srcUri.lastIndexOf('/') + 1);
+        const list = this.nameIndex.get(base) ?? [];
+        list.push(f.srcUri);
+        this.nameIndex.set(base, list);
+      }
+    }
+    return this.nameIndex.get(wanted) ?? [];
+  }
+
+  invalidate(): void {
+    this.files = null;
+    this.nameIndex = null;
+  }
+
+  scheduleInvalidate(delayMs = 250): void {
+    if (this.debounce) {
+      clearTimeout(this.debounce);
+    }
+    this.debounce = setTimeout(() => {
+      this.debounce = null;
+      this.invalidate();
+    }, delayMs);
+  }
+
+  ensureWatcher(context: vscode.ExtensionContext): void {
+    if (this.watcher) {
+      return;
+    }
+    try {
+      const docsDir = path.relative(this.root, this.docsDirAbs) || 'docs';
+      const pattern = new vscode.RelativePattern(this.root, `${docsDir}/**/*.md`);
+      this.watcher = vscode.workspace.createFileSystemWatcher(pattern);
+      this.watcher.onDidCreate(() => this.scheduleInvalidate(), null, context.subscriptions);
+      this.watcher.onDidDelete(() => this.scheduleInvalidate(), null, context.subscriptions);
+      context.subscriptions.push(this.watcher);
+    } catch {
+      this.watcher = null;
+    }
+  }
+
+  dispose(): void {
+    if (this.debounce) {
+      clearTimeout(this.debounce);
+      this.debounce = null;
+    }
+    this.watcher?.dispose();
+    this.watcher = null;
+  }
+}
+
+const docsCaches = new Map<string, DocsFileCache>();
+
+/** Shared cache for a workspace root (created lazily, watcher on register). */
+export function getDocsCache(root: string): DocsFileCache {
+  const existing = docsCaches.get(root);
+  if (existing) {
+    return existing;
+  }
+  const docsDirAbs = path.join(root, docsDirFromConfig(root));
+  const cache = new DocsFileCache(root, docsDirAbs);
+  docsCaches.set(root, cache);
+  return cache;
+}
+
+/** Dispose all docs caches (tests / deactivate). */
+export function disposeDocsCaches(): void {
+  for (const cache of docsCaches.values()) {
+    cache.dispose();
+  }
+  docsCaches.clear();
+}
 
 /** Whether a document is a markdown doc inside the project's docs dir. */
 export function isDocDocument(
@@ -133,9 +253,11 @@ class DocsForgeDefinitionProvider implements vscode.DefinitionProvider {
       if (!target) {
         continue;
       }
-      const srcUri = document.uri.fsPath.slice(
-        path.join(this.root, docsDirFromConfig(this.root)).length + 1,
-      ).split(path.sep).join('/');
+      const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+      const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+      if (!srcUri) {
+        return null;
+      }
       const resolved = resolveLinkTarget(
         path.join(this.root, docsDirFromConfig(this.root)),
         srcUri, target,
@@ -150,9 +272,8 @@ class DocsForgeDefinitionProvider implements vscode.DefinitionProvider {
       let pos = new vscode.Position(0, 0);
       if (anchor && targetText) {
         const headings = extractHeadings(targetText);
-        const slug = anchor.toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const found = headings.find(
-          (h) => h.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug,
+          (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
         );
         if (found) {
           pos = new vscode.Position(found.line, 0);
@@ -179,9 +300,11 @@ class DocsForgeHoverProvider implements vscode.HoverProvider {
       if (!target) {
         continue;
       }
-      const srcUri = document.uri.fsPath.slice(
-        path.join(this.root, docsDirFromConfig(this.root)).length + 1,
-      ).split(path.sep).join('/');
+      const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+      const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+      if (!srcUri) {
+        return null;
+      }
       const resolved = resolveLinkTarget(
         path.join(this.root, docsDirFromConfig(this.root)),
         srcUri, target,
@@ -195,9 +318,8 @@ class DocsForgeHoverProvider implements vscode.HoverProvider {
       const targetText = readDoc(resolved.absPath);
       if (anchor) {
         const headings = extractHeadings(targetText ?? '');
-        const slug = anchor.toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const found = headings.find(
-          (h) => h.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug,
+          (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
         );
         if (!found) {
           return new vscode.Hover(`*Broken link:* no anchor \`#${anchor}\` in target.`);
@@ -214,42 +336,35 @@ class DocsForgeHoverProvider implements vscode.HoverProvider {
 class DocsForgeReferenceProvider implements vscode.ReferenceProvider {
   constructor(private root: string) {}
 
-  provideReferences(
+  async provideReferences(
     document: vscode.TextDocument, _position: vscode.Position,
-  ): vscode.Location[] {
+  ): Promise<vscode.Location[]> {
     const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
-    const targetSrcUri = document.uri.fsPath.slice(docsDirAbs.length + 1)
-      .split(path.sep).join('/');
+    const targetSrcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
     const locations: vscode.Location[] = [];
-    if (!fs.existsSync(docsDirAbs)) {
+    if (!targetSrcUri || !fs.existsSync(docsDirAbs)) {
       return locations;
     }
-    const walk = (dir: string) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          walk(p);
-        } else if (entry.name.endsWith('.md')) {
-          const src = readDoc(p);
-          if (!src) {
-            continue;
-          }
-          const srcUri = p.slice(docsDirAbs.length + 1).split(path.sep).join('/');
-          for (const link of extractLinks(src)) {
-            const { target } = splitAnchor(link.dest);
-            if (!target) {
-              continue;
-            }
-            const resolved = resolveLinkTarget(docsDirAbs, srcUri, target);
-            if (resolved && resolved.srcUri === targetSrcUri) {
-              const pos = offsetToPosition(src, link.offset + 1);
-              locations.push(new vscode.Location(vscode.Uri.file(p), pos));
-            }
-          }
+    // Cached file list (FileSystemWatcher-invalidated) instead of a
+    // synchronous full-tree walk on every request.
+    const files = getDocsCache(this.root).getFiles();
+    for (const f of files) {
+      const src = readDoc(f.absPath);
+      if (!src) {
+        continue;
+      }
+      for (const link of extractLinks(src)) {
+        const { target } = splitAnchor(link.dest);
+        if (!target) {
+          continue;
+        }
+        const resolved = resolveLinkTarget(docsDirAbs, f.srcUri, target);
+        if (resolved && resolved.srcUri === targetSrcUri) {
+          const pos = offsetToPosition(src, link.offset + 1);
+          locations.push(new vscode.Location(vscode.Uri.file(f.absPath), pos));
         }
       }
-    };
-    walk(docsDirAbs);
+    }
     return locations;
   }
 }
@@ -257,22 +372,23 @@ class DocsForgeReferenceProvider implements vscode.ReferenceProvider {
 class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
   constructor(private root: string) {}
 
-  provideCompletionItems(
+  async provideCompletionItems(
     document: vscode.TextDocument, position: vscode.Position,
-  ): vscode.CompletionItem[] {
+  ): Promise<vscode.CompletionItem[]> {
     const text = document.getText();
-    const line = text.split('\n')[position.line];
+    const line = text.split('\n')[position.line] ?? '';
     const before = line.slice(0, position.character);
     const iconMatch = before.match(/:([a-z0-9-]*)$/);
     if (iconMatch) {
       return this.iconCompletions(iconMatch[1]);
     }
-    // Link target completion: inside (…) of a markdown link
-    const parenMatch = before.match(/\(([^)]*)$/);
-    if (parenMatch) {
-      return this.pathCompletions(document, parenMatch[1]);
+    // Link target completion only inside `](…)` of a markdown link — not
+    // inside arbitrary parens — so normal typing doesn't pay for a docs walk.
+    const partial = linkTargetPrefix(before);
+    if (partial === null) {
+      return [];
     }
-    return [];
+    return this.pathCompletions(partial);
   }
 
   private iconCompletions(prefix: string): vscode.CompletionItem[] {
@@ -331,34 +447,20 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     return null;
   }
 
-  private pathCompletions(
-    document: vscode.TextDocument, partial: string,
-  ): vscode.CompletionItem[] {
+  private pathCompletions(partial: string): vscode.CompletionItem[] {
     const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
     if (!fs.existsSync(docsDirAbs)) {
       return [];
     }
-    const items: vscode.CompletionItem[] = [];
-    const walk = (dir: string, prefix: string) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          walk(p, `${prefix}${entry.name}/`);
-        } else if (entry.name.endsWith('.md')) {
-          const name = `${prefix}${entry.name}`;
-          if (!name.startsWith(partial)) {
-            continue;
-          }
-          const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.File);
-          item.insertText = name;
-          item.detail = name;
-          items.push(item);
-        }
-      }
-    };
-    void document;
-    walk(docsDirAbs, '');
-    return items.slice(0, 200);
+    // Cached file list + prefix pruning (no full readdirSync walk per keystroke).
+    const files = getDocsCache(this.root).getFiles();
+    const names = filterDocsByPrefix(files, partial, 200);
+    return names.map((name) => {
+      const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.File);
+      item.insertText = name;
+      item.detail = name;
+      return item;
+    });
   }
 }
 
@@ -418,8 +520,10 @@ class DocsForgeDocumentLinkProvider implements vscode.DocumentLinkProvider {
     const text = document.getText();
     const lines = text.split('\n');
     const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
-    const srcUri = document.uri.fsPath.slice(docsDirAbs.length + 1)
-      .split(path.sep).join('/');
+    const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+    if (!srcUri) {
+      return [];
+    }
     const links: vscode.DocumentLink[] = [];
     for (const link of extractLinks(text)) {
       const { target, anchor } = splitAnchor(link.dest);
@@ -446,126 +550,98 @@ class DocsForgeDocumentLinkProvider implements vscode.DocumentLinkProvider {
 class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
   constructor(private root: string) {}
 
-  provideCodeActions(
+  async provideCodeActions(
     document: vscode.TextDocument, range: vscode.Range,
     context: vscode.CodeActionContext,
-  ): vscode.CodeAction[] {
+  ): Promise<vscode.CodeAction[]> {
     const actions: vscode.CodeAction[] = [];
     const text = document.getText();
-    const lines = text.split('\n');
     const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
-    const srcUriOf = (doc: vscode.TextDocument) =>
-      doc.uri.fsPath.slice(docsDirAbs.length + 1).split(path.sep).join('/');
+    const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+    if (!srcUri) {
+      return actions;
+    }
+    const cache = getDocsCache(this.root);
+    // All links in the file (handles images, titled links, and multiple
+    // links per line — String.match without /g only saw the first).
+    const allLinks = extractLinks(text);
+    const byLine = new Map<number, typeof allLinks>();
+    for (const link of allLinks) {
+      const list = byLine.get(link.line) ?? [];
+      list.push(link);
+      byLine.set(link.line, list);
+    }
     // Track which link destinations we've already offered actions for, so a
     // repeated anchor doesn't produce duplicate actions on the same line.
     const seen = new Set<string>();
-    const handleLine = (lineNo: number, force: boolean) => {
-      const line = lines[lineNo];
-      if (!line) {
-        return;
-      }
-      const linkMatch = line.match(/\[[^\]]*\]\(([^)\s]+)\)/);
-      if (!linkMatch || seen.has(linkMatch[1])) {
-        return;
-      }
-      seen.add(linkMatch[1]);
-      const dest = linkMatch[1];
-      const { target } = splitAnchor(dest);
-      if (!target) {
-        // Anchor-only links (e.g. [#section]) — nothing to open/fix.
-        return;
-      }
-      void force;
-      // Suggest a fix that points to an existing file with the same name.
-      const wanted = path.posix.basename(target);
-      const candidates: string[] = [];
-      const walk = (dir: string, prefix: string) => {
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-          const p = path.join(dir, entry.name);
-          if (entry.isDirectory()) {
-            walk(p, `${prefix}${entry.name}/`);
-          } else if (entry.name === wanted) {
-            candidates.push(`${prefix}${entry.name}`);
+    const handleLine = (lineNo: number) => {
+      const linksOnLine = byLine.get(lineNo) ?? [];
+      for (const link of linksOnLine) {
+        const dest = link.dest;
+        if (seen.has(dest)) {
+          continue;
+        }
+        seen.add(dest);
+        const { target } = splitAnchor(dest);
+        if (!target) {
+          // Anchor-only links (e.g. [#section]) — nothing to open/fix.
+          continue;
+        }
+        // Suggest a fix that points to an existing file with the same name
+        // (single cached index lookup, not a readdirSync walk per lightbulb).
+        const wanted = path.posix.basename(target);
+        const candidates = cache.findByName(wanted);
+        if (candidates.length && !candidates.includes(target)) {
+          const fix = new vscode.CodeAction(
+            `Fix link: use ${candidates[0]}`,
+            vscode.CodeActionKind.QuickFix,
+          );
+          let newTarget = path.posix.relative(path.posix.dirname(srcUri), candidates[0]);
+          if (!newTarget.startsWith('.')) {
+            newTarget = `./${newTarget}`;
           }
+          const linkPos = offsetToPosition(text, link.offset + 1);
+          const endPos = offsetToPosition(text, link.offset + 1 + dest.length);
+          fix.edit = new vscode.WorkspaceEdit();
+          fix.edit.replace(document.uri, new vscode.Range(linkPos, endPos), newTarget);
+          actions.push(fix);
         }
-      };
-      if (fs.existsSync(docsDirAbs)) {
-        walk(docsDirAbs, '');
+        // Offer to open the target in the editor.
+        const open = new vscode.CodeAction('Open link target', vscode.CodeActionKind.QuickFix);
+        open.command = {
+          command: 'docsforge.openLinkTarget',
+          title: 'Open link target',
+          arguments: [{ uri: document.uri.toString(), dest }],
+        };
+        actions.push(open);
       }
-      if (candidates.length && !candidates.includes(target)) {
-        const fix = new vscode.CodeAction(
-          `Fix link: use ${candidates[0]}`,
-          vscode.CodeActionKind.QuickFix,
-        );
-        const srcUri = document.uri.fsPath.slice(docsDirAbs.length + 1)
-          .split(path.sep).join('/');
-        let newTarget = path.posix.relative(path.posix.dirname(srcUri), candidates[0]);
-        if (!newTarget.startsWith('.')) {
-          newTarget = `./${newTarget}`;
-        }
-        const at = line.indexOf(dest);
-        fix.edit = new vscode.WorkspaceEdit();
-        fix.edit.replace(
-          document.uri,
-          new vscode.Range(lineNo, at, lineNo, at + dest.length),
-          newTarget,
-        );
-        actions.push(fix);
-      }
-      // Offer to open the target in the editor.
-      const open = new vscode.CodeAction('Open link target', vscode.CodeActionKind.QuickFix);
-      open.command = {
-        command: 'docsforge.openLinkTarget',
-        title: 'Open link target',
-        arguments: [{ uri: document.uri.toString(), dest }],
-      };
-      actions.push(open);
     };
 
     // Diagnostic-driven: every broken link occurrence gets its own actions
     // (repeated anchors emit a diagnostic per line, so all lightbulbs show).
     for (const diag of context.diagnostics) {
-      handleLine(diag.range.start.line, true);
+      handleLine(diag.range.start.line);
     }
     // Also handle the line under the cursor even without a diagnostic, so the
     // lightbulb appears on any link (e.g. before the first build writes
     // validation.json, or for a link not covered by validation).
-    handleLine(range.start.line, false);
+    handleLine(range.start.line);
     // Feature #3: "Fix all broken links in file" — one action that applies
-    // every auto-fixable link correction across the document.
+    // every auto-fixable link correction across the document (one entry per
+    // occurrence, not per distinct dest, so repeats are all fixed).
     const fixes: Array<{ uri: vscode.Uri; range: vscode.Range; newText: string }> = [];
-    const seenAll = new Set<string>();
-    for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(/\[[^\]]*\]\(([^)\s]+)\)/);
-      if (!m) {
-        continue;
-      }
-      const dest = m[1];
+    for (const link of allLinks) {
+      const dest = link.dest;
       const { target } = splitAnchor(dest);
-      if (!target || seenAll.has(dest)) {
+      if (!target) {
         continue;
       }
-      seenAll.add(dest);
-      const srcUri = srcUriOf(document);
       const resolved = resolveLinkTarget(docsDirAbs, srcUri, target);
       if (resolved && fs.existsSync(resolved.absPath)) {
         continue; // not broken
       }
       const wanted = path.posix.basename(target);
-      const candidates: string[] = [];
-      const walkAll = (dir: string, prefix: string) => {
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-          const p = path.join(dir, entry.name);
-          if (entry.isDirectory()) {
-            walkAll(p, `${prefix}${entry.name}/`);
-          } else if (entry.name === wanted) {
-            candidates.push(`${prefix}${entry.name}`);
-          }
-        }
-      };
-      if (fs.existsSync(docsDirAbs)) {
-        walkAll(docsDirAbs, '');
-      }
+      const candidates = cache.findByName(wanted);
       if (!candidates.length || candidates.includes(target)) {
         continue;
       }
@@ -573,10 +649,11 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
       if (!newTarget.startsWith('.')) {
         newTarget = `./${newTarget}`;
       }
-      const at = lines[i].indexOf(dest);
+      const linkPos = offsetToPosition(text, link.offset + 1);
+      const endPos = offsetToPosition(text, link.offset + 1 + dest.length);
       fixes.push({
         uri: document.uri,
-        range: new vscode.Range(i, at, i, at + dest.length),
+        range: new vscode.Range(linkPos, endPos),
         newText: newTarget,
       });
     }
@@ -616,13 +693,16 @@ export function registerProviders(context: vscode.ExtensionContext, root: string
     pattern: `${root}/**/*.md`,
   };
 
+  // Warm the cached docs list and invalidate it on md create/delete (debounced).
+  getDocsCache(root).ensureWatcher(context);
+
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(sel, new DocsForgeDocumentSymbolProvider()),
     vscode.languages.registerFoldingRangeProvider(sel, new DocsForgeFoldingProvider()),
     vscode.languages.registerDefinitionProvider(sel, new DocsForgeDefinitionProvider(root)),
     vscode.languages.registerHoverProvider(sel, new DocsForgeHoverProvider(root)),
     vscode.languages.registerReferenceProvider(sel, new DocsForgeReferenceProvider(root)),
-    vscode.languages.registerCompletionItemProvider(sel, new DocsForgeCompletionProvider(root), ':'),
+    vscode.languages.registerCompletionItemProvider(sel, new DocsForgeCompletionProvider(root), ':', '(', '/'),
     vscode.languages.registerDocumentHighlightProvider(sel, new DocsForgeHighlightProvider()),
     vscode.languages.registerDocumentLinkProvider(sel, new DocsForgeDocumentLinkProvider(root)),
     vscode.languages.registerCodeActionsProvider(sel, new DocsForgeCodeActionProvider(root)),
