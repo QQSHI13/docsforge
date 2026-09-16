@@ -40,7 +40,7 @@ code --install-extension docsforge-vscode-*.vsix
 
 通过命令面板（`Ctrl+Shift+P`）运行 **`DocsForge: Check for Updates`**，也可以点侧边栏 Actions 视图或侧边栏标题栏。一次检查覆盖两边：
 
-- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。预发布引擎版本（如 `13.0.0b3`）现在能与稳定版正确比较，beta 检出不会再被误判为最新。可编辑安装（`pip install -e .`）会被识别且绝不静默替换：更新提示会给出检出路径并提供 `Replace with PyPI version`，或用 `git pull` + 重装继续跟进源码。
+- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。预发布引擎版本（如 `13.0.0b3`）现在能与稳定版正确比较，beta 检出不会再被误判为最新。可编辑安装（`pip install -e .`）会被识别且绝不静默替换：更新提示会给出检出路径并提供 `Replace with PyPI version`，或用 `git pull` + 重装继续跟进源码。成功检查的结果会被缓存，离线时手动检查复用上次版本（标注为缓存）而非直接失败。
 - **扩展** —— VSIX 本体，与 GitHub releases 对比。更新会把 `.vsix` 下载到临时目录并安装，然后提示重载窗口。
 
 ### 自动检查
@@ -127,6 +127,10 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 - 进度通知会显示 "Starting DocsForge server..."，直到检测到 URL
 - 服务器就绪后，URL 会显示在状态栏中
 - VS Code 的内置浏览器处理导航和热重载
+
+### 多项目（multi-root）
+
+每个打开的文件夹拥有独立的服务器、构建与 Python 环境。Serve/Build 作用于当前文件所在项目（多个项目打开且无文件上下文时弹出选择器），多文件夹时状态栏会标出项目名，Open Built Page 使用当前文档所属项目的服务器。
 
 ### 预览
 
@@ -221,6 +225,7 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | **"python: command not found"** | 从 [python.org](https://python.org) 安装 Python 3.10+ |
 | **更新检查连不上服务器** | 检查网络/代理；启动时的检查会静默跳过，手动检查才会警告 |
 | **在用 beta 却收不到更新** | 打开 `docsforge.includePrereleases` —— 预发布默认排除 |
+| **开了两个文件夹却服务了错误的项目** | Serve/Build 跟随当前文件所属项目；状态栏会标出项目名 |
 | **可编辑安装收不到引擎更新** | 已修复 —— beta 检出会正确低于稳定版，替换源码检出前会有明确提示 |
 
 ## 命令

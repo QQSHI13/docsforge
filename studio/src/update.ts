@@ -107,6 +107,48 @@ export async function getExtensionLatest(includePre: boolean): Promise<GithubLat
   return null;
 }
 
+/** Last successfully fetched versions, so update checks degrade gracefully
+ *  offline (sidebar badge + manual check reuse them, clearly labeled). */
+interface CachedUpdates {
+  engineLatest: string | null;
+  ext: GithubLatest | null;
+  fetchedAt: number;
+}
+
+const UPDATE_CACHE_KEY = 'docsforge.update.lastSeen';
+
+function readUpdateCache(
+  context?: vscode.ExtensionContext,
+): CachedUpdates | null {
+  try {
+    return context?.globalState.get<CachedUpdates>(UPDATE_CACHE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeUpdateCache(
+  context: vscode.ExtensionContext | undefined,
+  cache: CachedUpdates,
+): Promise<void> {
+  if (!context) {
+    return;
+  }
+  try {
+    await context.globalState.update(UPDATE_CACHE_KEY, cache);
+  } catch {
+    /* cache is best-effort */
+  }
+}
+
+function cachedDate(fetchedAt: number): string {
+  try {
+    return new Date(fetchedAt).toLocaleString();
+  } catch {
+    return 'unknown time';
+  }
+}
+
 /** This extension's own version, found by package name (id varies by host). */
 export function getOwnVersion(): string | null {
   const ext = vscode.extensions.all.find(
@@ -250,11 +292,18 @@ async function offerExtensionUpdate(update: ExtensionUpdate): Promise<void> {
   }
 }
 
-/** Check both update channels; network failures resolve to null (offline-safe). */
-async function collectUpdates(root: string): Promise<{
+/** Check both update channels; network failures resolve to null (offline-safe).
+ *  When `context` is given, successful fetches refresh the offline cache and
+ *  total failures fall back to it (`stale: true`, clearly labeled). */
+async function collectUpdates(
+  root: string, context?: vscode.ExtensionContext,
+): Promise<{
   engine: EngineUpdate | null;
   extension: ExtensionUpdate | null;
   offline: boolean;
+  /** True when versions come from cache (no network at all). */
+  stale: boolean;
+  fetchedAt: number | null;
   /** Installed versions, for messaging when nothing newer is found. */
   ownVersion: string | null;
   engineCurrent: string | null;
@@ -266,25 +315,42 @@ async function collectUpdates(root: string): Promise<{
     getEngineLatest(includePre).catch(() => null),
     getExtensionLatest(includePre).catch(() => null),
   ]);
-  const offline = engineLatest === null && extLatest === null;
+  const cached = readUpdateCache(context);
+  const fresh = engineLatest !== null || extLatest !== null;
+  const now = Date.now();
+  if (fresh) {
+    await writeUpdateCache(context, {
+      engineLatest: engineLatest ?? cached?.engineLatest ?? null,
+      ext: extLatest ?? cached?.ext ?? null,
+      fetchedAt: now,
+    });
+  }
+  const effectiveEngine = engineLatest ?? cached?.engineLatest ?? null;
+  const effectiveExt = extLatest ?? cached?.ext ?? null;
+  const stale = !fresh && cached !== null;
+  const offline = !fresh && cached === null;
   let engine: EngineUpdate | null = null;
   const state = await detectEnvironment(root);
-  if (state.docsforgeVersion && engineLatest
-    && compareVersions(state.docsforgeVersion, engineLatest) < 0) {
+  if (state.docsforgeVersion && effectiveEngine
+    && compareVersions(state.docsforgeVersion, effectiveEngine) < 0) {
     engine = {
-      kind: 'engine', current: state.docsforgeVersion, latest: engineLatest,
+      kind: 'engine', current: state.docsforgeVersion, latest: effectiveEngine,
       editable: state.editable, location: state.location,
     };
   }
   let extension: ExtensionUpdate | null = null;
   const own = getOwnVersion();
-  if (own && extLatest && compareVersions(own, extLatest.version) < 0) {
+  if (own && effectiveExt && compareVersions(own, effectiveExt.version) < 0) {
     extension = {
-      kind: 'extension', current: own, latest: extLatest.version,
-      tag: extLatest.tag, vsixUrl: extLatest.vsixUrl,
+      kind: 'extension', current: own, latest: effectiveExt.version,
+      tag: effectiveExt.tag, vsixUrl: effectiveExt.vsixUrl,
     };
   }
-  return { engine, extension, offline, ownVersion: own, engineCurrent: state.docsforgeVersion, includePre };
+  return {
+    engine, extension, offline, stale,
+    fetchedAt: fresh ? now : cached?.fetchedAt ?? null,
+    ownVersion: own, engineCurrent: state.docsforgeVersion, includePre,
+  };
 }
 
 /** Hook for surfacing update state elsewhere (e.g. the sidebar badge). */
@@ -294,7 +360,7 @@ export interface UpdateHooks {
 
 /** One-line summary of available updates, or null when up to date. */
 function summarize(
-  engine: EngineUpdate | null, extension: ExtensionUpdate | null,
+  engine: EngineUpdate | null, extension: ExtensionUpdate | null, stale = false,
 ): string | null {
   const parts = [
     engine
@@ -302,11 +368,16 @@ function summarize(
       : '',
     extension ? `extension ${extension.current} → ${extension.latest}` : '',
   ].filter(Boolean);
-  return parts.length ? parts.join(', ') : null;
+  if (!parts.length) {
+    return null;
+  }
+  return parts.join(', ') + (stale ? ' (cached)' : '');
 }
 
 /** Manual command: check for engine + extension updates with progress UI. */
-export async function checkForUpdates(hooks?: UpdateHooks): Promise<void> {
+export async function checkForUpdates(
+  context?: vscode.ExtensionContext, hooks?: UpdateHooks,
+): Promise<void> {
   const root = resolveRoot();
   if (!root || !hasConfig(root)) {
     vscode.window.showInformationMessage(
@@ -320,7 +391,7 @@ export async function checkForUpdates(hooks?: UpdateHooks): Promise<void> {
       title: 'Checking for DocsForge updates…',
       cancellable: false,
     },
-    () => collectUpdates(root),
+    () => collectUpdates(root, context),
   );
   if (updates.offline) {
     vscode.window.showWarningMessage(
@@ -328,10 +399,15 @@ export async function checkForUpdates(hooks?: UpdateHooks): Promise<void> {
     );
     return;
   }
+  if (updates.stale) {
+    vscode.window.showWarningMessage(
+      `DocsForge: offline — showing versions cached at ${cachedDate(updates.fetchedAt ?? 0)}.`,
+    );
+  }
   const { engine, extension } = updates;
-  hooks?.onUpdateKnown(summarize(engine, extension));
+  hooks?.onUpdateKnown(summarize(engine, extension, updates.stale));
   if (!engine && !extension) {
-    await reportUpToDate(updates, hooks);
+    await reportUpToDate(context, updates, hooks);
     return;
   }
   if (engine && extension) {
@@ -365,6 +441,7 @@ export async function checkForUpdates(hooks?: UpdateHooks): Promise<void> {
 
 /** Explain "up to date": flag prerelease tracking and unknown versions. */
 async function reportUpToDate(
+  context: vscode.ExtensionContext | undefined,
   updates: {
     ownVersion: string | null;
     engineCurrent: string | null;
@@ -391,7 +468,7 @@ async function reportUpToDate(
       await vscode.workspace.getConfiguration('docsforge').update(
         'includePrereleases', true, vscode.ConfigurationTarget.Global,
       );
-      await checkForUpdates(hooks);
+      await checkForUpdates(context, hooks);
     }
     return;
   }
@@ -413,11 +490,17 @@ export async function autoCheckUpdates(
   await new Promise((resolve) => setTimeout(resolve, AUTO_CHECK_DELAY_MS));
   let updates;
   try {
-    updates = await collectUpdates(root);
+    updates = await collectUpdates(root, context);
   } catch {
     return;
   }
   if (updates.offline || (!updates.engine && !updates.extension)) {
+    return;
+  }
+  // Offline-but-cached: refresh the sidebar badge silently, never pop up —
+  // the versions may predate the latest release.
+  if (updates.stale) {
+    hooks?.onUpdateKnown(summarize(updates.engine, updates.extension, true));
     return;
   }
   const summary = summarize(updates.engine, updates.extension);
@@ -434,7 +517,7 @@ export async function autoCheckUpdates(
     'Update now', 'Later', "Don't ask again",
   );
   if (action === 'Update now') {
-    await checkForUpdates(hooks);
+    await checkForUpdates(context, hooks);
   } else if (action === "Don't ask again") {
     await context.globalState.update('docsforge.update.dismissed', seen);
   }
@@ -446,7 +529,7 @@ export function registerUpdateCommands(
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'docsforge.checkForUpdates', () => checkForUpdates(hooks),
+      'docsforge.checkForUpdates', () => checkForUpdates(context, hooks),
     ),
   );
   void autoCheckUpdates(context, hooks);

@@ -118,11 +118,6 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('docsforge.openPage', async () => {
       try {
-        const serverUrl = serverManager.serverUrl;
-        if (!serverUrl) {
-          vscode.window.showWarningMessage('DocsForge: start the server first (docsforge.serve).');
-          return;
-        }
         const editor = vscode.window.activeTextEditor;
         const docPath = editor?.document.uri.fsPath;
         if (!editor || !docPath) {
@@ -131,6 +126,11 @@ export function activate(context: vscode.ExtensionContext) {
         const ctx = docsContextFor(docPath);
         if (!ctx) {
           vscode.window.showWarningMessage('DocsForge: no docsforge.yml found. Run "Initialize Project" first.');
+          return;
+        }
+        const serverUrl = serverManager.urlForRoot(ctx.root);
+        if (!serverUrl) {
+          vscode.window.showWarningMessage('DocsForge: start the server first (docsforge.serve).');
           return;
         }
         const rel = path.relative(ctx.docsDirAbs, docPath);

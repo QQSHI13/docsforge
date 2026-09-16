@@ -9,18 +9,36 @@ import { detectEnvironment, ensureDocsforge } from './environment';
 /** Re-exported for backwards compatibility (pure helper lives in pure.ts). */
 export { shouldEscalateToSigkill };
 
+/** Managed serve/build state for one workspace root (multi-root: every
+ *  folder gets its own entry, created lazily). */
+interface RootState {
+  process: ChildProcess | null;
+  buildProcess: ChildProcess | null;
+  serverUrl: string | null;
+  startResolve: (() => void) | null;
+  processCloseHandler: ((code: number | null) => void) | null;
+  processErrorHandler: ((err: Error) => void) | null;
+  startSafetyTimeout: NodeJS.Timeout | null;
+}
+
+function freshRootState(): RootState {
+  return {
+    process: null,
+    buildProcess: null,
+    serverUrl: null,
+    startResolve: null,
+    processCloseHandler: null,
+    processErrorHandler: null,
+    startSafetyTimeout: null,
+  };
+}
+
 export class ServerManager {
-  private process: ChildProcess | null = null;
-  private buildProcess: ChildProcess | null = null;
+  private servers = new Map<string, RootState>();
   private logPanel: DocsForgeLogPanel;
   private statusBarItem: vscode.StatusBarItem;
-  private _serverUrl: string | null = null;
-  private _startProgressResolve: (() => void) | null = null;
-  private _processCloseHandler: ((code: number | null) => void) | null = null;
-  private _processErrorHandler: ((err: Error) => void) | null = null;
-  private _startSafetyTimeout: NodeJS.Timeout | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
-  private watchedPidfile: string | null = null;
+  private watchedPidfiles = new Set<string>();
   private static stateChangeEmitter = new vscode.EventEmitter<void>();
   private static emitterDisposed = false;
   static instance: ServerManager | undefined;
@@ -67,41 +85,62 @@ export class ServerManager {
     this.updateStatusBar();
     this.statusBarItem.show();
 
-    // Check for existing server via pidfile
-    this.detectExistingServer();
+    // Check for existing servers via pidfiles
+    this.detectAllExistingServers();
     // Watch for pidfile creation/deletion after VS Code is already open
-    this.watchPidfile();
+    this.watchPidfiles();
     // Periodic poll as a reliable backup for file watcher edge cases
     this.startPidfilePoll();
+    // The status bar reflects the current root — refresh on editor switch.
+    this.editorWatch = vscode.window.onDidChangeActiveTextEditor(
+      () => this.updateStatusBar(),
+    );
   }
 
-  /** Poll .docsforge/server.json every 3s as a reliable fallback. */
+  private editorWatch: vscode.Disposable | null = null;
+
+  /** State for a root, created lazily (multi-root: one entry per folder). */
+  private forRoot(root: string): RootState {
+    let st = this.servers.get(root);
+    if (!st) {
+      st = freshRootState();
+      this.servers.set(root, st);
+    }
+    return st;
+  }
+
+  /** All workspace folder paths. */
+  private static allRoots(): string[] {
+    return vscode.workspace.workspaceFolders?.map((f) => f.uri.fsPath) ?? [];
+  }
+
+  /** Poll every .docsforge/server.json as a reliable fallback. */
   private startPidfilePoll() {
     const poll = () => {
-      const root = this.workspaceRoot;
-      if (!root) { return; }
+      for (const root of ServerManager.allRoots()) {
+        const st = this.forRoot(root);
+        const pidfile = path.join(root, '.docsforge', 'server.json');
+        try {
+          const exists = fs.existsSync(pidfile);
+          const hasUrl = st.serverUrl !== null;
 
-      const pidfile = path.join(root, '.docsforge', 'server.json');
-      try {
-        const exists = fs.existsSync(pidfile);
-        const hasUrl = this._serverUrl !== null;
-
-        if (exists && !hasUrl) {
-          // Server appeared — adopt it
-          this.detectExistingServer();
-        } else if (!exists && hasUrl) {
-          // Server disappeared — reset
-          if (!this.process) {
-            this._serverUrl = null;
-            this.updateStatusBar();
-            vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
-            ServerManager.emitStateChange();
+          if (exists && !hasUrl) {
+            // Server appeared — adopt it
+            this.detectExistingServerFor(root);
+          } else if (!exists && hasUrl) {
+            // Server disappeared — reset
+            if (!st.process) {
+              st.serverUrl = null;
+              this.updateStatusBar();
+              vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', this.isRunning());
+              ServerManager.emitStateChange();
+            }
+            // If we have an internal process, ignore the missing pidfile
+            // (it will be re-created on the next build cycle)
           }
-          // If we have an internal process, ignore the missing pidfile
-          // (it will be re-created on the next build cycle)
+        } catch {
+          // Ignore
         }
-      } catch {
-        // Ignore
       }
     };
     poll();
@@ -111,52 +150,57 @@ export class ServerManager {
     this.pollTimer = setInterval(poll, 3000);
   }
 
-  /** Watch .docsforge/server.json for create/delete events. */
-  private watchPidfile() {
-    const root = this.workspaceRoot;
-    if (!root) { return; }
-
-    const pidfile = path.join(root, '.docsforge', 'server.json');
-    try {
-      if (this.watchedPidfile) {
-        fs.unwatchFile(this.watchedPidfile);
-      }
-      this.watchedPidfile = pidfile;
-      fs.watchFile(pidfile, (curr, prev) => {
-        if (curr.size > 0 && prev.size === 0) {
-          // File was created — server started
-          this.detectExistingServer();
-        } else if (curr.size === 0 && prev.size > 0) {
-          // File was deleted — server stopped
-          this._serverUrl = null;
-          this.updateStatusBar();
-          vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
-          ServerManager.emitStateChange();
+  /** Watch every .docsforge/server.json for create/delete events. */
+  private watchPidfiles() {
+    for (const root of ServerManager.allRoots()) {
+      const pidfile = path.join(root, '.docsforge', 'server.json');
+      try {
+        if (this.watchedPidfiles.has(pidfile)) {
+          continue;
         }
-      });
-    } catch {
-      // Ignore if watching fails
+        this.watchedPidfiles.add(pidfile);
+        fs.watchFile(pidfile, (curr, prev) => {
+          if (curr.size > 0 && prev.size === 0) {
+            // File was created — server started
+            this.detectExistingServerFor(root);
+          } else if (curr.size === 0 && prev.size > 0) {
+            // File was deleted — server stopped
+            const st = this.forRoot(root);
+            st.serverUrl = null;
+            this.updateStatusBar();
+            vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', this.isRunning());
+            ServerManager.emitStateChange();
+          }
+        });
+      } catch {
+        // Ignore if watching fails
+      }
     }
   }
 
-  /** Check if a docsforge serve process is already running via pidfile.
+  /** Check every root for an already-running serve process via pidfile.
    *  If found, adopt its URL and show the server as running. */
-  private detectExistingServer(retries = 3) {
-    const root = this.workspaceRoot;
-    if (!root) {
+  private detectAllExistingServers(retries = 3) {
+    const roots = ServerManager.allRoots();
+    if (!roots.length) {
       // Workspace not ready yet — retry after a short delay
       if (retries > 0) {
-        setTimeout(() => this.detectExistingServer(retries - 1), 1000);
+        setTimeout(() => this.detectAllExistingServers(retries - 1), 1000);
       }
       return;
     }
+    for (const root of roots) {
+      this.detectExistingServerFor(root);
+    }
+  }
 
+  private detectExistingServerFor(root: string) {
     const pidfile = path.join(root, '.docsforge', 'server.json');
     try {
       if (fs.existsSync(pidfile)) {
         const data = JSON.parse(fs.readFileSync(pidfile, 'utf-8'));
         if (data.url) {
-          this._serverUrl = data.url;
+          this.forRoot(root).serverUrl = data.url;
           this.updateStatusBar();
           vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', true);
           ServerManager.emitStateChange();
@@ -168,11 +212,58 @@ export class ServerManager {
   }
 
   get serverUrl(): string | null {
-    return this._serverUrl;
+    const root = this.currentRoot();
+    return root ? this.forRoot(root).serverUrl : null;
+  }
+
+  /** Server URL adopted or started for a specific root. */
+  urlForRoot(root: string): string | null {
+    return this.forRoot(root).serverUrl;
   }
 
   private get workspaceRoot(): string | undefined {
     return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  }
+
+  /** Root commands act on: the active editor's project, else the first
+   *  configured root, else the first folder (multi-root aware). */
+  currentRoot(): string | undefined {
+    const active = vscode.window.activeTextEditor?.document.uri.fsPath;
+    if (active) {
+      const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(active));
+      if (folder) {
+        return folder.uri.fsPath;
+      }
+    }
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    return (folders.find((f) => ServerManager.hasConfig(f.uri.fsPath)) ?? folders[0])?.uri.fsPath;
+  }
+
+  /** Ask which project to act on when the current root is ambiguous
+   *  (several configured roots, no active editor). Returns undefined when
+   *  the user cancels. */
+  async pickRoot(): Promise<string | undefined> {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const configured = folders.filter((f) => ServerManager.hasConfig(f.uri.fsPath));
+    const current = this.currentRoot();
+    if (configured.length < 2 || (current && ServerManager.hasConfig(current))) {
+      return current;
+    }
+    const pick = await vscode.window.showQuickPick(
+      configured.map((f) => ({ label: f.name, description: f.uri.fsPath, root: f.uri.fsPath })),
+      { placeHolder: 'Several DocsForge projects are open. Pick one.' },
+    );
+    return pick?.root;
+  }
+
+  /** Suffix identifying the root in messages (empty for single-folder). */
+  private rootLabel(root: string): string {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    if (folders.length < 2) {
+      return '';
+    }
+    const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(root));
+    return folder ? ` [${folder.name}]` : '';
   }
 
   private showError(message: string) {
@@ -185,11 +276,7 @@ export class ServerManager {
 
   /** Resolve a usable Python interpreter, installing docsforge if needed.
    *  Returns null when no interpreter is available or the user cancelled. */
-  private async resolveEnvironment(): Promise<string | null> {
-    const root = this.workspaceRoot;
-    if (!root) {
-      return null;
-    }
+  private async resolveEnvironment(root: string): Promise<string | null> {
     const state = await detectEnvironment(root);
     if (state.docsforgeVersion) {
       return state.python;
@@ -198,14 +285,20 @@ export class ServerManager {
   }
 
   private updateStatusBar() {
-    if (this.process && this._serverUrl) {
-      this.statusBarItem.text = `$(play) DocsForge: ${this._serverUrl}`;
+    const root = this.currentRoot();
+    const st = root ? this.forRoot(root) : null;
+    const label = root ? this.rootLabel(root) : '';
+    if (st?.process && st.serverUrl) {
+      this.statusBarItem.text = `$(play) DocsForge${label}: ${st.serverUrl}`;
       this.statusBarItem.tooltip = 'DocsForge server is running. Click to open.';
-    } else if (this.process) {
-      this.statusBarItem.text = `$(play) DocsForge: starting...`;
+    } else if (st?.process) {
+      this.statusBarItem.text = `$(play) DocsForge${label}: starting...`;
       this.statusBarItem.tooltip = 'DocsForge server is starting...';
+    } else if (st?.serverUrl) {
+      this.statusBarItem.text = `$(globe) DocsForge${label}: external server`;
+      this.statusBarItem.tooltip = 'An external DocsForge server was detected (pidfile). Click to open.';
     } else {
-      this.statusBarItem.text = `$(debug-disconnect) DocsForge: stopped`;
+      this.statusBarItem.text = `$(debug-disconnect) DocsForge${label}: stopped`;
       this.statusBarItem.tooltip = 'Click to start DocsForge server';
     }
     this.statusBarItem.show();
@@ -223,41 +316,41 @@ export class ServerManager {
 
   /** Detect docsforge server URLs from output lines.
    *  Matches: "Serving on http://host:port/path" */
-  private detectServerUrl(text: string) {
-    if (this._serverUrl) { return; }
+  private detectServerUrl(st: RootState, text: string) {
+    if (st.serverUrl) { return; }
     const url = extractServerUrl(text);
     if (url) {
-      this._serverUrl = url;
+      st.serverUrl = url;
       this.updateStatusBar();
       ServerManager.emitStateChange();
     }
   }
 
-  async start() {
-    // Prevent double-start: if already running (own process or pidfile), just open browser
-    if (this.process || this._serverUrl) {
-      vscode.window.showWarningMessage('DocsForge server is already running');
-      if (this._serverUrl) {
-        this.openBrowser();
-      }
+  async start(root?: string) {
+    const workspaceRoot = root ?? await this.pickRoot();
+    if (!workspaceRoot) {
       return;
     }
-
-    const workspaceRoot = this.workspaceRoot;
-    if (!workspaceRoot) {
-      vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
+    const st = this.forRoot(workspaceRoot);
+    const label = this.rootLabel(workspaceRoot);
+    // Prevent double-start: if already running (own process or pidfile), just open browser
+    if (st.process || st.serverUrl) {
+      vscode.window.showWarningMessage(`DocsForge server is already running${label}`);
+      if (st.serverUrl) {
+        this.openBrowser(workspaceRoot);
+      }
       return;
     }
 
     const configName = ServerManager.findConfig(workspaceRoot);
     if (!configName) {
       vscode.window.showErrorMessage(
-        'DocsForge: no docsforge.yml found. Run "Initialize Project" first.'
+        `DocsForge: no docsforge.yml found${label}. Run "Initialize Project" first.`
       );
       return;
     }
 
-    const python = await this.resolveEnvironment();
+    const python = await this.resolveEnvironment(workspaceRoot);
     if (!python) {
       return;
     }
@@ -274,32 +367,32 @@ export class ServerManager {
     this.logPanel.show();
     this.logPanel.appendLine(`$ ${python} ${args.join(' ')}`);
     this.logPanel.appendLine('');
-    this._serverUrl = null;
+    st.serverUrl = null;
     this.updateStatusBar();
 
-    this._startProgressResolve = null;
+    st.startResolve = null;
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'Starting DocsForge server...',
+        title: `Starting DocsForge server${label}...`,
         cancellable: false,
       },
       () => new Promise<void>((resolve) => {
-        this._startProgressResolve = resolve;
+        st.startResolve = resolve;
         // Resolve when URL is detected (server is ready)
         const disposable = ServerManager.onStateChange(() => {
-          if (this._serverUrl) {
-            this._clearStartSafetyTimeout();
-            this._startProgressResolve = null;
+          if (st.serverUrl) {
+            this.clearStartSafetyTimeout(st);
+            st.startResolve = null;
             disposable.dispose();
             resolve();
           }
         });
         // Safety timeout: resolve after 30s even if URL not yet detected
-        this._startSafetyTimeout = setTimeout(() => {
-          this._startSafetyTimeout = null;
-          if (this._startProgressResolve) {
-            this._startProgressResolve = null;
+        st.startSafetyTimeout = setTimeout(() => {
+          st.startSafetyTimeout = null;
+          if (st.startResolve) {
+            st.startResolve = null;
             disposable.dispose();
             resolve();
           }
@@ -307,39 +400,39 @@ export class ServerManager {
       })
     );
 
-    this.process = spawn(python, args, {
+    st.process = spawn(python, args, {
       cwd: workspaceRoot,
       env: { ...process.env, FORCE_COLOR: '1' },
     });
 
-    this.process.stdout?.on('data', (data: Buffer) => {
+    st.process.stdout?.on('data', (data: Buffer) => {
       const text = data.toString();
       this.logPanel.append(text);
-      this.detectServerUrl(text);
+      this.detectServerUrl(st, text);
     });
 
-    this.process.stderr?.on('data', (data: Buffer) => {
+    st.process.stderr?.on('data', (data: Buffer) => {
       const text = data.toString();
       this.logPanel.append(text);
-      this.detectServerUrl(text);
+      this.detectServerUrl(st, text);
     });
 
     const onError = (err: Error) => {
-      this.cleanupAfterStop();
+      this.cleanupAfterStop(st, workspaceRoot);
       this.showError(`Failed to start DocsForge server: ${err.message}`);
     };
-    this._processErrorHandler = onError;
-    this.process.on('error', onError);
+    st.processErrorHandler = onError;
+    st.process.on('error', onError);
 
     const onClose = (code: number | null) => {
-      this.cleanupAfterStop();
+      this.cleanupAfterStop(st, workspaceRoot);
       if (code !== 0 && code !== null) {
         this.logPanel.appendLine(`Server exited with code ${code}`);
         this.showError(`DocsForge server exited with code ${code}`);
       }
     };
-    this._processCloseHandler = onClose;
-    this.process.on('close', onClose);
+    st.processCloseHandler = onClose;
+    st.process.on('close', onClose);
 
     vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', true);
     ServerManager.emitStateChange();
@@ -347,18 +440,20 @@ export class ServerManager {
     // Register auto-open listener that fires when URL is detected
     if (openBrowser) {
       const disposable = ServerManager.onStateChange(() => {
-        if (this._serverUrl) {
-          this.openBrowser();
+        if (st.serverUrl) {
+          this.openBrowser(workspaceRoot);
           disposable.dispose();
         }
       });
     }
   }
 
-  openBrowser() {
-    if (this._serverUrl) {
-      vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse(this._serverUrl));
-    } else if (this.process) {
+  openBrowser(root?: string) {
+    const workspaceRoot = root ?? this.currentRoot();
+    const st = workspaceRoot ? this.forRoot(workspaceRoot) : null;
+    if (st?.serverUrl) {
+      vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse(st.serverUrl));
+    } else if (st?.process) {
       vscode.window.showInformationMessage('DocsForge: waiting for server to output its URL...');
     } else {
       vscode.window.showInformationMessage('DocsForge server is not running.');
@@ -368,20 +463,23 @@ export class ServerManager {
   /** Stop the server. If `silent` is true, suppress toast messages
    *  (used during extension deactivation).
    *  Supports stopping internal, external (pidfile), and build processes. */
-  stop(silent = false) {
+  stop(silent = false, root?: string) {
+    const workspaceRoot = root ?? this.currentRoot();
+    const st = workspaceRoot ? this.forRoot(workspaceRoot) : null;
+    const label = workspaceRoot ? this.rootLabel(workspaceRoot) : '';
     // Stop a running build if one exists
-    if (this.buildProcess) {
-      this.stopBuild();
-      if (!silent) vscode.window.showInformationMessage('DocsForge build cancelled');
+    if (st?.buildProcess) {
+      this.stopBuild(workspaceRoot);
+      if (!silent) vscode.window.showInformationMessage(`DocsForge build cancelled${label}`);
       return;
     }
 
     // Stop managed server process
-    if (this.process) {
-      const proc = this.process;
-      this.process = null;
-      if (this._processCloseHandler) { proc.removeListener('close', this._processCloseHandler); }
-      if (this._processErrorHandler) { proc.removeListener('error', this._processErrorHandler); }
+    if (st?.process) {
+      const proc = st.process;
+      st.process = null;
+      if (st.processCloseHandler) { proc.removeListener('close', st.processCloseHandler); }
+      if (st.processErrorHandler) { proc.removeListener('error', st.processErrorHandler); }
       let exited = false;
       proc.once('close', () => { exited = true; });
       proc.kill('SIGTERM');
@@ -392,29 +490,28 @@ export class ServerManager {
       }, 2000);
       proc.once('close', () => {
         clearTimeout(sigkillTimer);
-        this.cleanupAfterStop();
-        if (!silent) vscode.window.showInformationMessage('DocsForge server stopped');
+        this.cleanupAfterStop(st, workspaceRoot!);
+        if (!silent) vscode.window.showInformationMessage(`DocsForge server stopped${label}`);
       });
       return;
     }
 
     // Stop external server (from pidfile)
-    const root = this.workspaceRoot;
-    if (root) {
-      const pidfile = path.join(root, '.docsforge', 'server.json');
+    if (workspaceRoot) {
+      const pidfile = path.join(workspaceRoot, '.docsforge', 'server.json');
       try {
         if (fs.existsSync(pidfile)) {
           const data = JSON.parse(fs.readFileSync(pidfile, 'utf-8'));
           if (data.pid) {
             try {
               process.kill(data.pid, 'SIGTERM');
-              if (!silent) vscode.window.showInformationMessage('DocsForge server stopped');
+              if (!silent) vscode.window.showInformationMessage(`DocsForge server stopped${label}`);
             } catch {
               if (!silent) vscode.window.showWarningMessage('Could not stop external server (PID may have exited)');
             }
             // Delete stale pidfile since the killed process can't clean up itself
             try { fs.unlinkSync(pidfile); } catch { /* Ignore */ }
-            this.cleanupAfterStop();
+            this.cleanupAfterStop(st!, workspaceRoot);
             return;
           }
         }
@@ -424,15 +521,17 @@ export class ServerManager {
     }
 
     if (!silent) {
-      vscode.window.showWarningMessage('DocsForge server is not running');
+      vscode.window.showWarningMessage(`DocsForge server is not running${label}`);
     }
   }
 
-  stopBuild() {
-    if (!this.buildProcess) { return; }
-    const proc = this.buildProcess;
-    this.buildProcess = null;
-    vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
+  stopBuild(root?: string) {
+    const workspaceRoot = root ?? this.currentRoot();
+    const st = workspaceRoot ? this.forRoot(workspaceRoot) : null;
+    if (!st?.buildProcess) { return; }
+    const proc = st.buildProcess;
+    st.buildProcess = null;
+    vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
     ServerManager.emitStateChange();
     let exited = false;
     proc.once('close', () => { exited = true; });
@@ -444,54 +543,64 @@ export class ServerManager {
     }, 2000);
   }
 
-  private cleanupAfterStop() {
-    if (this._startProgressResolve) {
-      this._startProgressResolve();
-      this._startProgressResolve = null;
+  private cleanupAfterStop(st: RootState, root: string) {
+    if (st.startResolve) {
+      st.startResolve();
+      st.startResolve = null;
     }
-    this.process = null;
-    this._serverUrl = null;
+    st.process = null;
+    st.serverUrl = null;
 
     // Clean up stale pidfile if it exists
-    const root = this.workspaceRoot;
-    if (root) {
-      const pidfile = path.join(root, '.docsforge', 'server.json');
-      try { if (fs.existsSync(pidfile)) fs.unlinkSync(pidfile); } catch { /* Ignore */ }
-    }
+    const pidfile = path.join(root, '.docsforge', 'server.json');
+    try { if (fs.existsSync(pidfile)) fs.unlinkSync(pidfile); } catch { /* Ignore */ }
 
-    vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
+    vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', this.isRunning());
     ServerManager.emitStateChange();
     this.updateStatusBar();
   }
 
+  /** Whether any root has a running (managed or adopted) server. */
   isRunning(): boolean {
-    return this.process !== null || this._serverUrl !== null;
+    for (const st of this.servers.values()) {
+      if (st.process !== null || st.serverUrl !== null) {
+        return true;
+      }
+    }
+    return false;
   }
 
+  /** Whether any root has a running build. */
   isBuilding(): boolean {
-    return this.buildProcess !== null;
+    for (const st of this.servers.values()) {
+      if (st.buildProcess !== null) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  async build() {
-    const workspaceRoot = this.workspaceRoot;
+  async build(root?: string) {
+    const workspaceRoot = root ?? await this.pickRoot();
     if (!workspaceRoot) {
-      vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
       return;
     }
+    const st = this.forRoot(workspaceRoot);
+    const label = this.rootLabel(workspaceRoot);
 
     if (!ServerManager.hasConfig(workspaceRoot)) {
       vscode.window.showErrorMessage(
-        'DocsForge: no docsforge.yml found. Run "Initialize Project" first.'
+        `DocsForge: no docsforge.yml found${label}. Run "Initialize Project" first.`
       );
       return;
     }
 
-    if (this.buildProcess) {
-      vscode.window.showInformationMessage('DocsForge build is already running');
+    if (st.buildProcess) {
+      vscode.window.showInformationMessage(`DocsForge build is already running${label}`);
       return;
     }
 
-    const python = await this.resolveEnvironment();
+    const python = await this.resolveEnvironment(workspaceRoot);
     if (!python) {
       return;
     }
@@ -503,7 +612,7 @@ export class ServerManager {
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'Building DocsForge documentation...',
+        title: `Building DocsForge documentation${label}...`,
         cancellable: false,
       },
       async () => {
@@ -513,7 +622,7 @@ export class ServerManager {
             env: { ...process.env, FORCE_COLOR: '1' },
           });
 
-          this.buildProcess = proc;
+          st.buildProcess = proc;
           vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', true);
           ServerManager.emitStateChange();
 
@@ -525,23 +634,23 @@ export class ServerManager {
           });
 
           proc.on('error', (err: Error) => {
-            this.buildProcess = null;
-            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
+            st.buildProcess = null;
+            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
             ServerManager.emitStateChange();
             this.showError(`Build failed to start: ${err.message}`);
             reject();
           });
 
           proc.on('close', (code: number | null) => {
-            this.buildProcess = null;
-            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
+            st.buildProcess = null;
+            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
             ServerManager.emitStateChange();
             if (code === 0) {
-              vscode.window.showInformationMessage('DocsForge build successful');
+              vscode.window.showInformationMessage(`DocsForge build successful${label}`);
               resolve();
             } else {
               vscode.window
-                .showErrorMessage('DocsForge build failed', 'Show Output')
+                .showErrorMessage(`DocsForge build failed${label}`, 'Show Output')
                 .then(() => this.logPanel.show());
               reject();
             }
@@ -551,24 +660,30 @@ export class ServerManager {
     );
   }
 
-  private _clearStartSafetyTimeout() {
-    if (this._startSafetyTimeout) {
-      clearTimeout(this._startSafetyTimeout);
-      this._startSafetyTimeout = null;
+  private clearStartSafetyTimeout(st: RootState) {
+    if (st.startSafetyTimeout) {
+      clearTimeout(st.startSafetyTimeout);
+      st.startSafetyTimeout = null;
     }
   }
 
   dispose() {
-    this._clearStartSafetyTimeout();
+    for (const st of this.servers.values()) {
+      this.clearStartSafetyTimeout(st);
+    }
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
-    if (this.watchedPidfile) {
-      fs.unwatchFile(this.watchedPidfile);
-      this.watchedPidfile = null;
+    for (const pidfile of this.watchedPidfiles) {
+      fs.unwatchFile(pidfile);
     }
-    this.stop(/* silent */ true);
+    this.watchedPidfiles.clear();
+    this.editorWatch?.dispose();
+    this.editorWatch = null;
+    for (const root of [...this.servers.keys()]) {
+      this.stop(/* silent */ true, root);
+    }
     this.statusBarItem.dispose();
   }
 }

@@ -13,6 +13,14 @@
   `--8<-- "…"` completes sibling and docs-tree files, and frontmatter
   offers engine-backed keys plus `hide:`/`search:` values (custom keys stay
   legal and are never flagged).
+- **Studio multi-root servers** — each workspace folder gets its own
+  serve/build state and pidfile adoption; commands act on the active
+  file's project (with a picker when ambiguous), the status bar names the
+  folder, and Open Built Page uses the document's own server.
+- **Studio offline update cache** — successful version checks persist to
+  global state; offline manual checks reuse the last-seen versions labeled
+  cached, and the silent startup check refreshes only the sidebar badge
+  from cache instead of notifying.
 
 ### Fixed
 
