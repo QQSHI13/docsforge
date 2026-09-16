@@ -20,6 +20,19 @@
 
 ### 修复
 
+- **Studio 代码评审修复** —— New Page 不再用桩覆盖已有翻译（跳过的孪
+  生会报告）；快速双击 serve/build 不再遗弃服务器进程；构建失败带真实
+  错误而非未处理的 rejection；`./` 与 `../` 链接前缀可补全；Rename
+  Anchor 改写同页 `[text](#anchor)` 链接；slug 保留中文（`# 你好` →
+  `你好`）；Format Document 不动围栏代码块；`docsforge.formatOnSave`
+  经 will-save 生效；Rename Document 拒绝逃逸路径；歧义快速修复改为询
+  问而非猜测；混合新鲜/缓存的更新按通道标注；带本地元数据的短横预发布
+  可解析；跳转与悬停作用于光标处链接；Stop Server 不再劫持为取消构建；
+  pidfile PID 必须为数字且诊断路径不出 docs 目录。语言标签大小写不敏感
+  （`pt-BR`）。
+
+### 修复
+
 - **Studio 对 beta/可编辑安装的引擎更新** —— 扩展曾把 `13.0.0b3`
   截断为 `13.0.0`，导致 beta 检出看起来已是最新、永远只提示扩展更新。
   现在预发布段会保留参与比较，可编辑安装（`pip install -e .`）经

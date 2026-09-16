@@ -7,12 +7,16 @@ import { DocsForgeSidebarProvider } from './sidebarProvider';
 import { DocsForgeLogPanel } from './logPanel';
 import { detectEnvironment, ensureDocsforge } from './environment';
 import { DocsForgeDiagnostics } from './diagnostics';
-import { registerProviders, srcUriOf } from './providers';
+import { registerProviders, srcUriOf, getDocsCache, isDocDocument } from './providers';
 import { registerRenameCommands, registerAutoRename } from './rename';
 import { registerUpdateCommands } from './update';
 import { runNewPage } from './scaffold';
 import { runCheckTwins } from './twins';
-import { docsDirFromConfig, resolveLinkTarget, stripLocaleSuffix } from './links';
+import { invalidateHeadings } from './studioCache';
+import {
+  docsDirFromConfig, resolveLinkTarget, stripLocaleSuffix,
+  splitAnchor, extractLinks, formatMarkdown,
+} from './links';
 
 let serverManager: ServerManager;
 let sidebarProvider: DocsForgeSidebarProvider;
@@ -59,6 +63,37 @@ function ensureProjectFeatures(
   registerProviders(context, root);
   registerRenameCommands(context, root);
   registerAutoRename(context, root);
+  // Format on save, gated by `docsforge.formatOnSave` (off by default).
+  // willSave edits ride along with the save (no save loop); the global
+  // `editor.formatOnSave` + registered formatter path is untouched.
+  context.subscriptions.push(
+    vscode.workspace.onWillSaveTextDocument((e) => {
+      if (e.document.languageId !== 'markdown') {
+        return;
+      }
+      if (!vscode.workspace.getConfiguration('docsforge').get<boolean>('formatOnSave', false)) {
+        return;
+      }
+      if (!isDocDocument(e.document, root)) {
+        return;
+      }
+      const formatted = formatMarkdown(e.document.getText());
+      if (formatted !== e.document.getText()) {
+        e.waitUntil(Promise.resolve([
+          vscode.TextEdit.replace(new vscode.Range(0, 0, e.document.lineCount, 0), formatted),
+        ]));
+      }
+    }),
+  );
+  // Proactively drop the saved file from the heading index (mtime
+  // validation would catch it anyway on next completion).
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (doc.languageId === 'markdown' && isDocDocument(doc, root)) {
+        invalidateHeadings(root, doc.uri.fsPath);
+      }
+    }),
+  );
   return true;
 }
 
@@ -113,6 +148,64 @@ export function activate(context: vscode.ExtensionContext) {
       }
     })
   );
+  // Command used by the "pick link target" quick fix when several same-named
+  // files match: recompute candidates at invoke time, let the user choose,
+  // then rewrite that one link occurrence.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('docsforge.pickLinkFix', async (arg?: { uri: string; line: number; dest: string }) => {
+      if (!arg) {
+        return;
+      }
+      try {
+        const srcFsPath = vscode.Uri.parse(arg.uri).fsPath;
+        const ctx = docsContextFor(srcFsPath);
+        if (!ctx) {
+          vscode.window.showWarningMessage('DocsForge: no docsforge.yml found. Run "Initialize Project" first.');
+          return;
+        }
+        const srcUri = srcUriOf(ctx.root, ctx.docsDirAbs, srcFsPath);
+        if (!srcUri) {
+          vscode.window.showWarningMessage('DocsForge: the document is not inside the docs directory.');
+          return;
+        }
+        const { target, anchor } = splitAnchor(arg.dest);
+        const wanted = path.posix.basename(target);
+        const candidates = getDocsCache(ctx.root).findByName(wanted).filter((c) => c !== target);
+        if (!candidates.length) {
+          vscode.window.showInformationMessage('DocsForge: no matching file found anymore.');
+          return;
+        }
+        const choice = candidates.length === 1 ? candidates[0] : await vscode.window.showQuickPick(
+          candidates, { placeHolder: `Pick the target for "${arg.dest}"` },
+        );
+        if (!choice) {
+          return;
+        }
+        const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(srcFsPath));
+        const link = extractLinks(doc.getText()).find((l) => l.line === arg.line && l.dest === arg.dest);
+        if (!link) {
+          vscode.window.showWarningMessage('DocsForge: the link changed since the quick fix was offered.');
+          return;
+        }
+        let newTarget = path.posix.relative(path.posix.dirname(srcUri), choice);
+        if (!newTarget.startsWith('.')) {
+          newTarget = `./${newTarget}`;
+        }
+        if (anchor) {
+          newTarget += `#${anchor}`;
+        }
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(
+          doc.uri,
+          new vscode.Range(doc.positionAt(link.offset + 1), doc.positionAt(link.offset + 1 + arg.dest.length)),
+          newTarget,
+        );
+        await vscode.workspace.applyEdit(edit);
+      } catch (err) {
+        vscode.window.showErrorMessage(`DocsForge: could not fix link (${(err as Error).message})`);
+      }
+    })
+  );
   // Open the built page for the current document in the Simple Browser
   // (feature #1): resolves docs/<path>.md -> <serve-url>/<path>/.
   context.subscriptions.push(
@@ -158,10 +251,11 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Note: no onWillSaveTextDocument hook. Formatting is provided by the
-  // DocumentFormattingEditProvider (Format Document / editor.formatOnSave);
-  // a willSave handler that awaits a dynamic import before calling
-  // waitUntil never fires, and applyEdit-inside-willSave risks save loops.
+  // Note: manual formatting is provided by the DocumentFormattingEditProvider
+  // (Format Document / editor.formatOnSave). The willSave hook registered per
+  // root in ensureProjectFeatures only implements `docsforge.formatOnSave`;
+  // it calls waitUntil synchronously (no deferred dynamic import, which
+  // would never fire) and never calls applyEdit (which risks save loops).
 
   context.subscriptions.push(
     vscode.commands.registerCommand('docsforge.init', () => {

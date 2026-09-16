@@ -15,6 +15,10 @@ interface RootState {
   process: ChildProcess | null;
   buildProcess: ChildProcess | null;
   serverUrl: string | null;
+  /** Set synchronously before the first await so rapid double-invokes
+   *  can't pass the already-running guard twice and orphan a process. */
+  starting: boolean;
+  building: boolean;
   startResolve: (() => void) | null;
   processCloseHandler: ((code: number | null) => void) | null;
   processErrorHandler: ((err: Error) => void) | null;
@@ -26,6 +30,8 @@ function freshRootState(): RootState {
     process: null,
     buildProcess: null,
     serverUrl: null,
+    starting: false,
+    building: false,
     startResolve: null,
     processCloseHandler: null,
     processErrorHandler: null,
@@ -334,7 +340,7 @@ export class ServerManager {
     const st = this.forRoot(workspaceRoot);
     const label = this.rootLabel(workspaceRoot);
     // Prevent double-start: if already running (own process or pidfile), just open browser
-    if (st.process || st.serverUrl) {
+    if (st.process || st.serverUrl || st.starting) {
       vscode.window.showWarningMessage(`DocsForge server is already running${label}`);
       if (st.serverUrl) {
         this.openBrowser(workspaceRoot);
@@ -350,8 +356,10 @@ export class ServerManager {
       return;
     }
 
+    st.starting = true;
     const python = await this.resolveEnvironment(workspaceRoot);
     if (!python) {
+      st.starting = false;
       return;
     }
 
@@ -404,6 +412,8 @@ export class ServerManager {
       cwd: workspaceRoot,
       env: { ...process.env, FORCE_COLOR: '1' },
     });
+    // Spawned: the process guard now holds, release the starting flag.
+    st.starting = false;
 
     st.process.stdout?.on('data', (data: Buffer) => {
       const text = data.toString();
@@ -467,8 +477,10 @@ export class ServerManager {
     const workspaceRoot = root ?? this.currentRoot();
     const st = workspaceRoot ? this.forRoot(workspaceRoot) : null;
     const label = workspaceRoot ? this.rootLabel(workspaceRoot) : '';
-    // Stop a running build if one exists
-    if (st?.buildProcess) {
+    // Stop serves the server: only reroute to a running build when there is
+    // no server (own process or adopted pidfile) for this root — Stop Build
+    // has its own sidebar item and command.
+    if (st?.buildProcess && !st.process && !st.serverUrl) {
       this.stopBuild(workspaceRoot);
       if (!silent) vscode.window.showInformationMessage(`DocsForge build cancelled${label}`);
       return;
@@ -502,7 +514,9 @@ export class ServerManager {
       try {
         if (fs.existsSync(pidfile)) {
           const data = JSON.parse(fs.readFileSync(pidfile, 'utf-8'));
-          if (data.pid) {
+          // Pidfile contents are only trusted when numeric: never hand an
+          // attacker-crafted value to process.kill (ESRCH vs signal mixup).
+          if (typeof data.pid === 'number' && Number.isInteger(data.pid) && data.pid > 0) {
             try {
               process.kill(data.pid, 'SIGTERM');
               if (!silent) vscode.window.showInformationMessage(`DocsForge server stopped${label}`);
@@ -531,6 +545,7 @@ export class ServerManager {
     if (!st?.buildProcess) { return; }
     const proc = st.buildProcess;
     st.buildProcess = null;
+    st.building = false;
     vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
     ServerManager.emitStateChange();
     let exited = false;
@@ -550,6 +565,7 @@ export class ServerManager {
     }
     st.process = null;
     st.serverUrl = null;
+    st.starting = false;
 
     // Clean up stale pidfile if it exists
     const pidfile = path.join(root, '.docsforge', 'server.json');
@@ -595,13 +611,15 @@ export class ServerManager {
       return;
     }
 
-    if (st.buildProcess) {
+    if (st.buildProcess || st.building) {
       vscode.window.showInformationMessage(`DocsForge build is already running${label}`);
       return;
     }
 
+    st.building = true;
     const python = await this.resolveEnvironment(workspaceRoot);
     if (!python) {
+      st.building = false;
       return;
     }
 
@@ -609,55 +627,72 @@ export class ServerManager {
     this.logPanel.appendLine(`$ ${python} -m docsforge build`);
     this.logPanel.appendLine('');
 
-    vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: `Building DocsForge documentation${label}...`,
-        cancellable: false,
-      },
-      async () => {
-        return new Promise<void>((resolve, reject) => {
-          const proc = spawn(python, ['-m', 'docsforge', 'build'], {
-            cwd: workspaceRoot,
-            env: { ...process.env, FORCE_COLOR: '1' },
-          });
-
-          st.buildProcess = proc;
-          vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', true);
-          ServerManager.emitStateChange();
-
-          proc.stdout?.on('data', (data: Buffer) => {
-            this.logPanel.append(data.toString());
-          });
-          proc.stderr?.on('data', (data: Buffer) => {
-            this.logPanel.append(data.toString());
-          });
-
-          proc.on('error', (err: Error) => {
-            st.buildProcess = null;
-            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
-            ServerManager.emitStateChange();
-            this.showError(`Build failed to start: ${err.message}`);
-            reject();
-          });
-
-          proc.on('close', (code: number | null) => {
-            st.buildProcess = null;
-            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
-            ServerManager.emitStateChange();
-            if (code === 0) {
-              vscode.window.showInformationMessage(`DocsForge build successful${label}`);
-              resolve();
-            } else {
-              vscode.window
-                .showErrorMessage(`DocsForge build failed${label}`, 'Show Output')
-                .then(() => this.logPanel.show());
-              reject();
+    // Awaited (not fire-and-forget): failures are caught below after the
+    // user-facing messages, so nothing becomes an unhandled rejection.
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Building DocsForge documentation${label}...`,
+          cancellable: false,
+        },
+        async () => {
+          await new Promise<void>((resolve, reject) => {
+            let proc: ChildProcess;
+            try {
+              proc = spawn(python, ['-m', 'docsforge', 'build'], {
+                cwd: workspaceRoot,
+                env: { ...process.env, FORCE_COLOR: '1' },
+              });
+            } catch (err) {
+              reject(err instanceof Error ? err : new Error(String(err)));
+              return;
             }
+
+            st.buildProcess = proc;
+            vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', true);
+            ServerManager.emitStateChange();
+
+            proc.stdout?.on('data', (data: Buffer) => {
+              this.logPanel.append(data.toString());
+            });
+            proc.stderr?.on('data', (data: Buffer) => {
+              this.logPanel.append(data.toString());
+            });
+
+            proc.on('error', (err: Error) => {
+              st.buildProcess = null;
+              st.building = false;
+              vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
+              ServerManager.emitStateChange();
+              this.showError(`Build failed to start: ${err.message}`);
+              reject(err);
+            });
+
+            proc.on('close', (code: number | null) => {
+              st.buildProcess = null;
+              st.building = false;
+              vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
+              ServerManager.emitStateChange();
+              if (code === 0) {
+                vscode.window.showInformationMessage(`DocsForge build successful${label}`);
+                resolve();
+              } else {
+                vscode.window
+                  .showErrorMessage(`DocsForge build failed${label}`, 'Show Output')
+                  .then(() => this.logPanel.show());
+                reject(new Error(`docsforge build exited with code ${code}`));
+              }
+            });
           });
-        });
-      }
-    );
+        },
+      );
+    } catch {
+      // User-facing messages were already shown at the failure site.
+      // Belt-and-braces: every handler clears this, but a synchronous
+      // spawn throw rejects before any handler exists.
+      st.building = false;
+    }
   }
 
   private clearStartSafetyTimeout(st: RootState) {

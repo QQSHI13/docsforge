@@ -85,7 +85,10 @@ interface ParsedVersion {
 
 /** Parse `12.5.7`, `13.0.0b1`, `13.0.0-beta.1` (local `+...` suffix ignored). */
 export function parseVersion(raw: string): ParsedVersion | null {
-  const cleaned = normalizeVersion(raw).split('+', 1)[0];
+  // Strip local metadata BEFORE normalizing: the prerelease regex is
+  // end-anchored, so `13.0.0-beta.3+build` would otherwise miss normalization
+  // and fail the strict match below as "unparseable".
+  const cleaned = normalizeVersion(raw.split('+', 1)[0]);
   const match = cleaned.match(/^(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d*))?$/i);
   if (!match) {
     return null;

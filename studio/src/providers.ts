@@ -19,6 +19,8 @@ import {
   srcUriOfPath,
   linkTargetPrefix,
   filterDocsByPrefix,
+  toRelativeDisplay,
+  linkAtPosition,
   snippetPathPrefix,
   anchorPrefix,
   frontmatterRange,
@@ -29,7 +31,7 @@ import {
 import { getHeadings } from './studioCache';
 
 /** Re-exported pure helpers (canonical implementations live in links.ts). */
-export { linkTargetPrefix, filterDocsByPrefix };
+export { linkTargetPrefix, filterDocsByPrefix, toRelativeDisplay };
 
 /** Docs-relative URI for a file, or null when outside the docs dir.
  *  Central guard for non-docs .md files (e.g. root README.md) that match the
@@ -254,41 +256,35 @@ class DocsForgeDefinitionProvider implements vscode.DefinitionProvider {
     if (!line) {
       return null;
     }
-    const links = extractLinks(line);
-    for (const link of links) {
-      const { target, anchor } = splitAnchor(link.dest);
-      if (!target) {
-        continue;
-      }
-      const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
-      const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
-      if (!srcUri) {
-        return null;
-      }
-      const resolved = resolveLinkTarget(
-        path.join(this.root, docsDirFromConfig(this.root)),
-        srcUri, target,
-      );
-      if (!resolved) {
-        continue;
-      }
-      if (!fs.existsSync(resolved.absPath)) {
-        continue;
-      }
-      const targetText = readDoc(resolved.absPath);
-      let pos = new vscode.Position(0, 0);
-      if (anchor && targetText) {
-        const headings = extractHeadings(targetText);
-        const found = headings.find(
-          (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
-        );
-        if (found) {
-          pos = new vscode.Position(found.line, 0);
-        }
-      }
-      return new vscode.Location(vscode.Uri.file(resolved.absPath), pos);
+    const link = linkAtPosition(line, extractLinks(line), position.character);
+    if (!link) {
+      return null;
     }
-    return null;
+    const { target, anchor } = splitAnchor(link.dest);
+    const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+    const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+    if (!srcUri) {
+      return null;
+    }
+    // Empty target = same-page anchor link.
+    const resolved = target
+      ? resolveLinkTarget(docsDirAbs, srcUri, target)
+      : { absPath: document.uri.fsPath, srcUri };
+    if (!resolved || !fs.existsSync(resolved.absPath)) {
+      return null;
+    }
+    const targetText = readDoc(resolved.absPath);
+    let pos = new vscode.Position(0, 0);
+    if (anchor && targetText) {
+      const headings = extractHeadings(targetText);
+      const found = headings.find(
+        (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
+      );
+      if (found) {
+        pos = new vscode.Position(found.line, 0);
+      }
+    }
+    return new vscode.Location(vscode.Uri.file(resolved.absPath), pos);
   }
 }
 
@@ -301,42 +297,39 @@ class DocsForgeHoverProvider implements vscode.HoverProvider {
     if (!line) {
       return null;
     }
-    const links = extractLinks(line);
-    for (const link of links) {
-      const { target, anchor } = splitAnchor(link.dest);
-      if (!target) {
-        continue;
-      }
-      const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
-      const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
-      if (!srcUri) {
-        return null;
-      }
-      const resolved = resolveLinkTarget(
-        path.join(this.root, docsDirFromConfig(this.root)),
-        srcUri, target,
-      );
-      if (!resolved) {
-        return new vscode.Hover('*Broken link:* target escapes the docs directory.');
-      }
-      if (!fs.existsSync(resolved.absPath)) {
-        return new vscode.Hover('*Broken link:* target file not found.');
-      }
-      const targetText = readDoc(resolved.absPath);
-      if (anchor) {
-        const headings = extractHeadings(targetText ?? '');
-        const found = headings.find(
-          (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
-        );
-        if (!found) {
-          return new vscode.Hover(`*Broken link:* no anchor \`#${anchor}\` in target.`);
-        }
-        return new vscode.Hover(`**${found.title}** — \`${resolved.srcUri}#${anchor}\``);
-      }
-      const preview = (targetText ?? '').split('\n').slice(0, 5).join('\n').slice(0, 400);
-      return new vscode.Hover(preview || `\`${resolved.srcUri}\``);
+    const link = linkAtPosition(line, extractLinks(line), position.character);
+    if (!link) {
+      return null;
     }
-    return null;
+    const { target, anchor } = splitAnchor(link.dest);
+    const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+    const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+    if (!srcUri) {
+      return null;
+    }
+    // Empty target = same-page anchor link.
+    const resolved = target
+      ? resolveLinkTarget(docsDirAbs, srcUri, target)
+      : { absPath: document.uri.fsPath, srcUri };
+    if (!resolved) {
+      return new vscode.Hover('*Broken link:* target escapes the docs directory.');
+    }
+    if (!fs.existsSync(resolved.absPath)) {
+      return new vscode.Hover('*Broken link:* target file not found.');
+    }
+    const targetText = readDoc(resolved.absPath);
+    if (anchor) {
+      const headings = extractHeadings(targetText ?? '');
+      const found = headings.find(
+        (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
+      );
+      if (!found) {
+        return new vscode.Hover(`*Broken link:* no anchor \`#${anchor}\` in target.`);
+      }
+      return new vscode.Hover(`**${found.title}** — \`${resolved.srcUri}#${anchor}\``);
+    }
+    const preview = (targetText ?? '').split('\n').slice(0, 5).join('\n').slice(0, 400);
+    return new vscode.Hover(preview || `\`${resolved.srcUri}\``);
   }
 }
 
@@ -411,7 +404,7 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     if (partial === null) {
       return [];
     }
-    return this.pathCompletions(partial);
+    return this.pathCompletions(document, partial);
   }
 
   /** Known frontmatter keys + `hide:` / `search:` values. Key context has
@@ -609,18 +602,38 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     return null;
   }
 
-  private pathCompletions(partial: string): vscode.CompletionItem[] {
+  private pathCompletions(
+    document: vscode.TextDocument, partial: string,
+  ): vscode.CompletionItem[] {
     const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
     if (!fs.existsSync(docsDirAbs)) {
       return [];
     }
+    const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+    if (!srcUri) {
+      return [];
+    }
+    // Resolve the typed prefix against the source file's directory so
+    // `./` and `../` complete: strip `./`, resolve `../` with posix
+    // semantics, reject escapes above the docs root.
+    const fromDir = path.posix.dirname(srcUri);
+    const keepDot = partial.startsWith('.');
+    let lookup = partial.replace(/^\.\//, '');
+    if (lookup.startsWith('../') || lookup === '..') {
+      lookup = path.posix.normalize(path.posix.join(fromDir, lookup));
+      if (lookup.startsWith('../') || path.posix.isAbsolute(lookup)) {
+        return [];
+      }
+    }
     // Cached file list + prefix pruning (no full readdirSync walk per keystroke).
     const files = getDocsCache(this.root).getFiles();
-    const names = filterDocsByPrefix(files, partial, 200);
+    const names = filterDocsByPrefix(files, lookup, 200);
     return names.map((name) => {
-      const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.File);
-      item.insertText = name;
+      const display = toRelativeDisplay(name, fromDir, keepDot);
+      const item = new vscode.CompletionItem(display, vscode.CompletionItemKind.File);
+      item.insertText = display;
       item.detail = name;
+      item.filterText = display;
       return item;
     });
   }
@@ -751,9 +764,12 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
         }
         // Suggest a fix that points to an existing file with the same name
         // (single cached index lookup, not a readdirSync walk per lightbulb).
+        // Only auto-fix when unambiguous: with several same-named files the
+        // user must pick, otherwise the lightbulb can repoint at the wrong
+        // file.
         const wanted = path.posix.basename(target);
-        const candidates = cache.findByName(wanted);
-        if (candidates.length && !candidates.includes(target)) {
+        const candidates = cache.findByName(wanted).filter((c) => c !== target);
+        if (candidates.length === 1) {
           const fix = new vscode.CodeAction(
             `Fix link: use ${candidates[0]}`,
             vscode.CodeActionKind.QuickFix,
@@ -767,6 +783,17 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
           fix.edit = new vscode.WorkspaceEdit();
           fix.edit.replace(document.uri, new vscode.Range(linkPos, endPos), newTarget);
           actions.push(fix);
+        } else if (candidates.length > 1) {
+          const pick = new vscode.CodeAction(
+            `Fix link: pick target (${candidates.length} same-named files)…`,
+            vscode.CodeActionKind.QuickFix,
+          );
+          pick.command = {
+            command: 'docsforge.pickLinkFix',
+            title: 'Pick link target',
+            arguments: [{ uri: document.uri.toString(), line: link.line, dest }],
+          };
+          actions.push(pick);
         }
         // Offer to open the target in the editor.
         const open = new vscode.CodeAction('Open link target', vscode.CodeActionKind.QuickFix);
@@ -789,8 +816,10 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
     // validation.json, or for a link not covered by validation).
     handleLine(range.start.line);
     // Feature #3: "Fix all broken links in file" — one action that applies
-    // every auto-fixable link correction across the document (one entry per
-    // occurrence, not per distinct dest, so repeats are all fixed).
+    // every unambiguous auto-fixable link correction across the document
+    // (one entry per occurrence, not per distinct dest, so repeats are all
+    // fixed). Ambiguous same-named files are skipped here — use the
+    // per-link picker for those.
     const fixes: Array<{ uri: vscode.Uri; range: vscode.Range; newText: string }> = [];
     for (const link of allLinks) {
       const dest = link.dest;
@@ -803,8 +832,8 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
         continue; // not broken
       }
       const wanted = path.posix.basename(target);
-      const candidates = cache.findByName(wanted);
-      if (!candidates.length || candidates.includes(target)) {
+      const candidates = cache.findByName(wanted).filter((c) => c !== target);
+      if (candidates.length !== 1) {
         continue;
       }
       let newTarget = path.posix.relative(path.posix.dirname(srcUri), candidates[0]);

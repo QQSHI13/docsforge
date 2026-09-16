@@ -149,8 +149,8 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 - **锚点补全** —— 在链接内 `#` 后补全目标文档的标题 slug（`](#…)` 指当前文件），标题索引缓存在 `.docsforge/studio/` 中
 - **片段补全** —— 在 `--8<-- "…"` 包含中补全同目录文件与文档树路径（优先相对源文件所在目录解析）
 - **Frontmatter 补全** —— 已知键（`title`、`description`、`icon`、`tags`、`hide`、`search`、`template` 等）及 `hide:`/`search:` 取值，Ctrl+Space 触发；自定义键合法，绝不误报
-- **重命名** —— Rename Document 移动文件（含翻译）并一次性改写所有相关链接（可撤销）；Rename Anchor 对标题同理。在资源管理器里重命名文件夹也会更新链接
-- **快速修复** —— 坏链上的小灯泡提供修复（可批量）
+- **重命名** —— Rename Document 移动文件（含翻译）并一次性改写所有相关链接（可撤销）；Rename Anchor 对标题同理，含同页 `[text](#anchor)` 链接。在资源管理器里重命名文件夹也会更新链接
+- **快速修复** —— 坏链上的小灯泡提供修复；多个同名文件时由你选择目标，批量修复只覆盖无歧义链接
 - **格式化** —— Format Document 整理行尾空格与空行（配合 `editor.formatOnSave` 可保存时自动执行）
 
 ## 配置
@@ -163,7 +163,7 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | `docsforge.lan` | `false` | 在所有接口（`0.0.0.0`）上服务，而非仅 localhost |
 | `docsforge.openBrowser` | `true` | 服务器启动时在 VS Code 的 Simple Browser 中打开站点 |
 | `docsforge.rememberedPython` | `""` | 扩展解析出的解释器（如项目 `.venv`）。自动维护；用 `pythonPath` 覆盖 |
-| `docsforge.formatOnSave` | `false` | 保存时格式化 Markdown 文档（需配合 `editor.formatOnSave`） |
+| `docsforge.formatOnSave` | `false` | 保存时格式化 DocsForge Markdown 文档（无需 `editor.formatOnSave`） |
 | `docsforge.autoCheckUpdates` | `true` | 启动后检查引擎与扩展更新，仅在有更新时通知 |
 | `docsforge.includePrereleases` | `false` | 检查更新时包含 beta/alpha 预发布版本 |
 

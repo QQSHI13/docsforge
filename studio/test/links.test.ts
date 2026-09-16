@@ -10,6 +10,9 @@ import {
   resolveLinkTarget,
   lineOfLink,
   linesOfLink,
+  linkAtPosition,
+  docAbsPathSafe,
+  toRelativeDisplay,
   linkFromWarning,
   severityForLevel,
   docsDirFromConfig,
@@ -425,6 +428,71 @@ describe('frontmatter', () => {
     const keys = FRONTMATTER_KEYS.map((k) => k.key);
     for (const k of ['title', 'description', 'icon', 'tags', 'hide', 'search', 'template']) {
       assert.ok(keys.includes(k), k);
+    }
+  });
+});
+
+describe('review fixes', () => {
+  it('slugifies CJK the way the engine does', () => {
+    assert.strictEqual(slugifyHeading('你好'), '你好');
+    assert.strictEqual(slugifyHeading('Hello 你好'), 'hello-你好');
+    assert.strictEqual(slugifyHeading('Hello_World'), 'hello-world');
+  });
+
+  it('matches locales case-insensitively', () => {
+    assert.strictEqual(stripLocaleSuffix('a.ZH.md'), 'a');
+    assert.strictEqual(stripLocaleSuffix('a.pt-BR.md'), 'a');
+    assert.deepStrictEqual(
+      detectLocales([{ srcUri: 'a.pt-BR.md' }, { srcUri: 'b.md' }]),
+      ['pt-BR'],
+    );
+  });
+
+  it('keeps fenced code blocks intact when formatting', () => {
+    const src = '# H\n\n```\nline one  \n\n\nline two\n```\n\n\nbody  \n';
+    assert.strictEqual(
+      formatMarkdown(src),
+      '# H\n\n```\nline one  \n\n\nline two\n```\n\nbody\n',
+    );
+  });
+
+  it('finds the link under the cursor', () => {
+    const line = '[a](x.md) and [b](y.md)';
+    const links = extractLinks(line);
+    assert.strictEqual(linkAtPosition(line, links, 2)?.dest, 'x.md');
+    assert.strictEqual(linkAtPosition(line, links, 20)?.dest, 'y.md');
+    assert.strictEqual(linkAtPosition(line, links, 11), null);
+  });
+
+  it('maps targets back to relative display form', () => {
+    assert.strictEqual(toRelativeDisplay('guide/x.md', 'guide', false), 'x.md');
+    assert.strictEqual(toRelativeDisplay('guide/x.md', 'guide', true), './x.md');
+    assert.strictEqual(toRelativeDisplay('other/y.md', 'guide', false), '../other/y.md');
+  });
+
+  it('rejects escaping doc paths', () => {
+    assert.strictEqual(docAbsPathSafe('/w', 'docs', '../evil.md'), null);
+    assert.ok(docAbsPathSafe('/w', 'docs', 'a.md')?.endsWith(path.join('docs', 'a.md')));
+  });
+
+  it('rewrites same-page anchors on rename', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-anchor-'));
+    try {
+      fs.mkdirSync(path.join(tmp, 'docs'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'docsforge.yml'), 'site_name: T\ndocs_dir: docs\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# Old Head\n\nSee [here](#old-head) and [o](b.md#old-head).\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
+      const aAbs = path.join(tmp, 'docs', 'a.md');
+      // Renaming b.md's anchor: only the cross-page link moves.
+      const forB = computeAnchorRenameEdits(tmp, 'b.md', 'old-head', 'new-head');
+      assert.strictEqual(forB.get(aAbs)?.length, 1);
+      assert.strictEqual(forB.get(aAbs)![0].text, 'new-head');
+      // Renaming a.md's anchor: only the same-page link moves.
+      const forA = computeAnchorRenameEdits(tmp, 'a.md', 'old-head', 'new-head');
+      assert.strictEqual(forA.get(aAbs)?.length, 1);
+      assert.strictEqual(forA.get(aAbs)![0].text, 'new-head');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
 });

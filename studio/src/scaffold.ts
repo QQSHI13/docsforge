@@ -95,12 +95,16 @@ export async function runNewPage(workspaceRoot: string): Promise<void> {
 
   fs.mkdirSync(path.dirname(absPath), { recursive: true });
   fs.writeFileSync(absPath, `# ${title}\n`);
+  const skipped: string[] = [];
   for (const locale of twinLocales) {
     const twinSrc = srcUri.replace(/\.md$/, `.${locale}.md`);
-    fs.writeFileSync(
-      path.join(docsDirAbs, ...twinSrc.split('/')),
-      twinStub(title, locale),
-    );
+    const twinAbs = path.join(docsDirAbs, ...twinSrc.split('/'));
+    // Never clobber an existing translation with a stub.
+    if (fs.existsSync(twinAbs)) {
+      skipped.push(twinSrc);
+      continue;
+    }
+    fs.writeFileSync(twinAbs, twinStub(title, locale));
   }
   getDocsCache(workspaceRoot).invalidate();
 
@@ -133,4 +137,9 @@ export async function runNewPage(workspaceRoot: string): Promise<void> {
   }
 
   await vscode.window.showTextDocument(vscode.Uri.file(absPath));
+  if (skipped.length) {
+    vscode.window.showWarningMessage(
+      `DocsForge: kept existing translation(s), stub not written: ${skipped.join(', ')}`,
+    );
+  }
 }

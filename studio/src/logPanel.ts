@@ -116,9 +116,12 @@ export class DocsForgeLogPanel implements vscode.WebviewViewProvider {
   window.addEventListener('message', (event) => {
     const msg = event.data;
     if (msg.type === 'append') {
+      // Replay ends with a newline now; guard the join so the first chunk
+      // after a replay never glues onto the last buffered line.
+      if (log.textContent.length && !log.textContent.endsWith('\\n')) log.textContent += '\\n';
       log.textContent += msg.lines.join('\\n') + '\\n';
     } else if (msg.type === 'replace') {
-      log.textContent = msg.lines.join('\\n');
+      log.textContent = msg.lines.length ? msg.lines.join('\\n') + '\\n' : '';
     } else if (msg.type === 'clear') {
       log.textContent = '';
     }

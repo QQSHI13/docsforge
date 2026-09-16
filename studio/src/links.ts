@@ -15,6 +15,16 @@ export function docAbsPath(workspaceRoot: string, docsDir: string, srcUri: strin
   return path.join(workspaceRoot, docsDir, ...srcUri.split('/'));
 }
 
+/** Contained variant: null when a validation.json key would escape the docs
+ *  dir (`../` traversal in a crafted or stale cache entry). */
+export function docAbsPathSafe(
+  workspaceRoot: string, docsDir: string, srcUri: string,
+): string | null {
+  const absPath = docAbsPath(workspaceRoot, docsDir, srcUri);
+  const base = path.join(workspaceRoot, docsDir) + path.sep;
+  return absPath === base.slice(0, -1) || absPath.startsWith(base) ? absPath : null;
+}
+
 /** Resolve a link target relative to a source file (posix semantics). */
 export function resolveLinkTarget(
   docsDirAbs: string, srcUri: string, target: string,
@@ -128,12 +138,32 @@ export function lineOfLink(source: string, dest: string): number | null {
   return hits.length ? hits[0] : null;
 }
 
+/** Link under a cursor column within one line (offsets are line-relative
+ *  when the source is a single line), or null. Used so go-to-definition
+ *  and hover act on the link at the cursor, not the line's first link. */
+export function linkAtPosition(
+  line: string,
+  links: Array<{ dest: string; offset: number; line: number }>,
+  character: number,
+): { dest: string; offset: number; line: number } | null {
+  for (const link of links) {
+    const close = line.indexOf(')', link.offset);
+    const end = close === -1 ? line.length : close + 1;
+    if (character >= link.offset && character <= end) {
+      return link;
+    }
+  }
+  return null;
+}
+
 /** Slugify a heading title the way docsforge/markdown-toc does:
- *  lowercase, strip punctuation, whitespace → '-'. */
+ *  lowercase, strip punctuation, whitespace → '-'.
+ *  Unicode-aware: the engine's Python `\w` keeps CJK, so `# 你好` slugs to
+ *  `你好` — an ASCII-only class would yield `''` and break anchor jumps. */
 export function slugifyHeading(title: string): string {
   return title
     .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
     .replace(/[\s_]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
@@ -239,9 +269,10 @@ export function computeDocumentRename(
   return { files, edits };
 }
 
-/** Strip the locale suffix from a doc name: foo.zh.md -> foo, foo.md -> foo. */
+/** Strip the locale suffix from a doc name: foo.zh.md -> foo, foo.md -> foo.
+ *  Case-insensitive: BCP 47 tags may be uppercase (`pt-BR`). */
 export function stripLocaleSuffix(srcUri: string): string {
-  return srcUri.replace(/(\.[a-z]{2}(?:-[a-z]{2})?)?\.md$/, '');
+  return srcUri.replace(/(\.[a-z]{2}(?:-[a-z]{2})?)?\.md$/i, '');
 }
 
 /** Given a base doc name, return the variant name if srcUri is one.
@@ -250,7 +281,7 @@ export function localeVariantOf(srcUri: string, base: string): string | null {
   const prefix = `${base}.`;
   if (srcUri.startsWith(prefix) && srcUri.endsWith('.md')) {
     const locale = srcUri.slice(prefix.length, -3);
-    if (/^[a-z]{2}(-[a-z]{2})?$/.test(locale)) {
+    if (/^[a-z]{2}(-[a-z]{2})?$/i.test(locale)) {
       return srcUri;
     }
   }
@@ -308,7 +339,8 @@ export function computeRenameEdits(
 /**
  * Compute edits for renaming a heading anchor: rewrite every link across the
  * docs tree whose anchor slug matches oldSlug into newSlug, when the link
- * resolves to docSrcUri.
+ * resolves to docSrcUri. Anchor-only links (`[#slug]`, same page) resolve
+ * to their own file and are rewritten too.
  */
 export function computeAnchorRenameEdits(
   workspaceRoot: string,
@@ -326,11 +358,14 @@ export function computeAnchorRenameEdits(
     const fileEdits: Array<{ start: number; end: number; text: string }> = [];
     for (const link of extractLinks(source)) {
       const { target, anchor } = splitAnchor(link.dest);
-      if (!target || !anchor || anchor !== oldSlug) {
+      if (!anchor || anchor !== oldSlug) {
         continue;
       }
-      const resolved = resolveLinkTarget(docsDirAbs, doc.srcUri, target);
-      if (!resolved || resolved.srcUri !== docSrcUri) {
+      // Empty target = same-page link: only the file being renamed matches.
+      const resolvedSrc = target
+        ? resolveLinkTarget(docsDirAbs, doc.srcUri, target)?.srcUri ?? null
+        : doc.srcUri;
+      if (resolvedSrc !== docSrcUri) {
         continue;
       }
       fileEdits.push({
@@ -384,12 +419,32 @@ export function checkFootnotes(
   return warnings;
 }
 
-/** Minimal markdown formatting: normalize trailing whitespace + blank lines. */
+/** Minimal markdown formatting: normalize trailing whitespace + blank lines.
+ *  Fenced code blocks (``` / ~~~) pass through untouched: blank lines and
+ *  trailing spaces can be significant inside them. */
 export function formatMarkdown(source: string): string {
   const lines = source.split('\n');
   const out: string[] = [];
   let blank = 0;
+  let fence: string | null = null;
   for (const line of lines) {
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0] === '`' ? '`' : '~';
+      const len = fenceMatch[1].length;
+      if (fence === null) {
+        fence = `${marker}${len}`;
+      } else if (fence[0] === marker && len >= Number(fence.slice(1))) {
+        fence = null;
+      }
+      blank = 0;
+      out.push(line);
+      continue;
+    }
+    if (fence !== null) {
+      out.push(line);
+      continue;
+    }
     const trimmed = line.replace(/[ \t]+$/, '');
     if (trimmed === '') {
       blank++;
@@ -488,6 +543,19 @@ export function srcUriOfPath(docsDirAbs: string, fsPath: string): string | null 
 export function linkTargetPrefix(beforeCursor: string): string | null {
   const m = beforeCursor.match(/\]\(([^)]*)$/);
   return m ? m[1] : null;
+}
+
+/** Map a docs-relative target back to what the user should see in `](…)`:
+ *  relative to the source file's directory, keeping the user's `./` style
+ *  (typed `gui` → `guide/x.md`, typed `./gui` → `./guide/x.md`). */
+export function toRelativeDisplay(
+  targetSrcUri: string, fromDir: string, keepDotSlash: boolean,
+): string {
+  let rel = path.posix.relative(fromDir, targetSrcUri);
+  if (!rel.startsWith('.')) {
+    rel = `./${rel}`;
+  }
+  return keepDotSlash ? rel : rel.replace(/^\.\//, '');
 }
 
 /** Filter cached docs URIs by a typed prefix (with directory-prune). */
@@ -610,7 +678,7 @@ export function tryLoadValidation(
 export function detectLocales(files: Array<{ srcUri: string }>): string[] {
   const locales = new Set<string>();
   for (const f of files) {
-    const m = f.srcUri.match(/\.([a-z]{2}(?:-[a-z]{2})?)\.md$/);
+    const m = f.srcUri.match(/\.([a-z]{2}(?:-[a-z]{2})?)\.md$/i);
     if (m) {
       locales.add(m[1]);
     }
@@ -651,7 +719,7 @@ export function findMissingTwins(
         if (!src.startsWith(`${base}.`) || !src.endsWith('.md')) {
           continue;
         }
-        const m = src.match(/\.([a-z]{2}(?:-[a-z]{2})?)\.md$/);
+        const m = src.match(/\.([a-z]{2}(?:-[a-z]{2})?)\.md$/i);
         if (!m || reported.has(src)) {
           continue;
         }

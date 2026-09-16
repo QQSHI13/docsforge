@@ -11,7 +11,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  docAbsPath,
+  docAbsPathSafe,
   severityForLevel,
   linkFromWarning,
   linesOfLink,
@@ -118,8 +118,10 @@ export class DocsForgeDiagnostics {
       if (!warnings.length) {
         continue;
       }
-      const absPath = docAbsPath(this.root, this.docsDir, srcUri);
-      if (!fs.existsSync(absPath)) {
+      // Contained resolution: a crafted/stale validation.json key must not
+      // pull diagnostics (or file reads) outside the docs dir.
+      const absPath = docAbsPathSafe(this.root, this.docsDir, srcUri);
+      if (!absPath || !fs.existsSync(absPath)) {
         continue;
       }
       let sourceText: string | null = null;

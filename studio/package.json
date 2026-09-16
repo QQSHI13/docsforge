@@ -221,7 +221,7 @@
         "docsforge.formatOnSave": {
           "type": "boolean",
           "default": false,
-          "description": "Format the markdown document on save (trailing whitespace, blank-line runs). Off by default; enables automatically once set."
+          "description": "Format DocsForge markdown documents on save (trailing whitespace, blank-line runs). Off by default."
         },
         "docsforge.autoCheckUpdates": {
           "type": "boolean",

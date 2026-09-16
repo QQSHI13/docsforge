@@ -13,6 +13,7 @@ import {
   extractHeadings,
   docsDirFromConfig,
   slugifyHeading,
+  sanitizePageName,
   computeDocumentRename,
   computeFolderRename,
   computeAnchorRenameEdits,
@@ -44,16 +45,24 @@ export function registerRenameCommands(
       const oldSrcUri = rel.split(path.sep).join('/');
       // If we're editing a translation (foo.zh.md), offer the base name so the
       // whole document (all locale variants) is renamed together.
-      const oldBase = oldSrcUri.replace(/(\.[a-z]{2}(?:-[a-z]{2})?)?\.md$/, '');
+      const oldBase = oldSrcUri.replace(/(\.[a-z]{2}(?:-[a-z]{2})?)?\.md$/i, '');
       const newName = await vscode.window.showInputBox({
         prompt: 'New document name (relative to docs/, without locale suffix)',
         value: oldBase,
-        validateInput: (v) => (v?.trim() ? null : 'Name is required'),
+        // Same sandbox as scaffolding: reject `..`, absolute paths and
+        // characters illegal on major filesystems, so a rename can never
+        // move a file outside the docs directory.
+        validateInput: (v) => {
+          if (!v?.trim()) {
+            return 'Name is required';
+          }
+          return sanitizePageName(v.trim().replace(/\.md$/i, '')) ? null : 'Invalid name (no ../, absolute paths, or <>:"|?*)';
+        },
       });
       if (!newName?.trim() || newName.trim() === oldBase) {
         return;
       }
-      const newBase = newName.trim().replace(/\.md$/, '');
+      const newBase = sanitizePageName(newName.trim().replace(/\.md$/i, ''))!.replace(/\.md$/, '');
       const { files, edits } = computeDocumentRename(workspaceRoot, oldSrcUri, newBase);
       if (!files.size) {
         vscode.window.showWarningMessage('DocsForge: no files matched the rename.');

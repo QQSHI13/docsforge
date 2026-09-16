@@ -149,8 +149,8 @@ No language server needed — the extension reads your project directly:
 - **Anchor completions** — after `#` inside a link, headings of the target document (same file for `](#…)`) complete as slugs, backed by a cached heading index in `.docsforge/studio/`
 - **Snippet completions** — inside `--8<-- "…"` includes, sibling files and docs-tree paths complete (paths resolve against the source file's directory first)
 - **Frontmatter completions** — known keys (`title`, `description`, `icon`, `tags`, `hide`, `search`, `template`, …) plus `hide:`/`search:` values on Ctrl+Space; custom keys stay legal and are never flagged
-- **Rename** — Rename Document moves a file (plus its translations) and rewrites every link to it in one undoable step; Rename Anchor does the same for headings. Renaming a folder in the Explorer updates links too
-- **Quick fixes** — the lightbulb on a broken link offers to fix it (or all broken links in scope)
+- **Rename** — Rename Document moves a file (plus its translations) and rewrites every link to it in one undoable step; Rename Anchor does the same for headings, including same-page `[text](#anchor)` links. Renaming a folder in the Explorer updates links too
+- **Quick fixes** — the lightbulb on a broken link offers to fix it; when several same-named files match you pick the target, and Fix All covers only unambiguous links
 - **Formatting** — Format Document tidies trailing whitespace and blank-line runs (also available on save via `editor.formatOnSave`)
 
 ## Configuration
@@ -163,7 +163,7 @@ No language server needed — the extension reads your project directly:
 | `docsforge.lan` | `false` | Serve on all interfaces (`0.0.0.0`) instead of localhost only |
 | `docsforge.openBrowser` | `true` | Open the site in VS Code's Simple Browser when the server starts |
 | `docsforge.rememberedPython` | `""` | Interpreter the extension resolved (e.g. a project `.venv`). Managed automatically; set `pythonPath` to override |
-| `docsforge.formatOnSave` | `false` | Format the Markdown document on save (requires `editor.formatOnSave`) |
+| `docsforge.formatOnSave` | `false` | Format DocsForge markdown documents on save (no `editor.formatOnSave` needed) |
 | `docsforge.autoCheckUpdates` | `true` | Check for engine and extension updates after startup; notifies only when something is newer |
 | `docsforge.includePrereleases` | `false` | Include beta/alpha releases when checking for updates |
 

@@ -59,4 +59,13 @@ describe('update version helpers', () => {
     assert.strictEqual(installed, '13.0.0b3');
     assert.strictEqual(compareVersions(installed!, '13.0.0'), -1);
   });
+
+  it('parses dashed prereleases with local metadata', () => {
+    // Regression: normalize ran before the `+` strip, so the end-anchored
+    // prerelease regex missed and the version compared as unparseable.
+    const v = parseVersion('13.0.0-beta.3+build');
+    assert.strictEqual(v?.preKind, 'b');
+    assert.strictEqual(v?.preNum, 3);
+    assert.strictEqual(compareVersions('13.0.0-beta.3+build', '13.0.0'), -1);
+  });
 });

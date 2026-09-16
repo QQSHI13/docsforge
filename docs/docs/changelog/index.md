@@ -24,6 +24,22 @@
 
 ### Fixed
 
+- **Studio review fixes** — New Page never overwrites an existing
+  translation with a stub (skipped twins are reported); rapid double
+  serve/build can no longer orphan a server process; build failures reject
+  with real errors instead of unhandled rejections; `./` and `../` link
+  prefixes complete; Rename Anchor rewrites same-page `[text](#anchor)`
+  links; slugs keep CJK (`# 你好` → `你好`); Format Document leaves fenced
+  code blocks alone; `docsforge.formatOnSave` is honored via will-save;
+  Rename Document rejects escaping paths; ambiguous quick fixes ask instead
+  of guessing; mixed fresh/cached update rounds are labeled per channel;
+  dashed prereleases with local metadata parse; go-to-definition and hover
+  use the link under the cursor; Stop Server no longer hijacks to cancel
+  builds; pidfile PIDs must be numeric and diagnostics paths stay inside
+  the docs dir. Locales also match case-insensitively (`pt-BR`).
+
+### Fixed
+
 - **Studio engine updates for beta/editable installs** — the extension
   truncated `13.0.0b3` to `13.0.0`, so a beta checkout looked current and
   only the extension update was ever offered. Pre-release segments are now

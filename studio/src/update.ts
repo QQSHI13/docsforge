@@ -303,6 +303,9 @@ async function collectUpdates(
   offline: boolean;
   /** True when versions come from cache (no network at all). */
   stale: boolean;
+  /** Per-channel staleness (mixed fresh/stale rounds). */
+  engineStale: boolean;
+  extStale: boolean;
   fetchedAt: number | null;
   /** Installed versions, for messaging when nothing newer is found. */
   ownVersion: string | null;
@@ -316,12 +319,16 @@ async function collectUpdates(
     getExtensionLatest(includePre).catch(() => null),
   ]);
   const cached = readUpdateCache(context);
-  const fresh = engineLatest !== null || extLatest !== null;
+  const engineFresh = engineLatest !== null;
+  const extFresh = extLatest !== null;
+  const fresh = engineFresh || extFresh;
   const now = Date.now();
   if (fresh) {
+    // Only overwrite the channels that actually fetched: backfilling the
+    // other one with a new timestamp would present stale data as current.
     await writeUpdateCache(context, {
-      engineLatest: engineLatest ?? cached?.engineLatest ?? null,
-      ext: extLatest ?? cached?.ext ?? null,
+      engineLatest: engineFresh ? engineLatest : cached?.engineLatest ?? null,
+      ext: extFresh ? extLatest : cached?.ext ?? null,
       fetchedAt: now,
     });
   }
@@ -329,6 +336,9 @@ async function collectUpdates(
   const effectiveExt = extLatest ?? cached?.ext ?? null;
   const stale = !fresh && cached !== null;
   const offline = !fresh && cached === null;
+  // An update computed from cache while its channel failed this round.
+  const engineStale = !engineFresh;
+  const extStale = !extFresh;
   let engine: EngineUpdate | null = null;
   const state = await detectEnvironment(root);
   if (state.docsforgeVersion && effectiveEngine
@@ -347,7 +357,7 @@ async function collectUpdates(
     };
   }
   return {
-    engine, extension, offline, stale,
+    engine, extension, offline, stale, engineStale, extStale,
     fetchedAt: fresh ? now : cached?.fetchedAt ?? null,
     ownVersion: own, engineCurrent: state.docsforgeVersion, includePre,
   };
@@ -358,20 +368,25 @@ export interface UpdateHooks {
   onUpdateKnown(summary: string | null): void;
 }
 
-/** One-line summary of available updates, or null when up to date. */
+/** One-line summary of available updates, or null when up to date.
+ *  `channelStale` marks updates computed from cache while that channel
+ *  failed this round, so mixed fresh/stale results are labeled per part. */
 function summarize(
-  engine: EngineUpdate | null, extension: ExtensionUpdate | null, stale = false,
+  engine: EngineUpdate | null, extension: ExtensionUpdate | null,
+  channelStale: { engine: boolean; ext: boolean } = { engine: false, ext: false },
 ): string | null {
   const parts = [
     engine
-      ? `engine ${engine.current} → ${engine.latest}${engine.editable ? ' (editable install)' : ''}`
+      ? `engine ${engine.current} → ${engine.latest}`
+        + `${engine.editable ? ' (editable install)' : ''}`
+        + `${channelStale.engine ? ' (cached)' : ''}`
       : '',
-    extension ? `extension ${extension.current} → ${extension.latest}` : '',
+    extension
+      ? `extension ${extension.current} → ${extension.latest}`
+        + `${channelStale.ext ? ' (cached)' : ''}`
+      : '',
   ].filter(Boolean);
-  if (!parts.length) {
-    return null;
-  }
-  return parts.join(', ') + (stale ? ' (cached)' : '');
+  return parts.length ? parts.join(', ') : null;
 }
 
 /** Manual command: check for engine + extension updates with progress UI. */
@@ -405,7 +420,8 @@ export async function checkForUpdates(
     );
   }
   const { engine, extension } = updates;
-  hooks?.onUpdateKnown(summarize(engine, extension, updates.stale));
+  const channelStale = { engine: updates.engineStale, ext: updates.extStale };
+  hooks?.onUpdateKnown(summarize(engine, extension, channelStale));
   if (!engine && !extension) {
     await reportUpToDate(context, updates, hooks);
     return;
@@ -500,10 +516,16 @@ export async function autoCheckUpdates(
   // Offline-but-cached: refresh the sidebar badge silently, never pop up —
   // the versions may predate the latest release.
   if (updates.stale) {
-    hooks?.onUpdateKnown(summarize(updates.engine, updates.extension, true));
+    hooks?.onUpdateKnown(summarize(
+      updates.engine, updates.extension,
+      { engine: true, ext: true },
+    ));
     return;
   }
-  const summary = summarize(updates.engine, updates.extension);
+  const summary = summarize(
+    updates.engine, updates.extension,
+    { engine: updates.engineStale, ext: updates.extStale },
+  );
   hooks?.onUpdateKnown(summary);
   const seen = [
     updates.engine ? `engine:${updates.engine.latest}` : '',
