@@ -281,8 +281,11 @@ async function setupEnvironment(): Promise<void> {
   const logPanel = DocsForgeLogPanel.get();
   const state = await detectEnvironment(workspaceRoot);
   if (state.docsforgeVersion) {
+    const where = state.editable && state.location
+      ? ` (editable install at ${state.location})`
+      : ` (${state.installKind})`;
     vscode.window.showInformationMessage(
-      `DocsForge ${state.docsforgeVersion} is ready (${state.installKind}).`
+      `DocsForge ${state.docsforgeVersion} is ready${where}.`
     );
     return;
   }

@@ -40,7 +40,7 @@ code --install-extension docsforge-vscode-*.vsix
 
 通过命令面板（`Ctrl+Shift+P`）运行 **`DocsForge: Check for Updates`**，也可以点侧边栏 Actions 视图或侧边栏标题栏。一次检查覆盖两边：
 
-- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。
+- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。预发布引擎版本（如 `13.0.0b3`）现在能与稳定版正确比较，beta 检出不会再被误判为最新。可编辑安装（`pip install -e .`）会被识别且绝不静默替换：更新提示会给出检出路径并提供 `Replace with PyPI version`，或用 `git pull` + 重装继续跟进源码。
 - **扩展** —— VSIX 本体，与 GitHub releases 对比。更新会把 `.vsix` 下载到临时目录并安装，然后提示重载窗口。
 
 ### 自动检查
@@ -216,6 +216,7 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | **"python: command not found"** | 从 [python.org](https://python.org) 安装 Python 3.10+ |
 | **更新检查连不上服务器** | 检查网络/代理；启动时的检查会静默跳过，手动检查才会警告 |
 | **在用 beta 却收不到更新** | 打开 `docsforge.includePrereleases` —— 预发布默认排除 |
+| **可编辑安装收不到引擎更新** | 已修复 —— beta 检出会正确低于稳定版，替换源码检出前会有明确提示 |
 
 ## 命令
 

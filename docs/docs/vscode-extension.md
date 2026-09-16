@@ -40,7 +40,7 @@ You never have to watch the releases page. The extension updates itself on two c
 
 Run **`DocsForge: Check for Updates`** from the command palette (`Ctrl+Shift+P`), the sidebar Actions view, or the sidebar title bar. One check covers both:
 
-- **Engine** — the `docsforge` Python package, compared against PyPI. Updating runs `pip install docsforge==<version>` in the same interpreter your project already uses (venv, user, or global install), with progress and output in the DocsForge channel.
+- **Engine** — the `docsforge` Python package, compared against PyPI. Updating runs `pip install docsforge==<version>` in the same interpreter your project already uses (venv, user, or global install), with progress and output in the DocsForge channel. Pre-release engine versions (e.g. `13.0.0b3`) now compare correctly against stable releases, so a beta checkout is offered the stable update instead of looking current. An editable install (`pip install -e .`) is detected and never silently replaced: the update prompt names the checkout path and offers `Replace with PyPI version`, or track source with `git pull` + reinstall.
 - **Extension** — the VSIX itself, compared against GitHub releases. Updating downloads the `.vsix` to a temp file, installs it, and offers to reload the window.
 
 ### Automatic checks
@@ -216,6 +216,7 @@ Or via `.vscode/settings.json` in your project:
 | **"python: command not found"** | Install Python 3.10+ from [python.org](https://python.org) |
 | **Update check can't reach the server** | Check your connection / proxy; the check is skipped silently at startup and warns only on manual runs |
 | **On a beta but offered nothing** | Turn on `docsforge.includePrereleases` — betas are excluded by default |
+| **Editable install never offered an engine update** | Fixed — beta checkouts compare below stable, and the prompt warns before replacing the source checkout |
 
 ## Commands
 
