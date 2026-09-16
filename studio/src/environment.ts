@@ -12,7 +12,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { spawn } from 'child_process';
-import { venvPythonPath, parseDocsforgeVersion } from './pure';
+import { venvPythonPath, parseDocsforgeVersion, isEditableDirectUrl } from './pure';
 
 /** Result of a probe/install attempt. */
 export interface EnvironmentState {
@@ -21,7 +21,11 @@ export interface EnvironmentState {
   /** Detected docsforge version (e.g. "12.4.0"), or null if not installed. */
   docsforgeVersion: string | null;
   /** Where docsforge is installed. */
-  installKind: 'system' | 'venv' | 'user' | 'missing';
+  installKind: 'system' | 'venv' | 'user' | 'editable' | 'missing';
+  /** True when docsforge is an editable (source-checkout) install. */
+  editable: boolean;
+  /** `docsforge.__file__` for the probed interpreter, if importable. */
+  location: string | null;
 }
 
 /** Well-known interpreters, best first. */
@@ -58,6 +62,34 @@ export async function checkDocsforge(python: string): Promise<string | null> {
     '-c', 'import docsforge; print(docsforge.__version__)',
   ]);
   return parseDocsforgeVersion(out);
+}
+
+/** Absolute path of the imported docsforge package, or null when missing. */
+export async function docsforgeLocation(python: string): Promise<string | null> {
+  const out = await runCapture(python, [
+    '-c', 'import docsforge; print(docsforge.__file__)',
+  ]);
+  const trimmed = out.trim();
+  return trimmed ? trimmed : null;
+}
+
+/** Whether docsforge resolves to an editable (source-checkout) install. */
+export async function checkDocsforgeEditable(python: string): Promise<boolean> {
+  const out = await runCapture(python, [
+    '-c',
+    "import importlib.metadata as m; "
+    + "print(m.distribution('docsforge').read_text('direct_url.json') or '')",
+  ]);
+  return isEditableDirectUrl(out);
+}
+
+/** Interpreter's user site-packages dir, or null when undiscoverable. */
+async function userSitePath(python: string): Promise<string | null> {
+  const out = await runCapture(python, [
+    '-c', 'import site; print(site.getusersitepackages())',
+  ]);
+  const trimmed = out.trim();
+  return trimmed ? trimmed : null;
 }
 
 /** Resolve the interpreter to use for this workspace.
@@ -100,19 +132,36 @@ export async function resolvePython(workspaceRoot: string): Promise<string | nul
 export async function detectEnvironment(
   workspaceRoot: string,
 ): Promise<EnvironmentState> {
+  const missing: EnvironmentState = {
+    python: 'python', docsforgeVersion: null, installKind: 'missing',
+    editable: false, location: null,
+  };
   const python = await resolvePython(workspaceRoot);
   if (!python) {
-    return { python: 'python', docsforgeVersion: null, installKind: 'missing' };
+    return missing;
   }
   const version = await checkDocsforge(python);
   if (!version) {
-    return { python, docsforgeVersion: null, installKind: 'missing' };
+    return { python, docsforgeVersion: null, installKind: 'missing', editable: false, location: null };
   }
-  const inVenv = python.includes('.venv');
+  const [location, editable, userSite] = await Promise.all([
+    docsforgeLocation(python),
+    checkDocsforgeEditable(python),
+    userSitePath(python),
+  ]);
+  if (editable) {
+    return { python, docsforgeVersion: version, installKind: 'editable', editable: true, location };
+  }
+  if (userSite && location && location.startsWith(userSite)) {
+    return { python, docsforgeVersion: version, installKind: 'user', editable: false, location };
+  }
+  const inVenv = python.includes('.venv') || (!!location && location.includes('.venv'));
   return {
     python,
     docsforgeVersion: version,
     installKind: inVenv ? 'venv' : 'system',
+    editable: false,
+    location,
   };
 }
 
@@ -156,6 +205,8 @@ async function pipInstall(
  *
  * Reuses the installer's progress UI and output panel. Returns true when
  * pip exited 0 (the caller should re-probe the version afterwards).
+ * Never call this on an editable install without asking first: pip would
+ * replace the source checkout with the PyPI build.
  */
 export async function upgradeDocsforge(
   python: string, workspaceRoot: string,
@@ -166,10 +217,19 @@ export async function upgradeDocsforge(
   const pipArgs = installKind === 'user'
     ? ['--user', '--upgrade', target]
     : ['--upgrade', target];
-  return pipInstall(
+  const manual = installKind === 'user'
+    ? `${python} -m pip install --user --upgrade "${target}"`
+    : `${python} -m pip install --upgrade "${target}"`;
+  const ok = await pipInstall(
     python, workspaceRoot, pipArgs,
     `Updating DocsForge to ${version}…`, onLine,
   );
+  if (!ok) {
+    onLine(
+      `\nDocsForge engine update failed. To retry by hand, run:\n  ${manual}\n`,
+    );
+  }
+  return ok;
 }
 
 /** Ensure docsforge is installed, offering venv / user / global installs.

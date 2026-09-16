@@ -3,6 +3,7 @@ import {
   compareVersions,
   isPrereleaseVersion,
   normalizeVersion,
+  parseDocsforgeVersion,
   parseVersion,
   pickLatestVersion,
 } from '../src/pure';
@@ -48,5 +49,14 @@ describe('update version helpers', () => {
     assert.strictEqual(pickLatestVersion(versions, true), '13.0.0b1');
     assert.strictEqual(pickLatestVersion([], false), null);
     assert.strictEqual(pickLatestVersion(['13.0.0b1'], false), null);
+  });
+
+  it('offers an engine update for a beta checkout behind stable', () => {
+    // Regression: parseDocsforgeVersion used to truncate 13.0.0b3 to
+    // 13.0.0, so an editable beta looked current and no engine update
+    // was ever offered (only the extension update appeared).
+    const installed = parseDocsforgeVersion('13.0.0b3\n');
+    assert.strictEqual(installed, '13.0.0b3');
+    assert.strictEqual(compareVersions(installed!, '13.0.0'), -1);
   });
 });

@@ -41,10 +41,18 @@ export function venvPythonPath(workspaceRoot: string): string | null {
   return path.join(workspaceRoot, '.venv', dir, exe);
 }
 
-/** Parse `docsforge.__version__` output: accept `12.4.0` or `12.4.0+dev.1`. */
+/** Parse `docsforge.__version__` output: accept `12.4.0`, `13.0.0b3`,
+ *  `13.0.0-beta.3` (local `+...` suffix stripped). */
 export function parseDocsforgeVersion(raw: string): string | null {
-  const match = raw.trim().match(/^\d+\.\d+\.\d+/);
+  const match = raw.trim().match(
+    /^\d+\.\d+\.\d+(?:[-_.]?(?:alpha|beta|rc|a|b)[-_.]?\d*)?/i,
+  );
   return match ? match[0] : null;
+}
+
+/** Whether a `direct_url.json` payload marks an editable (dev-checkout) install. */
+export function isEditableDirectUrl(raw: string): boolean {
+  return raw.replace(/\s+/g, '').includes('"editable":true');
 }
 
 /** Whether a spawned process still needs SIGKILL escalation.

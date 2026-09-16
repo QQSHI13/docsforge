@@ -37,6 +37,10 @@ export interface EngineUpdate {
   kind: 'engine';
   current: string;
   latest: string;
+  /** True when the installed engine is an editable (source-checkout) install. */
+  editable: boolean;
+  /** `docsforge.__file__` for the installed engine, if known. */
+  location: string | null;
 }
 
 export interface ExtensionUpdate {
@@ -132,27 +136,41 @@ function releaseNotesUrl(version: string): string {
   return `${RELEASE_TAG_URL}v${version}`;
 }
 
-/** Offer the engine upgrade. */
+/** Offer the engine upgrade. Editable installs get a dedicated prompt:
+ *  pip would replace the source checkout, so the user must opt in. */
 async function offerEngineUpdate(
   root: string, update: EngineUpdate,
 ): Promise<void> {
-  const action = await vscode.window.showInformationMessage(
-    `DocsForge engine ${update.current} → ${update.latest} is available.`,
-    'Update', 'Release notes', 'Later',
-  );
-  if (action === 'Release notes') {
-    await vscode.commands.executeCommand(
-      'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
-    );
-    return offerEngineUpdate(root, update);
-  }
-  if (action !== 'Update') {
-    return;
-  }
   const state = await detectEnvironment(root);
   if (!state.docsforgeVersion) {
     vscode.window.showWarningMessage('DocsForge: no Python environment found to update.');
     return;
+  }
+  if (state.editable) {
+    const where = state.location ? ` at ${state.location}` : '';
+    const action = await vscode.window.showWarningMessage(
+      `DocsForge engine ${state.docsforgeVersion} is an editable install${where}. `
+      + `Updating to ${update.latest} via pip would replace your source checkout. `
+      + 'To track source instead, pull the repo and reinstall (`pip install -e .`).',
+      'Replace with PyPI version', 'Later',
+    );
+    if (action !== 'Replace with PyPI version') {
+      return;
+    }
+  } else {
+    const action = await vscode.window.showInformationMessage(
+      `DocsForge engine ${update.current} → ${update.latest} is available.`,
+      'Update', 'Release notes', 'Later',
+    );
+    if (action === 'Release notes') {
+      await vscode.commands.executeCommand(
+        'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
+      );
+      return offerEngineUpdate(root, update);
+    }
+    if (action !== 'Update') {
+      return;
+    }
   }
   const log = DocsForgeLogPanel.get();
   const ok = await upgradeDocsforge(
@@ -253,7 +271,10 @@ async function collectUpdates(root: string): Promise<{
   const state = await detectEnvironment(root);
   if (state.docsforgeVersion && engineLatest
     && compareVersions(state.docsforgeVersion, engineLatest) < 0) {
-    engine = { kind: 'engine', current: state.docsforgeVersion, latest: engineLatest };
+    engine = {
+      kind: 'engine', current: state.docsforgeVersion, latest: engineLatest,
+      editable: state.editable, location: state.location,
+    };
   }
   let extension: ExtensionUpdate | null = null;
   const own = getOwnVersion();
@@ -276,7 +297,9 @@ function summarize(
   engine: EngineUpdate | null, extension: ExtensionUpdate | null,
 ): string | null {
   const parts = [
-    engine ? `engine ${engine.current} → ${engine.latest}` : '',
+    engine
+      ? `engine ${engine.current} → ${engine.latest}${engine.editable ? ' (editable install)' : ''}`
+      : '',
     extension ? `extension ${extension.current} → ${extension.latest}` : '',
   ].filter(Boolean);
   return parts.length ? parts.join(', ') : null;

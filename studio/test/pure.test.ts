@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { CONFIG_FILES, findConfig, hasConfig, extractServerUrl, stripAnsi, venvPythonPath, parseDocsforgeVersion } from '../src/pure';
+import { CONFIG_FILES, findConfig, hasConfig, extractServerUrl, stripAnsi, venvPythonPath, parseDocsforgeVersion, isEditableDirectUrl } from '../src/pure';
 
 describe('pure helpers', () => {
   describe('findConfig / hasConfig', () => {
@@ -110,9 +110,36 @@ describe('pure helpers', () => {
       assert.strictEqual(parseDocsforgeVersion('12.4.0+dev.1\n'), '12.4.0');
     });
 
+    it('keeps prerelease segments so betas compare below stable', () => {
+      assert.strictEqual(parseDocsforgeVersion('13.0.0b3'), '13.0.0b3');
+      assert.strictEqual(parseDocsforgeVersion('13.0.0-beta.3\n'), '13.0.0-beta.3');
+      assert.strictEqual(parseDocsforgeVersion('13.0.0b3+dev.1'), '13.0.0b3');
+    });
+
     it('returns null for garbage', () => {
       assert.strictEqual(parseDocsforgeVersion('Traceback (most recent call last)'), null);
       assert.strictEqual(parseDocsforgeVersion(''), null);
+    });
+  });
+
+  describe('isEditableDirectUrl', () => {
+    it('detects editable installs', () => {
+      assert.strictEqual(
+        isEditableDirectUrl('{"dir_info": {"editable": true}, "url": "file:///repo"}'),
+        true,
+      );
+    });
+
+    it('rejects non-editable payloads', () => {
+      assert.strictEqual(isEditableDirectUrl(''), false);
+      assert.strictEqual(
+        isEditableDirectUrl('{"url": "https://pypi.org/packages/x"}'),
+        false,
+      );
+      assert.strictEqual(
+        isEditableDirectUrl('{"dir_info": {}, "url": "file:///repo"}'),
+        false,
+      );
     });
   });
 });

@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+### Fixed
+
+- **Studio engine updates for beta/editable installs** — the extension
+  truncated `13.0.0b3` to `13.0.0`, so a beta checkout looked current and
+  only the extension update was ever offered. Pre-release segments are now
+  preserved for comparison, editable installs (`pip install -e .`) are
+  detected via `direct_url.json` and never silently replaced by pip (the
+  prompt names the checkout and offers an explicit replace), user-site
+  installs keep the `--user` flag on upgrade, and failed upgrades print the
+  manual retry command.
+
 ## [13.0.0] — 2026-09-15
 
 ### Highlights
