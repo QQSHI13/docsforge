@@ -10,6 +10,8 @@ import { DocsForgeDiagnostics } from './diagnostics';
 import { registerProviders, srcUriOf } from './providers';
 import { registerRenameCommands, registerAutoRename } from './rename';
 import { registerUpdateCommands } from './update';
+import { runNewPage } from './scaffold';
+import { runCheckTwins } from './twins';
 import { docsDirFromConfig, resolveLinkTarget, stripLocaleSuffix } from './links';
 
 let serverManager: ServerManager;
@@ -197,6 +199,24 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('docsforge.openDocs', () => {
       vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse('https://qqshi13.github.io/docsforge/'));
+    }),
+    vscode.commands.registerCommand('docsforge.newPage', async () => {
+      const activePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+      const root = (activePath && rootForFsPath(activePath)) ?? workspaceRoots()[0];
+      if (!root) {
+        vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
+        return;
+      }
+      await runNewPage(root);
+    }),
+    vscode.commands.registerCommand('docsforge.checkTwins', async () => {
+      const activePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+      const root = (activePath && rootForFsPath(activePath)) ?? workspaceRoots()[0];
+      if (!root) {
+        vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
+        return;
+      }
+      await runCheckTwins(root);
     }),
   );
 

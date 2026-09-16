@@ -1,5 +1,17 @@
 ## [未发布]
 
+### 新增
+
+- **Studio 页面工作流** —— `DocsForge: New Page`
+  脚手架创建文档（目录默认取当前文件所在目录，可选语言孪生桩，文本方式
+  插入 `nav:` 并可选择分节），`DocsForge: Check Translation Twins`
+  列出缺失/孤儿语言变体，一键生成桩文件或删除孤儿文件。
+- **Studio 锚点/片段/frontmatter 补全** —— 链接内 `#`
+  后补全目标文档标题 slug（mtime 校验的索引位于
+  `.docsforge/studio/headings.json`），`--8<-- "…"`
+  中补全同目录与文档树文件，frontmatter 提供引擎支持的键及
+  `hide:`/`search:` 取值（自定义键合法，绝不误报）。
+
 ### 修复
 
 - **Studio 对 beta/可编辑安装的引擎更新** —— 扩展曾把 `13.0.0b3`

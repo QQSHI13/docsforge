@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+### Added
+
+- **Studio page workflows** — `DocsForge: New Page` scaffolds a doc
+  (folder defaulting to the active file's directory, optional locale twin
+  stubs, textual `nav:` insert with section picker), and `DocsForge: Check
+  Translation Twins` lists missing/orphan locale variants with one-click
+  stub creation or orphan deletion.
+- **Studio completions for anchors, snippets, frontmatter** — `#` inside a
+  link completes target-document heading slugs (served by an
+  mtime-validated index at `.docsforge/studio/headings.json`),
+  `--8<-- "…"` completes sibling and docs-tree files, and frontmatter
+  offers engine-backed keys plus `hide:`/`search:` values (custom keys stay
+  legal and are never flagged).
+
 ### Fixed
 
 - **Studio engine updates for beta/editable installs** — the extension

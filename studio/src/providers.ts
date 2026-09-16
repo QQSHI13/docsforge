@@ -19,7 +19,14 @@ import {
   srcUriOfPath,
   linkTargetPrefix,
   filterDocsByPrefix,
+  snippetPathPrefix,
+  anchorPrefix,
+  frontmatterRange,
+  FRONTMATTER_KEYS,
+  HIDE_VALUES,
+  SEARCH_CHILD_KEYS,
 } from './links';
+import { getHeadings } from './studioCache';
 
 /** Re-exported pure helpers (canonical implementations live in links.ts). */
 export { linkTargetPrefix, filterDocsByPrefix };
@@ -378,6 +385,22 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     const text = document.getText();
     const line = text.split('\n')[position.line] ?? '';
     const before = line.slice(0, position.character);
+    // Frontmatter keys/values (manual invoke: no trigger char fires here).
+    const fm = frontmatterRange(text);
+    if (fm && position.line > fm.startLine && position.line <= fm.endLine) {
+      return this.frontmatterCompletions(text, position);
+    }
+    // Snippet includes: --8<-- "partial (paths resolve against the
+    // source file's directory first, then the project root).
+    const snip = snippetPathPrefix(before);
+    if (snip !== null) {
+      return this.snippetCompletions(document, position, snip);
+    }
+    // Anchors inside a link destination must win over path completion.
+    const anch = anchorPrefix(before);
+    if (anch !== null) {
+      return this.anchorCompletions(document, position, anch);
+    }
     const iconMatch = before.match(/:([a-z0-9-]*)$/);
     if (iconMatch) {
       return this.iconCompletions(iconMatch[1]);
@@ -389,6 +412,145 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
       return [];
     }
     return this.pathCompletions(partial);
+  }
+
+  /** Known frontmatter keys + `hide:` / `search:` values. Key context has
+   *  no trigger char, so this mostly serves manual invoke (Ctrl+Space). */
+  private frontmatterCompletions(
+    text: string, position: vscode.Position,
+  ): vscode.CompletionItem[] {
+    const lines = text.split('\n');
+    const line = lines[position.line] ?? '';
+    const before = line.slice(0, position.character);
+    if (/^\s{0,3}[A-Za-z_-]*$/.test(before)) {
+      return FRONTMATTER_KEYS.map(({ key, detail }) => {
+        const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
+        item.insertText = `${key}: `;
+        item.filterText = key;
+        item.detail = detail;
+        return item;
+      });
+    }
+    // Nearest mapping key above the cursor (e.g. `hide:` / `search:`).
+    let parent: string | null = null;
+    for (let i = position.line - 1; i >= 0; i--) {
+      const km = lines[i].match(/^([A-Za-z_-]+):\s*$/);
+      if (km) {
+        parent = km[1];
+        break;
+      }
+      if (/^\S/.test(lines[i])) {
+        break;
+      }
+    }
+    if (/^\s*hide:\s*(\[[\w\s,"]*)?$/.test(before) || (/^\s*-\s*[\w-]*$/.test(before) && parent === 'hide')) {
+      return HIDE_VALUES.map((v) => {
+        const item = new vscode.CompletionItem(v, vscode.CompletionItemKind.Value);
+        item.detail = 'hide: option';
+        return item;
+      });
+    }
+    if (/^\s{2,}[A-Za-z_-]*$/.test(before) && parent === 'search') {
+      return SEARCH_CHILD_KEYS.map(({ key, detail }) => {
+        const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Property);
+        item.insertText = `${key}: `;
+        item.filterText = key;
+        item.detail = detail;
+        return item;
+      });
+    }
+    return [];
+  }
+
+  /** Headings of the link target as `#slug` completions. */
+  private anchorCompletions(
+    document: vscode.TextDocument, position: vscode.Position,
+    anch: { target: string; partial: string },
+  ): vscode.CompletionItem[] {
+    const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+    const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+    let absPath: string | null = null;
+    if (!anch.target) {
+      absPath = document.uri.fsPath;
+    } else if (srcUri) {
+      const resolved = resolveLinkTarget(docsDirAbs, srcUri, anch.target);
+      if (resolved) {
+        absPath = resolved.absPath;
+      }
+    }
+    if (!absPath || !absPath.endsWith('.md') || !fs.existsSync(absPath)) {
+      return [];
+    }
+    const startCh = position.character - anch.partial.length;
+    return getHeadings(this.root, absPath)
+      .filter((h) => h.slug.startsWith(anch.partial))
+      .slice(0, 50)
+      .map((h) => {
+        const item = new vscode.CompletionItem(`#${h.slug}`, vscode.CompletionItemKind.Value);
+        item.insertText = h.slug;
+        item.filterText = h.slug;
+        item.detail = h.title;
+        item.range = new vscode.Range(position.line, startCh, position.line, position.character);
+        return item;
+      });
+  }
+
+  /** Files for a `--8<-- "…"` include: siblings first, then docs-tree
+   *  paths relative to the current file. */
+  private snippetCompletions(
+    document: vscode.TextDocument, position: vscode.Position, partial: string,
+  ): vscode.CompletionItem[] {
+    const items: vscode.CompletionItem[] = [];
+    const seen = new Set<string>();
+    const startCh = position.character - partial.length;
+    const push = (name: string, detail: string) => {
+      if (seen.has(name) || items.length >= 100) {
+        return;
+      }
+      seen.add(name);
+      const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.File);
+      item.insertText = name;
+      item.filterText = name;
+      item.detail = detail;
+      item.range = new vscode.Range(position.line, startCh, position.line, position.character);
+      items.push(item);
+    };
+    // Siblings in the source file's directory (any extension), honoring
+    // a typed `sub/dir/` prefix. Sandboxed to the workspace root.
+    const slash = partial.lastIndexOf('/');
+    const dirPart = slash === -1 ? '' : partial.slice(0, slash);
+    const seg = slash === -1 ? partial : partial.slice(slash + 1);
+    const base = path.dirname(document.uri.fsPath);
+    const dir = dirPart ? path.normalize(path.join(base, dirPart)) : base;
+    const outside = path.relative(this.root, dir).startsWith('..');
+    if (!outside) {
+      try {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (entry.name.startsWith('.') || !entry.name.startsWith(seg)) {
+            continue;
+          }
+          const name = entry.isDirectory() ? `${entry.name}/` : entry.name;
+          push(dirPart ? `${dirPart}/${name}` : name, 'sibling file');
+        }
+      } catch {
+        /* unreadable dir → docs-tree candidates only */
+      }
+    }
+    // Docs-tree .md files, expressed relative to the current file.
+    const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
+    const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
+    if (srcUri && fs.existsSync(docsDirAbs)) {
+      for (const name of filterDocsByPrefix(getDocsCache(this.root).getFiles(), '', 200)) {
+        let rel = path.posix.relative(path.posix.dirname(srcUri), name);
+        if (!rel.startsWith('.')) {
+          rel = `./${rel}`;
+        }
+        if (rel.startsWith(partial)) {
+          push(rel, 'docs file');
+        }
+      }
+    }
+    return items;
   }
 
   private iconCompletions(prefix: string): vscode.CompletionItem[] {
@@ -702,7 +864,7 @@ export function registerProviders(context: vscode.ExtensionContext, root: string
     vscode.languages.registerDefinitionProvider(sel, new DocsForgeDefinitionProvider(root)),
     vscode.languages.registerHoverProvider(sel, new DocsForgeHoverProvider(root)),
     vscode.languages.registerReferenceProvider(sel, new DocsForgeReferenceProvider(root)),
-    vscode.languages.registerCompletionItemProvider(sel, new DocsForgeCompletionProvider(root), ':', '(', '/'),
+    vscode.languages.registerCompletionItemProvider(sel, new DocsForgeCompletionProvider(root), ':', '(', '/', '#', '"'),
     vscode.languages.registerDocumentHighlightProvider(sel, new DocsForgeHighlightProvider()),
     vscode.languages.registerDocumentLinkProvider(sel, new DocsForgeDocumentLinkProvider(root)),
     vscode.languages.registerCodeActionsProvider(sel, new DocsForgeCodeActionProvider(root)),

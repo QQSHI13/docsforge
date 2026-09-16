@@ -59,6 +59,12 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     tooltip: 'Create a new DocsForge project',
   },
   {
+    label: 'New Page',
+    command: 'docsforge.newPage',
+    icon: 'new-file',
+    tooltip: 'Create a doc page with optional translation stub and nav entry',
+  },
+  {
     label: 'Open Docs',
     command: 'docsforge.openDocs',
     icon: 'preview',
@@ -93,6 +99,12 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     command: 'docsforge.refreshDiagnostics',
     icon: 'refresh',
     tooltip: 'Re-read the build validation cache and refresh squiggles',
+  },
+  {
+    label: 'Check Twins',
+    command: 'docsforge.checkTwins',
+    icon: 'checklist',
+    tooltip: 'Find pages missing a translation twin (e.g. page.zh.md)',
   },
   {
     label: 'Check for Updates',

@@ -23,6 +23,16 @@ import {
   stripLocaleSuffix,
   checkFootnotes,
   formatMarkdown,
+  detectLocales,
+  findMissingTwins,
+  sanitizePageName,
+  humanizePageName,
+  parseNavParents,
+  appendNavEntry,
+  snippetPathPrefix,
+  anchorPrefix,
+  frontmatterRange,
+  FRONTMATTER_KEYS,
 } from '../src/links';
 
 describe('links helpers', () => {
@@ -296,6 +306,126 @@ describe('formatMarkdown', () => {
   it('strips trailing whitespace and collapses blank runs', () => {
     const src = '# H  \n\n\n\nbody  \n\n';
     assert.strictEqual(formatMarkdown(src), '# H\n\nbody\n');
+  });
+});
+
+describe('translation twins', () => {
+  const files = [
+    { absPath: '/w/docs/a.md', srcUri: 'a.md' },
+    { absPath: '/w/docs/a.zh.md', srcUri: 'a.zh.md' },
+    { absPath: '/w/docs/guide/b.md', srcUri: 'guide/b.md' },
+    { absPath: '/w/docs/lonely.fr.md', srcUri: 'lonely.fr.md' },
+  ];
+
+  it('detects locales', () => {
+    assert.deepStrictEqual(detectLocales(files.map((f) => ({ srcUri: f.srcUri }))), ['fr', 'zh']);
+    assert.deepStrictEqual(detectLocales([{ srcUri: 'a.md' }]), []);
+  });
+
+  it('flags missing twins and orphans', () => {
+    const gaps = findMissingTwins(files, ['zh']);
+    const missing = gaps.filter((g) => g.kind === 'missing');
+    assert.deepStrictEqual(missing.map((g) => g.expected), ['guide/b.zh.md']);
+    assert.strictEqual(missing[0].baseAbsPath, '/w/docs/guide/b.md');
+    const orphans = gaps.filter((g) => g.kind === 'orphan');
+    assert.deepStrictEqual(orphans.map((g) => g.expected), ['lonely.fr.md']);
+  });
+
+  it('is quiet when complete', () => {
+    const full = [
+      { absPath: '/w/a.md', srcUri: 'a.md' },
+      { absPath: '/w/a.zh.md', srcUri: 'a.zh.md' },
+    ];
+    assert.deepStrictEqual(findMissingTwins(full, ['zh']), []);
+  });
+});
+
+describe('page scaffolding', () => {
+  it('sanitizes page names', () => {
+    assert.strictEqual(sanitizePageName('my-page'), 'my-page.md');
+    assert.strictEqual(sanitizePageName('guide/my-page.md'), 'guide/my-page.md');
+    assert.strictEqual(sanitizePageName('../evil'), null);
+    assert.strictEqual(sanitizePageName(''), null);
+    assert.strictEqual(sanitizePageName('a/b/../c'), null);
+  });
+
+  it('humanizes file names', () => {
+    assert.strictEqual(humanizePageName('guide/my-page.md'), 'My page');
+    assert.strictEqual(humanizePageName('index.md'), 'Index');
+  });
+
+  const config = [
+    'site_name: X',
+    'nav:',
+    '  - title: Home',
+    '    path: index.md',
+    '  - title: Guide',
+    '    children:',
+    '      - title: Install',
+    '        path: guide/install.md',
+    'theme:',
+    '  name: material',
+    '',
+  ].join('\n');
+
+  it('finds nav parents', () => {
+    assert.deepStrictEqual(parseNavParents(config), ['Guide']);
+  });
+
+  it('appends top-level entries inside nav', () => {
+    const next = appendNavEntry(config, 'New', 'new.md')!;
+    assert.ok(next.includes('  - title: New\n    path: new.md\n'));
+    assert.ok(next.indexOf('  - title: New') > next.indexOf('path: guide/install.md'));
+    assert.ok(next.endsWith('theme:\n  name: material\n'));
+  });
+
+  it('appends under a parent', () => {
+    const next = appendNavEntry(config, 'Usage', 'guide/usage.md', 'Guide')!;
+    assert.ok(next.includes('      - title: Usage\n        path: guide/usage.md\n'));
+  });
+
+  it('returns null without nav or parent', () => {
+    assert.strictEqual(appendNavEntry('site_name: X\n', 'N', 'n.md'), null);
+    assert.strictEqual(appendNavEntry(config, 'N', 'n.md', 'Nope'), null);
+  });
+
+  it('quotes significant titles', () => {
+    const next = appendNavEntry(config, 'A: B', 'ab.md')!;
+    assert.ok(next.includes('- title: "A: B"'));
+  });
+});
+
+describe('snippet and anchor prefixes', () => {
+  it('finds snippet paths', () => {
+    assert.strictEqual(snippetPathPrefix('--8<-- "inc/no'), 'inc/no');
+    assert.strictEqual(snippetPathPrefix("-8<-- 'a.py"), 'a.py');
+    assert.strictEqual(snippetPathPrefix('--8<-- "'), '');
+    assert.strictEqual(snippetPathPrefix('plain "text'), null);
+  });
+
+  it('finds anchor context', () => {
+    assert.deepStrictEqual(anchorPrefix('[t](guide.md#ins'), { target: 'guide.md', partial: 'ins' });
+    assert.deepStrictEqual(anchorPrefix('[t](#sec'), { target: '', partial: 'sec' });
+    assert.strictEqual(anchorPrefix('[t](guide.md'), null);
+    assert.strictEqual(anchorPrefix('plain # text'), null);
+  });
+});
+
+describe('frontmatter', () => {
+  it('locates the block', () => {
+    assert.deepStrictEqual(
+      frontmatterRange('---\ntitle: X\n---\n# H\n'),
+      { startLine: 0, endLine: 2 },
+    );
+    assert.strictEqual(frontmatterRange('# No block\n'), null);
+    assert.strictEqual(frontmatterRange('---\nunclosed\n'), null);
+  });
+
+  it('curates engine-backed keys', () => {
+    const keys = FRONTMATTER_KEYS.map((k) => k.key);
+    for (const k of ['title', 'description', 'icon', 'tags', 'hide', 'search', 'template']) {
+      assert.ok(keys.includes(k), k);
+    }
   });
 });
 

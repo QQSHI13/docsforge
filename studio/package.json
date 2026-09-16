@@ -21,6 +21,8 @@
   ],
   "activationEvents": [
     "onCommand:docsforge.init",
+    "onCommand:docsforge.newPage",
+    "onCommand:docsforge.checkTwins",
     "onCommand:docsforge.serve",
     "onCommand:docsforge.stop",
     "onCommand:docsforge.build",
@@ -49,6 +51,18 @@
         "command": "docsforge.init",
         "title": "Initialize Project",
         "icon": "$(new-folder)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.newPage",
+        "title": "New Page",
+        "icon": "$(new-file)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.checkTwins",
+        "title": "Check Translation Twins",
+        "icon": "$(checklist)",
         "category": "DocsForge"
       },
       {

@@ -101,12 +101,14 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | **Open Preview** | 服务器运行中 | 在 VS Code 内置浏览器中打开站点 |
 | **Open Built Page** | 服务器运行中 | 打开当前文档对应的构建后 HTML |
 | **Initialize Project** | 始终 | 以交互方式创建新的 DocsForge 项目 |
+| **New Page** | 始终 | 创建文档页，可附带翻译桩与导航条目 |
 | **Open Docs** | 始终 | 打开 DocsForge 文档站 |
 | **Open Output** | 始终 | 显示 DocsForge 构建/服务输出面板 |
 | **Check Python Environment** | 始终 | 检测 Python，缺失时安装 DocsForge |
 | **Rename Document** | 始终 | 重命名文档并更新所有指向它的链接 |
 | **Rename Anchor** | 始终 | 重命名标题并更新所有指向该锚点的链接 |
 | **Refresh Diagnostics** | 始终 | 重读构建校验缓存并刷新波浪线 |
+| **Check Twins** | 始终 | 查找缺失翻译孪生的页面，一键生成桩文件 |
 | **Check for Updates** | 始终 | 检查引擎与扩展更新，发现新版本时行内显示 |
 
 ### 状态栏
@@ -140,6 +142,9 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 
 - **诊断** —— 坏链、缺失锚点、脚注问题以下划波浪线标出，数据来自构建校验缓存，每次构建后刷新，也可手动 Refresh Diagnostics
 - **链接导航** —— 在 Markdown 链接上跳转定义、悬停预览可跳到目标文档与锚点；在 `(...)` 内输入有项目文件路径补全
+- **锚点补全** —— 在链接内 `#` 后补全目标文档的标题 slug（`](#…)` 指当前文件），标题索引缓存在 `.docsforge/studio/` 中
+- **片段补全** —— 在 `--8<-- "…"` 包含中补全同目录文件与文档树路径（优先相对源文件所在目录解析）
+- **Frontmatter 补全** —— 已知键（`title`、`description`、`icon`、`tags`、`hide`、`search`、`template` 等）及 `hide:`/`search:` 取值，Ctrl+Space 触发；自定义键合法，绝不误报
 - **重命名** —— Rename Document 移动文件（含翻译）并一次性改写所有相关链接（可撤销）；Rename Anchor 对标题同理。在资源管理器里重命名文件夹也会更新链接
 - **快速修复** —— 坏链上的小灯泡提供修复（可批量）
 - **格式化** —— Format Document 整理行尾空格与空行（配合 `editor.formatOnSave` 可保存时自动执行）
@@ -225,6 +230,7 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | 命令 | 描述 |
 |---------|-------------|
 | `DocsForge: Initialize Project` | 创建新的 DocsForge 项目 |
+| `DocsForge: New Page` | 创建文档页并附带翻译桩与导航条目 |
 | `DocsForge: Start Server` | 启动开发服务器 |
 | `DocsForge: Stop Server` | 停止开发服务器 |
 | `DocsForge: Build` | 构建文档 |
@@ -238,6 +244,7 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | `DocsForge: Rename Document` | 重命名文档并更新所有链接 |
 | `DocsForge: Rename Anchor` | 重命名标题并更新锚点链接 |
 | `DocsForge: Refresh Diagnostics` | 重读校验缓存并刷新波浪线 |
+| `DocsForge: Check Translation Twins` | 查找缺失语言孪生的页面 |
 | `DocsForge: Open Link Target` | 跳转到链接目标（供快速修复调用） |
 | `DocsForge: Check for Updates` | 检查引擎与扩展更新 |
 

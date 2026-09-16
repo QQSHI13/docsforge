@@ -101,12 +101,14 @@ The DocsForge sidebar appears in the activity bar and shows contextual actions:
 | **Open Preview** | Server running | Opens the site in VS Code's built-in browser |
 | **Open Built Page** | Server running | Opens the built HTML for the current document |
 | **Initialize Project** | Always | Creates a new DocsForge project interactively |
+| **New Page** | Always | Creates a doc page with optional translation stub and nav entry |
 | **Open Docs** | Always | Opens the DocsForge documentation site |
 | **Open Output** | Always | Shows the DocsForge build/serve output panel |
 | **Check Python Environment** | Always | Detects Python and installs DocsForge if missing |
 | **Rename Document** | Always | Renames a document and updates all links to it |
 | **Rename Anchor** | Always | Renames a heading and updates all links to its anchor |
 | **Refresh Diagnostics** | Always | Re-reads the build validation cache and refreshes squiggles |
+| **Check Twins** | Always | Finds pages missing a translation twin, with one-click stub creation |
 | **Check for Updates** | Always | Checks for engine and extension updates (shows versions when found) |
 
 ### Status Bar
@@ -140,6 +142,9 @@ No language server needed — the extension reads your project directly:
 
 - **Diagnostics** — broken links, missing anchors, and footnote problems surface as squiggles, sourced from the build's validation cache and refreshed after every build (or on demand via Refresh Diagnostics)
 - **Link navigation** — go-to-definition and hover on Markdown links jump to the target document and anchor; path completions inside `(...)` suggest project files
+- **Anchor completions** — after `#` inside a link, headings of the target document (same file for `](#…)`) complete as slugs, backed by a cached heading index in `.docsforge/studio/`
+- **Snippet completions** — inside `--8<-- "…"` includes, sibling files and docs-tree paths complete (paths resolve against the source file's directory first)
+- **Frontmatter completions** — known keys (`title`, `description`, `icon`, `tags`, `hide`, `search`, `template`, …) plus `hide:`/`search:` values on Ctrl+Space; custom keys stay legal and are never flagged
 - **Rename** — Rename Document moves a file (plus its translations) and rewrites every link to it in one undoable step; Rename Anchor does the same for headings. Renaming a folder in the Explorer updates links too
 - **Quick fixes** — the lightbulb on a broken link offers to fix it (or all broken links in scope)
 - **Formatting** — Format Document tidies trailing whitespace and blank-line runs (also available on save via `editor.formatOnSave`)
@@ -225,6 +230,7 @@ All available commands (accessible via `Ctrl+Shift+P`):
 | Command | Description |
 |---------|-------------|
 | `DocsForge: Initialize Project` | Create a new DocsForge project |
+| `DocsForge: New Page` | Create a doc page with translation stub and nav entry |
 | `DocsForge: Start Server` | Start the development server |
 | `DocsForge: Stop Server` | Stop the development server |
 | `DocsForge: Build` | Build the documentation |
@@ -238,6 +244,7 @@ All available commands (accessible via `Ctrl+Shift+P`):
 | `DocsForge: Rename Document` | Rename a document and update all links |
 | `DocsForge: Rename Anchor` | Rename a heading and update its anchor links |
 | `DocsForge: Refresh Diagnostics` | Re-read validation cache and refresh squiggles |
+| `DocsForge: Check Translation Twins` | Find pages missing a locale twin |
 | `DocsForge: Open Link Target` | Jump to a link's target (used by quick fixes) |
 | `DocsForge: Check for Updates` | Check for engine and extension updates |
 
