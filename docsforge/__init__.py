@@ -29,7 +29,7 @@ from docsforge.utils import (
     write_file,
 )
 
-__version__ = "13.0.1b1"
+__version__ = "13.0.1"
 __prog_name__ = "docsforge"
 
 # Re-exported for backwards compatibility: these names were importable from
