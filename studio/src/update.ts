@@ -400,9 +400,13 @@ async function collectUpdates(
   // An update computed from cache while its channel failed this round.
   const engineStale = !engineFresh;
   const extStale = !extFresh;
-  let engine: EngineUpdate | null = null;
+  // Editable installs track source, never PyPI: no engine update is ever
+  // offered for them, and the installed version is excluded from the
+  // up-to-date messaging below.
   const state = await detectEnvironment(root);
-  if (state.docsforgeVersion && effectiveEngine
+  const editableEngine = state.editable;
+  let engine: EngineUpdate | null = null;
+  if (!editableEngine && state.docsforgeVersion && effectiveEngine
     && compareVersions(state.docsforgeVersion, effectiveEngine) < 0) {
     engine = {
       kind: 'engine', current: state.docsforgeVersion, latest: effectiveEngine,
@@ -420,7 +424,7 @@ async function collectUpdates(
   return {
     engine, extension, offline, stale, engineStale, extStale,
     fetchedAt: fresh ? now : cached?.fetchedAt ?? null,
-    ownVersion: own, engineCurrent: state.docsforgeVersion, includePre,
+    ownVersion: own, engineCurrent: editableEngine ? null : state.docsforgeVersion, includePre,
   };
 }
 

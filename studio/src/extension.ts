@@ -11,7 +11,6 @@ import { registerProviders, srcUriOf, getDocsCache, isDocDocument } from './prov
 import { registerRenameCommands, registerAutoRename } from './rename';
 import { registerUpdateCommands } from './update';
 import { runNewPage } from './scaffold';
-import { runCheckTwins } from './twins';
 import { invalidateHeadings } from './studioCache';
 import {
   docsDirFromConfig, resolveLinkTarget, stripLocaleSuffix,
@@ -281,7 +280,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('docsforge.openServer', () => serverManager.openBrowser()),
     vscode.commands.registerCommand('docsforge.build', () => serverManager.build()),
     vscode.commands.registerCommand('docsforge.refreshSidebar', () => sidebarProvider.refresh()),
-    vscode.commands.registerCommand('docsforge.openLog', () => DocsForgeLogPanel.get().show()),
     vscode.commands.registerCommand('docsforge.setupEnvironment', () => setupEnvironment()),
     vscode.commands.registerCommand('docsforge.refreshDiagnostics', () => {
       if (!allDiagnostics.length) {
@@ -303,15 +301,6 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
       await runNewPage(root);
-    }),
-    vscode.commands.registerCommand('docsforge.checkTwins', async () => {
-      const activePath = vscode.window.activeTextEditor?.document.uri.fsPath;
-      const root = (activePath && rootForFsPath(activePath)) ?? workspaceRoots()[0];
-      if (!root) {
-        vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
-        return;
-      }
-      await runCheckTwins(root);
     }),
   );
 

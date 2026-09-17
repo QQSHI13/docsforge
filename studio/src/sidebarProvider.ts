@@ -71,12 +71,6 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     tooltip: 'Open the DocsForge documentation site',
   },
   {
-    label: 'Open Output',
-    command: 'docsforge.openLog',
-    icon: 'output',
-    tooltip: 'Show the DocsForge build/serve output panel',
-  },
-  {
     label: 'Check Python Environment',
     command: 'docsforge.setupEnvironment',
     icon: 'tools',
@@ -99,12 +93,6 @@ const ROOT_ITEMS: DocsForgeTreeItem[] = [
     command: 'docsforge.refreshDiagnostics',
     icon: 'refresh',
     tooltip: 'Re-read the build validation cache and refresh squiggles',
-  },
-  {
-    label: 'Check Twins',
-    command: 'docsforge.checkTwins',
-    icon: 'checklist',
-    tooltip: 'Find pages missing a translation twin (e.g. page.zh.md)',
   },
   {
     label: 'Check for Updates',

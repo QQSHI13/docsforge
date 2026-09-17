@@ -22,14 +22,12 @@
   "activationEvents": [
     "onCommand:docsforge.init",
     "onCommand:docsforge.newPage",
-    "onCommand:docsforge.checkTwins",
     "onCommand:docsforge.serve",
     "onCommand:docsforge.stop",
     "onCommand:docsforge.build",
     "onCommand:docsforge.openServer",
     "onCommand:docsforge.openDocs",
     "onCommand:docsforge.stopBuild",
-    "onCommand:docsforge.openLog",
     "onCommand:docsforge.setupEnvironment",
     "onCommand:docsforge.renameDocument",
     "onCommand:docsforge.renameAnchor",
@@ -57,12 +55,6 @@
         "command": "docsforge.newPage",
         "title": "New Page",
         "icon": "$(new-file)",
-        "category": "DocsForge"
-      },
-      {
-        "command": "docsforge.checkTwins",
-        "title": "Check Translation Twins",
-        "icon": "$(checklist)",
         "category": "DocsForge"
       },
       {
@@ -105,12 +97,6 @@
         "command": "docsforge.stopBuild",
         "title": "Stop Build",
         "icon": "$(debug-stop)",
-        "category": "DocsForge"
-      },
-      {
-        "command": "docsforge.openLog",
-        "title": "Open Output",
-        "icon": "$(output)",
         "category": "DocsForge"
       },
       {

@@ -91,7 +91,7 @@ export async function runNewPage(workspaceRoot: string): Promise<void> {
   if (locales.length) {
     const picks = await vscode.window.showQuickPick(
       [{ label: 'Base file only', value: '' },
-        ...locales.map((l) => ({ label: `Also create .${l} twin stub`, value: l }))],
+        ...locales.map((l) => ({ label: `Also create .${l} translation`, value: l }))],
       { placeHolder: 'Create a translation stub?', canPickMany: true },
     );
     if (!picks) {

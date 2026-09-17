@@ -1,7 +1,10 @@
 /**
  * DocsForge diagnostics — surfaces the build's link/anchor validation
  * (`.docsforge/cache/validation.json`, written by every `docsforge build`
- * and by every `docsforge serve` rebuild) as VS Code diagnostics.
+ * and by every `docsforge serve` rebuild) as VS Code diagnostics, plus
+ * extension-side checks that need no build: footnotes and translation
+ * coverage (every base page expected to have one variant per locale found
+ * in the tree).
  *
  * The monitor refreshes when:
  *  - the validation.json file changes on disk (serve rebuilds), via fs.watchFile
@@ -19,6 +22,9 @@ import {
   checkFootnotes,
   collectFootnoteWarnings,
   tryLoadValidation,
+  walkDocs,
+  detectLocales,
+  findMissingTwins,
 } from './links';
 
 /** Re-exported pure helpers (canonical implementations live in links.ts). */
@@ -198,6 +204,15 @@ export class DocsForgeDiagnostics {
       byFile.set(absPath, diags);
     }
 
+    // Translation coverage (extension-side, no build needed): a base page
+    // missing a locale variant, or a translation without a base page, is an
+    // error on the file itself — no command to run, it is always checked.
+    for (const [absPath, diags] of this.translationDiagnostics(docsDirAbs)) {
+      const list = byFile.get(absPath) ?? [];
+      list.push(...diags);
+      byFile.set(absPath, list);
+    }
+
     // Per-file set/delete diff instead of clear() so a failed parse above
     // never flashes squiggles off (we return early on failure).
     for (const prev of this.published) {
@@ -209,6 +224,52 @@ export class DocsForgeDiagnostics {
     for (const [absPath, diags] of byFile) {
       this.collection.set(vscode.Uri.file(absPath), diags);
     }
+  }
+
+  /** Missing locale variants and orphan translations as diagnostics.
+   *  Single-language trees (no `.<locale>.md` anywhere) report nothing. */
+  private translationDiagnostics(
+    docsDirAbs: string,
+  ): Map<string, vscode.Diagnostic[]> {
+    const out = new Map<string, vscode.Diagnostic[]>();
+    let files: Array<{ absPath: string; srcUri: string }>;
+    try {
+      files = walkDocs(docsDirAbs);
+    } catch {
+      return out;
+    }
+    const locales = detectLocales(files);
+    if (!locales.length) {
+      return out;
+    }
+    const push = (absPath: string | null, message: string) => {
+      if (!absPath || !fs.existsSync(absPath)) {
+        return;
+      }
+      const diag = new vscode.Diagnostic(
+        new vscode.Range(0, 0, 0, 1000),
+        message,
+        vscode.DiagnosticSeverity.Error,
+      );
+      diag.source = 'docsforge';
+      const list = out.get(absPath) ?? [];
+      list.push(diag);
+      out.set(absPath, list);
+    };
+    for (const gap of findMissingTwins(files, locales)) {
+      if (gap.kind === 'missing' && gap.baseAbsPath) {
+        push(
+          gap.baseAbsPath,
+          `Missing ${gap.locale.toUpperCase()} translation: ${gap.expected}`,
+        );
+      } else if (gap.kind === 'orphan') {
+        push(
+          docAbsPathSafe(this.root, this.docsDir, gap.expected),
+          `Orphan translation without a base page: ${gap.expected}`,
+        );
+      }
+    }
+    return out;
   }
 
   dispose(): void {

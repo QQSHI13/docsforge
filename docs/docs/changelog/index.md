@@ -12,6 +12,16 @@
   asks at most one confirmation per item (quick-pick choices execute
   directly; release notes re-show the same dialog instead of recursing).
 
+### Fixed
+
+- **Studio translation diagnostics replace the check command** — missing
+  locale variants and orphan translations are now editor errors on the
+  file itself (refreshed with diagnostics, no command to run), so
+  `DocsForge: Check Translation Twins` is removed. Editable installs are
+  left out of update checks entirely (no engine update is ever offered for
+  them). `DocsForge: Open Output` is removed (the Output view stays in the
+  sidebar). User-facing wording says translations, not twins.
+
 ## [13.0.1b1] — 2026-09-17
 
 ### Added

@@ -40,7 +40,7 @@ You never have to watch the releases page. The extension updates itself on two c
 
 Run **`DocsForge: Check for Updates`** from the command palette (`Ctrl+Shift+P`), the sidebar Actions view, or the sidebar title bar. One check covers both:
 
-- **Engine** — the `docsforge` Python package, compared against PyPI. Updating runs `pip install docsforge==<version>` in the same interpreter your project already uses (venv, user, or global install), with progress and output in the DocsForge channel. Pre-release engine versions (e.g. `13.0.0b3`) now compare correctly against stable releases, so a beta checkout is offered the stable update instead of looking current. An editable install (`pip install -e .`) is detected and never silently replaced: the update prompt names the checkout path and offers `Replace with PyPI version`, or track source with `git pull` + reinstall. Successful checks are cached, so an offline manual check reuses the last-seen versions (labeled cached) instead of failing. On PEP 668 externally-managed interpreters (Debian/Ubuntu system Python) installs and upgrades add `--break-system-packages` automatically (`--user` installs keep their flag); when several interpreters have DocsForge installed, every flow asks which one to use instead of guessing.
+- **Engine** — the `docsforge` Python package, compared against PyPI. Updating runs `pip install docsforge==<version>` in the same interpreter your project already uses (venv, user, or global install), with progress and output in the DocsForge channel. Pre-release engine versions (e.g. `13.0.0b3`) now compare correctly against stable releases, so a beta checkout is offered the stable update instead of looking current. An editable install (`pip install -e .`) is left out of update checks entirely: it tracks source, so update it with `git pull` + reinstall. Successful checks are cached, so an offline manual check reuses the last-seen versions (labeled cached) instead of failing. On PEP 668 externally-managed interpreters (Debian/Ubuntu system Python) installs and upgrades add `--break-system-packages` automatically (`--user` installs keep their flag); when several interpreters have DocsForge installed, every flow asks which one to use instead of guessing.
 - **Extension** — the VSIX itself, compared against GitHub releases. Updating downloads the `.vsix` to a temp file, installs it, and offers to reload the window.
 
 ### Automatic checks
@@ -103,12 +103,10 @@ The DocsForge sidebar appears in the activity bar and shows contextual actions:
 | **Initialize Project** | Always | Creates a new DocsForge project interactively |
 | **New Page** | Always | Creates a doc page with optional translation stub and nav entry |
 | **Open Docs** | Always | Opens the DocsForge documentation site |
-| **Open Output** | Always | Shows the DocsForge build/serve output panel |
 | **Check Python Environment** | Always | Detects Python and installs DocsForge if missing |
 | **Rename Document** | Always | Renames a document and updates all links to it |
 | **Rename Anchor** | Always | Renames a heading and updates all links to its anchor |
 | **Refresh Diagnostics** | Always | Re-reads the build validation cache and refreshes squiggles |
-| **Check Twins** | Always | Finds pages missing a translation twin, with one-click stub creation |
 | **Check for Updates** | Always | Checks for engine and extension updates (shows versions when found) |
 
 ### Status Bar
@@ -144,7 +142,7 @@ Click **Build** to run `docsforge build`. Output streams to the DocsForge channe
 
 No language server needed — the extension reads your project directly:
 
-- **Diagnostics** — broken links, missing anchors, and footnote problems surface as squiggles, sourced from the build's validation cache and refreshed after every build (or on demand via Refresh Diagnostics)
+- **Diagnostics** — broken links, missing anchors, footnote problems, and missing/orphan translations surface as squiggles, sourced from the build's validation cache and refreshed after every build (or on demand via Refresh Diagnostics)
 - **Link navigation** — go-to-definition and hover on Markdown links jump to the target document and anchor; path completions inside `(...)` suggest project files
 - **Anchor completions** — after `#` inside a link, headings of the target document (same file for `](#…)`) complete as slugs, backed by a cached heading index in `.docsforge/studio/`
 - **Snippet completions** — inside `--8<-- "…"` includes, sibling files and docs-tree paths complete (paths resolve against the source file's directory first)
@@ -244,12 +242,10 @@ All available commands (accessible via `Ctrl+Shift+P`):
 | `DocsForge: Open Built Page` | Open the built HTML for the current document |
 | `DocsForge: Refresh` | Refresh the sidebar |
 | `DocsForge: Open Docs` | Open the DocsForge documentation site |
-| `DocsForge: Open Output` | Show the DocsForge output panel |
 | `DocsForge: Check Python Environment` | Detect Python and install DocsForge if missing |
 | `DocsForge: Rename Document` | Rename a document and update all links |
 | `DocsForge: Rename Anchor` | Rename a heading and update its anchor links |
 | `DocsForge: Refresh Diagnostics` | Re-read validation cache and refresh squiggles |
-| `DocsForge: Check Translation Twins` | Find pages missing a locale twin |
 | `DocsForge: Open Link Target` | Jump to a link's target (used by quick fixes) |
 | `DocsForge: Check for Updates` | Check for engine and extension updates |
 

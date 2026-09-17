@@ -40,7 +40,7 @@ code --install-extension docsforge-vscode-*.vsix
 
 通过命令面板（`Ctrl+Shift+P`）运行 **`DocsForge: Check for Updates`**，也可以点侧边栏 Actions 视图或侧边栏标题栏。一次检查覆盖两边：
 
-- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。预发布引擎版本（如 `13.0.0b3`）现在能与稳定版正确比较，beta 检出不会再被误判为最新。可编辑安装（`pip install -e .`）会被识别且绝不静默替换：更新提示会给出检出路径并提供 `Replace with PyPI version`，或用 `git pull` + 重装继续跟进源码。成功检查的结果会被缓存，离线时手动检查复用上次版本（标注为缓存）而非直接失败。在 PEP 668 外部管理解释器（Debian/Ubuntu 系统 Python）上，安装与升级自动追加 `--break-system-packages`（`--user` 安装保留原标志）；当多个解释器都装有 DocsForge 时，每个流程都会询问使用哪一个，不再猜测。
+- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。预发布引擎版本（如 `13.0.0b3`）现在能与稳定版正确比较，beta 检出不会再被误判为最新。可编辑安装（`pip install -e .`）完全不参与更新检查：它跟进源码，用 `git pull` + 重装更新即可。成功检查的结果会被缓存，离线时手动检查复用上次版本（标注为缓存）而非直接失败。在 PEP 668 外部管理解释器（Debian/Ubuntu 系统 Python）上，安装与升级自动追加 `--break-system-packages`（`--user` 安装保留原标志）；当多个解释器都装有 DocsForge 时，每个流程都会询问使用哪一个，不再猜测。
 - **扩展** —— VSIX 本体，与 GitHub releases 对比。更新会把 `.vsix` 下载到临时目录并安装，然后提示重载窗口。
 
 ### 自动检查
@@ -103,12 +103,10 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | **Initialize Project** | 始终 | 以交互方式创建新的 DocsForge 项目 |
 | **New Page** | 始终 | 创建文档页，可附带翻译桩与导航条目 |
 | **Open Docs** | 始终 | 打开 DocsForge 文档站 |
-| **Open Output** | 始终 | 显示 DocsForge 构建/服务输出面板 |
 | **Check Python Environment** | 始终 | 检测 Python，缺失时安装 DocsForge |
 | **Rename Document** | 始终 | 重命名文档并更新所有指向它的链接 |
 | **Rename Anchor** | 始终 | 重命名标题并更新所有指向该锚点的链接 |
 | **Refresh Diagnostics** | 始终 | 重读构建校验缓存并刷新波浪线 |
-| **Check Twins** | 始终 | 查找缺失翻译孪生的页面，一键生成桩文件 |
 | **Check for Updates** | 始终 | 检查引擎与扩展更新，发现新版本时行内显示 |
 
 ### 状态栏
@@ -144,7 +142,7 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 
 无需语言服务器——扩展直接读取你的项目：
 
-- **诊断** —— 坏链、缺失锚点、脚注问题以下划波浪线标出，数据来自构建校验缓存，每次构建后刷新，也可手动 Refresh Diagnostics
+- **诊断** —— 坏链、缺失锚点、脚注问题、缺失/孤儿翻译以下划波浪线标出，数据来自构建校验缓存，每次构建后刷新，也可手动 Refresh Diagnostics
 - **链接导航** —— 在 Markdown 链接上跳转定义、悬停预览可跳到目标文档与锚点；在 `(...)` 内输入有项目文件路径补全
 - **锚点补全** —— 在链接内 `#` 后补全目标文档的标题 slug（`](#…)` 指当前文件），标题索引缓存在 `.docsforge/studio/` 中
 - **片段补全** —— 在 `--8<-- "…"` 包含中补全同目录文件与文档树路径（优先相对源文件所在目录解析）
@@ -244,12 +242,10 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | `DocsForge: Open Built Page` | 打开当前文档对应的构建后 HTML |
 | `DocsForge: Refresh` | 刷新侧边栏 |
 | `DocsForge: Open Docs` | 打开 DocsForge 文档站 |
-| `DocsForge: Open Output` | 显示 DocsForge 输出面板 |
 | `DocsForge: Check Python Environment` | 检测 Python，缺失时安装 DocsForge |
 | `DocsForge: Rename Document` | 重命名文档并更新所有链接 |
 | `DocsForge: Rename Anchor` | 重命名标题并更新锚点链接 |
 | `DocsForge: Refresh Diagnostics` | 重读校验缓存并刷新波浪线 |
-| `DocsForge: Check Translation Twins` | 查找缺失语言孪生的页面 |
 | `DocsForge: Open Link Target` | 跳转到链接目标（供快速修复调用） |
 | `DocsForge: Check for Updates` | 检查引擎与扩展更新 |
 

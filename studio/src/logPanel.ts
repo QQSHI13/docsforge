@@ -4,8 +4,7 @@
  * Output tab. Streams build/serve/init logs.
  *
  * Usage: get the singleton via `DocsForgeLogPanel.get()`, then `append` or
- * `appendLine`. The view is revealed automatically when output arrives; the
- * "docsforge.openLog" command shows it on demand.
+ * `appendLine`. The view is revealed automatically when output arrives.
  */
 import * as vscode from 'vscode';
 import { stripAnsi } from './pure';
