@@ -26,6 +26,10 @@ import {
   stripLocaleSuffix,
   checkFootnotes,
   formatMarkdown,
+  fenceMarker,
+  inFencedCode,
+  matchAnchors,
+  snippetDocCandidates,
   detectLocales,
   findMissingTwins,
   sanitizePageName,
@@ -453,6 +457,43 @@ describe('review fixes', () => {
     assert.strictEqual(
       formatMarkdown(src),
       '# H\n\n```\nline one  \n\n\nline two\n```\n\nbody\n',
+    );
+  });
+
+  it('tracks fenced code regions', () => {
+    assert.strictEqual(fenceMarker('```python'), '```');
+    assert.strictEqual(fenceMarker('  ~~~~'), '~~~~');
+    assert.strictEqual(fenceMarker('plain'), null);
+    const lines = ['# H', '', '```', '--8<-- "x"', '```', 'after'];
+    assert.strictEqual(inFencedCode(lines, 3), true);
+    assert.strictEqual(inFencedCode(lines, 5), false);
+  });
+
+  it('matches anchors case-insensitively and dedupes', () => {
+    const got = matchAnchors(
+      [
+        { title: 'Install', slug: 'install' },
+        { title: 'Install', slug: 'install' },
+        { title: 'Intro', slug: 'intro' },
+      ],
+      'Ins',
+    );
+    assert.deepStrictEqual(got, [{ slug: 'install', title: 'Install', count: 2 }]);
+  });
+
+  it('lists every docs-tree snippet candidate', () => {
+    const files = [
+      { srcUri: 'guide/a.md' },
+      { srcUri: 'guide/deep/b.md' },
+      { srcUri: 'other/c.md' },
+    ];
+    assert.deepStrictEqual(
+      snippetDocCandidates(files, 'guide', '', false).sort(),
+      ['a.md', 'deep/b.md', '../other/c.md'].sort(),
+    );
+    assert.deepStrictEqual(
+      snippetDocCandidates(files, 'guide', './deep', true),
+      ['./deep/b.md'],
     );
   });
 

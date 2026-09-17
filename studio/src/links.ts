@@ -428,13 +428,11 @@ export function formatMarkdown(source: string): string {
   let blank = 0;
   let fence: string | null = null;
   for (const line of lines) {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
-    if (fenceMatch) {
-      const marker = fenceMatch[1][0] === '`' ? '`' : '~';
-      const len = fenceMatch[1].length;
+    const marker = fenceMarker(line);
+    if (marker) {
       if (fence === null) {
-        fence = `${marker}${len}`;
-      } else if (fence[0] === marker && len >= Number(fence.slice(1))) {
+        fence = marker;
+      } else if (marker[0] === fence[0] && marker.length >= fence.length) {
         fence = null;
       }
       blank = 0;
@@ -897,6 +895,67 @@ export function frontmatterRange(
     }
   }
   return null;
+}
+
+/** Fence marker of a line (``` / ~~~ run), e.g. "```" or "~~~~".
+ *  Shared by formatting (pass-through) and completion suppression. */
+export function fenceMarker(line: string): string | null {
+  const m = line.match(/^\s*(`{3,}|~{3,})/);
+  return m ? m[1] : null;
+}
+
+/** Whether a 0-based line sits inside a fenced code block. */
+export function inFencedCode(lines: string[], lineNo: number): boolean {
+  let fence: string | null = null;
+  for (let i = 0; i < lineNo && i < lines.length; i++) {
+    const marker = fenceMarker(lines[i]);
+    if (!marker) {
+      continue;
+    }
+    if (fence === null) {
+      fence = marker;
+    } else if (marker[0] === fence[0] && marker.length >= fence.length) {
+      fence = null;
+    }
+  }
+  return fence !== null;
+}
+
+/** Anchor completion candidates: case-insensitive slug-prefix match,
+ *  deduplicated (duplicate headings collapse to one item with a count). */
+export function matchAnchors(
+  headings: Array<{ title: string; slug: string }>, partial: string,
+): Array<{ slug: string; title: string; count: number }> {
+  const needle = partial.toLowerCase();
+  const seen = new Map<string, { slug: string; title: string; count: number }>();
+  for (const h of headings) {
+    if (!h.slug.toLowerCase().startsWith(needle)) {
+      continue;
+    }
+    const hit = seen.get(h.slug);
+    if (hit) {
+      hit.count++;
+    } else {
+      seen.set(h.slug, { slug: h.slug, title: h.title, count: 1 });
+    }
+  }
+  return [...seen.values()];
+}
+
+/** Docs-tree snippet candidates: every file expressed relative to the
+ *  source file's directory and filtered by the typed partial (no silent
+ *  result cap — the caller bounds the final list). */
+export function snippetDocCandidates(
+  files: Array<{ srcUri: string }>, fromDir: string, partial: string, keepDotSlash: boolean,
+): string[] {
+  const out: string[] = [];
+  for (const f of files) {
+    const display = toRelativeDisplay(f.srcUri, fromDir, keepDotSlash);
+    if (display.startsWith(partial)) {
+      out.push(display);
+    }
+  }
+  return out;
 }
 
 /** Frontmatter keys understood by the engine (completion source; custom keys

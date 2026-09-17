@@ -11,6 +11,7 @@
  */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 import { spawn } from 'child_process';
 import { venvPythonPath, parseDocsforgeVersion, isEditableDirectUrl } from './pure';
 
@@ -90,6 +91,27 @@ async function userSitePath(python: string): Promise<string | null> {
   ]);
   const trimmed = out.trim();
   return trimmed ? trimmed : null;
+}
+
+/** Icons dir of the installed docsforge package, for `:icon:` completions.
+ *  Resolves through the workspace interpreter (a repo-relative
+ *  `<root>/docsforge/templates/.icons` path only exists inside a docsforge
+ *  checkout, never in a user project). Null when undiscoverable. */
+export async function installedIconsDir(workspaceRoot: string): Promise<string | null> {
+  const python = await resolvePython(workspaceRoot);
+  if (!python) {
+    return null;
+  }
+  const out = await runCapture(python, [
+    '-c',
+    'import docsforge, os; '
+    + 'print(os.path.join(os.path.dirname(docsforge.__file__), "templates", ".icons"))',
+  ]);
+  const dir = out.trim();
+  if (!dir || !fs.existsSync(path.join(dir, 'material'))) {
+    return null;
+  }
+  return dir;
 }
 
 /** Resolve the interpreter to use for this workspace.

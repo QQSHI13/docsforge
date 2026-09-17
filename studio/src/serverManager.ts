@@ -4,6 +4,7 @@ import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import { findConfig as findConfigPure, hasConfig as hasConfigPure, extractServerUrl, shouldEscalateToSigkill } from './pure';
 import { DocsForgeLogPanel } from './logPanel';
+import { currentProjectRoot } from './roots';
 import { detectEnvironment, ensureDocsforge } from './environment';
 
 /** Re-exported for backwards compatibility (pure helper lives in pure.ts). */
@@ -234,15 +235,7 @@ export class ServerManager {
   /** Root commands act on: the active editor's project, else the first
    *  configured root, else the first folder (multi-root aware). */
   currentRoot(): string | undefined {
-    const active = vscode.window.activeTextEditor?.document.uri.fsPath;
-    if (active) {
-      const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(active));
-      if (folder) {
-        return folder.uri.fsPath;
-      }
-    }
-    const folders = vscode.workspace.workspaceFolders ?? [];
-    return (folders.find((f) => ServerManager.hasConfig(f.uri.fsPath)) ?? folders[0])?.uri.fsPath;
+    return currentProjectRoot();
   }
 
   /** Ask which project to act on when the current root is ambiguous
@@ -335,6 +328,7 @@ export class ServerManager {
   async start(root?: string) {
     const workspaceRoot = root ?? await this.pickRoot();
     if (!workspaceRoot) {
+      vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
       return;
     }
     const st = this.forRoot(workspaceRoot);
@@ -599,6 +593,7 @@ export class ServerManager {
   async build(root?: string) {
     const workspaceRoot = root ?? await this.pickRoot();
     if (!workspaceRoot) {
+      vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
       return;
     }
     const st = this.forRoot(workspaceRoot);

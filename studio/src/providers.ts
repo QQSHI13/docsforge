@@ -21,6 +21,9 @@ import {
   filterDocsByPrefix,
   toRelativeDisplay,
   linkAtPosition,
+  matchAnchors,
+  snippetDocCandidates,
+  inFencedCode,
   snippetPathPrefix,
   anchorPrefix,
   frontmatterRange,
@@ -29,6 +32,7 @@ import {
   SEARCH_CHILD_KEYS,
 } from './links';
 import { getHeadings } from './studioCache';
+import { installedIconsDir } from './environment';
 
 /** Re-exported pure helpers (canonical implementations live in links.ts). */
 export { linkTargetPrefix, filterDocsByPrefix, toRelativeDisplay };
@@ -379,14 +383,19 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     const line = text.split('\n')[position.line] ?? '';
     const before = line.slice(0, position.character);
     // Frontmatter keys/values (manual invoke: no trigger char fires here).
+    // The closing `---` line offers nothing.
     const fm = frontmatterRange(text);
-    if (fm && position.line > fm.startLine && position.line <= fm.endLine) {
+    if (fm && position.line > fm.startLine && position.line < fm.endLine) {
       return this.frontmatterCompletions(text, position);
     }
     // Snippet includes: --8<-- "partial (paths resolve against the
-    // source file's directory first, then the project root).
+    // source file's directory first, then the project root). Suppressed
+    // inside fenced code (usually documenting the syntax itself).
     const snip = snippetPathPrefix(before);
     if (snip !== null) {
+      if (inFencedCode(text.split('\n'), position.line)) {
+        return [];
+      }
       return this.snippetCompletions(document, position, snip);
     }
     // Anchors inside a link destination must win over path completion.
@@ -407,11 +416,12 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     return this.pathCompletions(document, partial);
   }
 
-  /** Known frontmatter keys + `hide:` / `search:` values. Key context has
-   *  no trigger char, so this mostly serves manual invoke (Ctrl+Space). */
-  private frontmatterCompletions(
+  /** Known frontmatter keys + `hide:` / `search:` / `icon:` values. Key
+   *  context has no trigger char, so this mostly serves manual invoke
+   *  (Ctrl+Space). */
+  private async frontmatterCompletions(
     text: string, position: vscode.Position,
-  ): vscode.CompletionItem[] {
+  ): Promise<vscode.CompletionItem[]> {
     const lines = text.split('\n');
     const line = lines[position.line] ?? '';
     const before = line.slice(0, position.character);
@@ -423,6 +433,27 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
         item.detail = detail;
         return item;
       });
+    }
+    // Icon values (`icon: material-ho…`): same icon set as `:…:` inline use.
+    const iconValue = before.match(/^\s*icon:\s*([A-Za-z0-9/-]*)$/);
+    if (iconValue) {
+      const themeIcons = await this.findThemeIconsDir();
+      if (!themeIcons) {
+        return [];
+      }
+      const items: vscode.CompletionItem[] = [];
+      for (const family of ['material', 'lucide', 'fontawesome', 'octicons']) {
+        for (const name of this.iconsFor(family, themeIcons)) {
+          const value = `${family}/${name}`;
+          if (!value.startsWith(iconValue[1]) || items.length >= 50) {
+            continue;
+          }
+          const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
+          item.detail = `${family}/${name}`;
+          items.push(item);
+        }
+      }
+      return items;
     }
     // Nearest mapping key above the cursor (e.g. `hide:` / `search:`).
     let parent: string | null = null;
@@ -475,14 +506,13 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
       return [];
     }
     const startCh = position.character - anch.partial.length;
-    return getHeadings(this.root, absPath)
-      .filter((h) => h.slug.startsWith(anch.partial))
+    return matchAnchors(getHeadings(this.root, absPath), anch.partial)
       .slice(0, 50)
       .map((h) => {
         const item = new vscode.CompletionItem(`#${h.slug}`, vscode.CompletionItemKind.Value);
         item.insertText = h.slug;
         item.filterText = h.slug;
-        item.detail = h.title;
+        item.detail = h.count > 1 ? `${h.title} (×${h.count})` : h.title;
         item.range = new vscode.Range(position.line, startCh, position.line, position.character);
         return item;
       });
@@ -529,26 +559,29 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
         /* unreadable dir → docs-tree candidates only */
       }
     }
-    // Docs-tree .md files, expressed relative to the current file.
+    // Docs-tree files, expressed relative to the current file. The cached
+    // list is scanned whole (it is already in memory): capping the input
+    // would silently drop matches on sites with more files than the cap.
     const docsDirAbs = path.join(this.root, docsDirFromConfig(this.root));
     const srcUri = srcUriOf(this.root, docsDirAbs, document.uri.fsPath);
     if (srcUri && fs.existsSync(docsDirAbs)) {
-      for (const name of filterDocsByPrefix(getDocsCache(this.root).getFiles(), '', 200)) {
-        let rel = path.posix.relative(path.posix.dirname(srcUri), name);
-        if (!rel.startsWith('.')) {
-          rel = `./${rel}`;
-        }
-        if (rel.startsWith(partial)) {
-          push(rel, 'docs file');
+      const fromDir = path.posix.dirname(srcUri);
+      const keepDot = partial.startsWith('.');
+      for (const name of snippetDocCandidates(
+        getDocsCache(this.root).getFiles(), fromDir, partial, keepDot,
+      )) {
+        push(name, 'docs file');
+        if (items.length >= 100) {
+          break;
         }
       }
     }
     return items;
   }
 
-  private iconCompletions(prefix: string): vscode.CompletionItem[] {
+  private async iconCompletions(prefix: string): Promise<vscode.CompletionItem[]> {
     const items: vscode.CompletionItem[] = [];
-    const themeIcons = this.findThemeIconsDir();
+    const themeIcons = await this.findThemeIconsDir();
     if (!themeIcons) {
       return items;
     }
@@ -593,13 +626,22 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     return names;
   }
 
-  private findThemeIconsDir(): string | null {
-    // Theme icons live in the installed docsforge package under templates/.icons.
+  private iconsDirCache: string | null | undefined;
+
+  private async findThemeIconsDir(): Promise<string | null> {
+    if (this.iconsDirCache !== undefined) {
+      return this.iconsDirCache;
+    }
+    // Repo checkout layout first (no interpreter probe needed).
     const candidate = path.join(this.root, 'docsforge', 'templates', '.icons');
     if (fs.existsSync(path.join(candidate, 'material'))) {
+      this.iconsDirCache = candidate;
       return candidate;
     }
-    return null;
+    // Otherwise the installed package behind the workspace interpreter
+    // (a bare `<root>/docsforge/...` path never exists in user projects).
+    this.iconsDirCache = await installedIconsDir(this.root);
+    return this.iconsDirCache;
   }
 
   private pathCompletions(

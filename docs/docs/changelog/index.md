@@ -37,6 +37,15 @@
   use the link under the cursor; Stop Server no longer hijacks to cancel
   builds; pidfile PIDs must be numeric and diagnostics paths stay inside
   the docs dir. Locales also match case-insensitively (`pt-BR`).
+- **Second Studio review pass** — `:icon:` completions resolve through the
+  workspace interpreter's installed package (no longer always empty in user
+  projects), plus frontmatter `icon:` values; cached offline versions are
+  display-only instead of offering doomed updates; snippet completion scans
+  the whole cached file list; explicit errors when no folder is open;
+  update checks share serve's project resolution; anchor completion is
+  case-insensitive with deduped titles; formatOnSave reads document-scoped
+  config; frontmatter skips the closing `---` and snippet completion is
+  suppressed in fenced code; scaffold folder validation is segment-wise.
 
 ### Fixed
 

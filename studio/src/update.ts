@@ -12,6 +12,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { hasConfig, compareVersions, isPrereleaseVersion, pickLatestVersion } from './pure';
 import { detectEnvironment, upgradeDocsforge } from './environment';
+import { currentProjectRoot } from './roots';
 import { DocsForgeLogPanel } from './logPanel';
 
 const PYPI_URL = 'https://pypi.org/pypi/docsforge/json';
@@ -157,21 +158,11 @@ export function getOwnVersion(): string | null {
   return ext?.packageJSON?.version ?? null;
 }
 
-/** First workspace root containing a config, else the active file's folder. */
+/** First workspace root containing a config, else the active file's folder.
+ *  Delegates to the shared multi-root resolution so update checks probe the
+ *  same interpreter serve would run. */
 function resolveRoot(): string | undefined {
-  const folders = vscode.workspace.workspaceFolders ?? [];
-  const configured = folders.find((f) => hasConfig(f.uri.fsPath));
-  if (configured) {
-    return configured.uri.fsPath;
-  }
-  const active = vscode.window.activeTextEditor?.document.uri.fsPath;
-  if (active) {
-    const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(active));
-    if (folder) {
-      return folder.uri.fsPath;
-    }
-  }
-  return folders[0]?.uri.fsPath;
+  return currentProjectRoot();
 }
 
 function releaseNotesUrl(version: string): string {
@@ -179,10 +170,18 @@ function releaseNotesUrl(version: string): string {
 }
 
 /** Offer the engine upgrade. Editable installs get a dedicated prompt:
- *  pip would replace the source checkout, so the user must opt in. */
+ *  pip would replace the source checkout, so the user must opt in.
+ *  Stale (cached, offline) versions are display-only: pip needs network. */
 async function offerEngineUpdate(
-  root: string, update: EngineUpdate,
+  root: string, update: EngineUpdate, stale = false,
 ): Promise<void> {
+  if (stale) {
+    vscode.window.showInformationMessage(
+      `DocsForge engine ${update.current} → ${update.latest} (cached versions, offline). ` +
+        'Reconnect and re-check to update.',
+    );
+    return;
+  }
   const state = await detectEnvironment(root);
   if (!state.docsforgeVersion) {
     vscode.window.showWarningMessage('DocsForge: no Python environment found to update.');
@@ -228,8 +227,16 @@ async function offerEngineUpdate(
   );
 }
 
-/** Download a VSIX and hand it to VS Code's installer, then offer reload. */
-async function offerExtensionUpdate(update: ExtensionUpdate): Promise<void> {
+/** Download a VSIX and hand it to VS Code's installer, then offer reload.
+ *  Stale (cached, offline) versions are display-only: no network to fetch. */
+async function offerExtensionUpdate(update: ExtensionUpdate, stale = false): Promise<void> {
+  if (stale) {
+    vscode.window.showInformationMessage(
+      `DocsForge Studio ${update.current} → ${update.latest} (cached versions, offline). ` +
+        'Reconnect and re-check to update.',
+    );
+    return;
+  }
   const action = await vscode.window.showInformationMessage(
     `DocsForge Studio ${update.current} → ${update.latest} is available.`,
     'Download & install', 'Release notes', 'Later',
@@ -439,19 +446,19 @@ export async function checkForUpdates(
       return;
     }
     if (choice.value === 'all' || choice.value === 'engine') {
-      await offerEngineUpdate(root, engine);
+      await offerEngineUpdate(root, engine, updates.engineStale);
     }
     if (choice.value === 'all' || choice.value === 'extension') {
-      await offerExtensionUpdate(extension);
+      await offerExtensionUpdate(extension, updates.extStale);
     }
     return;
   }
   if (engine) {
-    await offerEngineUpdate(root, engine);
+    await offerEngineUpdate(root, engine, updates.engineStale);
     return;
   }
   if (extension) {
-    await offerExtensionUpdate(extension);
+    await offerExtensionUpdate(extension, updates.extStale);
   }
 }
 

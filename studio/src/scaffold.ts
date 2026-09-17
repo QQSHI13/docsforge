@@ -42,17 +42,24 @@ export async function runNewPage(workspaceRoot: string): Promise<void> {
       defaultDir = src.slice(0, src.lastIndexOf('/'));
     }
   }
-  const dir = (await vscode.window.showInputBox({
+  const dirRaw = await vscode.window.showInputBox({
     prompt: 'Folder inside the docs directory (empty for the docs root)',
     value: defaultDir,
     validateInput: (v) => {
+      // Segment-wise check (not substring): `...` or `a..b` are legal names,
+      // only exact `.` / `..` segments escape.
       const t = v.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-      return t === '' || !/[<>:\"|?*\0]|\.\./.test(t) ? null : 'Invalid folder path';
+      if (t === '') {
+        return null;
+      }
+      const ok = t.split('/').every((s) => s !== '' && s !== '.' && s !== '..' && !/[<>:"|?*\0]/.test(s));
+      return ok ? null : 'Invalid folder path';
     },
-  }))?.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-  if (dir === undefined) {
+  });
+  if (dirRaw === undefined) {
     return;
   }
+  const dir = dirRaw.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
 
   const nameRaw = await vscode.window.showInputBox({
     prompt: 'Page file name (e.g. my-page or guide/my-page)',

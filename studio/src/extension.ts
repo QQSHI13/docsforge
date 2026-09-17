@@ -71,7 +71,8 @@ function ensureProjectFeatures(
       if (e.document.languageId !== 'markdown') {
         return;
       }
-      if (!vscode.workspace.getConfiguration('docsforge').get<boolean>('formatOnSave', false)) {
+      const scoped = vscode.workspace.getConfiguration('docsforge', e.document.uri);
+      if (!scoped.get<boolean>('formatOnSave', false)) {
         return;
       }
       if (!isDocDocument(e.document, root)) {
