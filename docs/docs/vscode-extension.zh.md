@@ -22,20 +22,19 @@ DocsForge 提供 VS Code 扩展，让你在编辑器内即可编写、预览和�
 code --install-extension docsforge-vscode-*.vsix
 ```
 
-### Cursor
+### 其它基于 VS Code 的编辑器
 
-Cursor 原生运行 VS Code 扩展——同一个 `.vsix`，同样步骤：
+同一个 `.vsix` 可用于基于 VS Code 的编辑器：
 
-```bash
-cursor --install-extension docsforge-vscode-*.vsix
-```
+- **Cursor** —— `cursor --install-extension docsforge-vscode-*.vsix`，或把文件拖进 Extensions，或 Install from VSIX。
+- **Windsurf**、**VSCodium**、**Kiro**、**Positron** —— Extensions → Install from VSIX。
+- **Antigravity** —— `antigravity --install-extension docsforge-vscode-*.vsix`。
+- 其它接受 `.vsix` 文件的分支一般也能用——如遇问题请反馈。
 
-或在 Cursor 内打开 Extensions → **...** → **Install from VSIX...**。
+### 不受支持
 
-### 编辑器支持
-
-支持 VS Code 1.85+ 与 Cursor。Zed 与 JetBrains IDE
-不受支持：Studio 直接构建于 VS Code 扩展 API
+Zed、JetBrains IDE 与 Neovim 使用不同的扩展体系。Studio
+直接构建于 VS Code 扩展 API
 之上且没有语言服务器，因而不存在可移植的兼容层——基于服务器的扩展
 （如 Zensical）才能覆盖这些编辑器。
 
