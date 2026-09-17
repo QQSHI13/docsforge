@@ -22,6 +22,23 @@ DocsForge provides a VS Code extension for writing, previewing, and building doc
 code --install-extension docsforge-vscode-*.vsix
 ```
 
+### Cursor
+
+Cursor runs VS Code extensions natively — same `.vsix`, same steps:
+
+```bash
+cursor --install-extension docsforge-vscode-*.vsix
+```
+
+or Extensions → **...** → **Install from VSIX...** inside Cursor.
+
+### Editor support
+
+VS Code 1.85+ and Cursor are supported. Zed and JetBrains IDEs are not:
+Studio is built directly on the VS Code extension API with no language
+server, so there is no compatibility layer to port — unlike server-based
+extensions, which is how Zensical reaches those editors.
+
 ### Prerequisites
 
 - **VS Code 1.85+**

@@ -17,6 +17,8 @@ Download the `.vsix` from [GitHub Releases](https://github.com/QQSHI13/docsforge
 Extensions → ... → Install from VSIX...
 ```
 
+Same steps work in Cursor (`cursor --install-extension`).
+
 Requires Python 3.10+ with `docsforge` installed:
 
 ```bash
