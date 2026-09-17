@@ -1,6 +1,6 @@
 ## [Unreleased]
 
-## [13.0.1b2] — 2026-09-17
+## [13.0.1] — 2026-09-17
 
 ### Added
 
@@ -14,6 +14,34 @@
 
 ### Fixed
 
+- **Parallel builds no longer merge navigation highlights** — concurrent
+  page renders shared one nav tree, so templates snapshotted other pages'
+  `active` flags mid-render: sibling sections lit up together (old and new
+  pages merged in the sidebar) and duplicate sticky section headers
+  overlapped each other (46 of 50 pages on an 8-worker build). `active`
+  reads during a render now resolve per thread to exactly the rendering
+  page, its ancestors, and its locale counterparts — full parallelism
+  kept, serial output restored. Covered by a barrier-forced-overlap
+  regression test.
+- **Locale output stays correct under parallelism** — translated-nav
+  highlights are registered explicitly per render, and page templates read
+  the page-context locale first instead of the shared config value (which
+  could carry another page's locale).
+- **Service worker stops stampeding first loads** — the manifest sync pool
+  was unbounded (a bookkeeping bug removed the just-added task instead of
+  the finished one), so activation fired hundreds of concurrent no-cache
+  fetches; manifest refreshes fired on every navigation instead of real
+  reloads only. Both fixed; access-time writes no longer block responses,
+  and LRU tracking now records URL-string cache keys correctly.
+- **Sidebar height clamp rescoped** — the footer-overlap guard applied from
+  60em, clipping the full-height nav drawer on tablets; it now applies at
+  screen+ for both rails and tablet-landscape for the TOC rail only.
+- **build_frontend.py refuses drifted dependencies** — the script used to
+  build happily with stale node_modules (older icon artwork, older
+  mermaid/wasm) and even overwrote newer vendored sources. It now fails
+  fast with a `pnpm install` hint, icon refresh is an explicit
+  `--refresh-icons` (normal builds never touch `src/`), output syncs prune
+  deletions, and an empty twemoji fetch aborts instead of wiping the set.
 - **Studio translation diagnostics replace the check command** — missing
   locale variants and orphan translations are now editor errors on the
   file itself (refreshed with diagnostics, no command to run), so
