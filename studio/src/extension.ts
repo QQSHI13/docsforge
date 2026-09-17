@@ -5,7 +5,7 @@ import { ServerManager } from './serverManager';
 import { InitWizard } from './initWizard';
 import { DocsForgeSidebarProvider } from './sidebarProvider';
 import { DocsForgeLogPanel } from './logPanel';
-import { detectEnvironment, ensureDocsforge } from './environment';
+import { detectEnvironment, ensureDocsforge, pickInstall } from './environment';
 import { DocsForgeDiagnostics } from './diagnostics';
 import { registerProviders, srcUriOf, getDocsCache, isDocDocument } from './providers';
 import { registerRenameCommands, registerAutoRename } from './rename';
@@ -394,8 +394,12 @@ async function setupEnvironment(): Promise<void> {
     return;
   }
   const logPanel = DocsForgeLogPanel.get();
-  const state = await detectEnvironment(workspaceRoot);
-  if (state.docsforgeVersion) {
+  const pick = await pickInstall(workspaceRoot);
+  if (pick.kind === 'cancelled') {
+    return;
+  }
+  if (pick.kind === 'picked') {
+    const state = pick.state;
     const where = state.editable && state.location
       ? ` (editable install at ${state.location})`
       : ` (${state.installKind})`;
@@ -404,7 +408,14 @@ async function setupEnvironment(): Promise<void> {
     );
     return;
   }
-  const python = await ensureDocsforge(workspaceRoot, state, (line) => logPanel.append(line));
+  const state = await detectEnvironment(workspaceRoot);
+  if (!pick.python) {
+    vscode.window.showErrorMessage('DocsForge: no Python interpreter found. Install Python 3.10+ first.');
+    return;
+  }
+  const python = await ensureDocsforge(
+    workspaceRoot, { ...state, python: pick.python }, (line) => logPanel.append(line),
+  );
   if (!python) {
     return;
   }

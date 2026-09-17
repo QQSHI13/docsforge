@@ -40,7 +40,7 @@ code --install-extension docsforge-vscode-*.vsix
 
 通过命令面板（`Ctrl+Shift+P`）运行 **`DocsForge: Check for Updates`**，也可以点侧边栏 Actions 视图或侧边栏标题栏。一次检查覆盖两边：
 
-- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。预发布引擎版本（如 `13.0.0b3`）现在能与稳定版正确比较，beta 检出不会再被误判为最新。可编辑安装（`pip install -e .`）会被识别且绝不静默替换：更新提示会给出检出路径并提供 `Replace with PyPI version`，或用 `git pull` + 重装继续跟进源码。成功检查的结果会被缓存，离线时手动检查复用上次版本（标注为缓存）而非直接失败。
+- **引擎** —— `docsforge` Python 包，与 PyPI 对比。更新会在项目已用的解释器（venv、用户、全局）里执行 `pip install docsforge==<版本>`，进度和输出都在 DocsForge 通道可见。预发布引擎版本（如 `13.0.0b3`）现在能与稳定版正确比较，beta 检出不会再被误判为最新。可编辑安装（`pip install -e .`）会被识别且绝不静默替换：更新提示会给出检出路径并提供 `Replace with PyPI version`，或用 `git pull` + 重装继续跟进源码。成功检查的结果会被缓存，离线时手动检查复用上次版本（标注为缓存）而非直接失败。在 PEP 668 外部管理解释器（Debian/Ubuntu 系统 Python）上，安装与升级自动追加 `--break-system-packages`（`--user` 安装保留原标志）；当多个解释器都装有 DocsForge 时，每个流程都会询问使用哪一个，不再猜测。
 - **扩展** —— VSIX 本体，与 GitHub releases 对比。更新会把 `.vsix` 下载到临时目录并安装，然后提示重载窗口。
 
 ### 自动检查

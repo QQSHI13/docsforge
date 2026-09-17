@@ -3,17 +3,20 @@
  *
  * Responsibilities:
  *  - resolve a Python interpreter (settings override, remembered venv, PATH)
+ *  - discover every interpreter and let the user pick when several have
+ *    docsforge installed (single installs resolve silently)
  *  - check pip availability
  *  - check whether docsforge is importable and at which version
  *  - if docsforge is missing, offer to install it into a project venv,
- *    for the current user (pip --user), or globally (pip)
+ *    for the current user (pip --user), or globally (pip), adding
+ *    --break-system-packages on PEP 668 externally-managed interpreters
  *  - remember the chosen interpreter so serve/build reuse it
  */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { venvPythonPath, parseDocsforgeVersion, isEditableDirectUrl } from './pure';
+import { venvPythonPath, parseDocsforgeVersion, isEditableDirectUrl, pipFlagPrefix } from './pure';
 
 /** Result of a probe/install attempt. */
 export interface EnvironmentState {
@@ -84,6 +87,27 @@ export async function checkDocsforgeEditable(python: string): Promise<boolean> {
   return isEditableDirectUrl(out);
 }
 
+/** Whether the interpreter is PEP 668 externally-managed (Debian/Ubuntu
+ *  system Pythons refuse `pip install` without `--break-system-packages`;
+ *  venvs never carry the marker). Cached per interpreter path. */
+const externallyManagedCache = new Map<string, boolean>();
+
+export async function isExternallyManaged(python: string): Promise<boolean> {
+  const hit = externallyManagedCache.get(python);
+  if (hit !== undefined) {
+    return hit;
+  }
+  const out = await runCapture(python, [
+    '-c',
+    'import os, sysconfig; '
+    + 'print(os.path.exists(os.path.join('
+    + 'sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED")))',
+  ]);
+  const value = out.trim() === 'True';
+  externallyManagedCache.set(python, value);
+  return value;
+}
+
 /** Interpreter's user site-packages dir, or null when undiscoverable. */
 async function userSitePath(python: string): Promise<string | null> {
   const out = await runCapture(python, [
@@ -150,18 +174,8 @@ export async function resolvePython(workspaceRoot: string): Promise<string | nul
   return null;
 }
 
-/** Probe the environment for python + docsforge. */
-export async function detectEnvironment(
-  workspaceRoot: string,
-): Promise<EnvironmentState> {
-  const missing: EnvironmentState = {
-    python: 'python', docsforgeVersion: null, installKind: 'missing',
-    editable: false, location: null,
-  };
-  const python = await resolvePython(workspaceRoot);
-  if (!python) {
-    return missing;
-  }
+/** Probe one interpreter for python + docsforge. */
+export async function probePython(python: string): Promise<EnvironmentState> {
   const version = await checkDocsforge(python);
   if (!version) {
     return { python, docsforgeVersion: null, installKind: 'missing', editable: false, location: null };
@@ -185,6 +199,128 @@ export async function detectEnvironment(
     editable: false,
     location,
   };
+}
+
+/** Every viable interpreter, best first: explicit setting, remembered venv,
+ *  project .venv, then PATH candidates that respond to `--version`. */
+async function candidatePythons(workspaceRoot: string): Promise<string[]> {
+  const out: string[] = [];
+  const push = (p: string | null) => {
+    if (p && !out.includes(p)) {
+      out.push(p);
+    }
+  };
+  const configured = vscode.workspace
+    .getConfiguration('docsforge')
+    .get<string>('pythonPath', 'python')
+    .trim();
+  if (configured && configured !== 'python' && await runOk(configured, ['--version'])) {
+    push(configured);
+  }
+  const remembered = vscode.workspace.getConfiguration('docsforge')
+    .get<string>('rememberedPython', '');
+  if (remembered && fs.existsSync(remembered)) {
+    push(remembered);
+  }
+  const venv = venvPythonPath(workspaceRoot);
+  if (venv && fs.existsSync(venv)) {
+    push(venv);
+  }
+  for (const cand of CANDIDATES) {
+    if (await runOk(cand, ['--version'])) {
+      push(cand);
+    }
+  }
+  return out;
+}
+
+/** Probe the environment for python + docsforge. */
+export async function detectEnvironment(
+  workspaceRoot: string,
+): Promise<EnvironmentState> {
+  const missing: EnvironmentState = {
+    python: 'python', docsforgeVersion: null, installKind: 'missing',
+    editable: false, location: null,
+  };
+  const python = await resolvePython(workspaceRoot);
+  if (!python) {
+    return missing;
+  }
+  return probePython(python);
+}
+
+/** One-line label for the install picker, e.g. `13.0.0 · venv · /w/.venv/bin/python`. */
+function installLabel(state: EnvironmentState): string {
+  const where = state.editable && state.location
+    ? `editable · ${state.location}`
+    : `${state.installKind} · ${state.location ?? state.python}`;
+  return `${state.docsforgeVersion} · ${where}`;
+}
+
+export type InstallPick =
+  | { kind: 'picked'; state: EnvironmentState }
+  | { kind: 'none'; python: string | null }
+  | { kind: 'cancelled' };
+
+/** Remember an explicitly chosen interpreter so later resolves reuse it. */
+async function rememberPython(python: string): Promise<void> {
+  try {
+    await vscode.workspace.getConfiguration('docsforge').update(
+      'rememberedPython', python, vscode.ConfigurationTarget.Workspace,
+    );
+  } catch {
+    /* settings write is best-effort */
+  }
+}
+
+/** Choose which docsforge install to use. Probes every interpreter and,
+ *  when several have docsforge, always asks — the remembered choice is
+ *  pre-selected so confirming is one keypress. A single install resolves
+ *  silently; none yields `none` with a usable interpreter for the install
+ *  flow (or null when no Python exists at all). */
+export async function pickInstall(workspaceRoot: string): Promise<InstallPick> {
+  const pythons = await candidatePythons(workspaceRoot);
+  if (!pythons.length) {
+    return { kind: 'none', python: null };
+  }
+  const states = await Promise.all(pythons.map((p) => probePython(p)));
+  const withEngine = states.filter((s) => s.docsforgeVersion);
+  if (!withEngine.length) {
+    return { kind: 'none', python: pythons[0] };
+  }
+  if (withEngine.length === 1) {
+    return { kind: 'picked', state: withEngine[0] };
+  }
+  const remembered = vscode.workspace.getConfiguration('docsforge')
+    .get<string>('rememberedPython', '');
+  interface InstallItem extends vscode.QuickPickItem {
+    state: EnvironmentState;
+  }
+  const items: InstallItem[] = withEngine.map((s) => ({
+    label: `DocsForge ${installLabel(s)}`,
+    description: s.python,
+    state: s,
+  }));
+  // createQuickPick (not showQuickPick) so the remembered interpreter can
+  // be pre-selected — confirming the default is a single Enter.
+  const qp = vscode.window.createQuickPick<InstallItem>();
+  qp.items = items;
+  qp.activeItems = items.filter((i) => i.state.python === remembered);
+  qp.placeholder = 'Several DocsForge installs found. Which one should be used?';
+  const choice = await new Promise<InstallItem | undefined>((resolve) => {
+    const done = (v: InstallItem | undefined) => {
+      qp.dispose();
+      resolve(v);
+    };
+    qp.onDidAccept(() => done(qp.selectedItems[0]));
+    qp.onDidHide(() => done(undefined));
+    qp.show();
+  });
+  if (!choice) {
+    return { kind: 'cancelled' };
+  }
+  await rememberPython(choice.state.python);
+  return { kind: 'picked', state: choice.state };
 }
 
 /** Run a command, streaming stdout/stderr to the DocsForge output panel. */
@@ -236,12 +372,10 @@ export async function upgradeDocsforge(
   onLine: (line: string) => void,
 ): Promise<boolean> {
   const target = `docsforge==${version}`;
-  const pipArgs = installKind === 'user'
-    ? ['--user', '--upgrade', target]
-    : ['--upgrade', target];
-  const manual = installKind === 'user'
-    ? `${python} -m pip install --user --upgrade "${target}"`
-    : `${python} -m pip install --upgrade "${target}"`;
+  const flags = pipFlagPrefix(installKind, await isExternallyManaged(python));
+  const pipArgs = [...flags, '--upgrade', target];
+  const flagText = flags.length ? `${flags.join(' ')} ` : '';
+  const manual = `${python} -m pip install ${flagText}--upgrade "${target}"`;
   const ok = await pipInstall(
     python, workspaceRoot, pipArgs,
     `Updating DocsForge to ${version}…`, onLine,
@@ -279,6 +413,10 @@ export async function ensureDocsforge(
     return null;
   }
 
+  const managed = await isExternallyManaged(state.python);
+  const userFlags = pipFlagPrefix('user', managed);
+  const globalFlags = pipFlagPrefix('system', managed);
+  const fmt = (flags: string[]) => flags.length ? `${flags.join(' ')} ` : '';
   const choice = await vscode.window.showQuickPick(
     [
       {
@@ -288,12 +426,13 @@ export async function ensureDocsforge(
       },
       {
         label: 'User installation',
-        description: 'pip install --user docsforge',
+        description: `pip install ${fmt(userFlags)}docsforge`,
         value: 'user' as const,
       },
       {
         label: 'Global installation',
-        description: 'pip install docsforge (may need administrator rights)',
+        description: `pip install ${fmt(globalFlags)}docsforge`
+          + (managed ? ' (externally-managed interpreter)' : ' (may need administrator rights)'),
         value: 'global' as const,
       },
     ],
@@ -331,7 +470,9 @@ export async function ensureDocsforge(
     return venvPython;
   }
 
-  const pipArgs = choice.value === 'user' ? ['--user', '--upgrade', 'docsforge'] : ['--upgrade', 'docsforge'];
+  const pipArgs = choice.value === 'user'
+    ? [...userFlags, '--upgrade', 'docsforge']
+    : [...globalFlags, '--upgrade', 'docsforge'];
   const installed = await pipInstall(
     state.python, workspaceRoot, pipArgs,
     `Installing DocsForge (${choice.value})…`, onLine,

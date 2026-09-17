@@ -6,6 +6,7 @@ import {
   parseDocsforgeVersion,
   parseVersion,
   pickLatestVersion,
+  pipFlagPrefix,
 } from '../src/pure';
 
 describe('update version helpers', () => {
@@ -67,5 +68,16 @@ describe('update version helpers', () => {
     assert.strictEqual(v?.preKind, 'b');
     assert.strictEqual(v?.preNum, 3);
     assert.strictEqual(compareVersions('13.0.0-beta.3+build', '13.0.0'), -1);
+  });
+
+  it('builds pip flags per install kind and PEP 668 state', () => {
+    assert.deepStrictEqual(pipFlagPrefix('venv', false), []);
+    assert.deepStrictEqual(pipFlagPrefix('venv', true), []);
+    assert.deepStrictEqual(pipFlagPrefix('user', false), ['--user']);
+    assert.deepStrictEqual(pipFlagPrefix('user', true), ['--user', '--break-system-packages']);
+    assert.deepStrictEqual(pipFlagPrefix('system', false), []);
+    assert.deepStrictEqual(pipFlagPrefix('system', true), ['--break-system-packages']);
+    assert.deepStrictEqual(pipFlagPrefix('editable', true), ['--break-system-packages']);
+    assert.deepStrictEqual(pipFlagPrefix('missing', false), []);
   });
 });

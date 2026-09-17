@@ -158,3 +158,23 @@ export function pickLatestVersion(versions: string[], includePre: boolean): stri
   }
   return best;
 }
+
+/** pip flags preceding the package spec for an install/upgrade.
+ *
+ * - venv: none (PEP 668 never applies inside a venv).
+ * - user: `--user` (plus `--break-system-packages` on externally-managed
+ *   interpreters — pip refuses even `--user` installs there).
+ * - system/editable: `--break-system-packages` only when externally managed.
+ */
+export function pipFlagPrefix(
+  installKind: 'system' | 'venv' | 'user' | 'editable' | 'missing',
+  externallyManaged: boolean,
+): string[] {
+  if (installKind === 'venv') {
+    return [];
+  }
+  if (installKind === 'user') {
+    return externallyManaged ? ['--user', '--break-system-packages'] : ['--user'];
+  }
+  return externallyManaged ? ['--break-system-packages'] : [];
+}

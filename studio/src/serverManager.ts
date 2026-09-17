@@ -5,7 +5,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { findConfig as findConfigPure, hasConfig as hasConfigPure, extractServerUrl, shouldEscalateToSigkill } from './pure';
 import { DocsForgeLogPanel } from './logPanel';
 import { currentProjectRoot } from './roots';
-import { detectEnvironment, ensureDocsforge } from './environment';
+import { detectEnvironment, ensureDocsforge, pickInstall } from './environment';
 
 /** Re-exported for backwards compatibility (pure helper lives in pure.ts). */
 export { shouldEscalateToSigkill };
@@ -274,13 +274,22 @@ export class ServerManager {
   }
 
   /** Resolve a usable Python interpreter, installing docsforge if needed.
+   *  Asks which install to use when several interpreters have docsforge.
    *  Returns null when no interpreter is available or the user cancelled. */
   private async resolveEnvironment(root: string): Promise<string | null> {
-    const state = await detectEnvironment(root);
-    if (state.docsforgeVersion) {
-      return state.python;
+    const pick = await pickInstall(root);
+    if (pick.kind === 'picked') {
+      return pick.state.python;
     }
-    return ensureDocsforge(root, state, (line) => this.logPanel.append(line));
+    if (pick.kind === 'cancelled') {
+      return null;
+    }
+    const state = await detectEnvironment(root);
+    if (!pick.python) {
+      vscode.window.showErrorMessage('DocsForge: no Python interpreter found. Install Python 3.10+ first.');
+      return null;
+    }
+    return ensureDocsforge(root, { ...state, python: pick.python }, (line) => this.logPanel.append(line));
   }
 
   private updateStatusBar() {

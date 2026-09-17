@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [13.0.1b2] — 2026-09-17
+
+### Added
+
+- **Studio pip and install handling** — installs and upgrades add
+  `--break-system-packages` automatically on PEP 668 externally-managed
+  interpreters (Debian/Ubuntu system Python), `--user` installs keep their
+  flag, and every flow asks which DocsForge install to use when several
+  interpreters have one (remembered choice pre-selected). The update flow
+  asks at most one confirmation per item (quick-pick choices execute
+  directly; release notes re-show the same dialog instead of recursing).
+
 ## [13.0.1b1] — 2026-09-17
 
 ### Added

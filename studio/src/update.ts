@@ -11,7 +11,9 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { hasConfig, compareVersions, isPrereleaseVersion, pickLatestVersion } from './pure';
-import { detectEnvironment, upgradeDocsforge } from './environment';
+import {
+  detectEnvironment, upgradeDocsforge, pickInstall, EnvironmentState,
+} from './environment';
 import { currentProjectRoot } from './roots';
 import { DocsForgeLogPanel } from './logPanel';
 
@@ -169,47 +171,60 @@ function releaseNotesUrl(version: string): string {
   return `${RELEASE_TAG_URL}v${version}`;
 }
 
-/** Offer the engine upgrade. Editable installs get a dedicated prompt:
- *  pip would replace the source checkout, so the user must opt in.
- *  Stale (cached, offline) versions are display-only: pip needs network. */
-async function offerEngineUpdate(
-  root: string, update: EngineUpdate, stale = false,
-): Promise<void> {
-  if (stale) {
-    vscode.window.showInformationMessage(
-      `DocsForge engine ${update.current} → ${update.latest} (cached versions, offline). ` +
-        'Reconnect and re-check to update.',
-    );
-    return;
+/** Which install an update applies to: asks when several have docsforge,
+ *  then verifies the picked install is actually behind `latest` (the check
+ *  may have probed a different interpreter than the user picks). */
+async function resolveUpdateState(
+  root: string, latest: string,
+): Promise<EnvironmentState | null> {
+  const pick = await pickInstall(root);
+  if (pick.kind === 'cancelled') {
+    return null;
   }
-  const state = await detectEnvironment(root);
-  if (!state.docsforgeVersion) {
+  if (pick.kind === 'none') {
     vscode.window.showWarningMessage('DocsForge: no Python environment found to update.');
-    return;
+    return null;
   }
+  if (pick.state.docsforgeVersion
+    && compareVersions(pick.state.docsforgeVersion, latest) >= 0) {
+    vscode.window.showInformationMessage(
+      `DocsForge engine ${pick.state.docsforgeVersion} is already up to date.`,
+    );
+    return null;
+  }
+  return pick.state;
+}
+
+/** Display-only notes for cached (offline) versions: pip/VSIX need network. */
+function cachedEngineInfo(update: EngineUpdate): void {
+  vscode.window.showInformationMessage(
+    `DocsForge engine ${update.current} → ${update.latest} (cached versions, offline). ` +
+      'Reconnect and re-check to update.',
+  );
+}
+
+function cachedExtensionInfo(update: ExtensionUpdate): void {
+  vscode.window.showInformationMessage(
+    `DocsForge Studio ${update.current} → ${update.latest} (cached versions, offline). ` +
+      'Reconnect and re-check to update.',
+  );
+}
+
+/** Run the engine upgrade: one safety question for editable installs
+ *  (pip would replace the source checkout), otherwise straight to pip.
+ *  Callers confirm first (quick-pick choice or single-update dialog). */
+async function executeEngineUpdate(
+  root: string, state: EnvironmentState, update: EngineUpdate,
+): Promise<void> {
   if (state.editable) {
     const where = state.location ? ` at ${state.location}` : '';
     const action = await vscode.window.showWarningMessage(
       `DocsForge engine ${state.docsforgeVersion} is an editable install${where}. `
       + `Updating to ${update.latest} via pip would replace your source checkout. `
       + 'To track source instead, pull the repo and reinstall (`pip install -e .`).',
-      'Replace with PyPI version', 'Later',
+      'Replace with PyPI version',
     );
     if (action !== 'Replace with PyPI version') {
-      return;
-    }
-  } else {
-    const action = await vscode.window.showInformationMessage(
-      `DocsForge engine ${update.current} → ${update.latest} is available.`,
-      'Update', 'Release notes', 'Later',
-    );
-    if (action === 'Release notes') {
-      await vscode.commands.executeCommand(
-        'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
-      );
-      return offerEngineUpdate(root, update);
-    }
-    if (action !== 'Update') {
       return;
     }
   }
@@ -227,29 +242,42 @@ async function offerEngineUpdate(
   );
 }
 
-/** Download a VSIX and hand it to VS Code's installer, then offer reload.
- *  Stale (cached, offline) versions are display-only: no network to fetch. */
-async function offerExtensionUpdate(update: ExtensionUpdate, stale = false): Promise<void> {
+/** Single-update entry: one confirmation dialog (release notes re-shows the
+ *  same dialog via loop, not recursion). The multi-update quick-pick calls
+ *  `executeEngineUpdate` directly — the pick itself is the confirmation. */
+async function offerEngineUpdate(
+  root: string, update: EngineUpdate, stale = false,
+): Promise<void> {
   if (stale) {
-    vscode.window.showInformationMessage(
-      `DocsForge Studio ${update.current} → ${update.latest} (cached versions, offline). ` +
-        'Reconnect and re-check to update.',
-    );
+    cachedEngineInfo(update);
     return;
   }
-  const action = await vscode.window.showInformationMessage(
-    `DocsForge Studio ${update.current} → ${update.latest} is available.`,
-    'Download & install', 'Release notes', 'Later',
-  );
-  if (action === 'Release notes') {
-    await vscode.commands.executeCommand(
-      'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
-    );
-    return offerExtensionUpdate(update);
-  }
-  if (action !== 'Download & install') {
+  const state = await resolveUpdateState(root, update.latest);
+  if (!state) {
     return;
   }
+  for (;;) {
+    const action = await vscode.window.showInformationMessage(
+      `DocsForge engine ${state.docsforgeVersion ?? update.current} → ${update.latest} is available.`,
+      'Update', 'Release notes',
+    );
+    if (action === 'Release notes') {
+      await vscode.commands.executeCommand(
+        'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
+      );
+      continue;
+    }
+    if (action !== 'Update') {
+      return;
+    }
+    break;
+  }
+  await executeEngineUpdate(root, state, update);
+}
+
+/** Download a VSIX and hand it to VS Code's installer, then offer reload.
+ *  Callers confirm first (quick-pick choice or single-update dialog). */
+async function executeExtensionUpdate(update: ExtensionUpdate): Promise<void> {
   const dest = path.join(
     fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-vsix-')),
     `docsforge-vscode-${update.latest}.vsix`,
@@ -297,6 +325,32 @@ async function offerExtensionUpdate(update: ExtensionUpdate, stale = false): Pro
   if (reload === 'Reload now') {
     await vscode.commands.executeCommand('workbench.action.reloadWindow');
   }
+}
+
+/** Single-update entry: one confirmation dialog (release notes re-shows the
+ *  same dialog via loop, not recursion). */
+async function offerExtensionUpdate(update: ExtensionUpdate, stale = false): Promise<void> {
+  if (stale) {
+    cachedExtensionInfo(update);
+    return;
+  }
+  for (;;) {
+    const action = await vscode.window.showInformationMessage(
+      `DocsForge Studio ${update.current} → ${update.latest} is available.`,
+      'Download & install', 'Release notes',
+    );
+    if (action === 'Release notes') {
+      await vscode.commands.executeCommand(
+        'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
+      );
+      continue;
+    }
+    if (action !== 'Download & install') {
+      return;
+    }
+    break;
+  }
+  await executeExtensionUpdate(update);
 }
 
 /** Check both update channels; network failures resolve to null (offline-safe).
@@ -434,6 +488,7 @@ export async function checkForUpdates(
     return;
   }
   if (engine && extension) {
+    // The pick itself confirms: no second per-item dialog after choosing.
     const choice = await vscode.window.showQuickPick(
       [
         { label: 'Update all', description: `engine + extension`, value: 'all' as const },
@@ -446,10 +501,21 @@ export async function checkForUpdates(
       return;
     }
     if (choice.value === 'all' || choice.value === 'engine') {
-      await offerEngineUpdate(root, engine, updates.engineStale);
+      if (updates.engineStale) {
+        cachedEngineInfo(engine);
+      } else {
+        const state = await resolveUpdateState(root, engine.latest);
+        if (state) {
+          await executeEngineUpdate(root, state, engine);
+        }
+      }
     }
     if (choice.value === 'all' || choice.value === 'extension') {
-      await offerExtensionUpdate(extension, updates.extStale);
+      if (updates.extStale) {
+        cachedExtensionInfo(extension);
+      } else {
+        await executeExtensionUpdate(extension);
+      }
     }
     return;
   }
