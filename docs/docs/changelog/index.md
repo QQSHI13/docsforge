@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.1b1] — 2026-09-17
+
 ### Added
 
 - **Studio page workflows** — `DocsForge: New Page` scaffolds a doc
