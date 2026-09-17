@@ -190,21 +190,24 @@ async function touchAccessTime(url) {
 // === Concurrency helper ===
 
 async function runWithConcurrency(tasks, limit) {
-  const results = [];
-  const executing = [];
-  for (const [index, task] of tasks.entries()) {
-    const p = Promise.resolve().then(() => task());
-    results[index] = p;
-    const e = p.then(() => undefined);
-    executing.push(e);
-    if (executing.length >= limit) {
-      await Promise.race(executing);
-      const doneIndex = executing.findIndex(x => x === e);
-      if (doneIndex !== -1) executing.splice(doneIndex, 1);
+  // Fixed-size worker pool: each worker takes the next pending task until
+  // none remain. (The previous bookkeeping removed the just-added promise
+  // instead of the settled one, so the cap decayed and every task ran at
+  // once — hundreds of concurrent no-cache fetches on first sync.)
+  const results = new Array(tasks.length);
+  let next = 0;
+  async function worker() {
+    while (next < tasks.length) {
+      const index = next++;
+      results[index] = await tasks[index]();
     }
   }
-  await Promise.all(executing);
-  return Promise.all(results);
+  const workers = [];
+  for (let i = 0; i < Math.min(limit, tasks.length); i++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return results;
 }
 
 // === Cache sync ===
@@ -341,9 +344,15 @@ function manifestKeyOf(url) {
 }
 
 async function putWithQuotaHandling(cache, request, response) {
+  // Callers pass either a Request or a plain URL string; normalize once —
+  // reading `.url` off a string yields undefined and would poison the
+  // access-time log (and leave synced files untracked for LRU eviction).
+  const url = typeof request === 'string' ? request : request.url;
   try {
     await cache.put(request, response.clone());
-    await touchAccessTime(request.url);
+    // Fire-and-forget (see servePage): access-time bookkeeping must not
+    // delay the response already being streamed back.
+    void touchAccessTime(url);
     return true;
   } catch (e) {
     if (e && (e.name === 'QuotaExceededError')) {
@@ -354,7 +363,7 @@ async function putWithQuotaHandling(cache, request, response) {
       if (freedEnough) {
         try {
           await cache.put(request, response.clone());
-          await touchAccessTime(request.url);
+          void touchAccessTime(url);
           return true;
         } catch (e2) {
           log('Still failed after eviction:', e2.message);
@@ -528,7 +537,9 @@ async function servePage(request) {
     const cached = await cache.match(candidate, { ignoreSearch: true });
     if (cached) {
       log('Serving page from cache:', candidate);
-      await touchAccessTime(candidate.split('?')[0]);
+      // Fire-and-forget: persisting the access time must not delay the
+      // response (it opens the meta cache and rewrites the whole log).
+      void touchAccessTime(candidate.split('?')[0]);
       return cached;
     }
   }
@@ -565,7 +576,8 @@ async function serveAsset(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request, { ignoreSearch: true });
   if (cached) {
-    await touchAccessTime(request.url.split('?')[0]);
+    // Fire-and-forget, same as servePage above.
+    void touchAccessTime(request.url.split('?')[0]);
     return cached;
   }
 

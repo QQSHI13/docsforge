@@ -99,8 +99,12 @@
       .md-source { display: inline-flex; align-items: center; gap: 0.5rem; width: auto; }
       .md-source__repository { max-width: none; }
 
-      /* DocsForge: Fix sidebar height to prevent content overlapping footer */
-      @media screen and (min-width: 60em) {
+      /* DocsForge: cap the JS-sized sidebar rails so a tall nav can't run
+         under the footer. Scoped to the breakpoints where each rail exists
+         as a sidebar: both rails at screen+ (76.25em), only the TOC rail at
+         tablet landscape (the primary is a full-height drawer there, which
+         must not be capped). */
+      @media screen and (min-width: 76.25em) {
         .md-sidebar .md-sidebar__scrollwrap {
           /* 100vh is the *large* viewport on iOS/iPadOS (includes the browser
              chrome), so a tall sidebar's bottom ends up below the fold and gets
@@ -113,6 +117,12 @@
         .md-header--lifted ~ .md-container .md-sidebar .md-sidebar__scrollwrap {
           max-height: calc(100vh - 4.8rem);
           max-height: calc(100dvh - 4.8rem);
+        }
+      }
+      @media screen and (min-width: 60em) and (max-width: 76.1875em) {
+        .md-sidebar--secondary .md-sidebar__scrollwrap {
+          max-height: calc(100vh - 2.4rem);
+          max-height: calc(100dvh - 2.4rem);
         }
       }
     </style>
@@ -278,7 +288,7 @@
           },
           "search": "assets/javascripts/workers/search.min.js" | url,
           "search_index": search_index_url | default(none),
-          "locale": config.extra.i18n_current_locale | default(none),
+          "locale": i18n_current_locale | default(config.extra.i18n_current_locale | default(none)),
           "annotate": _.annotate or none,
           "tags": _.tags or none,
           "version": _.version or none
@@ -469,7 +479,7 @@
         // URL. We also mirror it to localStorage so the minified bundle can
         // read it synchronously when building instant-navigation URLs.
         (function() {
-          var pageLocale = {{ (config.extra.i18n_current_locale | default(config.theme.language, true)) | tojson }};
+          var pageLocale = {{ (i18n_current_locale | default(config.extra.i18n_current_locale) | default(config.theme.language, true)) | tojson }};
           var defaultLocale = {{ (config.extra.i18n_default_locale | default(config.theme.language, true)) | tojson }};
           var dbName = 'docsforge-i18n';
           var storeName = 'preferences';
@@ -648,9 +658,12 @@
           // refresh the manifest in the background so the next navigation uses the
           // latest deployed content. Hard reload (Ctrl+Shift+R) bypasses the SW for
           // the main document, so we rely on the Navigation Timing API here.
+          // Reloads only: a plain 'navigate' must not trigger a full manifest
+          // sync on every page view (that re-downloads the whole site each
+          // visit); back/forward uses the cached manifest.
           navigator.serviceWorker.ready.then(function(registration) {
             var nav = performance.getEntriesByType('navigation')[0];
-            if (nav && (nav.type === 'reload' || nav.type === 'navigate')) {
+            if (nav && nav.type === 'reload') {
               var controller = navigator.serviceWorker.controller;
               if (controller) {
                 controller.postMessage({ type: 'DOCSFORGE_RELOAD_DETECTED' });

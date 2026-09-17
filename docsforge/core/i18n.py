@@ -20,6 +20,7 @@ from docsforge.core.plugin_base import BasePlugin
 from docsforge.files import File, Files, InclusionLevel
 from docsforge.nav import Navigation
 from docsforge.pages import Page
+from docsforge.structure import mark_rendering_active
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
@@ -386,8 +387,10 @@ class I18nPlugin(BasePlugin[I18nConfig]):
         # NOTE: writing the locale onto the shared config races when pages
         # render in parallel — the caller must hold page_lock when invoking
         # this hook. The per-render value below (context) is authoritative;
-        # prefer context["i18n_current_locale"] where already set. The config
-        # value is kept for backward compatibility with templates that read
+        # templates read the page-context variable first and only fall back
+        # to config.extra (non-i18n sites and static templates, where no
+        # page hook runs). The config value is kept for backward
+        # compatibility with templates that read
         # config.extra.i18n_current_locale.
         config["extra"]["i18n_current_locale"] = locale
         context["i18n_current_locale"] = locale
@@ -404,10 +407,14 @@ class I18nPlugin(BasePlugin[I18nConfig]):
             # highlight the right item. Compare src_uri (not File identity):
             # fallback entries are distinct Pages sharing the default File
             # object, so `is` never matches them. Page.active propagates to
-            # Section.active via the parent chain.
+            # Section.active via the parent chain. Also registered for the
+            # thread-local render view: the counterpart is a different object
+            # from the rendering page, so without this the highlight would be
+            # lost under parallel builds.
             for nav_page in locale_nav.pages:
                 if nav_page.file.src_uri == page.file.src_uri:
                     nav_page.active = True
+                    mark_rendering_active(nav_page)
                     break
 
         # Expose the site base URL so the language switcher can rewrite its

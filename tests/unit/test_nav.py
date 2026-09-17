@@ -119,3 +119,80 @@ class TestDataToNavigationValidation:
         assert isinstance(section, Section)
         assert section.title == "Section"
         assert isinstance(section.children[0], Page)
+
+
+class TestRenderingActiveOverride:
+    """Thread-local render view for `active` (parallel-build isolation)."""
+
+    def _tree(self, nav_config, tmp_path):
+        from docsforge.files import File
+
+        fa = File("a.md", str(tmp_path), str(tmp_path / "site"), True)
+        fb = File("b.md", str(tmp_path), str(tmp_path / "site"), True)
+        pa = Page("A", fa, nav_config)
+        pb = Page("B", fb, nav_config)
+        sec = Section("S", [pa, pb])
+        pa.parent = sec
+        pb.parent = sec
+        return pa, pb, sec
+
+    def test_falls_back_to_stored_flags(self, nav_config, tmp_path):
+        pa, pb, sec = self._tree(nav_config, tmp_path)
+        pa.active = True
+        assert pa.active is True
+        assert pb.active is False
+        assert sec.active is True
+
+    def test_render_view_is_singular_despite_pollution(self, nav_config, tmp_path):
+        from docsforge.structure import restore_rendering_page, set_rendering_page
+
+        pa, pb, sec = self._tree(nav_config, tmp_path)
+        # Simulate two threads having set their pages (stored flags mixed).
+        pa.active = True
+        pb.active = True
+        prev_a = set_rendering_page(pa)
+        try:
+            assert pa.active is True
+            assert pb.active is False
+            assert sec.active is True
+            prev_b = set_rendering_page(pb)
+            try:
+                assert pa.active is False
+                assert pb.active is True
+                assert sec.active is True
+            finally:
+                restore_rendering_page(prev_b)
+            assert pa.active is True
+            assert pb.active is False
+        finally:
+            restore_rendering_page(prev_a)
+        # Restored: stored (polluted) flags visible again.
+        assert pa.active is True
+        assert pb.active is True
+
+    def test_marked_counterparts_read_active(self, nav_config, tmp_path):
+        from docsforge.files import File
+        from docsforge.structure import (
+            mark_rendering_active,
+            restore_rendering_page,
+            set_rendering_page,
+        )
+
+        pa, pb, _sec = self._tree(nav_config, tmp_path)
+        counterpart = Page("A-zh", File("a.zh.md", str(tmp_path), str(tmp_path / "site"), True), nav_config)
+        prev = set_rendering_page(pa)
+        try:
+            assert counterpart.active is False
+            mark_rendering_active(counterpart)
+            assert counterpart.active is True
+            # Unrelated pages stay inactive.
+            assert pb.active is False
+        finally:
+            restore_rendering_page(prev)
+
+    def test_mark_outside_render_is_noop(self, nav_config, tmp_path):
+        from docsforge.structure import mark_rendering_active
+
+        pa, _pb, _sec = self._tree(nav_config, tmp_path)
+        mark_rendering_active(pa)  # no render in progress: no effect, no crash
+        assert pa.active is False

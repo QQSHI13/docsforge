@@ -18,7 +18,7 @@ from markdown.util import AMP_SUBSTITUTE
 
 from docsforge import meta, utils
 from docsforge.rendering import get_heading_text
-from docsforge.structure import StructureItem
+from docsforge.structure import StructureItem, rendering_active
 from docsforge.toc import get_toc
 from docsforge.utils import get_build_date, get_markdown_title, weak_property
 
@@ -171,6 +171,9 @@ class Page(StructureItem):  # noqa: PLW1641 - see __eq__ below
     @property
     def active(self) -> bool:
         """When `True`, indicates that this page is the currently viewed page. Defaults to `False`."""
+        override = rendering_active(self)
+        if override is not None:
+            return override
         return self.__active
 
     @active.setter

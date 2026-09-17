@@ -9,7 +9,7 @@ from docsforge import nest_paths
 from docsforge.exceptions import BuildError
 from docsforge.files import file_sort_key
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
-from docsforge.structure import StructureItem
+from docsforge.structure import StructureItem, rendering_active
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
@@ -71,6 +71,9 @@ class Section(StructureItem):
         can be used to highlight the section as the currently viewed section. Defaults
         to `False`.
         """
+        override = rendering_active(self)
+        if override is not None:
+            return override
         return self.__active
 
     @active.setter

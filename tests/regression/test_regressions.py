@@ -61,7 +61,11 @@ def test_regression_11_1_4_changed_include_triggers_rebuild(tmp_path: Path):
     out.write_text("built")
     p.update_cache(src, out, deps=[str(inc)])
     assert p.should_rebuild(src, out) is False
-    inc.write_text("v2")
+    # Different length on purpose: the hasher keys metadata by (mtime, size),
+    # so a same-size rewrite landing in the same filesystem timestamp tick is
+    # indistinguishable from no change (flaky). The intent here is dep-change
+    # detection, not tick granularity.
+    inc.write_text("v2 with more content")
     assert p.should_rebuild(src, out) is True
 
 

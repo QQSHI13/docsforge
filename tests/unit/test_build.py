@@ -478,3 +478,79 @@ class TestRestoreMissingStaticOutputs:
         assert _restore_missing_static_outputs(files) == 0
         assert not (Path(cfg.site_dir) / ".icons" / "a.svg").exists()
         assert not (Path(cfg.site_dir) / "assets" / "images" / "social" / "card.png").exists()
+
+
+class TestParallelBuildActiveIsolation:
+    """Regression: concurrent page renders must not bake each other's nav
+    highlights into the output (merged nav items, overlapping sticky
+    section headers). A barrier inside the template render forces the
+    overlap deterministically: without per-thread active isolation both
+    renders observe both pages active."""
+
+    def test_concurrent_renders_observe_singular_active(self, tmp_path, monkeypatch):
+        from docsforge.files import Files
+        from docsforge.nav import Section
+
+        cfg = _load_config(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        # Plugins initialize shared state in on_config (as _prepare_build
+        # runs it); without this, hooks fail for reasons unrelated to the
+        # active-flag isolation under test.
+        cfg = cfg.plugins.on_config(cfg)
+        # The blog plugin needs its on_files phase (entrypoint resolution)
+        # before its page hooks run; that phase is out of scope here, so the
+        # plugin is disabled — the test targets _build_page's active-flag
+        # isolation, not blog rendering.
+        cfg.plugins["material/blog"].config.enabled = False
+        for name in ("a.md", "b.md"):
+            (tmp_path / "docs" / name).write_text(f"# {name}\n")
+
+        files = []
+        pages = []
+        for name in ("a.md", "b.md"):
+            file = File(name, cfg.docs_dir, cfg.site_dir, cfg.use_directory_urls)
+            files.append(file)
+            page = Page(None, file, cfg)
+            page.markdown = f"# {name}\n"
+            page.content = f"<h1>{name}</h1>"
+            page.meta = {}
+            page.toc = []
+            pages.append(page)
+        pa, pb = pages
+        sec = Section("S", pages)
+        pa.parent = sec
+        pb.parent = sec
+        doc_files = Files(files)
+
+        barrier = threading.Barrier(2)
+        seen: dict[str, tuple[bool, bool, bool]] = {}
+
+        def fake_render(context):
+            barrier.wait(timeout=30)
+            page = context["page"]
+            seen[page.file.src_uri] = (pa.active, pb.active, sec.active)
+            return "<p>ok</p>"
+
+        template = Mock()
+        template.render = Mock(side_effect=fake_render)
+        env = Mock()
+        env.get_template = Mock(return_value=template)
+
+        lock = threading.RLock()
+        threads = [
+            threading.Thread(
+                target=_build_page,
+                args=(page, cfg, doc_files, Mock(), env, True, False, lock),
+            )
+            for page in pages
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=60)
+            assert not t.is_alive()
+
+        assert seen == {
+            "a.md": (True, False, True),
+            "b.md": (False, True, True),
+        }

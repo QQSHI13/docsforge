@@ -30,6 +30,7 @@ from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusio
 from docsforge.git_info import get_git_page_info
 from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
+from docsforge.structure import restore_rendering_page, set_rendering_page
 
 if TYPE_CHECKING:
     import jinja2
@@ -343,9 +344,18 @@ def _build_page(
     cannot observe or clear another page. ``env.get_template`` is
     thread-safe and ``template.render``/``write_file`` are thread-local,
     so they run outside the lock for real concurrency.
+
+    Template ``active`` reads are isolated per thread instead: the render
+    marker (``structure.set_rendering_page``) makes ``active`` report only
+    this page and its ancestors, so concurrent renders never bake each
+    other's highlights into the output.
     """
     lock = _page_lock or _default_page_lock  # Always have a lock
 
+    # Thread-local render marker (see structure.set_rendering_page): parallel
+    # builds share one nav tree, so `active` reads during this render must
+    # reflect only this page — never a sibling rendering concurrently.
+    prev_rendering = set_rendering_page(page)
     try:
         with lock:
             page.active = True
@@ -403,6 +413,7 @@ def _build_page(
             page.active = False
             if config._current_page is page:
                 config._current_page = None
+        restore_rendering_page(prev_rendering)
 
 
 def _prepare_build(

@@ -8,6 +8,7 @@ docsforge/templates/.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import io
 import json
 import logging
@@ -32,6 +33,96 @@ TWEMOJI_TARBALL_URL = (
 )
 TWEMOJI_SRC = SRC / "templates" / "assets" / "emoji" / "twemoji"
 TWEMOJI_LICENSES = ["LICENSE", "LICENSE-GRAPHICS"]
+
+# Frontend dependencies whose installed versions must satisfy package.json.
+# Checked by check_dependencies() before anything is built: building with
+# drifted node_modules silently produces wrong output (older icon artwork,
+# older mermaid/wasm bundles) and can even destroy newer vendored sources
+# during --refresh-icons.
+
+
+def _parse_version(text: str) -> tuple[int, ...]:
+    """Parse `1.44.0` (or `1.44.0-beta.1`, `1.44`) into an int tuple."""
+    core = text.strip().lstrip("v").split("-", 1)[0].split("+", 1)[0]
+    parts = core.split(".")
+    try:
+        return tuple(int(p) for p in parts)
+    except ValueError as e:
+        raise ValueError(f"unparseable version: {text!r}") from e
+
+
+def _pad(version: tuple[int, ...], length: int = 3) -> tuple[int, ...]:
+    return version + (0,) * max(0, length - len(version))
+
+
+def satisfies_range(installed: str, spec: str) -> bool:
+    """Check an installed version against an npm range (`^`, `~`, `>=`, exact).
+
+    Unknown operators return False so the caller reports them instead of
+    silently trusting an unchecked dependency.
+    """
+    spec = spec.strip()
+    inst = _pad(_parse_version(installed))
+    if spec.startswith("^"):
+        base = _pad(_parse_version(spec[1:]))
+        if inst < base:
+            return False
+        if base[0] != 0:
+            return inst[0] == base[0]
+        if base[1] != 0:
+            return inst[:2] == base[:2]
+        return inst == base
+    if spec.startswith("~"):
+        base = _pad(_parse_version(spec[1:]))
+        return inst >= base and inst[:2] == base[:2]
+    if spec.startswith(">="):
+        return inst >= _pad(_parse_version(spec[2:]))
+    if spec.startswith("="):
+        return inst == _pad(_parse_version(spec[1:]))
+    if spec[0].isdigit():
+        return inst == _pad(_parse_version(spec))
+    return False
+
+
+def check_dependencies() -> None:
+    """Fail fast when node_modules does not satisfy package.json.
+
+    Every dependency (including icon sets and vendored bundles) feeds
+    byte-identical build output, so drift must be a loud error telling the
+    user to run `pnpm install` — never a silent downgrade of the output.
+    """
+    try:
+        wanted = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    except OSError as e:
+        raise SystemExit(f"build_frontend: cannot read package.json: {e}") from e
+    specs = {**wanted.get("dependencies", {}), **wanted.get("devDependencies", {})}
+    problems: list[str] = []
+    for name in sorted(specs):
+        installed_pkg = NODE_MODULES / name / "package.json"
+        try:
+            installed = json.loads(installed_pkg.read_text(encoding="utf-8")).get("version", "")
+        except OSError:
+            problems.append(f"{name}: not installed (wanted {specs[name]})")
+            continue
+        except ValueError:
+            problems.append(f"{name}: installed package.json is unreadable")
+            continue
+        try:
+            ok = satisfies_range(installed, specs[name])
+        except ValueError:
+            problems.append(f"{name}: cannot parse version {installed!r} or range {specs[name]!r}")
+            continue
+        if not ok:
+            problems.append(f"{name}: installed {installed}, wanted {specs[name]}")
+    if problems:
+        detail = "\n  ".join(problems)
+        raise SystemExit(
+            "build_frontend: node_modules does not satisfy package.json:\n"
+            f"  {detail}\n"
+            "Run `pnpm install` (frozen lockfile, committed) and retry. "
+            "Building with drifted dependencies produces wrong output."
+        )
+    log.info("Dependencies satisfy package.json (%d packages)", len(specs))
 
 
 def _bin_path(pkg_dir: Path, name: str) -> Path | None:
@@ -210,22 +301,26 @@ def minify_html_file(src: Path, dst: Path) -> None:
     tmp = ROOT / ".tmp" / "html" / dst.relative_to(OUT)
     tmp.parent.mkdir(parents=True, exist_ok=True)
     tmp.write_text(content, encoding="utf-8")
-    run([
-        str(find_binary("html-minifier-terser")),
-        "--case-sensitive",
-        "--collapse-boolean-attributes",
-        "--no-include-auto-generated-tags",
-        "--minify-css",
-        "--minify-js",
-        "--remove-comments",
-        "--remove-script-type-attributes",
-        "--remove-style-link-type-attributes",
-        "--collapse-whitespace",
-        "--conservative-collapse",
-        "--preserve-line-breaks",
-        "--output", str(dst),
-        str(tmp),
-    ])
+    try:
+        run([
+            str(find_binary("html-minifier-terser")),
+            "--case-sensitive",
+            "--collapse-boolean-attributes",
+            "--no-include-auto-generated-tags",
+            "--minify-css",
+            "--minify-js",
+            "--remove-comments",
+            "--remove-script-type-attributes",
+            "--remove-style-link-type-attributes",
+            "--collapse-whitespace",
+            "--conservative-collapse",
+            "--preserve-line-breaks",
+            "--output", str(dst),
+            str(tmp),
+        ])
+    except subprocess.CalledProcessError as e:
+        log.error("HTML minification failed for %s (exit %s)", src, e.returncode)
+        raise
 
 
 def copy_templates() -> None:
@@ -256,8 +351,55 @@ def copy_templates() -> None:
         shutil.copy2(src, dst)
 
 
+def _sync_tree(src: Path, dst: Path, label: str) -> None:
+    """Mirror `src` into `dst`: copy new/changed files, prune deleted ones.
+
+    Change detection is size + mtime-ns (the same cheap rule the engine's
+    incremental builds use). Unlike a blind copytree, deletions propagate,
+    so renamed upstream icons or removed twemoji files cannot linger in the
+    output forever.
+    """
+    copied = pruned = skipped = 0
+    dst.mkdir(parents=True, exist_ok=True)
+    want: set[Path] = set()
+    for s in src.rglob("*"):
+        if not s.is_file():
+            continue
+        rel = s.relative_to(src)
+        want.add(rel)
+        d = dst / rel
+        if d.is_file():
+            s_stat, d_stat = s.stat(), d.stat()
+            if (
+                s_stat.st_size == d_stat.st_size
+                and s_stat.st_mtime_ns == d_stat.st_mtime_ns
+            ):
+                skipped += 1
+                continue
+        d.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(s, d)
+        copied += 1
+    for d in dst.rglob("*"):
+        if d.is_file() and d.relative_to(dst) not in want:
+            d.unlink()
+            pruned += 1
+    # Drop directories left empty by pruning (deepest first).
+    for d in sorted((p for p in dst.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
+        with contextlib.suppress(OSError):
+            d.rmdir()
+    log.info("%s: %d copied, %d pruned, %d unchanged", label, copied, pruned, skipped)
+
+
 def copy_icons() -> None:
-    """Copy optimized icons from node_modules into source tree."""
+    """Refresh vendored icon sources from node_modules (DESTRUCTIVE).
+
+    Overwrites `src/templates/.icons/*` with the installed packages'
+    artwork. Only run via `--refresh-icons` after `pnpm install`/`pnpm
+    update` (check_dependencies() guarantees the versions first); the
+    normal build never calls this and treats `src/` as canonical. Review
+    the resulting `git status` before committing: upstream renames show up
+    as delete+add pairs.
+    """
     icon_sets = [
         ("node_modules/@mdi/svg/svg", "src/templates/.icons/material"),
         ("node_modules/@primer/octicons/build/svg", "src/templates/.icons/octicons"),
@@ -271,6 +413,7 @@ def copy_icons() -> None:
         if not src.exists():
             log.warning("Icon source missing: %s", src)
             continue
+        before = {p.relative_to(dst) for p in dst.rglob("*.svg")} if dst.exists() else set()
         if dst.exists():
             shutil.rmtree(dst)
         dst.mkdir(parents=True, exist_ok=True)
@@ -283,6 +426,11 @@ def copy_icons() -> None:
             "--quiet",
             "--config", str(ROOT / "svgo.config.js"),
         ])
+        after = {p.relative_to(dst) for p in dst.rglob("*.svg")}
+        log.info(
+            "Icons %s: +%d ~%d -%d",
+            dst.name, len(after - before), len(after & before), len(before - after),
+        )
     # Copy the upstream license files alongside each optimized icon set so the
     # vendored attribution ships with the build (svgo only emits .svg files).
     extra_licenses = [
@@ -307,8 +455,7 @@ def copy_icons_to_out() -> None:
     if not src.exists():
         log.warning("Icon source does not exist: %s", src)
         return
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src, dst, dirs_exist_ok=True)
+    _sync_tree(src, dst, "Icons")
 
 
 def fetch_twemoji() -> None:
@@ -345,6 +492,12 @@ def fetch_twemoji() -> None:
                     (TWEMOJI_SRC / Path(name).name).write_bytes(f.read())
 
     log.info("Wrote %d SVGs + licenses to %s", count, TWEMOJI_SRC)
+    if count == 0:
+        raise SystemExit(
+            f"build_frontend: twemoji fetch yielded 0 SVGs from {TWEMOJI_TAG} "
+            "(tarball layout may have changed) — source tree left with an "
+            "empty set, aborting before anything consumes it."
+        )
 
 
 def copy_twemoji() -> None:
@@ -359,8 +512,7 @@ def copy_twemoji() -> None:
     if not src.exists():
         log.warning("Twemoji source does not exist: %s", src)
         return
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src, dst, dirs_exist_ok=True)
+    _sync_tree(src, dst, "Twemoji")
 
 
 def copy_marz_wasm() -> None:
@@ -450,6 +602,7 @@ def generate_pygments_css() -> None:
     """
     dst = OUT / "assets" / "stylesheets" / "pygments.css"
     try:
+        import pygments
         from pygments.formatters import HtmlFormatter
     except ImportError:
         log.warning("pygments not installed; leaving pygments.css unchanged")
@@ -457,7 +610,7 @@ def generate_pygments_css() -> None:
     css = HtmlFormatter(style="default").get_style_defs(".highlight")
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(css)
-    log.info("Regenerated pygments.css (%d bytes)", len(css))
+    log.info("Regenerated pygments.css (%d bytes, pygments %s)", len(css), getattr(pygments, "__version__", "?"))
 
 
 def copy_sw() -> None:
@@ -504,7 +657,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Fetch the pinned twemoji SVG set into src/ and exit",
     )
     parser.add_argument("--skip-templates", action="store_true", help="Skip template copy/minify")
-    parser.add_argument("--skip-icons", action="store_true", help="Skip icon copy/optimize")
+    parser.add_argument("--skip-icons", action="store_true", help="Skip icon sync to output")
+    parser.add_argument(
+        "--refresh-icons",
+        action="store_true",
+        help="Refresh vendored icon sources in src/ from node_modules (DESTRUCTIVE: "
+        "overwrites src/templates/.icons). Run only after `pnpm install`/`pnpm update`, "
+        "then review `git status` before committing. The normal build never touches src/.",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
 
@@ -525,9 +685,14 @@ def main(argv: list[str] | None = None) -> int:
         log.error("Source tree missing: %s", SRC)
         return 1
 
+    # Fail fast on drifted dependencies (silently building with the wrong
+    # icon artwork or bundle versions is how output gets corrupted).
+    check_dependencies()
+
     # Build steps
-    if not args.skip_icons:
+    if args.refresh_icons:
         copy_icons()
+    if not args.skip_icons:
         copy_icons_to_out()
     if not args.skip_templates:
         copy_templates()
