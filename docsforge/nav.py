@@ -214,14 +214,30 @@ def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
 _EXPLICIT_NAV_KEYS = frozenset({"title", "path", "children", "i18n"})
 
 
+_ROMAN_NUMERAL_RE = (
+    r"M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})"
+)
+
+
 def _humanize_section_name(name: str) -> str:
     """Humanize a directory name for auto-generated nav sections.
 
     Mirrors the filename fallback in `Page.title` so section labels read
-    like page titles.
+    like page titles, with one deliberate deviation: standalone Roman
+    numerals (`part-i` → "Part I", not "Part i"), which directory naming
+    uses heavily and plain `capitalize()` mangles.
     """
+    import re
+
     words = name.replace("-", " ").replace("_", " ")
-    return words.capitalize() if words.lower() == words else words
+    if words.lower() == words:
+        words = words.capitalize()
+    return " ".join(
+        w.upper()
+        if w and re.fullmatch(_ROMAN_NUMERAL_RE, w, re.IGNORECASE)
+        else w
+        for w in words.split(" ")
+    )
 
 
 def _auto_nav_entries(src_uris) -> list:

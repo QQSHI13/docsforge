@@ -6,6 +6,14 @@
   Marz index terms, which are stemmed (`docsforge` → `docsforg`), marking
   partial words. They now highlight the matched query terms, the same
   mechanism as `?h=` highlighting.
+- **Demo tag index renders again** — `tags.md` used a
+  `docsforge/themes/material/tags` directive the tags plugin never matches
+  (`listings_directive` is `material/tags`), so the page showed only stale
+  handwritten sections. It now uses the real directive and drops the manual
+  sections the generated listing supersedes.
+- **Auto-nav uppercases Roman numerals** — directory sections like `part-i`
+  rendered as "Part i". Standalone Roman-numeral words now render uppercase
+  ("Part I" … "Part V").
 - **Auto-generated nav uses real titles** — without a `nav:` key, pages
   became empty sections labeled with raw filenames (`my-page.md`) plus
   shorthand deprecation warnings. Auto-nav now emits explicit entries so

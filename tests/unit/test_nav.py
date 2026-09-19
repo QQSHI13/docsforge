@@ -212,6 +212,9 @@ class TestAutoNav:
 
         assert _humanize_section_name("getting-started") == "Getting started"
         assert _humanize_section_name("API") == "API"
+        assert _humanize_section_name("part-i") == "Part I"
+        assert _humanize_section_name("part-iv") == "Part IV"
+        assert _humanize_section_name("shannon-paper") == "Shannon paper"
         entries = _auto_nav_entries(["guide/intro.md", "guide/setup.md"])
         assert entries == [
             {"title": "Guide", "children": [
