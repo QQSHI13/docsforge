@@ -6,6 +6,12 @@
   Marz index terms, which are stemmed (`docsforge` → `docsforg`), marking
   partial words. They now highlight the matched query terms, the same
   mechanism as `?h=` highlighting.
+- **Auto-generated nav uses real titles** — without a `nav:` key, pages
+  became empty sections labeled with raw filenames (`my-page.md`) plus
+  shorthand deprecation warnings. Auto-nav now emits explicit entries so
+  page titles resolve frontmatter → H1 → filename, and directories become
+  sections with humanized names. The demo site drops its explicit nav and
+  exercises this path.
 - **Studio update flow leads with information** — when engine and extension
   updates are both available, one dialog shows both versions up front with
   per-channel release notes before any pick; the method pick then executes

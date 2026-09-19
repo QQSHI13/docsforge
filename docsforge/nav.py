@@ -5,7 +5,6 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, TypeVar
 from urllib.parse import urlsplit
 
-from docsforge import nest_paths
 from docsforge.exceptions import BuildError
 from docsforge.files import file_sort_key
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
@@ -148,7 +147,9 @@ def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
     nav_config = config["nav"]
     if nav_config is None:
         documentation_pages = sorted(documentation_pages, key=file_sort_key)
-        nav_config = nest_paths(f.src_uri for f in documentation_pages if f.inclusion.is_in_nav())
+        nav_config = _auto_nav_entries(
+            f.src_uri for f in documentation_pages if f.inclusion.is_in_nav()
+        )
     items = _data_to_navigation(nav_config, files, config)
     if not isinstance(items, list):
         items = [items]
@@ -211,6 +212,51 @@ def get_navigation(files: Files, config: DocsForgeConfig) -> Navigation:
 # Reserved keys for the explicit nav entry format. Any other dict key is
 # treated as the old shorthand `"Title": "path"` format.
 _EXPLICIT_NAV_KEYS = frozenset({"title", "path", "children", "i18n"})
+
+
+def _humanize_section_name(name: str) -> str:
+    """Humanize a directory name for auto-generated nav sections.
+
+    Mirrors the filename fallback in `Page.title` so section labels read
+    like page titles.
+    """
+    words = name.replace("-", " ").replace("_", " ")
+    return words.capitalize() if words.lower() == words else words
+
+
+def _auto_nav_entries(src_uris) -> list:
+    """Build explicit-format nav entries from file paths.
+
+    Used when `nav:` is absent. Files become `{"path": ...}` entries with
+    no title, so `Page.title` resolves frontmatter → H1 → filename lazily
+    (no source reads at nav-build time). Directories become sections with
+    humanized names. Emitting explicit format avoids the shorthand branch,
+    which would label everything with raw filenames, create empty sections
+    for files, and spam deprecation warnings.
+    """
+    tree: dict = {}
+    # Input arrives in file_sort_key order (index first, directories last)
+    # from get_navigation — preserve it instead of re-sorting.
+    for uri in src_uris:
+        node = tree
+        parts = uri.split("/")
+        for part in parts[:-1]:
+            node = node.setdefault(part, {})
+        node[parts[-1]] = None  # leaf marker: files always terminate a path
+
+    def build(node: dict, prefix: str) -> list:
+        entries = []
+        for name, child in node.items():
+            if child is None:
+                entries.append({"path": f"{prefix}{name}"})
+            else:
+                entries.append({
+                    "title": _humanize_section_name(name),
+                    "children": build(child, f"{prefix}{name}/"),
+                })
+        return entries
+
+    return build(tree, "")
 
 
 def _is_explicit_nav_entry(item: dict) -> bool:

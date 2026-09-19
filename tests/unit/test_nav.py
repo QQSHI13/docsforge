@@ -196,3 +196,67 @@ class TestRenderingActiveOverride:
         pa, _pb, _sec = self._tree(nav_config, tmp_path)
         mark_rendering_active(pa)  # no render in progress: no effect, no crash
         assert pa.active is False
+
+
+class TestAutoNav:
+    def test_entries_use_explicit_format(self):
+        from docsforge.nav import _auto_nav_entries
+
+        assert _auto_nav_entries(["index.md", "my-page.md"]) == [
+            {"path": "index.md"},
+            {"path": "my-page.md"},
+        ]
+
+    def test_directories_become_humanized_sections(self):
+        from docsforge.nav import _auto_nav_entries, _humanize_section_name
+
+        assert _humanize_section_name("getting-started") == "Getting started"
+        assert _humanize_section_name("API") == "API"
+        entries = _auto_nav_entries(["guide/intro.md", "guide/setup.md"])
+        assert entries == [
+            {"title": "Guide", "children": [
+                {"path": "guide/intro.md"},
+                {"path": "guide/setup.md"},
+            ]},
+        ]
+
+    def test_auto_nav_creates_pages_with_resolved_titles(
+        self, nav_config, tmp_path, caplog,
+    ):
+        import logging
+
+        from docsforge.files import get_files
+        from docsforge.nav import Page, Section, get_navigation
+
+        (tmp_path / "docs" / "guide").mkdir()
+        (tmp_path / "docs" / "my-page.md").write_text(
+            "---\ntitle: Custom Title\n---\n\n# Ignored Heading\n"
+        )
+        (tmp_path / "docs" / "guide" / "intro.md").write_text("# Intro Heading\n")
+        (tmp_path / "docs" / "plain.md").write_text("no heading here\n")
+
+        with caplog.at_level(logging.WARNING, logger="docsforge.nav"):
+            nav = get_navigation(get_files(nav_config), nav_config)
+        assert not any("shorthand" in r.message for r in caplog.records)
+
+        by_url = {}
+
+        def walk(items):
+            for item in items:
+                if isinstance(item, Page):
+                    item.read_source(nav_config)
+                    by_url[item.file.src_uri] = item.title
+                elif isinstance(item, Section):
+                    walk(item.children)
+                else:
+                    raise AssertionError(f"auto nav produced {type(item).__name__}")
+
+        walk(nav.items)
+        assert by_url["my-page.md"] == "Custom Title"
+        assert by_url["guide/intro.md"] == "Intro Heading"
+        assert by_url["plain.md"] == "Plain"
+        assert by_url["index.md"] == "Home"
+        guide = next(
+            i for i in nav.items if isinstance(i, Section) and i.title == "Guide"
+        )
+        assert [c.file.src_uri for c in guide.children] == ["guide/intro.md"]
