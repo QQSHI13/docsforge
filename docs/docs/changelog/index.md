@@ -2,6 +2,10 @@
 
 ### Fixed
 
+- **Search results highlight full query words** — result snippets used raw
+  Marz index terms, which are stemmed (`docsforge` → `docsforg`), marking
+  partial words. They now highlight the matched query terms, the same
+  mechanism as `?h=` highlighting.
 - **Studio update flow leads with information** — when engine and extension
   updates are both available, one dialog shows both versions up front with
   per-channel release notes before any pick; the method pick then executes

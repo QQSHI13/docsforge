@@ -205,6 +205,11 @@ export class Search {
           const matched = Object.keys(matches)
           const terms = getSearchQueryTerms(clauses, matched)
 
+          /* Highlight with the matched query terms — the same mechanism as
+             ?h= highlighting. Never raw index terms: marz stems them
+             ("docsforge" → "docsforg"), which would mark partial words. */
+          const highlightTerms = Object.keys(terms).filter(term => terms[term])
+
           /* Highlight matches in fields */
           const values = doc as unknown as Record<string, unknown>
           for (const field of this.fields) {
@@ -216,11 +221,11 @@ export class Search {
             if (Array.isArray(value))
               values[field] = value.map(entry => (
                 typeof entry === "string"
-                  ? highlightMatches(entry, matched)
+                  ? highlightMatches(entry, highlightTerms)
                   : entry
               ))
             else if (typeof value === "string")
-              values[field] = highlightMatches(value, matched)
+              values[field] = highlightMatches(value, highlightTerms)
           }
 
           /* Highlight title and text and apply post-query boosts */
