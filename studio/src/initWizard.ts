@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import { findConfig } from './pure';
+import { currentProjectRoot } from './roots';
 import { DocsForgeLogPanel } from './logPanel';
 import { detectEnvironment, ensureDocsforge } from './environment';
 
@@ -45,13 +46,11 @@ export class InitWizard {
    *  `docsforge init` flow. Accepts a ServerManager so the user can
    *  immediately start the server after creation. */
   static async run(_serverManager?: unknown) {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
+    const workspaceRoot = currentProjectRoot();
+    if (!workspaceRoot) {
       vscode.window.showErrorMessage('DocsForge: open a workspace folder first.');
       return;
     }
-
-    const workspaceRoot = workspaceFolder.uri.fsPath;
 
     const existingConfig = findConfig(workspaceRoot);
     if (existingConfig) {

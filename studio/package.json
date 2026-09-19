@@ -33,6 +33,7 @@
     "onCommand:docsforge.renameAnchor",
     "onCommand:docsforge.refreshDiagnostics",
     "onCommand:docsforge.openLinkTarget",
+    "onCommand:docsforge.pickLinkFix",
     "onCommand:docsforge.openPage",
     "onCommand:docsforge.checkForUpdates",
     "onCommand:docsforge.refreshSidebar",
@@ -126,6 +127,12 @@
       {
         "command": "docsforge.openLinkTarget",
         "title": "Open Link Target",
+        "icon": "$(link)",
+        "category": "DocsForge"
+      },
+      {
+        "command": "docsforge.pickLinkFix",
+        "title": "Pick Link Target (Quick Fix)",
         "icon": "$(link)",
         "category": "DocsForge"
       },

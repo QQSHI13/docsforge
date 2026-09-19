@@ -199,7 +199,7 @@ def check(fix):
 
 @docsforge.command()
 @click.option("--lan", is_flag=True, help="Serve on all interfaces (0.0.0.0) instead of localhost")
-@click.option("--no-open", is_flag=True, help="Do not open a browser tab automatically")
+@click.option("--no-open", "-n", is_flag=True, help="Do not open a browser tab automatically")
 @click.option("--strict", is_flag=True, help="Treat warnings as errors during rebuilds")
 def serve(lan, no_open, strict):
     """Serve the docs locally with live reload."""

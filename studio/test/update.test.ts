@@ -3,6 +3,7 @@ import {
   compareVersions,
   isPrereleaseVersion,
   normalizeVersion,
+  buildDismissedKey,
   parseDocsforgeVersion,
   parseVersion,
   pickLatestVersion,
@@ -79,5 +80,16 @@ describe('update version helpers', () => {
     assert.deepStrictEqual(pipFlagPrefix('system', true), ['--break-system-packages']);
     assert.deepStrictEqual(pipFlagPrefix('editable', true), ['--break-system-packages']);
     assert.deepStrictEqual(pipFlagPrefix('missing', false), []);
+  });
+
+  it('keys dismissals at per-channel freshness', () => {
+    const fresh = buildDismissedKey({ latest: '13.0.1', stale: false }, null);
+    const cached = buildDismissedKey({ latest: '13.0.1', stale: true }, null);
+    assert.notStrictEqual(fresh, cached);
+    assert.strictEqual(
+      buildDismissedKey({ latest: '13.0.1', stale: false }, { latest: '13.0.1', stale: true }),
+      'engine:13.0.1:fresh,extension:13.0.1:cached',
+    );
+    assert.strictEqual(buildDismissedKey(null, null), '');
   });
 });

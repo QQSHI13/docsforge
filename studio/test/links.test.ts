@@ -5,6 +5,8 @@ import * as path from 'path';
 
 import {
   extractLinks,
+  extractLinksRaw,
+  maskCode,
   extractHeadings,
   splitAnchor,
   resolveLinkTarget,
@@ -511,6 +513,27 @@ describe('review fixes', () => {
     assert.strictEqual(toRelativeDisplay('other/y.md', 'guide', false), '../other/y.md');
   });
 
+  it('masks fenced and inline code, preserving offsets', () => {
+    const src = 'See [a](a.md).\n\n```\n[x](nope.md) `[^y]`\n```\n\nUse `[^z]` here.\n';
+    const masked = maskCode(src);
+    assert.strictEqual(masked.length, src.length);
+    assert.strictEqual(masked.split('\n').length, src.split('\n').length);
+    // Raw scan still sees everything (documents what masking removes).
+    assert.strictEqual(extractLinksRaw(src).length, 2);
+    assert.deepStrictEqual(
+      extractLinks(src).map((l) => l.dest),
+      ['a.md'],
+    );
+    assert.deepStrictEqual(
+      checkFootnotes(src).map((w) => w.kind),
+      [],
+    );
+    assert.deepStrictEqual(
+      checkFootnotes('Text[^a] and [^b].\n\n[^a]: defined\n').map((w) => w.kind),
+      ['unresolved'],
+    );
+  });
+
   it('rejects escaping doc paths', () => {
     assert.strictEqual(docAbsPathSafe('/w', 'docs', '../evil.md'), null);
     assert.ok(docAbsPathSafe('/w', 'docs', 'a.md')?.endsWith(path.join('docs', 'a.md')));
@@ -538,8 +561,7 @@ describe('review fixes', () => {
   });
 });
 
-describe('computeFolderRename', () => {
-  let tmp: string;
+describe('computeFolderRename', () => {  let tmp: string;
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-vscode-'));
     fs.mkdirSync(path.join(tmp, 'docs', 'guide'), { recursive: true });

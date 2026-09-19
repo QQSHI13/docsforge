@@ -18,6 +18,7 @@ import {
   severityForLevel,
   linkFromWarning,
   linesOfLink,
+  inFencedCode,
   docsDirFromConfig,
   checkFootnotes,
   collectFootnoteWarnings,
@@ -144,8 +145,18 @@ export class DocsForgeDiagnostics {
           }
           // A broken link may appear multiple times (e.g. the same anchor in
           // several rows of a table) — squiggle at every occurrence.
-          const lines = linesOfLink(sourceText, dest);
-          const targets = lines.length ? lines : [0];
+          // Occurrences inside fenced code are documentation examples, not
+          // real links: skip them (and the warning) entirely. The legacy
+          // line-0 fallback stays for warnings whose dest matches no text
+          // at all.
+          const lineTexts = sourceText.split('\n');
+          const rawHits = linesOfLink(sourceText, dest);
+          const targets = rawHits.length
+            ? rawHits.filter((ln) => !inFencedCode(lineTexts, ln))
+            : [0];
+          if (!targets.length) {
+            continue;
+          }
           for (const line of targets) {
             const range = new vscode.Range(line, 0, line, 1000);
             const diag = new vscode.Diagnostic(

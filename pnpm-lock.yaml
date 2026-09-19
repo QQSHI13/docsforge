@@ -21,8 +21,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       marz-search:
-        specifier: ^0.2.2
-        version: 0.2.2
+        specifier: ^0.3.0
+        version: 0.3.0
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -1103,8 +1103,8 @@ packages:
     engines: {node: '>= 20'}
     hasBin: true
 
-  marz-search@0.2.2:
-    resolution: {integrity: sha512-hPmB+YUoceTdj2L9m3JR/Hd8lciF3SmnE/tYb48CBsnWSpYedn1RD1HGbnKBKhWDFfukAmUAg3sl9GwyAdrLag==}
+  marz-search@0.3.0:
+    resolution: {integrity: sha512-TJTieZDt9xVEID1eElLR3Pnc0SPjQeReVBHEyyngkHLDcfYuP7Pj1FYu7Kn3C9mLIXbMYe1n24eX6v1D4FDqRQ==}
 
   material-design-color@2.3.2:
     resolution: {integrity: sha512-bO7HznYkLqTcm/+Fm4ZR3mCh80cAiNpE8gLBdwaD1qZmllZ8Ez5+iH0kY46amcINX6JmORxuikGsRTk38ZAyag==}
@@ -2300,7 +2300,7 @@ snapshots:
 
   marked@16.4.2: {}
 
-  marz-search@0.2.2: {}
+  marz-search@0.3.0: {}
 
   material-design-color@2.3.2: {}
 

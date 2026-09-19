@@ -152,17 +152,17 @@ export async function resolvePython(workspaceRoot: string): Promise<string | nul
     .get<string>('pythonPath', 'python')
     .trim();
   if (configured && configured !== 'python') {
-    return (await runOk(configured, ['--version'])) ? configured : null;
+    return (await validateInterpreter(configured)) ? configured : null;
   }
 
   const remembered = vscode.workspace.getConfiguration('docsforge')
     .get<string>('rememberedPython', '');
-  if (remembered && fs.existsSync(remembered)) {
+  if (remembered && await validateInterpreter(remembered)) {
     return remembered;
   }
 
   const venv = venvPythonPath(workspaceRoot);
-  if (venv && fs.existsSync(venv)) {
+  if (venv && (await validateInterpreter(venv))) {
     return venv;
   }
 
@@ -172,6 +172,16 @@ export async function resolvePython(workspaceRoot: string): Promise<string | nul
     }
   }
   return null;
+}
+
+/** Whether `python` exists and runs (`--version` exit 0). Used for absolute
+ *  paths (settings, remembered venvs, project venvs) so a broken explicit
+ *  interpreter is never trusted on existence alone. */
+async function validateInterpreter(python: string): Promise<boolean> {
+  if (!fs.existsSync(python)) {
+    return false;
+  }
+  return runOk(python, ['--version']);
 }
 
 /** Probe one interpreter for python + docsforge. */
@@ -201,6 +211,10 @@ export async function probePython(python: string): Promise<EnvironmentState> {
   };
 }
 
+/** Interpreters already warned about this session (explicit `pythonPath`
+ *  that fails `--version`): warn once, then silently fall through. */
+const warnedBadPython = new Set<string>();
+
 /** Every viable interpreter, best first: explicit setting, remembered venv,
  *  project .venv, then PATH candidates that respond to `--version`. */
 async function candidatePythons(workspaceRoot: string): Promise<string[]> {
@@ -214,16 +228,34 @@ async function candidatePythons(workspaceRoot: string): Promise<string[]> {
     .getConfiguration('docsforge')
     .get<string>('pythonPath', 'python')
     .trim();
-  if (configured && configured !== 'python' && await runOk(configured, ['--version'])) {
-    push(configured);
+  if (configured && configured !== 'python') {
+    if (await validateInterpreter(configured)) {
+      push(configured);
+    } else if (!warnedBadPython.has(configured)) {
+      warnedBadPython.add(configured);
+      void (async () => {
+        try {
+          const action = await vscode.window.showWarningMessage(
+            `DocsForge: "docsforge.pythonPath" points at ${configured}, which failed to run. ` +
+              'Falling back to other interpreters; fix the setting to use it.',
+            'Open Settings',
+          );
+          if (action === 'Open Settings') {
+            await vscode.commands.executeCommand('workbench.action.openSettings', 'docsforge.pythonPath');
+          }
+        } catch {
+          /* notification plumbing must never reject */
+        }
+      })();
+    }
   }
   const remembered = vscode.workspace.getConfiguration('docsforge')
     .get<string>('rememberedPython', '');
-  if (remembered && fs.existsSync(remembered)) {
+  if (remembered && (await validateInterpreter(remembered))) {
     push(remembered);
   }
   const venv = venvPythonPath(workspaceRoot);
-  if (venv && fs.existsSync(venv)) {
+  if (venv && (await validateInterpreter(venv))) {
     push(venv);
   }
   for (const cand of CANDIDATES) {
@@ -274,11 +306,14 @@ async function rememberPython(python: string): Promise<void> {
 }
 
 /** Choose which docsforge install to use. Probes every interpreter and,
- *  when several have docsforge, always asks — the remembered choice is
- *  pre-selected so confirming is one keypress. A single install resolves
+ *  when several have docsforge, asks — unless the remembered choice is
+ *  still valid (then it is reused silently) or `forceAsk` is set (the
+ *  environment command, whose job is choosing). A single install resolves
  *  silently; none yields `none` with a usable interpreter for the install
  *  flow (or null when no Python exists at all). */
-export async function pickInstall(workspaceRoot: string): Promise<InstallPick> {
+export async function pickInstall(
+  workspaceRoot: string, forceAsk = false,
+): Promise<InstallPick> {
   const pythons = await candidatePythons(workspaceRoot);
   if (!pythons.length) {
     return { kind: 'none', python: null };
@@ -293,6 +328,12 @@ export async function pickInstall(workspaceRoot: string): Promise<InstallPick> {
   }
   const remembered = vscode.workspace.getConfiguration('docsforge')
     .get<string>('rememberedPython', '');
+  if (!forceAsk) {
+    const hit = withEngine.find((s) => s.python === remembered);
+    if (hit) {
+      return { kind: 'picked', state: hit };
+    }
+  }
   interface InstallItem extends vscode.QuickPickItem {
     state: EnvironmentState;
   }

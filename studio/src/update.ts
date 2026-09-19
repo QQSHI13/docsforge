@@ -11,9 +11,9 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { hasConfig, compareVersions, isPrereleaseVersion, pickLatestVersion } from './pure';
-import {
-  detectEnvironment, upgradeDocsforge, pickInstall, EnvironmentState,
-} from './environment';
+import { detectEnvironment, upgradeDocsforge, pickInstall, EnvironmentState } from './environment';
+import { buildDismissedKey } from './pure';
+import { openInBrowser } from './browser';
 import { currentProjectRoot } from './roots';
 import { DocsForgeLogPanel } from './logPanel';
 
@@ -40,10 +40,6 @@ export interface EngineUpdate {
   kind: 'engine';
   current: string;
   latest: string;
-  /** True when the installed engine is an editable (source-checkout) install. */
-  editable: boolean;
-  /** `docsforge.__file__` for the installed engine, if known. */
-  location: string | null;
 }
 
 export interface ExtensionUpdate {
@@ -111,11 +107,14 @@ export async function getExtensionLatest(includePre: boolean): Promise<GithubLat
 }
 
 /** Last successfully fetched versions, so update checks degrade gracefully
- *  offline (sidebar badge + manual check reuse them, clearly labeled). */
+ *  offline (sidebar badge + manual check reuse them, clearly labeled).
+ *  Timestamps are per channel: a mixed round (one fetch failed) must not
+ *  re-stamp the stale channel as just fetched. */
 interface CachedUpdates {
   engineLatest: string | null;
+  engineFetchedAt: number;
   ext: GithubLatest | null;
-  fetchedAt: number;
+  extFetchedAt: number;
 }
 
 const UPDATE_CACHE_KEY = 'docsforge.update.lastSeen';
@@ -144,7 +143,10 @@ async function writeUpdateCache(
   }
 }
 
-function cachedDate(fetchedAt: number): string {
+function cachedDate(fetchedAt: number | null): string {
+  if (!fetchedAt) {
+    return 'unknown time';
+  }
   try {
     return new Date(fetchedAt).toLocaleString();
   } catch {
@@ -169,6 +171,18 @@ function resolveRoot(): string | undefined {
 
 function releaseNotesUrl(version: string): string {
   return `${RELEASE_TAG_URL}v${version}`;
+}
+
+/** Release page for an extension update. Uses the release tag, not the VSIX
+ *  version: prereleases ship as `13.0.1-beta.1` but are tagged `v13.0.1b1`,
+ *  so `.../tag/v13.0.1-beta.1` would 404. */
+function extensionNotesUrl(update: ExtensionUpdate): string {
+  return `${RELEASE_TAG_URL}${update.tag}`;
+}
+
+/** Open release notes in the editor browser (external fallback inside). */
+async function openReleaseNotes(url: string): Promise<void> {
+  await openInBrowser(url);
 }
 
 /** Which install an update applies to: asks when several have docsforge,
@@ -262,9 +276,7 @@ async function offerEngineUpdate(
       'Update', 'Release notes',
     );
     if (action === 'Release notes') {
-      await vscode.commands.executeCommand(
-        'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
-      );
+      await openReleaseNotes(releaseNotesUrl(update.latest));
       continue;
     }
     if (action !== 'Update') {
@@ -340,9 +352,7 @@ async function offerExtensionUpdate(update: ExtensionUpdate, stale = false): Pro
       'Download & install', 'Release notes',
     );
     if (action === 'Release notes') {
-      await vscode.commands.executeCommand(
-        'vscode.open', vscode.Uri.parse(releaseNotesUrl(update.latest)),
-      );
+      await openReleaseNotes(extensionNotesUrl(update));
       continue;
     }
     if (action !== 'Download & install') {
@@ -384,13 +394,16 @@ async function collectUpdates(
   const extFresh = extLatest !== null;
   const fresh = engineFresh || extFresh;
   const now = Date.now();
+  const engineFetchedAt = engineFresh ? now : cached?.engineFetchedAt ?? 0;
+  const extFetchedAt = extFresh ? now : cached?.extFetchedAt ?? 0;
   if (fresh) {
     // Only overwrite the channels that actually fetched: backfilling the
     // other one with a new timestamp would present stale data as current.
     await writeUpdateCache(context, {
       engineLatest: engineFresh ? engineLatest : cached?.engineLatest ?? null,
+      engineFetchedAt,
       ext: extFresh ? extLatest : cached?.ext ?? null,
-      fetchedAt: now,
+      extFetchedAt,
     });
   }
   const effectiveEngine = engineLatest ?? cached?.engineLatest ?? null;
@@ -408,10 +421,7 @@ async function collectUpdates(
   let engine: EngineUpdate | null = null;
   if (!editableEngine && state.docsforgeVersion && effectiveEngine
     && compareVersions(state.docsforgeVersion, effectiveEngine) < 0) {
-    engine = {
-      kind: 'engine', current: state.docsforgeVersion, latest: effectiveEngine,
-      editable: state.editable, location: state.location,
-    };
+    engine = { kind: 'engine', current: state.docsforgeVersion, latest: effectiveEngine };
   }
   let extension: ExtensionUpdate | null = null;
   const own = getOwnVersion();
@@ -423,7 +433,9 @@ async function collectUpdates(
   }
   return {
     engine, extension, offline, stale, engineStale, extStale,
-    fetchedAt: fresh ? now : cached?.fetchedAt ?? null,
+    // Offline messaging dates the older channel: the notice is only as
+    // fresh as its stalest part.
+    fetchedAt: Math.min(engineFetchedAt, extFetchedAt) || null,
     ownVersion: own, engineCurrent: editableEngine ? null : state.docsforgeVersion, includePre,
   };
 }
@@ -443,7 +455,6 @@ function summarize(
   const parts = [
     engine
       ? `engine ${engine.current} → ${engine.latest}`
-        + `${engine.editable ? ' (editable install)' : ''}`
         + `${channelStale.engine ? ' (cached)' : ''}`
       : '',
     extension
@@ -481,7 +492,7 @@ export async function checkForUpdates(
   }
   if (updates.stale) {
     vscode.window.showWarningMessage(
-      `DocsForge: offline — showing versions cached at ${cachedDate(updates.fetchedAt ?? 0)}.`,
+      `DocsForge: offline — showing versions cached at ${cachedDate(updates.fetchedAt)}.`,
     );
   }
   const { engine, extension } = updates;
@@ -492,34 +503,67 @@ export async function checkForUpdates(
     return;
   }
   if (engine && extension) {
-    // The pick itself confirms: no second per-item dialog after choosing.
-    const choice = await vscode.window.showQuickPick(
-      [
-        { label: 'Update all', description: `engine + extension`, value: 'all' as const },
-        { label: `Update engine only`, description: `${engine.current} → ${engine.latest}`, value: 'engine' as const },
-        { label: `Update extension only`, description: `${extension.current} → ${extension.latest}`, value: 'extension' as const },
-      ],
-      { placeHolder: 'DocsForge engine and extension updates are available.' },
-    );
-    if (!choice) {
+    // Both stale: display-only, nothing actionable — never offer updates.
+    if (updates.engineStale && updates.extStale) {
+      cachedEngineInfo(engine);
+      cachedExtensionInfo(extension);
       return;
     }
-    if (choice.value === 'all' || choice.value === 'engine') {
-      if (updates.engineStale) {
-        cachedEngineInfo(engine);
-      } else {
-        const state = await resolveUpdateState(root, engine.latest);
-        if (state) {
-          await executeEngineUpdate(root, state, engine);
-        }
+    // Step 1: everything up front — both versions plus notes, before any pick.
+    const engineUrl = releaseNotesUrl(engine.latest);
+    const extUrl = extensionNotesUrl(extension);
+    const sameNotes = engineUrl === extUrl;
+    const engineLine = `• Engine ${engine.current} → ${engine.latest}`
+      + `${updates.engineStale ? ' (cached)' : ''}`;
+    const extLine = `• Studio ${extension.current} → ${extension.latest}`
+      + `${updates.extStale ? ' (cached)' : ''}`;
+    const notesButtons = sameNotes ? ['Release notes'] : ['Engine notes', 'Extension notes'];
+    for (;;) {
+      const action = await vscode.window.showInformationMessage(
+        `DocsForge updates available:\n${engineLine}\n${extLine}`,
+        'Update…', ...notesButtons,
+      );
+      if (action === 'Engine notes' || action === 'Release notes') {
+        await openReleaseNotes(engineUrl);
+        continue;
+      }
+      if (action === 'Extension notes') {
+        await openReleaseNotes(extUrl);
+        continue;
+      }
+      if (action !== 'Update…') {
+        return;
+      }
+      break;
+    }
+    // Step 2: pick. Stale items are not offered (their info was shown above).
+    const freshEngine = !updates.engineStale;
+    const freshExt = !updates.extStale;
+    let doEngine = freshEngine;
+    let doExt = freshExt;
+    if (freshEngine && freshExt) {
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: 'Update all', description: `engine + extension`, value: 'all' as const },
+          { label: `Update engine only`, description: `${engine.current} → ${engine.latest}`, value: 'engine' as const },
+          { label: `Update extension only`, description: `${extension.current} → ${extension.latest}`, value: 'extension' as const },
+        ],
+        { placeHolder: 'DocsForge engine and extension updates are available.' },
+      );
+      if (!choice) {
+        return;
+      }
+      doEngine = choice.value === 'all' || choice.value === 'engine';
+      doExt = choice.value === 'all' || choice.value === 'extension';
+    }
+    if (doEngine) {
+      const state = await resolveUpdateState(root, engine.latest);
+      if (state) {
+        await executeEngineUpdate(root, state, engine);
       }
     }
-    if (choice.value === 'all' || choice.value === 'extension') {
-      if (updates.extStale) {
-        cachedExtensionInfo(extension);
-      } else {
-        await executeExtensionUpdate(extension);
-      }
+    if (doExt) {
+      await executeExtensionUpdate(extension);
     }
     return;
   }
@@ -539,6 +583,7 @@ async function reportUpToDate(
     ownVersion: string | null;
     engineCurrent: string | null;
     includePre: boolean;
+    stale: boolean;
   },
   hooks?: UpdateHooks,
 ): Promise<void> {
@@ -565,7 +610,11 @@ async function reportUpToDate(
     }
     return;
   }
-  vscode.window.showInformationMessage('DocsForge is up to date.');
+  vscode.window.showInformationMessage(
+    updates.stale
+      ? 'DocsForge is up to date (cached versions, offline).'
+      : 'DocsForge is up to date.',
+  );
 }
 
 /** Silent startup check: notifies only when an update is found (once per version). */
@@ -590,24 +639,24 @@ export async function autoCheckUpdates(
   if (updates.offline || (!updates.engine && !updates.extension)) {
     return;
   }
-  // Offline-but-cached: refresh the sidebar badge silently, never pop up —
-  // the versions may predate the latest release.
-  if (updates.stale) {
-    hooks?.onUpdateKnown(summarize(
-      updates.engine, updates.extension,
-      { engine: true, ext: true },
-    ));
+  const channelStale = { engine: updates.engineStale, ext: updates.extStale };
+  const summary = summarize(updates.engine, updates.extension, channelStale);
+  hooks?.onUpdateKnown(summary);
+  // Notify only for freshly confirmed updates. Anything computed from cache
+  // (all-stale rounds, or mixed rounds) may predate the latest release, so
+  // it refreshes the sidebar badge above and stays silent here.
+  const freshUpdate = (updates.engine && !updates.engineStale)
+    || (updates.extension && !updates.extStale);
+  if (!freshUpdate || !summary) {
     return;
   }
-  const summary = summarize(
-    updates.engine, updates.extension,
-    { engine: updates.engineStale, ext: updates.extStale },
+  // The dismissed key carries per-channel freshness, matching the summary's
+  // granularity: dismissing a mixed cached/fresh notice must not suppress
+  // the later fully-fresh notice for the same versions (or vice versa).
+  const seen = buildDismissedKey(
+    updates.engine ? { latest: updates.engine.latest, stale: updates.engineStale } : null,
+    updates.extension ? { latest: updates.extension.latest, stale: updates.extStale } : null,
   );
-  hooks?.onUpdateKnown(summary);
-  const seen = [
-    updates.engine ? `engine:${updates.engine.latest}` : '',
-    updates.extension ? `extension:${updates.extension.latest}` : '',
-  ].filter(Boolean).join(',');
   if (context.globalState.get<string>('docsforge.update.dismissed', '') === seen) {
     return;
   }

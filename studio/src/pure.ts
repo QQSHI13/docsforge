@@ -50,6 +50,19 @@ export function parseDocsforgeVersion(raw: string): string | null {
   return match ? match[0] : null;
 }
 
+/** Dismissal key for the update notification, at per-channel freshness
+ *  granularity: dismissing a mixed cached/fresh notice must not suppress
+ *  the later fully-fresh notice for the same versions (or vice versa). */
+export function buildDismissedKey(
+  engine: { latest: string; stale: boolean } | null,
+  extension: { latest: string; stale: boolean } | null,
+): string {
+  return [
+    engine ? `engine:${engine.latest}:${engine.stale ? 'cached' : 'fresh'}` : '',
+    extension ? `extension:${extension.latest}:${extension.stale ? 'cached' : 'fresh'}` : '',
+  ].filter(Boolean).join(',');
+}
+
 /** Whether a `direct_url.json` payload marks an editable (dev-checkout) install. */
 export function isEditableDirectUrl(raw: string): boolean {
   return raw.replace(/\s+/g, '').includes('"editable":true');

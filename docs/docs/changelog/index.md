@@ -1,5 +1,31 @@
 ## [Unreleased]
 
+### Fixed
+
+- **Studio update flow leads with information** — when engine and extension
+  updates are both available, one dialog shows both versions up front with
+  per-channel release notes before any pick; the method pick then executes
+  directly. Release notes open in VS Code's Simple Browser (external
+  browser as fallback), and extension notes link the real release tag
+  (prerelease notes previously pointed at a nonexistent tag).
+- **Studio audit fixes** — an unrelated open folder can no longer shadow the
+  configured project (init wizard included); cancelling a build resolves
+  quietly instead of reporting failure; links and footnotes inside fenced or
+  inline code no longer produce diagnostics, jumps, or rewrites; dismissal
+  keys and auto-check popups are per-channel freshness aware; offline
+  messaging dates the older channel; preview/docs links share the in-editor
+  browser fallback; the link picker fixes the exact occurrence; icon caches
+  invalidate on interpreter changes; broken explicit interpreters warn once
+  and share one validator; `pickLinkFix` is registered; full-document ranges
+  use exact positions; caches dispose on deactivate.
+- **Update flow asks once** — the remembered install is reused silently;
+  the picker appears only with no prior valid choice (the environment
+  command still always asks). The "don't ask again" dismissal now
+  distinguishes cached from fresh data, up-to-date messaging says when it
+  rests on cached versions, a broken explicit `pythonPath` warns once per
+  session instead of silently falling through, and dead update-state fields
+  are removed.
+
 ## [13.0.1] — 2026-09-17
 
 ### Added

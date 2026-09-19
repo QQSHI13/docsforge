@@ -427,15 +427,17 @@ Key behaviors:
   links to a renamed heading slug. Explorer renames are intercepted by
   `onDidRenameFiles` and auto-apply (companion files renamed too, warnings on
   collisions; folder renames via `computeFolderRename`).
-- **Code actions**: per-link "Fix link: use <existing file>" (finds a same
-  basename), "Open link target", and "Fix all broken links (N)" across the
-  file. The lightbulb appears on every occurrence because the provider also
-  scans the cursor line directly, not only `context.diagnostics`.
+- **Code actions**: per-link "Fix link: use <existing file>" for unambiguous
+  same-basename matches (ambiguous ones open a `pickLinkFix` target picker),
+  "Open link target", and "Fix all broken links (N)" across the file (only
+  unambiguous links). The lightbulb appears on every occurrence because the
+  provider also scans the cursor line directly, not only `context.diagnostics`.
 - **Providers scope**: markdown files under the workspace `docs_dir` (from
   `docsforge.yml`), via a `DocumentSelector` pattern.
 - **Commands**: `init, serve, stop, build, stopBuild, openServer, openDocs,
-  openLog, setupEnvironment, renameDocument, renameAnchor, refreshDiagnostics,
-  openLinkTarget, openPage`.
+  setupEnvironment, renameDocument, renameAnchor, refreshDiagnostics,
+  openLinkTarget, openPage, newPage, checkForUpdates, refreshSidebar`
+  (plus programmatic-only `pickLinkFix`, invoked by its quick fix).
 - **Settings**: `docsforge.pythonPath`, `lan`, `openBrowser`,
   `rememberedPython`, `formatOnSave` (opt-in; format markdown on save).
 - **Packaging**: `docsforge-studio`, displayName "DocsForge Studio",

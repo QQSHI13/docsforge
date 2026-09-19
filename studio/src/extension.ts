@@ -7,9 +7,10 @@ import { DocsForgeSidebarProvider } from './sidebarProvider';
 import { DocsForgeLogPanel } from './logPanel';
 import { detectEnvironment, ensureDocsforge, pickInstall } from './environment';
 import { DocsForgeDiagnostics } from './diagnostics';
-import { registerProviders, srcUriOf, getDocsCache, isDocDocument } from './providers';
+import { registerProviders, srcUriOf, getDocsCache, isDocDocument, disposeDocsCaches } from './providers';
 import { registerRenameCommands, registerAutoRename } from './rename';
 import { registerUpdateCommands } from './update';
+import { openInBrowser } from './browser';
 import { runNewPage } from './scaffold';
 import { invalidateHeadings } from './studioCache';
 import {
@@ -77,10 +78,13 @@ function ensureProjectFeatures(
       if (!isDocDocument(e.document, root)) {
         return;
       }
-      const formatted = formatMarkdown(e.document.getText());
-      if (formatted !== e.document.getText()) {
+      const text = e.document.getText();
+      const formatted = formatMarkdown(text);
+      if (formatted !== text) {
+        const start = e.document.positionAt(0);
+        const end = e.document.positionAt(text.length);
         e.waitUntil(Promise.resolve([
-          vscode.TextEdit.replace(new vscode.Range(0, 0, e.document.lineCount, 0), formatted),
+          vscode.TextEdit.replace(new vscode.Range(start, end), formatted),
         ]));
       }
     }),
@@ -152,7 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
   // files match: recompute candidates at invoke time, let the user choose,
   // then rewrite that one link occurrence.
   context.subscriptions.push(
-    vscode.commands.registerCommand('docsforge.pickLinkFix', async (arg?: { uri: string; line: number; dest: string }) => {
+    vscode.commands.registerCommand('docsforge.pickLinkFix', async (arg?: { uri: string; line: number; offset: number; dest: string }) => {
       if (!arg) {
         return;
       }
@@ -182,8 +186,14 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
         const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(srcFsPath));
-        const link = extractLinks(doc.getText()).find((l) => l.line === arg.line && l.dest === arg.dest);
-        if (!link) {
+        // Locate the exact link occurrence (the lightbulb is offered per
+        // dest, so repeats share it — fix the one under the cursor when it
+        // is still there, else every same-dest match on the line).
+        const links = extractLinks(doc.getText()).filter((l) => l.line === arg.line && l.dest === arg.dest);
+        const targets = links.some((l) => l.offset === arg.offset)
+          ? links.filter((l) => l.offset === arg.offset)
+          : links;
+        if (!targets.length) {
           vscode.window.showWarningMessage('DocsForge: the link changed since the quick fix was offered.');
           return;
         }
@@ -195,11 +205,13 @@ export function activate(context: vscode.ExtensionContext) {
           newTarget += `#${anchor}`;
         }
         const edit = new vscode.WorkspaceEdit();
-        edit.replace(
-          doc.uri,
-          new vscode.Range(doc.positionAt(link.offset + 1), doc.positionAt(link.offset + 1 + arg.dest.length)),
-          newTarget,
-        );
+        for (const link of targets) {
+          edit.replace(
+            doc.uri,
+            new vscode.Range(doc.positionAt(link.offset + 1), doc.positionAt(link.offset + 1 + arg.dest.length)),
+            newTarget,
+          );
+        }
         await vscode.workspace.applyEdit(edit);
       } catch (err) {
         vscode.window.showErrorMessage(`DocsForge: could not fix link (${(err as Error).message})`);
@@ -244,7 +256,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
         const base = serverUrl.endsWith('/') ? serverUrl : `${serverUrl}/`;
         const url = vscode.Uri.parse(base + encodeURI(pagePath));
-        await vscode.commands.executeCommand('simpleBrowser.api.open', url);
+        await openInBrowser(url);
       } catch (err) {
         vscode.window.showErrorMessage(`DocsForge: could not open built page (${(err as Error).message})`);
       }
@@ -291,7 +303,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
     vscode.commands.registerCommand('docsforge.openDocs', () => {
-      vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse('https://qqshi13.github.io/docsforge/'));
+      void openInBrowser('https://qqshi13.github.io/docsforge/');
     }),
     vscode.commands.registerCommand('docsforge.newPage', async () => {
       const activePath = vscode.window.activeTextEditor?.document.uri.fsPath;
@@ -371,6 +383,7 @@ export function deactivate() {
   }
   allDiagnostics = [];
   activatedRoots.clear();
+  disposeDocsCaches();
   ServerManager.disposeStateEmitter();
 }
 
@@ -383,7 +396,7 @@ async function setupEnvironment(): Promise<void> {
     return;
   }
   const logPanel = DocsForgeLogPanel.get();
-  const pick = await pickInstall(workspaceRoot);
+  const pick = await pickInstall(workspaceRoot, true);
   if (pick.kind === 'cancelled') {
     return;
   }

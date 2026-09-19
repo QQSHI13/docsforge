@@ -47,8 +47,16 @@ export function splitAnchor(dest: string): { target: string; anchor?: string } {
   return { target: dest.slice(0, hash), anchor: dest.slice(hash + 1) };
 }
 
-/** Find all links in a markdown source: [text](dest) and ![alt](dest). */
+/** Find all links in a markdown source: [text](dest) and ![alt](dest).
+ *  Fenced code blocks and inline code spans are masked first (same length,
+ *  so offsets stay valid): documented examples must not produce diagnostics,
+ *  jumps, or link rewrites. */
 export function extractLinks(source: string): Array<{ dest: string; offset: number; line: number }> {
+  return extractLinksRaw(maskCode(source));
+}
+
+/** Raw link scan without code masking (internal; tests). */
+export function extractLinksRaw(source: string): Array<{ dest: string; offset: number; line: number }> {
   const links: Array<{ dest: string; offset: number; line: number }> = [];
   const re = /!?\[[^\]]*\]\(\s*([^)\s]+)(?:\s+["'][^"']*["'])?\s*\)/g;
   let m: RegExpExecArray | null;
@@ -385,6 +393,29 @@ export function computeAnchorRenameEdits(
 /* Footnote / formatting diagnostics (Zensical-style breadth)         */
 /* ------------------------------------------------------------------ */
 
+/** Blank out fenced code blocks and inline code spans, preserving length
+ *  (and newlines) so downstream offsets stay valid. */
+export function maskCode(source: string): string {
+  const lines = source.split('\n');
+  let fence: string | null = null;
+  const masked = lines.map((line) => {
+    const marker = fenceMarker(line);
+    if (marker) {
+      if (fence === null) {
+        fence = marker;
+      } else if (marker[0] === fence[0] && marker.length >= fence.length) {
+        fence = null;
+      }
+      return line;
+    }
+    if (fence !== null) {
+      return ' '.repeat(line.length);
+    }
+    return line.replace(/(`+)[^`\n]*?\1(?!`)/g, (m) => ' '.repeat(m.length));
+  });
+  return masked.join('\n');
+}
+
 /** Footnote references `[^label]` and definitions `[^label]: …`. */
 export function checkFootnotes(
   source: string,
@@ -392,7 +423,7 @@ export function checkFootnotes(
   const warnings: Array<{ line: number; message: string; kind: 'unresolved' | 'duplicate' }> = [];
   const refs = new Map<string, number>();   // label -> first line
   const defs = new Map<string, number>();   // label -> first line
-  const lines = source.split('\n');
+  const lines = maskCode(source).split('\n');
   const refRe = /\[\^([^\]]+)\](?!:)/g;
   const defRe = /^\[\^([^\]]+)\]:\s*/;
   for (let i = 0; i < lines.length; i++) {

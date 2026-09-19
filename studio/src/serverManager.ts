@@ -4,6 +4,7 @@ import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import { findConfig as findConfigPure, hasConfig as hasConfigPure, extractServerUrl, shouldEscalateToSigkill } from './pure';
 import { DocsForgeLogPanel } from './logPanel';
+import { openInBrowser } from './browser';
 import { currentProjectRoot } from './roots';
 import { detectEnvironment, ensureDocsforge, pickInstall } from './environment';
 
@@ -15,6 +16,9 @@ export { shouldEscalateToSigkill };
 interface RootState {
   process: ChildProcess | null;
   buildProcess: ChildProcess | null;
+  /** Set by stopBuild: the in-flight `close` handler resolves quietly
+   *  instead of reporting "build failed" for an explicit cancel. */
+  buildCancelled: boolean;
   serverUrl: string | null;
   /** Set synchronously before the first await so rapid double-invokes
    *  can't pass the already-running guard twice and orphan a process. */
@@ -30,6 +34,7 @@ function freshRootState(): RootState {
   return {
     process: null,
     buildProcess: null,
+    buildCancelled: false,
     serverUrl: null,
     starting: false,
     building: false,
@@ -465,7 +470,7 @@ export class ServerManager {
     const workspaceRoot = root ?? this.currentRoot();
     const st = workspaceRoot ? this.forRoot(workspaceRoot) : null;
     if (st?.serverUrl) {
-      vscode.commands.executeCommand('simpleBrowser.api.open', vscode.Uri.parse(st.serverUrl));
+      void openInBrowser(st.serverUrl);
     } else if (st?.process) {
       vscode.window.showInformationMessage('DocsForge: waiting for server to output its URL...');
     } else {
@@ -549,6 +554,7 @@ export class ServerManager {
     const proc = st.buildProcess;
     st.buildProcess = null;
     st.building = false;
+    st.buildCancelled = true;
     vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
     ServerManager.emitStateChange();
     let exited = false;
@@ -654,6 +660,7 @@ export class ServerManager {
             }
 
             st.buildProcess = proc;
+            st.buildCancelled = false;
             vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', true);
             ServerManager.emitStateChange();
 
@@ -678,6 +685,11 @@ export class ServerManager {
               st.building = false;
               vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', this.isBuilding());
               ServerManager.emitStateChange();
+              if (st.buildCancelled) {
+                st.buildCancelled = false;
+                resolve();
+                return;
+              }
               if (code === 0) {
                 vscode.window.showInformationMessage(`DocsForge build successful${label}`);
                 resolve();

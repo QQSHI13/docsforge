@@ -627,6 +627,19 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
   }
 
   private iconsDirCache: string | null | undefined;
+  /** When the last interpreter probe missed (engine not importable). Misses
+   *  retry after this long so a terminal `pip install` starts completing
+   *  without a reload; config changes invalidate immediately. */
+  private iconsDirMissAt = 0;
+  private static readonly ICONS_MISS_TTL_MS = 60000;
+
+  /** Drop cached icon state (e.g. the interpreter changed): a cached miss
+   *  must not keep completions empty forever. */
+  invalidateIconCaches(): void {
+    this.iconsDirCache = undefined;
+    this.iconsDirMissAt = 0;
+    this.iconCache.clear();
+  }
 
   private async findThemeIconsDir(): Promise<string | null> {
     if (this.iconsDirCache !== undefined) {
@@ -640,8 +653,16 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
     }
     // Otherwise the installed package behind the workspace interpreter
     // (a bare `<root>/docsforge/...` path never exists in user projects).
-    this.iconsDirCache = await installedIconsDir(this.root);
-    return this.iconsDirCache;
+    if (Date.now() - this.iconsDirMissAt < DocsForgeCompletionProvider.ICONS_MISS_TTL_MS) {
+      return null;
+    }
+    const found = await installedIconsDir(this.root);
+    if (found) {
+      this.iconsDirCache = found;
+    } else {
+      this.iconsDirMissAt = Date.now();
+    }
+    return found;
   }
 
   private pathCompletions(
@@ -833,7 +854,7 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
           pick.command = {
             command: 'docsforge.pickLinkFix',
             title: 'Pick link target',
-            arguments: [{ uri: document.uri.toString(), line: link.line, dest }],
+            arguments: [{ uri: document.uri.toString(), line: link.line, offset: link.offset, dest }],
           };
           actions.push(pick);
         }
@@ -909,11 +930,12 @@ class DocsForgeCodeActionProvider implements vscode.CodeActionProvider {
 /** Format markdown: normalize trailing whitespace and blank-line runs. */
 class DocsForgeFormattingProvider implements vscode.DocumentFormattingEditProvider {
   provideDocumentFormattingEdits(document: vscode.TextDocument): vscode.TextEdit[] {
-    const formatted = formatMarkdown(document.getText());
-    if (formatted === document.getText()) {
+    const text = document.getText();
+    const formatted = formatMarkdown(text);
+    if (formatted === text) {
       return [];
     }
-    const full = new vscode.Range(0, 0, document.lineCount, 0);
+    const full = new vscode.Range(document.positionAt(0), document.positionAt(text.length));
     return [vscode.TextEdit.replace(full, formatted)];
   }
 }
@@ -929,13 +951,24 @@ export function registerProviders(context: vscode.ExtensionContext, root: string
   // Warm the cached docs list and invalidate it on md create/delete (debounced).
   getDocsCache(root).ensureWatcher(context);
 
+  const completionProvider = new DocsForgeCompletionProvider(root);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      // Interpreter switches (including our own installs, which update
+      // rememberedPython) invalidate icon completions for this root.
+      if (e.affectsConfiguration('docsforge')) {
+        completionProvider.invalidateIconCaches();
+      }
+    }),
+  );
+
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(sel, new DocsForgeDocumentSymbolProvider()),
     vscode.languages.registerFoldingRangeProvider(sel, new DocsForgeFoldingProvider()),
     vscode.languages.registerDefinitionProvider(sel, new DocsForgeDefinitionProvider(root)),
     vscode.languages.registerHoverProvider(sel, new DocsForgeHoverProvider(root)),
     vscode.languages.registerReferenceProvider(sel, new DocsForgeReferenceProvider(root)),
-    vscode.languages.registerCompletionItemProvider(sel, new DocsForgeCompletionProvider(root), ':', '(', '/', '#', '"'),
+    vscode.languages.registerCompletionItemProvider(sel, completionProvider, ':', '(', '/', '#', '"'),
     vscode.languages.registerDocumentHighlightProvider(sel, new DocsForgeHighlightProvider()),
     vscode.languages.registerDocumentLinkProvider(sel, new DocsForgeDocumentLinkProvider(root)),
     vscode.languages.registerCodeActionsProvider(sel, new DocsForgeCodeActionProvider(root)),

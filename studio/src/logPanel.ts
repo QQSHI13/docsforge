@@ -110,7 +110,6 @@ export class DocsForgeLogPanel implements vscode.WebviewViewProvider {
 <script nonce="${nonce}">
   const log = document.getElementById('log');
   const vscode = acquireVsCodeApi();
-  let first = true;
   function scrollToBottom() { window.scrollTo(0, document.body.scrollHeight); }
   window.addEventListener('message', (event) => {
     const msg = event.data;
@@ -125,10 +124,9 @@ export class DocsForgeLogPanel implements vscode.WebviewViewProvider {
       log.textContent = '';
     }
     scrollToBottom();
-    first = false;
   });
   window.addEventListener('load', () => {
-    if (first) scrollToBottom();
+    scrollToBottom();
     // Signal readiness so the extension can replay the buffer.
     vscode.postMessage({ type: 'ready' });
   });

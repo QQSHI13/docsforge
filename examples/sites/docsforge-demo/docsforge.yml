@@ -27,6 +27,9 @@ theme:
     - navigation.tabs
     - content.code.copy
     - content.action.edit
+    - search.highlight
+    - search.share
+    - search.suggest
 
 repo_url: https://github.com/QQSHI13/docsforge
 repo_name: QQSHI13/docsforge
