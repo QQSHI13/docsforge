@@ -1,4 +1,5 @@
 ---
+title: Home
 description: DocsForge demo showcasing all built-in features and plugins
 tags:
   - demo

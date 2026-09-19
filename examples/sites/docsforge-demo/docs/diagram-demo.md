@@ -1,3 +1,7 @@
+---
+title: Diagram Demo
+---
+
 # Diagram Demo: Mermaid + TikZ
 
 This page demonstrates both **Mermaid** (native Markdown) and **TikZ** (compiled to SVG) diagrams.

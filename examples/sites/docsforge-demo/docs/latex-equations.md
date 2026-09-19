@@ -1,4 +1,5 @@
 ---
+title: LaTeX Equations
 tags:
   - latex
   - math
