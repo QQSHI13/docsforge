@@ -21,14 +21,14 @@
 
 | | MkDocs + Material | DocsForge |
 |---|---|---|
-| **Maintenance** | ⚠️ MkDocs is unmaintained; Material is maintenance-only | ✅ Actively developed |
+| **Maintenance** | ⚠️ MkDocs stalled (no real development for 18+ months); Material is maintenance-only through its 2027 EOL | ✅ Actively developed |
 | **Installation** | `pip install mkdocs-material` + 15+ plugins separately | `pip install docsforge` — everything included |
 | **CDN calls** | Google Fonts, KaTeX, Mermaid loaded from CDN in the browser | 🔒 **Zero CDN calls** — external assets are fetched during the build and served locally, so readers never call a CDN |
 | **Math rendering** | Requires internet or manual KaTeX setup | ✅ KaTeX vendored, works offline instantly |
 | **Diagrams** | Mermaid loaded from CDN | ✅ Mermaid vendored |
-| **Icons** | Downloaded at build time | ✅ 14,000+ icons included |
+| **Icons** | Downloaded at build time | ✅ 16,500+ icons included (5 families) |
 | **Privacy** | External font/icon requests | ✅ All assets self-hosted |
-| **Search** | Plugin + external JS | ✅ Lunr.js built-in, works offline |
+| **Search** | Plugin + external JS | ✅ Marz built-in (Rust engine, CJK-aware), works offline |
 | **PWA / Offline** | Not included | ✅ Service worker + offline cache built-in |
 
 **DocsForge is everything MkDocs + Material does, in one package, with zero external dependencies.**
@@ -86,10 +86,10 @@ You get:
 - ⚡ **Engine** — ProperDocs fork, vendored and maintained
 - 🎨 **Theme** — Material for MkDocs, fully included
 - 🔌 **Plugins** — 8 built-in: search, tags, blog, info, meta, minify, privacy, i18n
-- 📝 **Markdown** — 42 extensions pre-configured (pymdownx + python-markdown)
+- 📝 **Markdown** — 39 extensions pre-configured (36 default + 3 built-in, pymdownx + python-markdown)
 - ➗ **Math** — KaTeX vendored (`$$...$$` works out of the box)
 - 🖍️ **Highlighting** — Pygments at build time
-- 📐 **Diagrams** — TikZ auto-compiled to SVG, Mermaid built-in
+- 📐 **Diagrams** — TikZ auto-compiled to SVG (requires a LaTeX toolchain), Mermaid built-in
 - 🔍 **Search** — Lunr.js client-side full-text search
 - 🌙 **Dark mode** — Light/dark toggle with auto system detection
 - 📱 **Offline** — Service worker caches all assets for PWA support
@@ -155,10 +155,13 @@ site_author: Your Name
 repo_url: https://github.com/username/repo
 
 nav:
-  - Home: index.md
-  - Getting started: getting-started.md
-  - Blog:
-    - blog/index.md
+  - title: Home
+    path: index.md
+  - title: Getting started
+    path: getting-started.md
+  - title: Blog
+    children:
+      - path: blog/index.md
 
 theme:
   name: material
@@ -197,7 +200,7 @@ theme:
 
 Every built site includes a **service worker** that:
 
-- Caches HTML pages (network-first, updates in background)
+- Caches HTML pages (cache-first, refreshed in background)
 - Caches assets (CSS, JS, fonts, images — cache-first for speed)
 - **Versioned updates** — Each build generates a unique SW hash, forcing browser refresh
 - **Auto cleanup** — Old caches purged when new version activates
