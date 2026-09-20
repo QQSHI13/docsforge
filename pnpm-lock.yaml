@@ -55,8 +55,8 @@ importers:
         specifier: ^0.18.4
         version: 0.18.7
       lucide-static:
-        specifier: ^1.44.0
-        version: 1.45.0
+        specifier: ^1.46.0
+        version: 1.46.0
       material-design-color:
         specifier: ^2.3.2
         version: 2.3.2
@@ -1095,8 +1095,8 @@ packages:
   lower-case@2.0.2:
     resolution: {integrity: sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg==}
 
-  lucide-static@1.45.0:
-    resolution: {integrity: sha512-MaMkcTVobsAlkat8/AsLRgZHeni3/UWHolsAZRazod6/nnBTlhHaS6xlSi+Xh1Y0I1Gf68YHUVXuJe9Up3lZww==}
+  lucide-static@1.46.0:
+    resolution: {integrity: sha512-kq1lP/78BxG28VG3Ut2FxMeQElereTrrRwTBeXH7+olxATGcDbsuKRB/v/VKLhPrEu8BvNi6Uh2GvbH3pQcYhg==}
 
   marked@16.4.2:
     resolution: {integrity: sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA==}
@@ -2296,7 +2296,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  lucide-static@1.45.0: {}
+  lucide-static@1.46.0: {}
 
   marked@16.4.2: {}
 
