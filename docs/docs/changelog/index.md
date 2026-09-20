@@ -44,6 +44,16 @@
   session instead of silently falling through, and dead update-state fields
   are removed.
 
+### Optimized
+
+- **Git dates are cheaper** — every built page used to spawn 3 git
+  processes (`rev-parse` + two `log` walks, including a full-history
+  `--follow`), costing ~12s of a 19s demo build. Now `rev-parse` runs once,
+  one `--follow` walk yields both dates (its first line always equals
+  `log -1`, verified across all docs/demo pages), and pages pending render
+  are prefetched through a bounded pool. Same per-file git commands, so
+  output is identical. Demo full build: 14.9s → 11.9s.
+
 ## [13.0.1] — 2026-09-17
 
 ### Added

@@ -27,7 +27,7 @@ from docsforge.asset_optimizer import OPTIMIZER_MANAGED_DIRS, optimize_assets
 from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
 from docsforge.exceptions import Abort, BuildError, BuildErrorGroup
 from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusions
-from docsforge.git_info import get_git_page_info
+from docsforge.git_info import get_git_page_info, prefetch_git_page_info
 from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
 from docsforge.structure import restore_rendering_page, set_rendering_page
@@ -836,6 +836,13 @@ def _write_outputs(
     built_any = False
     built_sources: set[str] = set()
     if pages_to_build:
+        # Warm git revision dates concurrently (S1): every page render below
+        # calls get_git_page_info, whose history walks cost ~100ms each.
+        # Prefetching fills the same cache through the same per-file git
+        # commands, so output is identical — the renders just stop waiting
+        # on serial walks (and on low-concurrency machines, on serial
+        # rendering too).
+        prefetch_git_page_info([page.file.abs_src_path for page, _, _, _ in pages_to_build])
         max_workers = max(1, config.concurrency)
         log.info(f"Writing {len(pages_to_build)} pages...")
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
