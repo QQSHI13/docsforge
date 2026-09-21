@@ -1966,9 +1966,17 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
     # Translate the placeholder referenced by the given key
     def _translate(self, key: str, config: DocsForgeConfig) -> str:
+        from docsforge.templates import resolve_lang_partial
+
         env = config.theme.get_env()
         template = env.get_template(
-            "partials/language.html", globals = { "config": config }
+            "partials/language.html",
+            globals = {
+                "config": config,
+                "lang_partial": resolve_lang_partial(
+                    config.theme.get("language"), config.theme.dirs
+                ),
+            },
         )
 
         # Translate placeholder

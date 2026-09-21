@@ -269,9 +269,17 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         self.is_dirtyreload = self.is_dirty
 
     def _translate(self, config, value):
+        from docsforge.templates import resolve_lang_partial
+
         env = config.theme.get_env()
         language = "partials/language.html"
-        template = env.get_template(language, None, {"config": config})
+        context = {
+            "config": config,
+            "lang_partial": resolve_lang_partial(
+                config.theme.get("language"), config.theme.dirs
+            ),
+        }
+        template = env.get_template(language, None, context)
         return template.module.t(value)
 
 

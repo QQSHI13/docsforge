@@ -53,6 +53,13 @@
   `log -1`, verified across all docs/demo pages), and pages pending render
   are prefetched through a bounded pool. Same per-file git commands, so
   output is identical. Demo full build: 14.9s → 11.9s.
+- **Locales no longer crash on filename case** — BCP 47 tags are
+  case-insensitive, but the theme translation import was a strict
+  `partials/languages/<locale>.html`: configuring `zh-tw` missed the
+  shipped `zh-TW.html` and aborted the build. The import now resolves
+  Python-side (exact, then case-insensitive, then `en`), with an `en`
+  fallback for hand-built render contexts (search/blog translators pass
+  the theme language explicitly).
 
 ## [13.0.1] — 2026-09-17
 

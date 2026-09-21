@@ -76,6 +76,7 @@ def get_context(
     if isinstance(files, Files):
         files = files.documentation_pages()
 
+    i18n_locale = getattr(page.file if page is not None else None, "i18n_locale", None)
     return templates.TemplateContext(
         nav=nav,
         pages=files,
@@ -86,6 +87,9 @@ def get_context(
         build_date_utc=utils.get_build_datetime(),
         config=config,
         page=page,
+        lang_partial=templates.resolve_lang_partial(
+            i18n_locale or config.theme.get("language"), config.theme.dirs
+        ),
     )
 
 

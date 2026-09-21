@@ -44,6 +44,50 @@ class TemplateContext(TypedDict):
     build_date_utc: datetime.datetime
     config: DocsForgeConfig
     page: Page | None
+    lang_partial: str
+    """Resolved `partials/languages/*.html` import path for the active locale.
+
+    BCP 47 tags are case-insensitive (`zh-tw` vs the shipped `zh-TW.html`),
+    and Jinja cannot fall back a failed import — so this is resolved
+    Python-side (exact, then case-insensitive, then `en`) and consumed by
+    `partials/language.html`. Without it any locale whose configured case
+    differs from the shipped filename crashes the build.
+    """
+
+
+_LANG_PARTIAL_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\Z")
+
+_LANG_PARTIALS_CACHE: dict[str, list[str]] = {}
+
+
+def resolve_lang_partial(locale: str | None, theme_dirs: Sequence[str | Path] = ()) -> str:
+    """Resolve the `partials/languages/` template for a locale with fallback.
+
+    Exact filename match first (`pt-BR`), then case-insensitive (`zh-tw` →
+    `zh-TW.html`), then `en`. Unsafe values (path traversal) fall straight
+    through to `en`. Searches the vendored partials dir plus any extra theme
+    dirs so `custom_dir` overrides keep working.
+    """
+    fallback = "partials/languages/en.html"
+    if not locale or not _LANG_PARTIAL_RE.fullmatch(locale):
+        return fallback
+    search_dirs = [Path(__file__).parent / "templates" / "partials" / "languages"]
+    search_dirs.extend(Path(d) / "partials" / "languages" for d in theme_dirs)
+    for directory in search_dirs:
+        key = str(directory)
+        names = _LANG_PARTIALS_CACHE.get(key)
+        if names is None:
+            try:
+                names = sorted(p.name for p in directory.iterdir() if p.suffix == ".html")
+            except OSError:
+                names = []
+            _LANG_PARTIALS_CACHE[key] = names
+        if f"{locale}.html" in names:
+            return f"partials/languages/{locale}.html"
+        lowered = {name[: -len(".html")].casefold(): name for name in names}
+        if locale.casefold() in lowered:
+            return f"partials/languages/{lowered[locale.casefold()]}"
+    return fallback
 
 
 @contextfilter
