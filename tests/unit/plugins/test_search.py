@@ -174,3 +174,39 @@ class TestSearchIndex:
         data = json.loads(idx.generate_search_index(prev=prev))
         # no new entries -> prev entries carried forward
         assert any(e["location"].startswith("old") for e in data["docs"])
+
+
+class TestMarzLangMapping:
+    def test_bcp47_maps_to_base(self):
+        from docsforge.core.search import _marz_lang
+
+        assert _marz_lang("zh-tw") == "zh"
+        assert _marz_lang("zh-TW") == "zh"
+        assert _marz_lang("pt-BR") == "pt"
+
+    def test_supported_codes_pass_through(self):
+        from docsforge.core.search import _marz_lang
+
+        assert _marz_lang("en") == "en"
+        assert _marz_lang("ja") == "ja"
+
+    def test_unknown_maps_to_en(self):
+        from docsforge.core.search import _marz_lang
+
+        assert _marz_lang("xx-unknown") == "en"
+
+    def test_marz_index_build_emits_no_warning(self):
+        import warnings
+
+        import marz
+
+        from docsforge.core.search import SearchIndex
+
+        cfg = _full_config(lang=["zh-tw"])
+        idx = SearchIndex(**cfg)
+        idx.add_entry_from_context(_page("<p>繁體中文內容測試</p>", url="p/"))
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            raw = idx.generate_marz_index()
+        loaded = marz.Index.from_bytes(raw)
+        assert any(h.ref.startswith("p/") for h in loaded.search("繁體中文內容測試"))

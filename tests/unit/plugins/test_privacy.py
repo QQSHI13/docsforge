@@ -6,6 +6,7 @@ work and is tested directly.
 """
 from __future__ import annotations
 
+import posixpath
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -238,3 +239,125 @@ class TestExcludePatterns:
         plugin.config["assets_exclude"] = ["oayoilchh.bkt.clouddn.com"]
         url = urlparse("https://example.com/oayoilchh.bkt.clouddn.com/x.jpg")
         assert plugin._is_excluded(url) is False
+
+
+class TestQueueRace:
+    """A synchronous rewrite must never observe a pending pre-warm job's
+    remote URL (which produced `/https://...` garbage in output HTML)."""
+
+    @pytest.fixture()
+    def plugin(self, tmp_path):
+        from types import SimpleNamespace
+
+        p = PrivacyPlugin()
+        p.load_config({"cache_dir": str(tmp_path / "cache")})
+        p.on_config(SimpleNamespace(site_url="https://example.com/", concurrency=2))
+        return p
+
+    def _cfg(self, tmp_path):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(site_dir=str(tmp_path / "site"))
+
+    def test_sync_waits_for_pending_prewarm(self, plugin, tmp_path, monkeypatch):
+        import threading
+
+        release = threading.Event()
+
+        def blocking_get(url, **kwargs):
+            if "slow.js" in url:
+                assert release.wait(timeout=30)
+            return _FakeResponse(
+                200, {"content-type": "application/javascript"}, b"ok()", url=url
+            )
+
+        monkeypatch.setattr(privacy_mod.requests, "get", blocking_get)
+        url = urlparse("https://cdn.example/slow.js")
+        cfg = self._cfg(tmp_path)
+
+        t = threading.Thread(
+            target=plugin._queue, args=(url, cfg), kwargs={"concurrent": True}
+        )
+        t.start()
+        # Give the worker a moment to start the download (it blocks inside).
+        import time
+
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            with plugin._jobs_lock:
+                if plugin._futures:
+                    break
+            time.sleep(0.01)
+        result = {}
+        t2 = threading.Thread(
+            target=lambda: result.setdefault("file", plugin._queue(url, cfg))
+        )
+        t2.start()
+        # The rewrite must block for the owner instead of returning the
+        # pending File (whose remote URL would become `/https://...`).
+        t2.join(timeout=10)
+        assert t2.is_alive(), "sync rewrite did not wait for the pending job"
+        release.set()
+        t2.join(timeout=30)
+        assert not t2.is_alive()
+        t.join(timeout=30)
+        assert result["file"] is not None
+        assert not result["file"].url.startswith("http"), result["file"].url
+        plugin._drain_jobs()
+
+    def test_failed_prewarm_retries_synchronously(self, plugin, tmp_path, monkeypatch):
+        import requests
+
+        calls = []
+
+        def always_fail(url, **kwargs):
+            calls.append(url)
+            raise requests.ConnectionError("down")
+
+        monkeypatch.setattr(privacy_mod.requests, "get", always_fail)
+        url = urlparse("https://cdn.example/flaky.js")
+        cfg = self._cfg(tmp_path)
+        # Pre-warm fails in the background...
+        plugin._queue(url, cfg, concurrent=True)
+        plugin._drain_jobs()
+        # ...the rewrite pass retries synchronously (no negative cache)...
+        assert plugin._queue(url, cfg) is None
+        assert len(calls) == 2
+        # ...and the dead entry is forgotten so the next build retries too.
+        full = posixpath.join(plugin.config.assets_fetch_dir, plugin._path_from_url(url))
+        with plugin._jobs_lock:
+            assert plugin.assets.get_file_from_path(full) is None
+
+    def test_concurrent_submits_deduplicated(self, plugin, tmp_path, monkeypatch):
+        import threading
+        import time
+
+        release = threading.Event()
+        calls = []
+
+        def gated_get(url, **kwargs):
+            calls.append(url)
+            assert release.wait(timeout=30)
+            return _FakeResponse(
+                200, {"content-type": "application/javascript"}, b"ok()", url=url
+            )
+
+        monkeypatch.setattr(privacy_mod.requests, "get", gated_get)
+        url = urlparse("https://cdn.example/once.js")
+        cfg = self._cfg(tmp_path)
+        t = threading.Thread(
+            target=plugin._queue, args=(url, cfg), kwargs={"concurrent": True}
+        )
+        t.start()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            with plugin._jobs_lock:
+                if plugin._futures:
+                    break
+            time.sleep(0.01)
+        # Second pre-warm sees the pending job and submits nothing.
+        plugin._queue(url, cfg, concurrent=True)
+        release.set()
+        t.join(timeout=30)
+        plugin._drain_jobs()
+        assert len(calls) == 1

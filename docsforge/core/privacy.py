@@ -94,6 +94,11 @@ class FragmentParser(HTMLParser):
 # Privacy Configuration
 # ---------------------------------------------------------------------------
 
+def _is_remote_url(url: str) -> bool:
+    """Whether a File url still points at the remote origin (fetch pending)."""
+    return url.startswith(("http://", "https://", "//"))
+
+
 class PrivacyConfig(Config):
     """Privacy plugin configuration."""
 
@@ -156,15 +161,22 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     # -----------------------------------------------------------------------
 
     def _get_pool(self) -> ThreadPoolExecutor:
-        """Return the thread pool, creating it on first use."""
-        lock = getattr(self, "_jobs_lock", None)
-        if lock is not None:
-            with lock:
-                if self.pool is None:
-                    self.pool = ThreadPoolExecutor(self._concurrency)
+        """Return the thread pool, creating it on first use.
+
+        The executor is built WITHOUT the jobs lock held: construction
+        submits a wakeup handshake to its own worker thread, and a worker
+        that immediately grabs the jobs lock (submitting nested downloads)
+        would otherwise deadlock with the constructor waiting for that
+        handshake.
+        """
+        if self.pool is not None:
+            return self.pool
+        candidate = ThreadPoolExecutor(self._concurrency)
+        with self._jobs_lock:
+            if self.pool is None:
+                self.pool = candidate
                 return self.pool
-        if self.pool is None:
-            self.pool = ThreadPoolExecutor(self._concurrency)
+        candidate.shutdown(wait=False, cancel_futures=True)
         return self.pool
 
     def _drain_jobs(self) -> None:
@@ -186,6 +198,12 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                     f.result()
                 except Exception as e:
                     log.warning(f"External asset job failed: {e}")
+        # Drop settled futures so the registry only tracks in-flight work;
+        # later lookups re-derive state from the files on disk.
+        with self._jobs_lock:
+            for full, fut in list(self._futures.items()):
+                if fut.done():
+                    self._futures.pop(full, None)
 
     # -----------------------------------------------------------------------
     # One-time events
@@ -229,6 +247,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         # Initialize collections of external assets
         self.assets = Files([])
         self.assets_done: list[File] = []
+        # full fetch path -> Future owning its download. A synchronous rewrite
+        # must wait for a pending pre-warm job instead of racing it: the job's
+        # File still carries the remote URL until its fetch completes, and
+        # rewriting HTML to that URL produces garbage like `/https://...`.
+        self._futures: dict[str, Future] = {}
         self.assets_expr_map = {
             ".css": r"url\(\s*([\"']?)(?P<url>(?:https?:)?//[^)'\"]+)\1\s*\)",
             ".js": r"[\"'](?P<url>(?:https?:)?//[^\"']+\.(?:css|js(?:on)?))[\"']",
@@ -581,35 +604,79 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
 
         with self._jobs_lock:
             file = self.assets.get_file_from_path(full)
-        if not file:
+            fut = self._futures.get(full)
+        if fut is not None and not fut.done():
+            if concurrent:
+                # Pre-warm only: a job is already running, nothing to rewrite.
+                return file
+            # A rewrite needs the real outcome — wait for the owning job.
+            # Returning the pending File would rewrite HTML to its still-
+            # remote URL (`/https://...` garbage), and if the job then fails
+            # the garbage is permanent. Afterwards fall through to the
+            # readiness gate, which retries synchronously on failure.
+            try:
+                fut.result(
+                    timeout=MAX_DOWNLOAD_TIME + 2 * DEFAULT_TIMEOUT_IN_SECS + 5
+                )
+            except Exception:
+                log.debug(f"Timed out waiting for pending fetch of '{full}'")
+            with self._jobs_lock:
+                self._futures.pop(full, None)
+                file = self.assets.get_file_from_path(full)
+        elif fut is not None:
+            with self._jobs_lock:
+                self._futures.pop(full, None)
+
+        if file is not None and not _is_remote_url(file.url):
+            # Landed: local destination already resolved.
+            return self._with_fragment(file, url)
+
+        if file is None:
             file = self._path_to_file(path, config)
             file.url = url.geturl()
+            with self._jobs_lock:
+                # Another thread may have queued the same URL while we
+                # were creating the File; prefer the existing entry.
+                existing = self.assets.get_file_from_path(full)
+                if existing is not None:
+                    file = existing
+                elif not self.assets.get_file_from_path(file.src_uri):
+                    self.assets.append(file)
 
-            _, extension = posixpath.splitext(url.path)
-            if extension and concurrent:
-                pool = self._get_pool()
-                fut = pool.submit(self._fetch, file, config)
-                with self._jobs_lock:
-                    # Another thread may have queued the same URL while we
-                    # were creating the File; prefer the existing entry.
-                    existing = self.assets.get_file_from_path(full)
-                    self.pool_jobs.append(fut)
-                    if existing is not None:
-                        file = existing
-                    elif not self.assets.get_file_from_path(file.src_uri):
-                        self.assets.append(file)
-            elif not self._fetch(file, config):
-                return None
-            else:
-                with self._jobs_lock:
-                    if not self.assets.get_file_from_path(file.src_uri):
-                        self.assets.append(file)
+        if concurrent:
+            # Best-effort pre-warm: submit unless a job owns this URL, and
+            # never rewrite here — the synchronous pass decides that later.
+            # Build the pool BEFORE taking the jobs lock: the executor
+            # constructor joins a worker-handshake, and that worker needs
+            # the jobs lock if it submits nested downloads — nesting the
+            # constructor inside this lock deadlocked both threads.
+            pool = self._get_pool()
+            with self._jobs_lock:
+                pending = self._futures.get(full)
+                if pending is None or pending.done():
+                    self._futures[full] = pool.submit(self._fetch, file, config)
+                    self.pool_jobs.append(self._futures[full])
+            return file
 
+        # Queued but never landed (failed pre-warm): fetch synchronously.
+        # The isfile check inside _fetch makes this a no-op when another
+        # job just wrote the file; otherwise this is the per-build retry.
+        if not self._fetch(file, config):
+            # Forget the dead entry so later lookups retry instead of
+            # reusing this remote-URL object.
+            with self._jobs_lock, contextlib.suppress(ValueError):
+                self.assets.remove(file)
+            return None
+        with self._jobs_lock:
+            if not self.assets.get_file_from_path(file.src_uri):
+                self.assets.append(file)
+        return self._with_fragment(file, url)
+
+    def _with_fragment(self, file: File, url: URL) -> File:
         if url.fragment:
             with self._jobs_lock:
                 if not file.url.endswith(f"#{url.fragment}"):
                     file.url += f"#{url.fragment}"
-
         return file
 
     def _fetch(self, file: File, config: DocsForgeConfig):

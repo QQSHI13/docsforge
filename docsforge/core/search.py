@@ -25,6 +25,34 @@ from docsforge.core.plugin_base import BasePlugin
 # Default field boosts, mirroring SearchPlugin.on_config.
 MARZ_FIELD_BOOSTS = {"title": 1e3, "text": 1e0, "tags": 1e6}
 
+_MARZ_LANGUAGES_CACHE: dict[str, set[str]] = {}
+
+
+def _marz_lang(code: str) -> str:
+    """Map a locale/BCP 47 code to a Marz-supported language.
+
+    Exact match first, then the base tag (`zh-tw`/`zh-TW` → `zh`,
+    `pt-BR` → `pt`), then `en`. Marz emits a `UserWarning` and falls back
+    to whitespace tokenization for unknown codes — mapping here keeps
+    per-locale indices (e.g. `zh-tw` pages) on real segmentation with no
+    warning.
+    """
+    languages = _MARZ_LANGUAGES_CACHE.get("set")
+    if languages is None:
+        languages = set(marz.languages())
+        _MARZ_LANGUAGES_CACHE["set"] = languages
+    if code in languages:
+        return code
+    lowered = code.lower()
+    if lowered in languages:
+        return lowered
+    base = re.split(r"[-_]", lowered)[0]
+    if base in languages:
+        log.debug(f"Search language '{code}' indexed as '{base}'")
+        return base
+    log.debug(f"Search language '{code}' unsupported, indexed as 'en'")
+    return "en"
+
 # Matches data-search-* attributes stripped from page content before indexing.
 DATA_SEARCH_ATTRS_PATTERN = re.compile(r"\s?data-search-\w+=\"[^\"]+\"")
 
@@ -384,7 +412,9 @@ class SearchIndex:
         lang = self.config.get("lang") or ["en"]
         if isinstance(lang, str):
             lang = [lang]
-        builder = marz.IndexBuilder(",".join(lang), ref_field="location")
+        seen: set[str] = set()
+        marz_langs = [code for code in (_marz_lang(c) for c in lang) if code not in seen and not seen.add(code)]
+        builder = marz.IndexBuilder(",".join(marz_langs), ref_field="location")
 
         fields = ["title", "text"]
         if any(e.get("tags") for e in self.entries):
