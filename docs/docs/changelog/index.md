@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+### Added
+
+- **Privacy patterns match hosts** — `assets_include`/`assets_exclude`
+  globs are now tried against the normalized `host/path` and the bare
+  hostname, so `*.clouddn.com` excludes a whole host instead of requiring
+  path-prefix guessing. Excluded URLs stay remote links, never downloaded.
+
 ### Fixed
 
 - **Search results highlight full query words** — result snippets used raw

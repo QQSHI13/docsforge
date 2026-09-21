@@ -192,3 +192,49 @@ class TestFetchRedirectValidation:
         monkeypatch.setattr(privacy_mod.requests, "get", fake_get)
         file = self._make_file(tmp_path, "https://example.com/app.js")
         assert plugin._fetch(file, config=SimpleNamespace()) is True
+
+
+class TestExcludePatterns:
+    """assets_include/exclude match host/path and bare host (fnmatch)."""
+
+    @pytest.fixture()
+    def plugin(self, tmp_path):
+        from types import SimpleNamespace
+
+        p = PrivacyPlugin()
+        p.load_config({"cache_dir": str(tmp_path / "cache")})
+        p.on_config(SimpleNamespace(site_url="https://ctf-wiki.org/", concurrency=1))
+        return p
+
+    def test_exclude_by_host_glob(self, plugin):
+        plugin.config["assets_exclude"] = ["*.clouddn.com"]
+        dead = urlparse("http://oayoilchh.bkt.clouddn.com/18-5-3/14928461.jpg")
+        assert plugin._is_excluded(dead) is True
+
+    def test_exclude_by_exact_host(self, plugin):
+        plugin.config["assets_exclude"] = ["oayoilchh.bkt.clouddn.com"]
+        dead = urlparse("http://oayoilchh.bkt.clouddn.com/18-5-3/14928461.jpg")
+        assert plugin._is_excluded(dead) is True
+
+    def test_path_patterns_still_work(self, plugin):
+        plugin.config["assets_exclude"] = ["*/mathjax/*"]
+        url = urlparse("https://cdnjs.loli.net/ajax/libs/mathjax/2.7.2/MathJax.js")
+        assert plugin._is_excluded(url) is True
+
+    def test_unmatched_host_is_fetched(self, plugin):
+        plugin.config["assets_exclude"] = ["*.clouddn.com"]
+        url = urlparse("https://cdnjs.loli.net/ajax/libs/pangu/3.3.0/pangu.min.js")
+        assert plugin._is_excluded(url) is False
+
+    def test_include_allowlist_matches_host(self, plugin):
+        plugin.config["assets_include"] = ["cdnjs.loli.net"]
+        good = urlparse("https://cdnjs.loli.net/ajax/libs/pangu/3.3.0/pangu.min.js")
+        bad = urlparse("https://unpkg.com/mermaid@12/dist/mermaid.min.js")
+        assert plugin._is_excluded(good) is False
+        assert plugin._is_excluded(bad) is True
+
+    def test_same_path_prefix_different_host_not_excluded(self, plugin):
+        # A host glob must not match a mere path substring on another host.
+        plugin.config["assets_exclude"] = ["oayoilchh.bkt.clouddn.com"]
+        url = urlparse("https://example.com/oayoilchh.bkt.clouddn.com/x.jpg")
+        assert plugin._is_excluded(url) is False

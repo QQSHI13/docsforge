@@ -113,6 +113,15 @@ class PrivacyConfig(Config):
     assets_fetch_dir = Type(str, default="assets/external")
     assets_include = ListOfItems(Type(str), default=[])
     assets_exclude = ListOfItems(Type(str), default=[])
+    """fnmatch globs deciding which external assets are fetched+vendored.
+
+    Each pattern is tried against the normalized `host/path` and against
+    the bare hostname — so `*/mathjax/*` matches by path while
+    `*.clouddn.com` or `oayoilchh.bkt.clouddn.com` match by host.
+    Excluded URLs are left as remote links, never downloaded. When
+    `assets_include` is non-empty it acts as an allowlist (only matching
+    assets are fetched).
+    """
     assets_expr_map = DictOfItems(Type(str), default={})
 
     # Settings for external links
@@ -407,6 +416,26 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         hostname = url.hostname or self.site.hostname
         return hostname != self.site.hostname
 
+    def _match_candidates(self, url: URL) -> list[str]:
+        """Strings a pattern may match against: host/path and bare host.
+
+        `_path_from_url` yields `host/normalized-path`, so path globs keep
+        working; adding the bare hostname lets users exclude whole hosts
+        (`*.clouddn.com`) instead of guessing path prefixes.
+        """
+        candidates = [self._path_from_url(url)]
+        if url.hostname:
+            candidates.append(url.hostname)
+        return candidates
+
+    def _matches_any(self, url: URL, patterns) -> bool:
+        candidates = self._match_candidates(url)
+        return any(
+            fnmatch(candidate, pattern)
+            for candidate in candidates
+            for pattern in patterns
+        )
+
     def _is_excluded(self, url: URL, initiator: File | None = None):
         if not self._is_external(url):
             return True
@@ -423,9 +452,8 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             ])
 
         if self.config.assets_include:
-            for pattern in self.config.assets_include:
-                if fnmatch(self._path_from_url(url), pattern):
-                    return False
+            if self._matches_any(url, self.config.assets_include):
+                return False
             log.debug(
                 f"Excluding external file '{url.geturl()}' {via}due to "
                 f"inclusion patterns"
@@ -433,7 +461,7 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             return True
 
         for pattern in self.config.assets_exclude:
-            if fnmatch(self._path_from_url(url), pattern):
+            if self._matches_any(url, [pattern]):
                 log.debug(
                     f"Excluding external file '{url.geturl()}' {via}due to "
                     f"exclusion patterns"
