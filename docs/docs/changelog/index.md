@@ -9,6 +9,20 @@
 
 ### Fixed
 
+- **Broken external assets link to their real URL and are retried** — a
+  page rewrite no longer waits on a background pre-warm download's
+  *remote* URL (which produced garbage like `/https://...` in the HTML and
+  404s on serve); it joins the running job, falls back to a synchronous
+  fetch, and failed URLs are retried on every build (no negative caching).
+  Also fixes an executor-construction deadlock when the first external
+  asset was submitted from a rewrite.
+- **BCP 47 search locales map to supported languages** — per-locale
+  search indices used raw locale tags (`zh-tw`, `pt-BR`), which Marz
+  indexed with generic whitespace tokenization and warned about. They now
+  map to their base language (`zh-tw` → `zh`), keeping real segmentation.
+
+### Fixed
+
 - **Search results highlight full query words** — result snippets used raw
   Marz index terms, which are stemmed (`docsforge` → `docsforg`), marking
   partial words. They now highlight the matched query terms, the same
