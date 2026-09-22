@@ -554,3 +554,39 @@ class TestParallelBuildActiveIsolation:
             "a.md": (True, False, True),
             "b.md": (False, True, True),
         }
+
+
+class TestInterruptibleWaits:
+    """_wait_future/_as_completed match result()/as_completed() semantics."""
+
+    def test_wait_future_returns_value(self):
+        import concurrent.futures
+
+        from docsforge.build import _wait_future
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            assert _wait_future(ex.submit(lambda: 42)) == 42
+
+    def test_wait_future_reraises(self):
+        import concurrent.futures
+
+        from docsforge.build import _wait_future
+
+        def boom():
+            raise ValueError("x")
+
+        ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        with ex, pytest.raises(ValueError, match="x"):
+            _wait_future(ex.submit(boom))
+
+    def test_as_completed_yields_all(self):
+        import concurrent.futures
+        import time
+
+        from docsforge.build import _as_completed
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+            slow = ex.submit(lambda: (time.sleep(0.3), "slow")[1])
+            fast = ex.submit(lambda: "fast")
+            order = [f.result() for f in _as_completed([slow, fast])]
+        assert order == ["fast", "slow"]

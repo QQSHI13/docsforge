@@ -9,6 +9,10 @@
 
 ### Fixed
 
+- **One Ctrl+C exits mid-build runs on the first press** — page-render and
+  download waits polled unboundedly, parking in lock waits that swallow
+  console interrupts on Windows; they now poll on a short interval with
+  identical total waits, so one Ctrl+C always lands.
 - **Broken external assets link to their real URL and are retried** — a
   page rewrite no longer waits on a background pre-warm download's
   *remote* URL (which produced garbage like `/https://...` in the HTML and

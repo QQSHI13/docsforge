@@ -38,6 +38,31 @@ if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
 
 
+# Poll interval for blocking waits. Unbounded `Future.result()` /
+# `as_completed()` park in lock waits that swallow console Ctrl+C on
+# Windows; polling with a short timeout keeps the total wait identical
+# while letting signals land between polls (same pattern as the
+# livereload rebuild loop).
+_INTERRUPTIBLE_POLL = 0.25
+
+
+def _wait_future(future: concurrent.futures.Future):
+    """Wait for one future, staying responsive to KeyboardInterrupt."""
+    while True:
+        try:
+            return future.result(timeout=_INTERRUPTIBLE_POLL)
+        except concurrent.futures.TimeoutError:
+            continue
+
+
+def _as_completed(futures):
+    """Yield futures in completion order, responsive to KeyboardInterrupt."""
+    pending = set(futures)
+    while pending:
+        done, pending = concurrent.futures.wait(pending, timeout=_INTERRUPTIBLE_POLL)
+        yield from done
+
+
 log = logging.getLogger(__name__)
 
 # Shared fallback lock for page building when the caller does not provide one.
@@ -717,7 +742,7 @@ def _populate_changed_pages(
                 for p in to_populate
             ]
             errors: list[BaseException] = []
-            for f in concurrent.futures.as_completed(futures):
+            for f in _as_completed(futures):
                 try:
                     f.result()
                 except BaseException as e:
@@ -867,10 +892,12 @@ def _write_outputs(
                 for page, source_path, output_path, file_deps in pages_to_build
             ]
 
-            # Wait for all pages to complete
+            # Wait for all pages to complete (in submission order so the
+            # cache updates below stay ordered; each wait polls so Ctrl+C
+            # lands even mid-render on Windows).
             for future, source_path, output_path, page, file_deps in futures:
                 try:
-                    future.result()
+                    _wait_future(future)
                 except Exception:
                     # Error already logged in _build_page; continue with other pages
                     # unless strict mode is enabled, in which case we must fail.

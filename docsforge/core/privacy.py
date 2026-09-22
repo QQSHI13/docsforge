@@ -192,7 +192,12 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 self.pool_jobs.clear()
             if not jobs:
                 break
-            wait(jobs)
+            # Bounded wait (not bare `wait(jobs)`): unbounded lock waits
+            # swallow console Ctrl+C on Windows; polling keeps the total
+            # wait identical while letting signals land between polls.
+            pending = set(jobs)
+            while pending:
+                pending = wait(pending, timeout=0.25)[1]
             for f in jobs:
                 try:
                     f.result()
