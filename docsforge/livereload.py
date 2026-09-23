@@ -84,6 +84,10 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
         self._shutdown = False
         self.serve_thread = threading.Thread(target=lambda: self.serve_forever(shutdown_delay), daemon=True)
+        # Set once serve_thread.start() runs: joining an unstarted thread
+        # raises RuntimeError, and Ctrl+C during the initial build (before
+        # serve() starts it) must shut down cleanly instead of dumping one.
+        self._serve_thread_started = False
         try:
             # Prefer the native observer (inotify/FSEvents/...); polling is slow and CPU-heavy.
             self.observer = watchdog.observers.Observer()
@@ -323,6 +327,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         else:
             log.info(f"Serving on {self.url}")
         self.serve_thread.start()
+        self._serve_thread_started = True
         if open_in_browser:
             webbrowser.open(self.url)
 
@@ -403,7 +408,8 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         if wait:
             with contextlib.suppress(Exception):
                 self.observer.stop()
-            self.serve_thread.join(timeout=1)
+            if self._serve_thread_started:
+                self.serve_thread.join(timeout=1)
             with contextlib.suppress(Exception):
                 self.observer.join(timeout=1)
 

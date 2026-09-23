@@ -22,6 +22,128 @@ log = logging.getLogger(__name__)
 BUILTIN_PLUGINS = {"search", "tags", "blog", "meta", "info", "minify", "privacy", "i18n", "social"}
 AUTOLOAD_PLUGINS = {"search", "tags", "blog", "meta", "info", "minify", "privacy", "i18n"}
 
+# Keys of the explicit nav entry format (mirrors docsforge.nav). Any other
+# single-key dict is the `"Title": path-or-children` shorthand.
+_EXPLICIT_NAV_KEYS = frozenset({"title", "path", "children", "i18n"})
+
+
+def _collect_nav_paths(nav):
+    """Walk a nav tree, returning (referenced_paths, problems).
+
+    Handles shorthand (`"Title": path`, `"Title": [children]`, bare path
+    strings) and explicit (`{title, path, children}`) entries. External
+    URLs are skipped (they are Links, not files). `problems` holds
+    human-readable descriptions of malformed entries.
+    """
+    refs: list[str] = []
+    problems: list[str] = []
+
+    def walk(node):
+        if isinstance(node, str):
+            refs.append(node)
+        elif isinstance(node, (list, tuple)):
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            if set(node) <= _EXPLICIT_NAV_KEYS:
+                path = node.get("path")
+                if isinstance(path, str) and path:
+                    refs.append(path)
+                children = node.get("children")
+                if isinstance(children, (list, tuple)):
+                    walk(children)
+                if not path and not children:
+                    problems.append(f"nav entry has neither 'path' nor 'children': {node!r}")
+            elif len(node) == 1:
+                (title, value), = node.items()
+                if isinstance(value, str):
+                    refs.append(value)
+                elif isinstance(value, (list, tuple)):
+                    walk(value)
+                else:
+                    problems.append(f"nav entry {title!r} has an unsupported value: {value!r}")
+            else:
+                problems.append(
+                    f"nav entry has multiple keys (use explicit title/path/children): {node!r}"
+                )
+        elif node is not None:
+            problems.append(f"unsupported nav entry: {node!r}")
+
+    walk(nav)
+    return refs, problems
+
+
+def _check_extra_assets(raw_config, docs_path, warnings_list):
+    """Warn about relative extra_css/extra_javascript files missing on disk."""
+    for key in ("extra_css", "extra_javascript"):
+        for raw_entry in raw_config.get(key) or []:
+            entry = raw_entry.get("path", "") if isinstance(raw_entry, dict) else raw_entry
+            if not isinstance(entry, str) or not entry:
+                continue
+            if entry.startswith(("http://", "https://", "//")):
+                continue  # remote URL, nothing to verify locally
+            rel = entry.split("?", 1)[0].lstrip("/")
+            if rel and not (docs_path / rel).exists():
+                warnings_list.append(
+                    f"'{key}' references '{entry}' but it was not found in the docs directory."
+                )
+
+
+def _check_nav(raw_config, docs_path, issues, warnings_list):
+    """Validate the `nav:` tree against files on disk (no build needed)."""
+    nav = raw_config.get("nav")
+    if nav is None:
+        return
+    refs, problems = _collect_nav_paths(nav)
+    for problem in problems:
+        warnings_list.append(problem)
+
+    # Locales whose files live beside default files as `page.xx.md` twins
+    # (mirrors the i18n plugin). A twin is covered by its base entry, so it
+    # must not be reported as missing from the nav.
+    locales: set[str] = set()
+    default_locale: str | None = None
+    for lang in (raw_config.get("extra", {}) or {}).get("i18n_languages", []) or []:
+        if isinstance(lang, dict) and lang.get("locale"):
+            locales.add(str(lang["locale"]))
+            if lang.get("default"):
+                default_locale = str(lang["locale"])
+    twin_locales = locales - ({default_locale} if default_locale else set())
+
+    def is_twin(rel: str) -> bool:
+        if not rel.endswith(".md") or not twin_locales:
+            return False
+        stem = rel[:-len(".md")]
+        if "." not in stem:
+            return False
+        base_stem, suffix = stem.rsplit(".", 1)
+        if suffix not in twin_locales:
+            return False
+        return (docs_path / (base_stem + ".md")).is_file()
+
+    referenced: set[str] = set()
+    for ref in refs:
+        if not isinstance(ref, str) or not ref:
+            continue
+        if "://" in ref or ref.startswith("//"):
+            continue  # external Link entry, not a file
+        rel = ref.lstrip("/")
+        referenced.add(rel)
+        if not (docs_path / rel).is_file():
+            issues.append(f"nav references '{ref}' but '{rel}' was not found in the docs directory.")
+
+    on_disk = {
+        p.relative_to(docs_path).as_posix()
+        for p in docs_path.rglob("*.md")
+        if p.is_file()
+    }
+    for rel in sorted(on_disk - referenced):
+        if is_twin(rel):
+            continue
+        warnings_list.append(
+            f"'{rel}' exists in the docs directory but is not included in the 'nav' configuration."
+        )
+
 
 def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *, full_validation: bool = False) -> int:
     """Validate DocsForge configuration without building.
@@ -159,9 +281,17 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
             if clean_name in BUILTIN_PLUGINS or name in BUILTIN_PLUGINS:
                 click.secho(f"                   ✓ {name}", fg="green")
                 if clean_name in AUTOLOAD_PLUGINS:
-                    warnings_list.append(
-                        f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
+                    # A declaration carrying options (e.g. `blog: {enabled:
+                    # false}`) is meaningful — only flag bare redeclarations.
+                    options = (
+                        next(iter(plugin.values()))
+                        if isinstance(plugin, dict)
+                        else None
                     )
+                    if not options:
+                        warnings_list.append(
+                            f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
+                        )
             else:
                 click.secho(f"                   • {name} (third-party plugin)", fg="cyan")
     else:
@@ -184,6 +314,13 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
         print(f"  Extra CSS:     {len(raw_config['extra_css'])} file(s)")
     if raw_config.get("extra_javascript"):
         print(f"  Extra JS:      {len(raw_config['extra_javascript'])} file(s)")
+    # 6b. Check nav tree against files on disk (paths, orphans, shape).
+    # Runs before full validation so nav problems surface even when the
+    # config would otherwise fail to load. Skipped when docs_dir itself is
+    # missing (already reported as an error above).
+    if docs_path.exists():
+        _check_extra_assets(raw_config, docs_path, warnings_list)
+        _check_nav(raw_config, docs_path, issues, warnings_list)
 
     # 7. Full validation: load_config catches errors the lightweight check
     # misses, especially third-party plugins that are configured but not
@@ -257,15 +394,21 @@ def fix_config(config_file=None) -> int:
         click.secho("  ✓ Added edit_uri: edit/main/docs/", fg="green")
         changed = True
 
-    # Fix 3: Remove built-in plugins from explicit list
+    # Fix 3: Remove built-in plugins from explicit list — but only bare
+    # redeclarations. An entry carrying options (e.g. `blog: {enabled:
+    # false}`) is meaningful configuration, not redundancy.
     plugins = raw.get("plugins", [])
     if isinstance(plugins, list):
         new_plugins = []
         for p in plugins:
-            name = p if isinstance(p, str) else (next(iter(p.keys())) if isinstance(p, dict) else "")
+            if isinstance(p, dict):
+                name = next(iter(p.keys()))
+                options = next(iter(p.values()))
+            else:
+                name, options = p, None
             clean = name.split("/")[-1] if "/" in name else name
             known = BUILTIN_PLUGINS | AUTOLOAD_PLUGINS
-            if clean not in known and name not in known:
+            if (clean not in known and name not in known) or options:
                 new_plugins.append(p)
             else:
                 click.secho(f"  ✓ Removed built-in plugin: {name}", fg="green")

@@ -384,3 +384,29 @@ class TestPaginationStep:
         plugin.load_config({"pagination_per_page": 5})
         view = SimpleNamespace(posts=[object()])
         assert plugin._pagination_step(view) == 5
+
+
+class TestDisabledCreatesNothing:
+    """A disabled blog plugin must not touch the docs tree or the files."""
+
+    def test_on_files_with_enabled_false_writes_nothing(self, tmp_path, monkeypatch):
+        from docsforge.core.blog import BlogPlugin
+
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "index.md").write_text("# Home\n")
+        monkeypatch.chdir(tmp_path)
+
+        plugin = BlogPlugin()
+        plugin.load_config({"enabled": False})
+        config = SimpleNamespace(
+            docs_dir=str(docs),
+            site_dir=str(tmp_path / "site"),
+            use_directory_urls=True,
+        )
+        files = Files([])
+        plugin.on_config(config)
+        plugin.on_files(files, config=config)
+
+        assert not (docs / "blog").exists()
+        assert list(files) == []
