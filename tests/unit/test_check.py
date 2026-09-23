@@ -217,3 +217,30 @@ class TestLivereloadShutdown:
             mount_path="/",
         )
         server.shutdown(wait=True)  # must not raise RuntimeError
+
+
+class TestDisabledPluginDisplay:
+    def test_disabled_builtins_show_disabled_without_warning(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        from docsforge.check import check
+
+        (tmp_path / "docs").mkdir(exist_ok=True)
+        (tmp_path / "docs" / "index.md").write_text("# Home\n")
+        (tmp_path / "docsforge.yml").write_text(
+            "site_name: Test\n"
+            "plugins:\n"
+            "  - privacy:\n"
+            "      enabled: false\n"
+            "  - search\n"
+            "nav:\n"
+            "  - Home: index.md\n"
+        )
+        monkeypatch.chdir(tmp_path)
+        assert check() == 0
+        out = capsys.readouterr().out
+        assert "✗ privacy (disabled)" in out
+        # The bare `search` redeclaration still warns; the options-carrying
+        # privacy declaration must not.
+        assert "'search' is built-in" in out
+        assert "'privacy' is built-in" not in out

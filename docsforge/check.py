@@ -279,19 +279,22 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
 
             clean_name = name.split("/")[-1] if "/" in name else name
             if clean_name in BUILTIN_PLUGINS or name in BUILTIN_PLUGINS:
-                click.secho(f"                   ✓ {name}", fg="green")
-                if clean_name in AUTOLOAD_PLUGINS:
-                    # A declaration carrying options (e.g. `blog: {enabled:
-                    # false}`) is meaningful — only flag bare redeclarations.
-                    options = (
-                        next(iter(plugin.values()))
-                        if isinstance(plugin, dict)
-                        else None
+                options = (
+                    next(iter(plugin.values()))
+                    if isinstance(plugin, dict)
+                    else None
+                )
+                disabled = isinstance(options, dict) and options.get("enabled") is False
+                if disabled:
+                    click.secho(f"                   ✗ {name} (disabled)", fg="yellow")
+                else:
+                    click.secho(f"                   ✓ {name}", fg="green")
+                # A declaration carrying options (e.g. `blog: {enabled:
+                # false}`) is meaningful — only flag bare redeclarations.
+                if clean_name in AUTOLOAD_PLUGINS and not options:
+                    warnings_list.append(
+                        f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
                     )
-                    if not options:
-                        warnings_list.append(
-                            f"Plugin '{name}' is built-in and does not need to be declared under 'plugins:'."
-                        )
             else:
                 click.secho(f"                   • {name} (third-party plugin)", fg="cyan")
     else:
