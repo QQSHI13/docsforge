@@ -342,6 +342,17 @@ def _populate_page(
             page.content = config.plugins.on_page_content(
                 page.content, page=page, config=config, files=files
             )
+
+        # Parse search entries here — not in on_page_context. This runs in
+        # parallel without the global plugin lock (page-local data plus
+        # atomic appends only); on_page_context runs serialized under the
+        # lock during _build_page, where 16M+ HTMLParser calls stall every
+        # render worker. on_page_context skips pages already indexed here.
+        from docsforge.core.search import SearchPlugin
+
+        for plugin in config.plugins.values():
+            if isinstance(plugin, SearchPlugin):
+                plugin.index_page_entries(page)
     except Exception as e:
         message = f"Error reading page '{page.file.src_uri}':"
         # Prevent duplicated the error message because it will be printed immediately afterwards.

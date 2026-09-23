@@ -53,6 +53,26 @@ def _marz_lang(code: str) -> str:
     log.debug(f"Search language '{code}' unsupported, indexed as 'en'")
     return "en"
 
+
+def _marz_lang_list(lang) -> list[str]:
+    """Normalize a lang setting to the deduped Marz language list.
+
+    Shared by the JSON config and the binary index builder so the
+    frontend's `MarzIndex.load(bytes, expected)` assertion compares
+    identical strings. Without this, a `zh-tw` locale baked `zh` into the
+    index while the JSON advertised `zh-tw`, tripping the mismatch
+    fallback on every search load.
+    """
+    if isinstance(lang, str):
+        lang = [lang]
+    seen: set[str] = set()
+    out = []
+    for code in (_marz_lang(c) for c in (lang or ["en"])):
+        if code not in seen:
+            seen.add(code)
+            out.append(code)
+    return out
+
 # Matches data-search-* attributes stripped from page content before indexing.
 DATA_SEARCH_ATTRS_PATTERN = re.compile(r"\s?data-search-\w+=\"[^\"]+\"")
 
@@ -100,6 +120,10 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         self._locales: list[str] = []
         self._entries_cache: dict[str, dict[str, list[dict]]] = {}
         self._entries_cache_file: Path | None = None
+        # src_uris parsed by index_page_entries in the current build.
+        # Guards on_page_context against double-indexing pages that were
+        # already parsed in parallel during _populate_page.
+        self._indexed_this_build: set[str] = set()
 
     def on_startup(self, *, command, dirty):
         self.is_dirty = dirty
@@ -161,17 +185,34 @@ class SearchPlugin(BasePlugin[SearchConfig]):
     def on_page_context(self, context, *, page, config, nav):
         if not self.config.enabled:
             return
-        index = self._index_for_page(page)
-        if index is not None:
-            before = len(index.entries)
-            index.add_entry_from_context(page)
-            page_entries = index.entries[before:]
-            locale = self._locale_for_page(page)
-            self._entries_cache.setdefault(locale, {})[page.file.src_uri] = page_entries
+        # Entry parsing normally happens in _populate_page (parallel, no
+        # global lock). Parse here only if this page somehow reached the
+        # build without it (exotic flows calling _build_page directly) —
+        # the per-build set keeps this from double-indexing.
+        locale = self._locale_for_page(page)
+        if page.file.src_uri not in self._indexed_this_build:
+            self.index_page_entries(page)
         page.content = DATA_SEARCH_ATTRS_PATTERN.sub("", page.content)
         # Tell the frontend which search index this locale page should use.
-        locale = self._locale_for_page(page)
         context["search_index_url"] = self._search_index_url(locale)
+
+    def index_page_entries(self, page) -> None:
+        """Parse a rendered page into search entries (thread-safe).
+
+        Called from _populate_page, which runs in parallel without the
+        global plugin lock: this touches only page-local data plus atomic
+        appends/sets, so concurrent pages never interfere. Entry order
+        across pages is nondeterministic here, but generate_search_index
+        sorts by location, keeping output byte-identical.
+        """
+        if not self.config.enabled:
+            return
+        index = self._index_for_page(page)
+        if index is not None:
+            new_entries = index.add_entry_from_context(page)
+            locale = self._locale_for_page(page)
+            self._entries_cache.setdefault(locale, {})[page.file.src_uri] = new_entries
+        self._indexed_this_build.add(page.file.src_uri)
 
     def _locale_for_page(self, page) -> str:
         return getattr(page.file, "i18n_locale", None) or self._default_locale or ""
@@ -263,9 +304,7 @@ class SearchPlugin(BasePlugin[SearchConfig]):
                 page = file.page
             page.read_source(config)
             page.render(config, files)
-            before = len(index.entries)
-            index.add_entry_from_context(page)
-            entries_by_uri[file.src_uri] = index.entries[before:]
+            entries_by_uri[file.src_uri] = index.add_entry_from_context(page)
         return entries_by_uri
 
     def on_post_build(self, *, config):
@@ -319,18 +358,29 @@ class SearchIndex:
         self.config = config
         self.entries = []
 
-    def add_entry_from_context(self, page):
+    def add_entry_from_context(self, page) -> list[dict]:
+        """Parse page content into search entries, returning the new ones.
+
+        New entries are appended to `self.entries` (a single `extend`, safe
+        for concurrent pages) and also returned, so callers never slice the
+        shared list positionally — concurrent appends from other pages
+        would leak into such a slice and duplicate entries across pages.
+        """
         search = page.meta.get("search") or {}
         if search.get("exclude"):
-            return
+            return []
 
         parser = Parser()
         parser.feed(page.content)
         parser.close()
 
-        for section in parser.data:
-            if not section.is_excluded():
-                self.create_entry_for_section(section, page.toc, page.url, page)
+        new_entries = [
+            self.create_entry_for_section(section, page.toc, page.url, page)
+            for section in parser.data
+            if not section.is_excluded()
+        ]
+        self.entries.extend(new_entries)
+        return new_entries
 
     def create_entry_for_section(self, section, toc, url, page):
         item = self._find_toc_by_id(toc, section.id)
@@ -362,13 +412,19 @@ class SearchIndex:
         if "boost" in search:
             entry["boost"] = search["boost"]
 
-        self.entries.append(entry)
+        return entry
 
     def generate_search_index(self, prev):
         config = {
             key: self.config[key]
             for key in ["lang", "separator", "pipeline", "fields"]
         }
+        # Advertise the effective Marz languages, not the raw locale tags:
+        # the binary index is built with the normalized list, and the
+        # frontend asserts `MarzIndex.load(bytes, expected)` against this
+        # exact string. A raw `zh-tw` here vs baked `zh` tripped the
+        # mismatch fallback on every search load.
+        config["lang"] = _marz_lang_list(config.get("lang"))
 
         if prev and self.entries:
             # Replace all entries belonging to pages that were rebuilt.
@@ -412,9 +468,7 @@ class SearchIndex:
         lang = self.config.get("lang") or ["en"]
         if isinstance(lang, str):
             lang = [lang]
-        seen: set[str] = set()
-        marz_langs = [code for code in (_marz_lang(c) for c in lang) if code not in seen and not seen.add(code)]
-        builder = marz.IndexBuilder(",".join(marz_langs), ref_field="location")
+        builder = marz.IndexBuilder(",".join(_marz_lang_list(lang)), ref_field="location")
 
         fields = ["title", "text"]
         if any(e.get("tags") for e in self.entries):
