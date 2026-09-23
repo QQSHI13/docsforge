@@ -9,6 +9,18 @@
 
 ### Fixed
 
+- **`check` validates nav and extra assets** — `docsforge check` now
+  reports nav entries pointing at missing files (errors), pages on disk
+  missing from nav, malformed nav entries, and missing relative
+  `extra_css`/`extra_javascript` files (warnings). i18n twins
+  (`page.xx.md`) are covered by their base entry and never reported.
+- **Options-carrying builtins are no longer flagged** — declaring a
+  built-in plugin *with options* (e.g. `privacy: {enabled: false}`) no
+  longer triggers the redundant-declaration warning, and `check --fix`
+  preserves such entries instead of stripping them.
+- **Shutdown before serve starts no longer crashes** — Ctrl+C during the
+  initial build used to end in `RuntimeError: cannot join thread before
+  it is started`; the serve thread is now only joined after starting.
 - **One Ctrl+C exits mid-build runs on the first press** — page-render and
   download waits polled unboundedly, parking in lock waits that swallow
   console interrupts on Windows; they now poll on a short interval with

@@ -9,6 +9,16 @@
 
 ### 修复
 
+- **`check` 校验导航与额外资源** —— `docsforge check` 现报告指向缺失
+  文件的导航条目（错误）、磁盘上有但导航缺失的页面、畸形导航条目、以
+  及缺失的相对 `extra_css`/`extra_javascript` 文件（警告）。i18n
+  双胞胎（`page.xx.md`）由其基础条目覆盖，不再误报。
+- **带选项的内置插件不再被标记** —— 声明带选项的内置插件（如
+  `privacy: {enabled: false}`）不再触发冗余声明警告，`check --fix`
+  也会保留此类条目而非删除。
+- **服务启动前的关闭不再崩溃** —— 初始构建期间按 Ctrl+C
+  曾以 `RuntimeError: cannot join thread before it is started`
+  收尾；现仅在服务线程启动后才 join。
 - **一次 Ctrl+C 即可退出构建中的运行** —— 页面渲染与下载等待曾无界
   阻塞，停在 Windows 下吞掉控制台中断的锁等待中；现改为短间隔轮询，
   总等待时长不变，一次 Ctrl+C 必达。
