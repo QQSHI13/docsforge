@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.2] — 2026-09-23
+
 ### Added
 
 - **Privacy patterns match hosts** — `assets_include`/`assets_exclude`
