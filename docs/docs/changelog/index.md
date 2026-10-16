@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.3] — 2026-10-16
+
 ### Fixed
 
 - **`extra.pwa.icons` reach the manifest** — the extra-icons branch was
