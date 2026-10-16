@@ -294,3 +294,60 @@ def test_regression_config_check_appears_before_build_logs(tmp_path: Path):
         f"config check (offset {check_idx}) appeared AFTER build log (offset {build_idx}) "
         f"— stdout flush regression"
     )
+
+
+# ---------------------------------------------------------------------------
+# Unreleased — `extra.pwa.icons` was unreachable
+# ---------------------------------------------------------------------------
+
+
+def test_regression_extra_pwa_icons_with_real_config_type(tmp_path: Path, monkeypatch):
+    """`extra.pwa.icons` must be honoured with the config type the build passes.
+
+    The guard read `isinstance(extra, dict)`, but the real `config.extra` is a
+    `Config` (a `UserDict`) and never a `dict`, so the branch was dead code:
+    every site declaring `extra.pwa.icons` silently shipped a manifest.json
+    with only its favicon/logo. The unit-test fake used a plain dict, which is
+    why the suite stayed green — this test pins the production type by loading
+    a real config through `load_config`.
+    """
+    import json
+    from unittest.mock import Mock, patch
+
+    import docsforge.build as build_mod
+    from docsforge.build import _generate_pwa_manifest_and_precache
+    from docsforge.config_base import load_config
+    from docsforge.files import Files
+
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "index.md").write_text("# Home\n")
+    cfg: Path = tmp_path / "docsforge.yml"
+    cfg.write_text(
+        "site_name: Test\n"
+        "docs_dir: docs\n"
+        "site_dir: site\n"
+        "privacy: false\n"
+        "theme: {name: material, palette: [{scheme: default, primary: teal, accent: teal}]}\n"
+        "extra:\n"
+        "  pwa:\n"
+        "    icons:\n"
+        "      - {src: icon-192.png, sizes: 192x192, type: image/png, purpose: any}\n"
+        "      - {src: icon-512.png, sizes: 512x512, type: image/png, purpose: any}\n"
+    )
+    config = load_config(config_file=str(cfg))
+    (tmp_path / "site").mkdir()
+
+    # The trap this regression test exists for: `extra` is a Mapping, not a dict.
+    assert not isinstance(config.extra, dict), (
+        "config.extra is a plain dict now — the original bug's premise changed"
+    )
+
+    monkeypatch.chdir(tmp_path)
+    with patch.object(build_mod, "_generate_cache_manifest"):
+        _generate_pwa_manifest_and_precache(config, Files([]), Mock(homepage=None), None)
+
+    manifest = json.loads((tmp_path / "site" / "manifest.json").read_text())
+    srcs = [icon["src"] for icon in manifest["icons"]]
+    assert srcs == ["icon-192.png", "icon-512.png"], (
+        f"extra.pwa.icons were dropped from the manifest (got {srcs})"
+    )

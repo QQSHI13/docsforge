@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Fixed
+
+- **`extra.pwa.icons` reach the manifest** — the extra-icons branch was
+  guarded by `isinstance(extra, dict)`, but `config.extra` is a `Config`
+  (a `UserDict`), so the check could never pass. Sites declaring
+  `extra.pwa.icons` silently shipped a manifest.json containing only their
+  favicon/logo, which left them non-installable. The guards now accept any
+  `Mapping`.
+
 ## [13.0.2] — 2026-09-23
 
 ### Added

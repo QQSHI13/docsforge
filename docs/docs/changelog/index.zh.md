@@ -1,5 +1,13 @@
 ## [未发布]
 
+### 修复
+
+- **`extra.pwa.icons` 现在会写入 manifest** —— 追加额外图标的
+  分支使用了 `isinstance(extra, dict)` 判断，但 `config.extra`
+  实为 `Config`（`UserDict`），该条件永远不成立。声明了
+  `extra.pwa.icons` 的站点会静默地只把 favicon/logo 写进
+  manifest.json，导致站点无法安装。现改为接受任意 `Mapping`。
+
 ## [13.0.2] — 2026-09-23
 
 ### 新增

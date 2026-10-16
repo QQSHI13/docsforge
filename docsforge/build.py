@@ -13,7 +13,7 @@ import re
 import struct
 import threading
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlsplit
@@ -1426,11 +1426,12 @@ def _generate_pwa_manifest_and_precache(
                 icon["type"] = mime_type
             manifest["icons"].append(icon)
 
-    # Add extra icons if specified
+    # Add extra icons if specified. `config.extra` is a `Config` (a UserDict),
+    # not a `dict`, so these guards must test for the Mapping protocol.
     extra = config.extra or {}
-    if isinstance(extra, dict):
+    if isinstance(extra, Mapping):
         pwa_config = extra.get("pwa", {})
-        if isinstance(pwa_config, dict):
+        if isinstance(pwa_config, Mapping):
             extra_icons = pwa_config.get("icons", [])
             if extra_icons:
                 manifest["icons"].extend(extra_icons)
