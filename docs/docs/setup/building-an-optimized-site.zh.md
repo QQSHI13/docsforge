@@ -46,12 +46,17 @@ cwebp -q 80 image.png -o image.webp
 ## 隐私插件（外部资源）
 
 `privacy` 插件会在构建期间下载并缓存外部资源（如 Google Fonts）。这意味着：
-- 运行时不会请求 CDN
+- 浏览器端不会请求 CDN —— 产物中没有任何指向第三方的引用
 - 页面加载更快
 - 可离线使用
 - 用户隐私保护更好
 
 每次构建时自动运行。
+
+!!! tip "完全无网络的构建"
+    该插件的下载属于*构建阶段*请求。若要让构建过程完全零网络访问（隔离 CI、
+    受限防火墙），请设置 `theme.font: false` 与
+    `plugins: {privacy: {assets_fetch: false}}`。这样产物中不含任何外部 URL。
 
 ## 离线模式
 

@@ -22,7 +22,9 @@ markdown_extensions:
 ```
 
 !!! note "Vendored"
-    Mermaid is bundled with DocsForge. Readers make no CDN calls; external assets are fetched at build time if needed.
+    Mermaid is bundled with DocsForge, so **readers make no CDN calls** — the
+    diagram library loads from your own domain. External assets referenced by
+    your content are fetched at build time if needed.
 
 ---
 

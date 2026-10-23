@@ -46,12 +46,18 @@ cwebp -q 80 image.png -o image.webp
 ## Privacy plugin (external assets)
 
 The `privacy` plugin downloads and caches external assets (like Google Fonts) during the build. This means:
-- No CDN calls at runtime
+- No CDN calls in the browser — nothing in the output points at a third party
 - Faster page loads
 - Works offline
 - Better privacy for your users
 
 Runs automatically on every build.
+
+!!! tip "Building with no network access at all"
+    The plugin's downloads are *build-time* requests. To make a build that touches
+    the network zero times (air-gapped CI, restricted firewalls), set
+    `theme.font: false` and `plugins: {privacy: {assets_fetch: false}}`. The
+    output then contains no external URLs whatsoever.
 
 ## Offline mode
 

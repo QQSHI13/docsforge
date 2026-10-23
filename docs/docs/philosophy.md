@@ -31,7 +31,9 @@ You configure only what you want to customize, not what you need to exist.
 
 **After `pip install docsforge`, you own everything.**
 
-The theme, all plugins, all extensions, KaTeX, fonts, and Pygments are bundled inside the package. External assets are fetched during the build; readers make no CDN calls. Works offline.
+The theme, all plugins, all extensions, KaTeX, fonts, and Pygments are bundled inside the package. **Readers make no CDN calls** — every asset a page needs is served from your own domain.
+
+The *build* may still fetch some external assets by default: the `privacy` plugin downloads Google Fonts and the Mermaid fallback at build time and vendors them into your output. If you need a build machine with no network access at all, set `theme.font: false` and `plugins: {privacy: {assets_fetch: false}}` — the build then makes zero network requests and the output contains no external URLs.
 
 ### 3. Stable
 

@@ -38,7 +38,7 @@ DocsForge 包含编写和发布文档所需的一切。无需额外安装，无�
 
     ---
 
-    编写 `$$...$$` 即可用 KaTeX 渲染。读者端无需调用 CDN，无需 `extra_javascript`，无需配置。
+    编写 `$$...$$` 即可用 KaTeX 渲染。浏览器端无需调用 CDN，无需 `extra_javascript`，无需配置。
 
 -   :material-code-tags:{ .lg .middle } &nbsp; **语法高亮**
 

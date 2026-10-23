@@ -38,7 +38,7 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     ---
 
-    Write `$$...$$` and it renders with KaTeX. No CDN calls for readers, no `extra_javascript`, no configuration.
+    Write `$$...$$` and it renders with KaTeX. No CDN calls in the browser, no `extra_javascript`, no configuration.
 
 -   :material-code-tags:{ .lg .middle } &nbsp; **Syntax Highlighting**
 

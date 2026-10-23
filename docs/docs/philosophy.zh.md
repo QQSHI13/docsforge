@@ -31,7 +31,13 @@ DocsForge 的诞生源于我们相信文档应该**尽可能简单**。
 
 **执行 `pip install docsforge` 后，你就拥有了所有内容。**
 
-主题、所有插件、所有扩展、KaTeX、字体和 Pygments 都打包在包内。外部资源在构建时获取；读者端不会调用 CDN。支持离线使用。
+主题、所有插件、所有扩展、KaTeX、字体和 Pygments 都打包在包内。**读者端不会调用
+任何 CDN** —— 页面所需的全部资源都由你自己的域名提供。
+
+默认情况下*构建过程*仍可能获取部分外部资源：`privacy` 插件会在构建时下载 Google
+Fonts 与 Mermaid 回退文件，并把它们内置到输出中。如果构建机器需要完全无网络访问，
+请设置 `theme.font: false` 和 `plugins: {privacy: {assets_fetch: false}}` —— 此时
+构建不会发起任何网络请求，产物中也不包含任何外部 URL。
 
 ### 3. 稳定
 

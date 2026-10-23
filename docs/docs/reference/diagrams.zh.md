@@ -22,7 +22,8 @@ markdown_extensions:
 ```
 
 !!! note "内置"
-    Mermaid 已随 DocsForge 一起打包。读者不会发起 CDN 请求；如需外部资源，将在构建时获取。
+    Mermaid 已随 DocsForge 一起打包，因此**浏览器端不会发起任何 CDN 请求** ——
+    图表库由你自己的域名提供。内容中引用的外部资源会在需要时于构建阶段获取。
 
 ---
 
