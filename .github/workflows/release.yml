@@ -187,7 +187,7 @@ jobs:
             # are literal (no command substitution or escaping pitfalls).
             {
               printf '## DocsForge %s\n\n' "$VERSION"
-              printf 'Drop-in replacement for MkDocs + Material for MkDocs. One package, one command, zero CDN calls.\n\n'
+              printf 'Candidate drop-in replacement for MkDocs + Material for MkDocs. One package, one command, zero CDN calls in the browser.\n\n'
               cat body.md
               printf '\n---\n\n### Install / upgrade\n\n'
               printf '```\npip install --upgrade docsforge==%s\n```\n\n' "$VERSION"
