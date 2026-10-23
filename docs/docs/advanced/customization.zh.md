@@ -142,7 +142,8 @@ theme:
 
 {% block announce %}
   <div class="announcement">
-    :material-party-popper: New version released! <a href="/changelog">See what's new</a>
+    <span class="twemoji">{% include ".icons/material/party-popper.svg" %}</span>
+    New version released! <a href="/changelog">See what's new</a>
   </div>
 {% endblock %}
 ```
@@ -152,7 +153,7 @@ theme:
 | 块 | 说明 |
 |-------|-------------|
 | `extrahead` | 在 `<head>` 标签内 |
-| `announce` | 公告横幅 |
+| `announce` | 公告横幅（见下文） |
 | `header` | 网站页眉 |
 | `tabs` | 导航标签 |
 | `content` | 主内容区域 |
@@ -160,6 +161,95 @@ theme:
 | `outdated` | 过时版本提示 |
 
 ---
+
+## 公告横幅
+
+公告横幅是位于页眉上方的一条全宽横幅。常见场景**无需任何模板** —— 直接设置
+顶层的 `announce:` 键即可：
+
+```yaml
+announce:
+  text: v14 已发布
+  link: /changelog/
+  link_text: 查看更新内容
+  icon: material/party-popper
+```
+
+这会渲染一个图标、文字以及链接。纯字符串是 `text` 的简写：
+
+```yaml
+announce: v14 已发布 —— 查看更新日志
+```
+
+| 选项 | 类型 | 描述 |
+|--------|------|-------------|
+| `announce.text` | `string` | 消息内容，按转义后的纯文本渲染。 |
+| `announce.link` | `string` | URL。未设置 `link_text` 时，整段文字即为链接。 |
+| `announce.link_text` | `string` | 链接标题。设置后 `text` 保持纯文本。 |
+| `announce.icon` | `string` | 文字前的图标，如 `material/party-popper`。 |
+| `announce.style` | `default` \| `warning` | 横幅配色。 |
+
+只有 `text`（或覆盖）产生了输出，横幅才会渲染，因此未设置 `announce:` 的站点
+永远不会看到空横幅。
+
+### 富文本：模板覆盖
+
+`announce.text` 会被转义，因此无法携带 HTML。若需要超出“纯文本 + 单个链接 +
+图标”的内容，请覆盖 `announce` 块 —— 覆盖始终优先于 `announce:`：
+
+```yaml
+theme:
+  name: material
+  custom_dir: overrides
+```
+
+`custom_dir` 相对于 `docsforge.yml` 解析，因此这要求在它旁边有一个
+`overrides/` 目录。然后创建 `overrides/main.html`：
+
+```html
+{% extends "base.html" %}
+
+{% block announce %}
+  <div class="announcement">
+    <span class="twemoji">{% include ".icons/material/party-popper.svg" %}</span>
+    v14 已发布 — <a href="/changelog/">查看更新内容</a>
+  </div>
+{% endblock %}
+```
+
+这就是全部机制。只有块产生了输出，横幅才会渲染，因此没有覆盖的站点永远
+不会看到空横幅。
+
+!!! warning "块输出不会被当作 Markdown 处理"
+    `{% block announce %}` 是在 Markdown 转换**之后**由 Jinja 渲染的，因此
+    Markdown 语法和 `pymdownx.emoji` 短代码（如 `:material-party-popper:`）
+    会原样显示为**纯文本**。请改用原生 HTML 加图标包含 ——
+    `{% include ".icons/material/<name>.svg" %}` —— 如上例所示。
+
+### 样式
+
+外层是 `<aside class="md-banner">`，内文位于 `.md-banner__inner`，可通过
+`extra_css` 重新设置样式：
+
+```css
+/* docs/stylesheets/extra.css */
+.md-banner {
+  background-color: #4051b5;
+}
+```
+
+### 关闭横幅
+
+启用 `announce.dismiss`（默认已启用）后，横幅会获得一个关闭按钮。点击后横幅
+隐藏，并把横幅内容的哈希存入 `localStorage`，因此后续访问和即时导航期间都会
+保持隐藏。
+
+由于哈希覆盖的是渲染后的内容，**修改公告文字即等于发布一条新公告** ——
+关闭过旧横幅的所有访客都会看到新横幅。关闭状态是按浏览器记录的，而非按用户：
+清除站点数据后横幅会重新出现。
+
+---
+
 
 ## 自定义提示框
 

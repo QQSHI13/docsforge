@@ -142,7 +142,8 @@ Create `docs/overrides/main.html` to extend the base template:
 
 {% block announce %}
   <div class="announcement">
-    :material-party-popper: New version released! <a href="/changelog">See what's new</a>
+    <span class="twemoji">{% include ".icons/material/party-popper.svg" %}</span>
+    New version released! <a href="/changelog">See what's new</a>
   </div>
 {% endblock %}
 ```
@@ -152,7 +153,7 @@ Create `docs/overrides/main.html` to extend the base template:
 | Block | Description |
 |-------|-------------|
 | `extrahead` | Inside `<head>` tag |
-| `announce` | Announcement banner |
+| `announce` | Announcement banner (see below) |
 | `header` | Site header |
 | `tabs` | Navigation tabs |
 | `content` | Main content area |
@@ -160,6 +161,96 @@ Create `docs/overrides/main.html` to extend the base template:
 | `outdated` | Outdated version notice |
 
 ---
+
+## Announcement bar
+
+The announcement bar is a full-width strip above the header. The common case
+needs **no template at all** — set the top-level `announce:` key:
+
+```yaml
+announce:
+  text: v14 is out
+  link: /changelog/
+  link_text: see what changed
+  icon: material/party-popper
+```
+
+That renders an icon, the text and a link. A plain string is shorthand for
+`text`:
+
+```yaml
+announce: v14 is out — see the changelog
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `announce.text` | `string` | Message. Rendered as escaped text. |
+| `announce.link` | `string` | URL. Without `link_text`, the whole text becomes the link. |
+| `announce.link_text` | `string` | Link caption. `text` then stays plain. |
+| `announce.icon` | `string` | Icon before the text, e.g. `material/party-popper`. |
+| `announce.style` | `default` \| `warning` | Banner colors. |
+
+The bar only renders when `text` (or an override) produces output, so sites
+without an `announce:` key never see an empty banner.
+
+### Rich markup: template override
+
+`announce.text` is escaped, so it cannot carry HTML. For anything beyond plain
+text + one link + an icon, override the `announce` block — an override always
+takes precedence over `announce:`:
+
+```yaml
+theme:
+  name: material
+  custom_dir: overrides
+```
+
+`custom_dir` is resolved relative to `docsforge.yml`, so this expects an
+`overrides/` directory next to it. Then create `overrides/main.html`:
+
+```html
+{% extends "base.html" %}
+
+{% block announce %}
+  <div class="announcement">
+    <span class="twemoji">{% include ".icons/material/party-popper.svg" %}</span>
+    v14 is out — <a href="/changelog/">see what changed</a>
+  </div>
+{% endblock %}
+```
+
+!!! warning "The block output is not processed as Markdown"
+    `{% block announce %}` is rendered by Jinja *after* Markdown conversion, so
+    Markdown syntax and `pymdownx.emoji` shortcodes (like
+    `:material-party-popper:`) appear as **literal text**. Use raw HTML and an
+    icon include instead — `{% include ".icons/material/<name>.svg" %}` — as in
+    the example above.
+
+### Styling
+
+The wrapper is `<aside class="md-banner">` with its inner text in
+`.md-banner__inner`, so restyle it through `extra_css`:
+
+```css
+/* docs/stylesheets/extra.css */
+.md-banner {
+  background-color: #4051b5;
+}
+```
+
+### Dismissing the bar
+
+With `announce.dismiss` enabled (the default), the bar gets a close button.
+Clicking it hides the bar and stores a hash of the banner content in
+`localStorage`, so it stays hidden on later visits and across instant
+navigation.
+
+Because the hash covers the rendered content, **editing the announcement text
+publishes a new one** — everyone who dismissed the old banner sees the new one.
+Dismissal is per browser, not per user: clearing site data brings the bar back.
+
+---
+
 
 ## Custom Admonitions
 
