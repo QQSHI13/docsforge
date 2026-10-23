@@ -338,6 +338,36 @@ tikz_preamble:
 
 ---
 
+### `announce`
+
+Announcement bar shown above the header. Accepts a mapping of options, or a plain string as shorthand for `text`.
+
+```yaml
+announce:
+  text: v14 is out
+  link: /changelog/
+  link_text: see what changed
+  icon: material/party-popper
+  style: default
+```
+
+```yaml
+# Shorthand — same as {text: "v14 is out"}
+announce: v14 is out
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `text` | `string` | `null` | Message. Rendered as escaped text, so HTML shows up literally. |
+| `link` | `string` | `null` | URL. Without `link_text`, the whole text becomes the link. |
+| `link_text` | `string` | `null` | Link caption; `text` then stays plain. Ignored when `link` is unset. |
+| `icon` | `string` | `null` | Icon rendered before the text, e.g. `material/party-popper`. |
+| `style` | `string` | `default` | `default` or `warning` banner colors. |
+
+The bar only renders when it produces output. For rich markup, override the `announce` template block via `theme.custom_dir` — an override always takes precedence over this key. See [Announcement bar](../advanced/customization.md#announcement-bar).
+
+---
+
 ### `hooks`
 
 Python module files loaded as plugins. Each hook receives the full plugin event API (see [Custom Plugins](../advanced/plugins.md)) — e.g. `on_build_done` to post-process `site/sw.js` after the build.
@@ -504,7 +534,7 @@ theme:
 | `content.code.annotate` | Yes | Code annotations |
 | `content.action.edit` | Yes | Edit page button |
 | `content.action.view` | Yes | View source button |
-| `announce.dismiss` | No | Dismissible announcement bar |
+| `announce.dismiss` | Yes | Dismissible announcement bar |
 | `toc.follow` | Yes | TOC follows scroll |
 
 ---

@@ -152,9 +152,10 @@
         </a>
       {% endif %}
     </div>
+    {% set announce = config.announce or {} %}
     <div data-md-component="announce">
-      {% if self.announce() %}
-        <aside class="md-banner">
+      {% if announce.text or self.announce()|trim %}
+        <aside class="md-banner{% if announce.style == 'warning' %} md-banner--warning{% endif %}">
           <div class="md-banner__inner md-grid md-typeset">
             {% if "announce.dismiss" in features %}
               <button class="md-banner__button md-icon" aria-label="{{ lang.t('announce.dismiss') }}">
@@ -164,7 +165,7 @@
                 {% endif %}
               </button>
             {% endif %}
-            {% block announce %}{% endblock %}
+            {% block announce %}{% set icon = announce.icon | validate_icon_name %}{% if announce.text %}{% if icon %}<span class="twemoji">{% include ".icons/" ~ icon ~ ".svg" %}</span> {% endif %}{% if announce.link %}{% if announce.link_text %}{{ announce.text }} <a href="{{ announce.link | url }}">{{ announce.link_text }}</a>{% else %}<a href="{{ announce.link | url }}">{{ announce.text }}</a>{% endif %}{% else %}{{ announce.text }}{% endif %}{% endif %}{% endblock %}
           </div>
           {% if "announce.dismiss" in features %}
             {% include "partials/javascripts/announce.html" %}

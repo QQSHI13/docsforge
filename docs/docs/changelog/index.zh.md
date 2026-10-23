@@ -1,5 +1,37 @@
 ## [未发布]
 
+### 新增
+
+- **`announce:` 配置项** —— 公告横幅不再需要 `theme.custom_dir` 模板覆盖，
+  顶层的 `announce:` 键即可从配置渲染：
+
+  ```yaml
+  announce:
+    text: v14 已发布
+    link: /changelog/
+    link_text: 查看更新内容
+    icon: material/party-popper
+  ```
+
+  纯字符串是 `text` 的简写。`style` 可在默认（页脚）配色与 `warning` 配色之间
+  切换。`text` 会被转义，因此富文本仍需 `{% block announce %}` 覆盖 —— 覆盖
+  依然优先。
+
+### 变更
+
+- **`announce.dismiss` 现在是默认功能** —— 内置 Material 主题开箱即用启用可关闭的
+  公告栏，站点只要填充 `announce` 块就能获得“不再显示”按钮，无需再列出该 flag。
+  与其他主题功能一样，声明 `theme.features` 是整体替换默认值，而非合并。
+
+### 修复
+
+- **公告栏文档里的短代码被原样输出** —— 定制指南中的 `{% block announce %}` 示例
+  使用了 `:material-party-popper:`，但该块是在 Markdown 转换之后渲染的，因此短代码
+  会显示为纯文本。示例现改为直接包含图标模板
+  （`{% include ".icons/material/party-popper.svg" %}`），并且该页面新增了
+  专门的“公告横幅”章节，涵盖配置、样式与关闭行为。
+
+
 ## [13.0.3] — 2026-10-16
 
 ### 修复

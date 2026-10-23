@@ -8,6 +8,8 @@ direction:
 # may be a matter of taste. DocsForge enables a rich set of defaults to
 # maximize the out-of-the-box experience.
 features:
+  # Announce
+  - announce.dismiss
   # Content
   - content.action.edit
   - content.action.view

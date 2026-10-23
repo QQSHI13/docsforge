@@ -1,5 +1,41 @@
 ## [Unreleased]
 
+### Added
+
+- **`announce:` config key** — the announcement bar no longer requires a
+  `theme.custom_dir` template override. A top-level `announce:` key renders it
+  from configuration:
+
+  ```yaml
+  announce:
+    text: v14 is out
+    link: /changelog/
+    link_text: see what changed
+    icon: material/party-popper
+  ```
+
+  A plain string is shorthand for `text`. `style` switches between the default
+  (footer) and `warning` colors. `text` is escaped, so rich markup still needs
+  an `{% block announce %}` override — which continues to take precedence.
+
+### Changed
+
+- **`announce.dismiss` is now a default feature** — the bundled Material theme
+  enables the dismissible announcement bar out of the box, so a site that fills
+  the `announce` block gets the “Don't show this again” button without having to
+  list the flag. As with every other theme feature, declaring `theme.features`
+  replaces the defaults rather than merging into them.
+
+### Fixed
+
+- **Announcement bar docs rendered a literal shortcode** — the customization
+  guide's `{% block announce %}` example used `:material-party-popper:`, but
+  that block is rendered after Markdown conversion, so the shortcode appeared as
+  plain text. The example now includes the icon template directly
+  (`{% include ".icons/material/party-popper.svg" %}`), and the page has a
+  dedicated “Announcement bar” section covering setup, styling and dismissal.
+
+
 ## [13.0.3] — 2026-10-16
 
 ### Fixed

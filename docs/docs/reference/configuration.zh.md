@@ -337,6 +337,37 @@ tikz_preamble:
 
 ---
 
+### `announce`
+
+位于页眉上方的公告横幅。接受选项映射，或直接用字符串作为 `text` 的简写。
+
+```yaml
+announce:
+  text: v14 已发布
+  link: /changelog/
+  link_text: 查看更新内容
+  icon: material/party-popper
+  style: default
+```
+
+```yaml
+# 简写 —— 等同于 {text: "v14 已发布"}
+announce: v14 已发布
+```
+
+| 属性 | 类型 | 默认值 | 描述 |
+|----------|------|---------|-------------|
+| `text` | `string` | `null` | 消息内容，按转义后的纯文本渲染，HTML 会原样显示。 |
+| `link` | `string` | `null` | URL。未设置 `link_text` 时，整段文字即为链接。 |
+| `link_text` | `string` | `null` | 链接标题；设置后 `text` 保持纯文本。`link` 未设置时忽略。 |
+| `icon` | `string` | `null` | 文字前渲染的图标，如 `material/party-popper`。 |
+| `style` | `string` | `default` | 横幅配色：`default` 或 `warning`。 |
+
+只有产生了输出，横幅才会渲染。若需要富文本，请通过 `theme.custom_dir`
+覆盖 `announce` 模板块 —— 覆盖始终优先于此配置项。参见[公告横幅](../advanced/customization.md)。
+
+---
+
 ### `hooks`
 
 作为插件加载的 Python 模块文件。每个钩子都拥有完整的插件事件 API（参见[自定义插件](../advanced/plugins.md)）—— 例如用 `on_build_done` 在构建后处理 `site/sw.js`。
@@ -482,23 +513,29 @@ theme:
     - content.action.edit
 ```
 
-| 功能 | 描述 |
-|---------|-------------|
-| `navigation.tabs` | 顶层导航标签页 |
-| `navigation.sections` | 侧边栏中的章节页面 |
-| `navigation.expand` | 默认展开所有章节 |
-| `navigation.path` | 面包屑导航 |
-| `navigation.top` | 返回顶部按钮 |
-| `navigation.footer` | 上一页/下一页页脚链接 |
-| `search.suggest` | 页眉中的搜索建议 |
-| `search.highlight` | 结果中高亮搜索词 |
-| `search.share` | 分享搜索查询链接 |
-| `content.tabs.link` | 跨页面链接内容标签页 |
-| `content.code.copy` | 代码块上的复制按钮 |
-| `content.code.annotate` | 代码注释 |
-| `content.action.edit` | 编辑页面按钮 |
-| `content.action.view` | 查看源代码按钮 |
-| `announce.dismiss` | 可关闭的公告栏 |
+| 功能 | 默认 | 描述 |
+|---------|:-------:|-------------|
+| `navigation.tabs` | 是 | 顶层导航标签页 |
+| `navigation.sections` | 是 | 侧边栏中的章节页面 |
+| `navigation.expand` | 否 | 默认展开所有章节 |
+| `navigation.path` | 否 | 面包屑导航 |
+| `navigation.top` | 是 | 返回顶部按钮 |
+| `navigation.footer` | 是 | 上一页/下一页页脚链接 |
+| `navigation.indexes` | 是 | 章节的索引页 |
+| `navigation.tracking` | 是 | URL 中的锚点跟踪 |
+| `navigation.instant` | 是 | 即时导航 |
+| `navigation.instant.progress` | 是 | 即时导航进度条 |
+| `search.suggest` | 是 | 页眉中的搜索建议 |
+| `search.highlight` | 是 | 结果中高亮搜索词 |
+| `search.share` | 是 | 分享搜索查询链接 |
+| `content.tabs.link` | 否 | 跨页面链接内容标签页 |
+| `content.tooltips` | 是 | 内容提示框 |
+| `content.code.copy` | 是 | 代码块上的复制按钮 |
+| `content.code.annotate` | 是 | 代码注释 |
+| `content.action.edit` | 是 | 编辑页面按钮 |
+| `content.action.view` | 是 | 查看源代码按钮 |
+| `announce.dismiss` | 是 | 可关闭的公告栏 |
+| `toc.follow` | 是 | 目录跟随滚动 |
 
 ---
 

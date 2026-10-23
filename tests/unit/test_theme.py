@@ -17,6 +17,39 @@ class TestThemeEnvironment:
         assert env.autoescape  # callable from select_autoescape, truthy for html/xml
 
 
+class TestDefaultFeatures:
+    """The bundled theme's default feature flags."""
+
+    def test_announce_dismiss_enabled_by_default(self):
+        theme = Theme(name="material")
+        assert "announce.dismiss" in (theme["features"] or [])
+
+    def test_defaults_include_documented_flags(self):
+        theme = Theme(name="material")
+        features = set(theme["features"] or [])
+        expected = {
+            "announce.dismiss",
+            "content.action.edit",
+            "content.action.view",
+            "content.code.annotate",
+            "content.code.copy",
+            "content.tooltips",
+            "navigation.footer",
+            "navigation.indexes",
+            "navigation.sections",
+            "navigation.tabs",
+            "navigation.top",
+            "navigation.tracking",
+            "navigation.instant",
+            "navigation.instant.progress",
+            "search.highlight",
+            "search.share",
+            "search.suggest",
+            "toc.follow",
+        }
+        assert expected <= features
+
+
 class TestRedirectTemplate:
     def _render(self, location: str):
         theme = Theme(name="material")

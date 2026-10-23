@@ -57,6 +57,54 @@ class _OfflineMode(c.OptionallyRequired[str]):
         return value
 
 
+class Announcement(base.Config):
+    """Announcement bar contents.
+
+    Populated from the top-level `announce:` key. Sites that need markup beyond
+    plain text, a link and an icon can still override the `announce` template
+    block via `theme.custom_dir` — that always wins over this config.
+    """
+
+    text = c.Optional(c.Type(str))
+    """The message to display. Rendered as escaped text, so HTML in it shows up
+    literally; use a template override for rich markup."""
+
+    link = c.Optional(c.Type(str))
+    """Optional URL. On its own it turns the whole text into the link target."""
+
+    link_text = c.Optional(c.Type(str))
+    """Link caption. When set, `text` renders as plain text followed by this
+    caption as the link. Ignored when `link` is unset."""
+
+    icon = c.Optional(c.Type(str))
+    """Icon name to render before the text, e.g. `material/party-popper`.
+    Must name an icon shipped with the theme."""
+
+    style = c.Choice(("default", "warning"), default="default")
+    """Banner colors: `default` (footer colors) or `warning`."""
+
+
+class _Announcement(c.SubConfig[Announcement]):
+    """`announce:` accepts either a mapping or a plain string.
+
+    The string form is shorthand for `{text: <value>}` — it covers the common
+    case (one line of text, nothing else) without forcing users into nested
+    YAML.
+    """
+
+    config_class = Announcement
+
+    def run_validation(self, value: object) -> Announcement:
+        if isinstance(value, str):
+            value = {"text": value}
+        elif value is not None and not isinstance(value, dict):
+            raise base.ValidationError(
+                f"Expected a mapping or a string, but a {type(value)} was given."
+            )
+        return super().run_validation(value or {})
+
+
+
 class DocsForgeConfig(base.Config):
     """The configuration of DocsForge itself (the root object of docsforge.yml)."""
 
@@ -217,6 +265,14 @@ class DocsForgeConfig(base.Config):
     relevant to all themes and doesn't need to be explicitly supported by
     DocsForge itself. A good example here would be including the current
     project version."""
+
+    announce = _Announcement()
+    """Announcement bar shown above the header. Accepts a plain string
+    (rendered as the message) or a mapping with `text`, `link`, `link_text`,
+    `icon` and `style`. A `{% block announce %}` override in
+    `theme.custom_dir` takes precedence over this. See `Announcement`."""
+
+
 
     tikz = c.Optional(c.Type(bool))
     """Enable TikZ diagram compilation. When True, .tex files in docs_dir are

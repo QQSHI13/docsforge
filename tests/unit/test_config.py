@@ -145,6 +145,65 @@ class TestEnvTag:
         assert cfg["site_description"] == "fallback"
 
 
+class TestAnnounce:
+    def test_unset_announce_is_empty(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, "site_name: T\n")
+        ann = load_config()["announce"]
+        assert ann["text"] is None
+        assert ann["link"] is None
+        assert ann["style"] == "default"
+
+    def test_string_shorthand_becomes_text(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, "site_name: T\nannounce: Hello there\n")
+        ann = load_config()["announce"]
+        assert ann["text"] == "Hello there"
+
+    def test_mapping_populates_fields(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, """
+            site_name: T
+            announce:
+              text: v2 is out
+              link: /changelog/
+              link_text: see what changed
+              icon: material/party-popper
+              style: warning
+        """)
+        ann = load_config()["announce"]
+        assert ann["text"] == "v2 is out"
+        assert ann["link"] == "/changelog/"
+        assert ann["link_text"] == "see what changed"
+        assert ann["icon"] == "material/party-popper"
+        assert ann["style"] == "warning"
+
+    def test_invalid_style_rejected(self, tmp_path, monkeypatch, capsys):
+        from docsforge.exceptions import DocsForgeException
+
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, """
+            site_name: T
+            announce:
+              text: hi
+              style: party
+        """)
+        with pytest.raises(DocsForgeException):
+            load_config()
+        # The raised message is generic; the actionable detail goes to stdout.
+        out = capsys.readouterr().out
+        assert "Sub-option 'style'" in out
+        assert "Expected one of: ('default', 'warning')" in out
+
+    def test_non_string_scalar_rejected(self, tmp_path, monkeypatch):
+        from docsforge.exceptions import DocsForgeException
+
+        monkeypatch.chdir(tmp_path)
+        _write_config(tmp_path, "site_name: T\nannounce: 42\n")
+        with pytest.raises(DocsForgeException):
+            load_config()
+
+
 class TestIpAddress:
     def test_valid_port(self):
         value = IpAddress(default="127.0.0.1:8000").run_validation("127.0.0.1:8000")
