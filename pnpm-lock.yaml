@@ -82,8 +82,8 @@ importers:
         specifier: ^1.105.1
         version: 1.105.1
       simple-icons:
-        specifier: ^16.32.0
-        version: 16.32.0
+        specifier: ^16.35.0
+        version: 16.35.0
       svgo:
         specifier: ^4.0.2
         version: 4.1.0
@@ -1208,8 +1208,8 @@ packages:
   select@1.1.2:
     resolution: {integrity: sha512-OwpTSOfy6xSs1+pwcNrv0RBMOzI39Lp3qQKUTPVVPRjCdNa5JH/oPRiqsesIskK8TVgmRiHwO4KXlV2Li9dANA==}
 
-  simple-icons@16.32.0:
-    resolution: {integrity: sha512-BwqATHxAulx7X6kNdTkecy7PBjLkgtAHcgrwYLd9iA+cD2At9DzhJwdwaSELk2+aZe01IfiM/Wxtyp68Dvup2A==}
+  simple-icons@16.35.0:
+    resolution: {integrity: sha512-TCfl/2+GTrx0nCo4pEWGvxhOb8c6NsqOU1OpwjtF4lwJAthB8IYVD0fuIMjLMg6JFuG1YBO0t1iETQqJLqkoJA==}
     engines: {node: '>=0.12.18'}
 
   slash@5.1.0:
@@ -2334,7 +2334,7 @@ snapshots:
 
   select@1.1.2: {}
 
-  simple-icons@16.32.0: {}
+  simple-icons@16.35.0: {}
 
   slash@5.1.0: {}
 
