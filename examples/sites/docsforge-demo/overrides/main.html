@@ -1,12 +1,17 @@
 {#-
-  Example override: extend base.html and fill the Material `announce` block.
-  Enabled via `theme.custom_dir: overrides` in docsforge.yml — any template
-  in this directory shadows the one with the same name in the theme.
+  Example override: extend base.html and compose with the `announce:` config.
+
+  Enabled via `theme.custom_dir: overrides` in docsforge.yml — any template in
+  this directory shadows the one with the same name in the theme.
+
+  The banner text itself comes from the `announce:` key in docsforge.yml;
+  `{{ super() }}` renders that content before appending this suffix. That is the
+  usual reason to reach for an override: `announce:` is limited to plain text,
+  one link and an icon, so anything richer needs a template.
 -#}
 {% extends "base.html" %}
 
 {% block announce %}
-  <a href="https://qqshi13.github.io/docsforge/">
-    DocsForge Demo — the official example site
-  </a>
+  {{ super() }}
+  <span class="demo-announce-suffix"> · <a href="https://github.com/QQSHI13/docsforge">source</a></span>
 {% endblock %}

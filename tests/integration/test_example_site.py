@@ -40,7 +40,12 @@ def test_example_site_builds(tmp_path, monkeypatch):
     assert (site / "tags" / "index.html").is_file()
     assert (site / "sw.js").is_file()
     assert (site / "cache-manifest.json").is_file()
-    # The custom_dir override (overrides/main.html announce banner) rendered.
-    assert "the official example site" in (site / "index.html").read_text(
-        encoding="utf-8", errors="ignore"
-    )
+    # The `announce:` config key rendered (icon + text + link)...
+    html = (site / "index.html").read_text(encoding="utf-8", errors="ignore")
+    assert "the official example site" in html
+    assert "qqshi13.github.io/docsforge/" in html
+    # ...and the custom_dir override composed with it via `{{ super() }}`.
+    assert "demo-announce-suffix" in html
+    # The demo opts into extras the theme leaves off by default.
+    assert '"navigation.path"' in html
+    assert '"content.tabs.link"' in html

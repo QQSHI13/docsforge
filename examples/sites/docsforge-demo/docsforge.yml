@@ -23,13 +23,44 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  # Declaring `features:` REPLACES the theme defaults rather than extending
+  # them, so this list is the full set: the defaults we want to keep, plus the
+  # opt-in extras the demo exists to show off.
   features:
-    - navigation.tabs
-    - content.code.copy
+    # --- theme defaults we keep ---------------------------------------
+    - announce.dismiss        # close button on the announcement bar
     - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.tooltips
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    - navigation.instant
+    - navigation.instant.progress
     - search.highlight
     - search.share
     - search.suggest
+    - toc.follow
+    # --- opt-in extras (off by default) -------------------------------
+    - content.tabs.link          # demo has === "Python" tabs: sync them
+    - content.footnote.tooltips  # demo has [^1] footnotes: hover previews
+    - content.code.select        # select individual code lines
+    - navigation.path            # breadcrumbs above the article
+    - navigation.instant.prefetch  # prefetch pages on hover/viewport
+
+# Announcement bar, configured rather than overridden. A plain string works too:
+#   announce: DocsForge Demo — the official example site
+# Reach for `{% block announce %}` only when you need markup this can't express.
+announce:
+  text: DocsForge Demo —
+  link: https://qqshi13.github.io/docsforge/
+  link_text: the official example site
+  icon: material/rocket-launch
 
 repo_url: https://github.com/QQSHI13/docsforge
 repo_name: QQSHI13/docsforge
