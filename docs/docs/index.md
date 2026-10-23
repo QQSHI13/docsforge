@@ -11,10 +11,19 @@ icon: material/home
 Write your documentation in Markdown. Build a professional static site in seconds. Deploy anywhere.
 
 
-!!! tip "Coming from MkDocs?"
+!!! tip "Coming from MkDocs + Material?"
 
-    DocsForge is the actively maintained successor to MkDocs + Material for MkDocs.
-    See the [migration guide](getting-started/migrating-from-mkdocs.md) to convert your project manually.
+    DocsForge is a **candidate drop-in replacement** for MkDocs + Material for
+    MkDocs — same Markdown, same `theme:` block, same look and feel.
+
+    **If migration breaks anything, we fix it for free.** Run the
+    [migration script](getting-started/migrating-from-mkdocs.md); if your site
+    doesn't build, or renders differently than it did before, send us your
+    config and we'll fix it until it does — at no cost.
+
+    [Open an issue](https://github.com/QQSHI13/docsforge/issues) or email
+    **qingquanshi65@gmail.com** with `[MIGRATION]` in the subject. Email is
+    fine if your docs are private and you'd rather not post the config.
 
 ```bash
 pip install docsforge
@@ -41,7 +50,7 @@ docsforge serve
 
     ---
 
-    Write `$$...$$` and it renders. KaTeX is vendored — no CDN calls for readers, no `extra_javascript`, no setup.
+    Write `$$...$$` and it renders. KaTeX is vendored — no CDN calls in the browser, no `extra_javascript`, no setup.
 
 -   :material-code-tags:{ .lg .middle } &nbsp; **Syntax Highlighted**
 

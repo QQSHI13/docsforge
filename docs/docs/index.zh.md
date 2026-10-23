@@ -11,10 +11,18 @@ icon: material/home
 用 Markdown 编写文档。数秒内构建专业的静态站点。随处部署。
 
 
-!!! tip "从 MkDocs 迁移而来？"
+!!! tip "从 MkDocs + Material 迁移而来？"
 
-    DocsForge 是 MkDocs + Material for MkDocs 的积极维护继任者。
-    查看[迁移指南](getting-started/migrating-from-mkdocs.md)，了解如何手动迁移您的项目。
+    DocsForge 是 MkDocs + Material for MkDocs 的**候选直接替代品** —— 相同的
+    Markdown、相同的 `theme:` 配置块、相同的观感。
+
+    **若迁移过程中出现任何问题，我们免费修复。** 运行
+    [迁移脚本](getting-started/migrating-from-mkdocs.md)；如果站点无法构建，或渲染结果
+    与迁移前不同，把配置发给我们，我们会持续修复直到一致 —— 不收取任何费用。
+
+    [提交 issue](https://github.com/QQSHI13/docsforge/issues)，或发送邮件至
+    **qingquanshi65@gmail.com**（主题注明 `[MIGRATION]`）。如果文档涉及隐私、不方便
+    公开配置，邮件同样可以。
 
 ```bash
 pip install docsforge
@@ -41,7 +49,7 @@ docsforge serve
 
     ---
 
-    编写 `$$...$$` 即可渲染。KaTeX 已内置 —— 读者端无需调用 CDN，无需 `extra_javascript`，无需额外设置。
+    编写 `$$...$$` 即可渲染。KaTeX 已内置 —— 浏览器端无需调用 CDN，无需 `extra_javascript`，无需额外设置。
 
 -   :material-code-tags:{ .lg .middle } &nbsp; **语法高亮**
 

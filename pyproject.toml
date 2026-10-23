@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "docsforge"
-description = "Drop-in replacement for MkDocs and Material for MkDocs. Self-contained documentation engine with vendored theme, plugins, KaTeX math, offline search, and zero external dependencies."
+description = "Candidate drop-in replacement for MkDocs + Material for MkDocs. Self-contained documentation engine with vendored theme, plugins, KaTeX math, offline search, and zero external dependencies. If migration breaks anything, we fix it for free."
 readme = "README.md"
 license = "Apache-2.0"
 authors = [{name = "DocsForge Contributors"}]

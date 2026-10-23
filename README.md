@@ -1,7 +1,7 @@
 # DocsForge
 
-> **The drop-in replacement for MkDocs + Material for MkDocs.**
-> One package. One command. Beautiful docs. Zero CDN calls.
+> **A drop-in replacement for MkDocs + Material for MkDocs.**
+> One package. One command. Beautiful docs. Zero CDN calls in the browser.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/QQSHI13/docsforge/main/docsforge/templates/.icons/badge-compact.svg" alt="DocsForge">
@@ -11,7 +11,7 @@
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://qqshi13.github.io/docsforge/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-**DocsForge** is a self-contained, actively-maintained documentation engine — a vendored ProperDocs/MkDocs engine plus the Material theme, plugins, search, math, diagrams, and offline support in a single Python package. If you use MkDocs, Material for MkDocs, or are looking for a modern alternative, you're in the right place.
+**DocsForge** is a self-contained, actively-maintained documentation engine — a vendored ProperDocs/MkDocs engine plus the Material theme, plugins, search, math, diagrams, and offline support in a single Python package. If your docs are on MkDocs + Material for MkDocs today, DocsForge is a candidate drop-in replacement.
 
 **[Documentation](https://qqshi13.github.io/docsforge/)** | **[PyPI](https://pypi.org/project/docsforge/)** | **[GitHub](https://github.com/QQSHI13/docsforge)** | **[Migrate from MkDocs](#migrating-from-mkdocs)**
 
@@ -19,19 +19,38 @@
 
 ## Why DocsForge?
 
-MkDocs core has seen no real development for 18+ months and Material for MkDocs is in maintenance mode through its 2027 end-of-life, with its team focused on Zensical. DocsForge continues that stack as an independent, Apache-2.0 engine — no migration of your content required.
+Material for MkDocs is in maintenance mode through its 2027 end-of-life. If
+your documentation is built on MkDocs + Material today, you need somewhere to
+go that keeps working. **DocsForge is a candidate for that: a drop-in
+replacement for MkDocs + Material for MkDocs.**
 
-| | DocsForge | Alternatives |
-|---|---|---|
-| **MkDocs + Material** | Vendored engine + theme, maintained, one install | Plugin sprawl across dozens of packages; upstream frozen |
-| **Docusaurus** | No Node.js toolchain needed | Requires Node + React; heavy client JS |
-| **Sphinx / Read the Docs** | Markdown-first | reStructuredText-first; Markdown is second-class |
-| **VitePress / VuePress** | No Node.js toolchain needed | Requires Node + Vue |
-| **Hugo** | Docs-specific: versioning, search, i18n, offline built in | General static generator; docs features come via themes |
-| **Zensical** | Free, open engine + free Studio extension | Rust core, but editor refactoring and governance are paid tiers |
-| **GitBook** | Self-hosted static output you own | Hosted SaaS platform |
+We say *candidate* deliberately. It is not a promise that every site migrates
+in an afternoon — it is a commitment that we will make yours work:
 
-**DocsForge is everything MkDocs + Material does, in one package, with zero external dependencies.**
+> ### If migration breaks anything, we fix it for free.
+>
+> Run the migration script. If your site doesn't build, or renders differently
+> than it did under MkDocs + Material, send us your config and we will fix
+> DocsForge (or your config) until it does — at no cost. That offer does not
+> expire.
+>
+> **[Open an issue](https://github.com/QQSHI13/docsforge/issues)** · or email
+> **[qingquanshi65@gmail.com](mailto:qingquanshi65@gmail.com?subject=%5BMIGRATION%5D%20)**
+> with `[MIGRATION]` in the subject — whichever is easier, including if your
+> docs are private and you'd rather not post the config publicly.
+
+What that continuity buys you, compared to staying on MkDocs + Material:
+
+- **Everything already works.** Same Markdown, same `theme:` block, same
+  Material look and feel. Your content does not get rewritten.
+- **It is still maintained.** Upstream is frozen and winding down; DocsForge
+  is developed in the open, Apache-2.0, with fixes landing as you read this.
+- **One install, not a dozen.** The engine, the theme, and the plugins ship
+  together instead of as a dozen packages you have to keep in sync.
+- **No CDN dependencies.** Fonts, KaTeX, Mermaid, icons and search are
+  vendored at build time, so your docs load without third-party requests.
+- **Built-in intelligence.** Link and anchor validation on every build, plus a
+  VS Code extension that surfaces broken links as you type.
 
 ---
 
@@ -72,8 +91,22 @@ docsforge serve          # live preview
 
 ## What Makes DocsForge Different
 
-### Zero CDN Calls
-DocsForge fetches external assets (such as fonts, icons, and emojis) during the build process and serves them from your site. Readers never contact a CDN, so your docs load fast, work offline, and respect privacy.
+### Zero CDN Calls in the Browser
+
+To be precise about what "zero CDN calls" means:
+
+- **Readers make none.** Every asset a page needs — fonts, KaTeX, Mermaid,
+  icons, emoji, search index — is served from your own domain. Nothing in the
+  built site points at a third party, so pages load fast, work offline, and
+  don't leak visitor IPs to a CDN.
+- **The build may fetch some.** By default the `privacy` plugin downloads
+  external assets (Google Fonts, the Mermaid fallback) at build time and
+  vendors them into your output. That's a build-machine request, not a
+  reader request.
+- **You can turn the build-time fetching off too.** Set `theme.font: false`
+  and `plugins: {privacy: {assets_fetch: false}}` and the build makes no
+  network requests at all — the built HTML then contains no external URLs,
+  which is what you want for air-gapped or firewalled CI.
 
 ### One Package = Everything
 No `pip install mkdocs-material` + `pip install mkdocs-awesome-pages-plugin` + `pip install ...`. Just:
@@ -93,7 +126,7 @@ You get:
 - **Search** — Marz engine (Rust core, CJK-aware) with offline WASM retrieval
 - **Dark mode** — Light/dark toggle with auto system detection
 - **Offline** — Service worker caches all assets for PWA support
-- **Fonts** — Self-hosted (privacy plugin downloads Google Fonts locally)
+- **Fonts** — Self-hosted (the privacy plugin downloads Google Fonts at build time and vendors them; set `theme.font: false` to skip fonts entirely)
 - **Bilingual docs** — English/Chinese twin pages with per-locale navigation, search indexes, and translation diagnostics
 
 ### Sensible Defaults
@@ -233,11 +266,11 @@ No configuration needed. Works offline after the first visit.
 
 ## Keywords
 
-**DocsForge is the best alternative to:** MkDocs, Material for MkDocs, Docusaurus, GitBook, ReadTheDocs, VuePress, Hugo documentation.
+**DocsForge is a drop-in replacement for:** MkDocs, Material for MkDocs.
 
 **Use DocsForge for:** Python project documentation, API docs, technical documentation, knowledge bases, blogs, product docs, internal wikis, open-source project sites, bilingual English/Chinese documentation, offline documentation.
 
-**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN for readers, self-hosted fonts, vendored dependencies, bilingual documentation.
+**Features:** static site generator, markdown documentation, material design theme, dark mode, offline support, PWA, KaTeX math, Mermaid diagrams, TikZ diagrams, built-in search, tags, blogging, privacy-focused, no CDN calls in the browser, self-hosted fonts, vendored dependencies, bilingual documentation.
 
 ---
 

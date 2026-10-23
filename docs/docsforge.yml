@@ -2,8 +2,8 @@ site_name: DocsForge
 site_url: https://qqshi13.github.io/docsforge/
 site_author: QQ
 site_description: >-
-  Self-contained documentation engine.
-  pip install docsforge, write Markdown, done.
+  Candidate drop-in replacement for MkDocs + Material for MkDocs.
+  Self-contained documentation engine: pip install docsforge, write Markdown, done.
 
 repo_name: QQSHI13/docsforge
 repo_url: https://github.com/QQSHI13/docsforge
