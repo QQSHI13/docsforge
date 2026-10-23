@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.4] — 2026-10-23
+
 ### Added
 
 - **`announce:` config key** — the announcement bar no longer requires a
@@ -34,6 +36,38 @@
   plain text. The example now includes the icon template directly
   (`{% include ".icons/material/party-popper.svg" %}`), and the page has a
   dedicated “Announcement bar” section covering setup, styling and dismissal.
+
+### Dependencies
+
+- **New icons** — refreshing the vendored sets against the bumped packages adds
+  85 icons: `lucide-static` 1.47 → 1.57 (+56, plus 13 redrawn), `@primer/octicons`
+  19.38 → 19.40 (+23) and `simple-icons` 16.32 → 16.35 (+6). The Material (MDI)
+  and Font Awesome sets are unchanged.
+- **KaTeX 0.18.9 → 0.19.0** — carries an upstream breaking change: missing
+  character metrics now report through `strict` as `symbolNotInFont`. The theme
+  never sets a strict callback, so rendering is unchanged; verified inline,
+  display, CJK with `strict: "ignore"` and `ParseError` on unknown commands.
+- **Mermaid 12.0.0 → 12.2.0** — the vendored bundle shrinks by ~80 KB
+  (5.58 MB → 5.49 MB).
+- **Tooling** — `ruff` 0.16.10 → 0.17.0, `typescript-eslint` 8.71.1 → 8.71.2 and
+  `@types/node` 26.6.4 → 26.6.5. Build-time only, no runtime effect.
+
+### Docs
+
+- **Positioned as a candidate drop-in replacement** — the README compared
+  DocsForge against seven tools at once; that framing competed with a
+  recommendation incumbent users had already received. The comparison table is
+  gone, the claim is narrowed to MkDocs + Material for MkDocs (whose upstream is
+  winding down), and it now leads with the guarantee that makes it checkable.
+- **Free migration support, including by email** — if migration breaks anything,
+  we fix it for free. The offer has its own section on the support page in both
+  languages, with two routes: a GitHub issue for open-source sites, or email
+  with `[MIGRATION]` in the subject for anything private.
+- **“Zero CDN calls” stated precisely** — it is true for readers and not for the
+  build. The docs now separate the two and document `theme.font: false` plus
+  `privacy.assets_fetch: false` for builds that must touch the network zero
+  times; that combination leaves no external URL in the output at all.
+
 
 
 ## [13.0.3] — 2026-10-16
