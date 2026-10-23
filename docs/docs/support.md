@@ -7,6 +7,27 @@ icon: material/help-circle
 DocsForge is free and open source. If you get stuck, need help migrating, or
 found a bug — we're here to help.
 
+## If migration breaks anything, we fix it for free
+
+Migrating from MkDocs + Material for MkDocs should not cost you a week of
+debugging. If your site doesn't build under DocsForge, or renders differently
+than it did before:
+
+**Send us the details and we will fix DocsForge — or your config — until it
+does, at no cost.** This offer does not expire.
+
+=== "GitHub issue"
+
+    [Open an issue](https://github.com/QQSHI13/docsforge/issues) with your
+    `mkdocs.yml` and the repo link. Best for open-source sites, since the
+    discussion helps others hitting the same thing.
+
+=== "Email"
+
+    Write to **qingquanshi65@gmail.com** with `[MIGRATION]` in the subject.
+    Use this if your docs are private, your config is sensitive, or you'd
+    simply rather not post it publicly — both routes get the same offer.
+
 ## Fastest path: the migration one-liner
 
 Coming from **MkDocs, ProperDocs, or Zensical**? Migrate your existing config
