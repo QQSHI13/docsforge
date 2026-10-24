@@ -31,7 +31,7 @@
     "postcss": "^8.5.26",
     "postcss-cli": "^12.0.0",
     "postcss-inline-svg": "^6.0.0",
-    "preact": "^10.28.2",
+    "preact": "^11.0.1",
     "sass": "^1.105.1",
     "simple-icons": "^16.35.0",
     "svgo": "^4.0.2",
