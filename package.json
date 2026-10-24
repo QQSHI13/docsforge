@@ -28,7 +28,7 @@
     "material-design-color": "^2.3.2",
     "material-shadows": "^3.0.1",
     "mermaid": "^12.2.0",
-    "postcss": "^8.5.26",
+    "postcss": "^8.5.31",
     "postcss-cli": "^12.0.0",
     "postcss-inline-svg": "^6.0.0",
     "preact": "^10.28.2",
