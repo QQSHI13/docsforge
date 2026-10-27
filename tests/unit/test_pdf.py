@@ -111,13 +111,12 @@ class TestBuildPdfConcurrency:
         (tmp_path / "site").mkdir()
         seen: dict[str, int] = {}
 
-        def fake_render(site_path, output_path, concurrency, cache):
+        async def fake_render(site_path, output_path, concurrency, cache):
             seen["concurrency"] = concurrency
 
-        async def fake_run(coro):
-            coro.close()
-
+        # Only `_render` is replaced: `asyncio.run` runs this fake for real,
+        # so no coroutine is left un-awaited (which used to emit a
+        # RuntimeWarning on every run) and no browser is launched.
         monkeypatch.setattr(pdf_mod, "_render", fake_render)
-        monkeypatch.setattr(pdf_mod.asyncio, "run", fake_run)
         assert build_pdf(str(docs)) == 0
         assert seen["concurrency"] == pdf_mod.DEFAULT_CONCURRENCY
