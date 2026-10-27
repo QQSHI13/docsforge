@@ -1,4 +1,4 @@
-import { JSX as JSXInternal } from "preact"
+import { HTMLAttributes, JSX as PreactJSX, SVGAttributes } from "preact"
 
 /* ----------------------------------------------------------------------------
  * Helper types
@@ -6,10 +6,14 @@ import { JSX as JSXInternal } from "preact"
 
 /**
  * HTML attributes
+ *
+ * Imported from the package root rather than the `JSX` namespace: preact 11
+ * moved `HTMLAttributes`/`SVGAttributes` onto the top-level exports, so
+ * `JSX.HTMLAttributes` no longer resolves.
  */
 type Attributes =
-  & JSXInternal.HTMLAttributes
-  & JSXInternal.SVGAttributes
+  & HTMLAttributes
+  & SVGAttributes
   & Record<string, any>
 
 /**
@@ -105,6 +109,6 @@ export function h<T extends h.JSX.Element>(
 export declare namespace h {
   namespace JSX {
     type Element = HTMLElement
-    type IntrinsicElements = JSXInternal.IntrinsicElements
+    type IntrinsicElements = PreactJSX.IntrinsicElements
   }
 }
