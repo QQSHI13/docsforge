@@ -77,8 +77,11 @@ class Theme(MutableMapping[str, Any]):
             self._load_theme_config(name)
 
         # Include templates provided directly by DocsForge (outside any theme)
-        # Skip if already included as the theme directory (e.g., when theme is material)
-        if docsforge_templates not in self.dirs:
+        # Skip if already included as the theme directory (e.g., when theme is material).
+        # Compare resolved strings: `_load_theme_config` appends a Path while
+        # this is a str, so a plain `in` check never matched and the same
+        # directory was listed twice (every template lookup stat'ed it twice).
+        if not any(os.path.normpath(os.fspath(d)) == os.path.normpath(docsforge_templates) for d in self.dirs):
             self.dirs.append(docsforge_templates)
 
         # Handle remaining user configs. Override theme configs (if set)
