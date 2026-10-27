@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import contextlib
 import errno
+import ipaddress
 import logging
 import os
 import posixpath
 import re
+import socket
 import threading
 import time
 from concurrent.futures import Future, wait
@@ -50,6 +52,47 @@ MAX_DOWNLOAD_SIZE = 16 * 1024 * 1024  # 16 MiB
 MAX_DOWNLOAD_TIME = 30
 # Maximum number of redirects followed for a single external asset.
 MAX_REDIRECTS = 5
+
+
+def _is_internal_host(hostname: str | None) -> bool:
+    """True when *hostname* resolves to a non-public address.
+
+    The privacy plugin downloads whatever URL a page points at, and page
+    content is author-controlled. Without this check an `<img>` pointing at
+    `http://127.0.0.1:port/…`, an RFC1918 host, or the cloud metadata address
+    (169.254.169.254) is fetched on the build machine and the response is
+    copied into the published site - so a docs PR could read build-host
+    services and publish the result.
+
+    Every resolved address is checked, not just the first: a host with both a
+    public and a private A record must still be rejected.
+    """
+    if not hostname:
+        return True
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except (socket.gaierror, UnicodeError):
+        # Unresolvable: let the request fail on its own terms rather than
+        # reporting a misleading "internal host" error.
+        return False
+    for info in infos:
+        address = info[4][0]
+        try:
+            ip = ipaddress.ip_address(address)
+        except ValueError:
+            continue
+        if ip.version == 6 and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return True
+    return False
 
 # Expected file extensions
 extensions = {
@@ -693,6 +736,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             if parsed.scheme not in ("http", "https"):
                 log.warning(f"Unsupported URL scheme for external file: {file.url}")
                 return False
+            if _is_internal_host(parsed.hostname):
+                log.warning(
+                    f"Refusing to download internal/loopback address: {file.url}"
+                )
+                return False
 
             log.info(f"Downloading external file: {file.url}")
             res = None
@@ -726,6 +774,13 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                             return False
                         if urlparse(current_url).scheme == "https" and parsed_next.scheme == "http":
                             log.warning(f"Redirect downgraded https to http, blocked: {file.url} -> {next_url}")
+                            return False
+                        # Re-check every hop: a public host is free to redirect
+                        # to a loopback or metadata address.
+                        if _is_internal_host(parsed_next.hostname):
+                            log.warning(
+                                f"Redirect to internal address blocked: {file.url} -> {next_url}"
+                            )
                             return False
                         current_url = next_url
                         continue
