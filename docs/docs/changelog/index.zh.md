@@ -1,5 +1,44 @@
 ## [未发布]
 
+### 安全
+
+- **博客文章 `slug` 可写出输出目录** —— slug 是原始 front matter，被直接拼接进文章路径后再规范化，因此 `slug: ../../../tmp/x` 会把页面构建到 `site/` 之外。现在生成路径若解析到文档目录之上会被拒绝。
+- **PDF 导出会跟随磁盘上任意位置的 `file://` 请求** —— 页面可用原始 HTML（`<iframe src="file:///etc/passwd">`）把本地文件带进导出的 PDF，因为此前只校验了 http(s) URL。现在本地请求被限制在构建产物内，根相对资源（`/assets/…`）会映射回站点目录，所以正常页面渲染结果不变。
+- **privacy 插件会抓取内网地址** —— 任何外部 `<img src>` 都会在构建时下载，因此回环、RFC1918 或云元数据地址（`169.254.169.254`）会在构建机器上被请求，响应再被复制进发布的站点。现在非公网地址一律拒绝，且每次重定向都会重新校验。
+
+### 修复
+
+- **不同目录下的两个文件可能互相覆盖** —— 目标冲突检测此前只在一个目录内生效，`foo.md` 与 `foo/index.md` 都会构建成 `foo/index.html`，胜出者取决于线程完成顺序，且不打印任何警告。现在冲突在全站范围检测并报告。
+- **`docsforge build --pdf` 在 `docs_dir` 不是字面量 `docs` 时失败** —— 项目根目录是按目录*名称*推断的，因此 `docs_dir: content` 会去找 `content/site`。现在改为通过配置文件解析，并遵循 `site_dir`。
+- **已删除的 PDF 不会重新导出** —— 新鲜度只比较页面的 HTML 哈希，因此删掉的 `pdf/index.pdf` 会一直缺失，而构建仍报告 “up to date”。现在检查条件中加入了输出文件是否存在。
+- **同标题的两篇文章会静默合并成一篇** —— 两者推导出相同 slug，一个页面被覆盖，而索引页仍把两篇文章都链接到它。现在重复 slug 会以 `-2` 后缀区分并给出警告。
+- **`tags_extra_files` 永远无法配置** —— 该选项把配置项包在了 `Type` 里面，因此设置时会在配置加载阶段抛出 `TypeError`。
+- **`shadow_tags` 会导致构建崩溃** —— 标签通过 `Tag.__eq__` 与字符串列表比较，而该方法断言操作数是 `Tag`。
+- **front matter 中的 `social: false` 会让页面崩溃** —— 标量 `social:` 值被当作映射处理。现在裸布尔值会作为 `cards` 覆盖生效，这正是该选项的用途。
+- **`post_readtime_words_per_minute: 0` 触发除零** —— 该速率通过校验后未被钳制就参与运算。
+- **`!ENV` 配置在 `--pdf` 与依赖检查路径上解析出错误的 `docs_dir`** —— 这些路径用 `yaml.FullLoader` 读取，而它遇到 `!ENV` 会抛异常；异常被吞掉后使用了默认值。
+- **社交卡片可能挂起或无限递归** —— Google Fonts 请求现在有更短的超时与体积上限，清单中没有字体 URL 时会按“不可用”失败而不是稍后抛 `FileNotFoundError`，空的字体目录会抛错而不是自我调用到 `RecursionError`。
+- **Studio 漏掉所有含空格的链接** —— 链接扫描器在第一个空格处停止，因此 `[a](my page.md)` 与 `[a](<my page.md>)` 完全不可见：重命名会留下死链，悬停、跳转与快速修复也不会触发。
+- **主题模板目录被列了两次** —— 检查逻辑用 `Path` 和 `str` 比较，永远不相等，导致每次模板查找都对同一目录 stat 两次。
+
+### 依赖
+
+- **Python** —— `click` 8.4 → 8.5、`Markdown` 3.10 → 3.11、`pymdown-extensions`
+  11.0 → 12.3、`backrefs` 8.0 → 8.1、`Pygments` 2.20 → 2.21、`platformdirs`
+  4.11 → 4.13、`markupsafe` 3.0.3 → 3.0.4、`marz-search` 0.3.0 → 0.3.1、
+  `minify-go` 2.24.17 → 2.24.24；可选依赖 `pillow` 12 → 13、`cairosvg`
+  2.9.0 → 2.9.1、`pypdf` 6.15 → 6.21、`playwright` 1.62 → 1.64。完整测试套件
+  在升级后的依赖集上通过。
+- **前端** —— `katex` 0.19.0 → 0.19.1、`lucide-static` 1.57 → 1.62、
+  `simple-icons` 16.35 → 16.36、`@primer/octicons` 19.40 → 19.42、
+  `@fortawesome/fontawesome-free` 7.1 → 7.3、`postcss` 8.5.26 → 8.5.32、
+  `autoprefixer` 10.6.1 → 10.6.2、`sass` 1.105 → 1.106、`svgo` 4.0 → 4.1、
+  `preact` 10 → 11。内置的 KaTeX、Mermaid 与搜索 worker 已重新构建。
+- **工具链** —— `ruff` 现在在 `pyproject.toml` 与两个 workflow 中固定为同一版本
+  （0.17.3）；此前分别漂移到 0.17.0 与 0.16.6，导致本地 `ruff check` 与门禁
+  不一致。`eslint` 10.12 → 10.13、`typescript-eslint` 8.71 → 8.72。
+  `typescript` 停留在 6.x：7.0 已发布，但 `typescript-eslint` 仍限制为 `<6.1.0`。
+
 ## [13.0.4] — 2026-10-23
 
 ### 新增

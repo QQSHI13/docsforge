@@ -1,5 +1,81 @@
 ## [Unreleased]
 
+### Security
+
+- **Blog post `slug` could write outside the output directory** — the slug is
+  raw front matter and was interpolated into the post path, then normalized, so
+  `slug: ../../../tmp/x` built the page outside `site/`. Generated paths are now
+  rejected when they resolve above the docs directory.
+- **PDF export followed `file://` requests anywhere on disk** — a page could use
+  raw HTML (`<iframe src="file:///etc/passwd">`) to pull local files into the
+  exported PDF, because only http(s) URLs were checked. Local requests are now
+  limited to the built site, and root-relative assets (`/assets/…`) are mapped
+  back onto it — so rendering is unchanged for legitimate pages.
+- **The privacy plugin fetched internal addresses** — any external `<img src>`
+  is downloaded at build time, so a loopback, RFC1918 or cloud-metadata URL
+  (`169.254.169.254`) was fetched on the build machine and the response copied
+  into the published site. Non-public addresses are now refused, and every
+  redirect hop is re-checked.
+
+### Fixed
+
+- **Two files in different directories could overwrite each other** — the
+  destination-collision check was scoped to one directory, so `foo.md` and
+  `foo/index.md` both built to `foo/index.html`; the winner depended on thread
+  completion order and no warning was printed. Collisions are now detected
+  site-wide and reported.
+- **`docsforge build --pdf` broke unless `docs_dir` was literally `docs`** — the
+  project root was inferred from the directory *name*, so `docs_dir: content`
+  looked for `content/site`. Resolution now goes through the config file, and
+  `site_dir` is honoured.
+- **A deleted PDF was never re-exported** — freshness compared only the page's
+  HTML hash, so a removed `pdf/index.pdf` stayed missing while the build
+  reported "up to date". The output file's existence is now part of the check.
+- **Two posts with the same title silently collapsed into one** — both derived
+  the same slug, one page was overwritten, and the index linked both posts to
+  it. Duplicate slugs are now disambiguated with a `-2` suffix and a warning.
+- **`tags_extra_files` could never be configured** — the option wrapped a config
+  option inside `Type`, so setting it raised `TypeError` during config load.
+- **`shadow_tags` crashed the build** — tags were compared against a list of
+  strings via `Tag.__eq__`, which asserts its operand is a `Tag`.
+- **`social: false` in front matter crashed the page** — a scalar `social:` value
+  was treated as a mapping. A bare bool now acts as the `cards` override, which
+  is what the option was for.
+- **`post_readtime_words_per_minute: 0` divided by zero** — the rate was used
+  unclamped after passing validation.
+- **`!ENV` configs resolved to the wrong `docs_dir` on the `--pdf` and
+  dependency-check paths** — those read the file with `yaml.FullLoader`, which
+  raises on `!ENV`; the exception was swallowed and the default used instead.
+- **Social cards could hang or recurse forever** — Google Fonts requests now
+  have shorter timeouts and a size cap, a manifest without font URLs fails as
+  "unavailable" instead of a later `FileNotFoundError`, and an empty font
+  directory raises instead of calling itself until `RecursionError`.
+- **Studio missed every link containing a space** — the link scanner stopped at
+  the first space, so `[a](my page.md)` and `[a](<my page.md>)` were invisible:
+  renaming left a dead link and no hover, definition or quick-fix fired.
+- **The theme template directory was listed twice** — the check compared a
+  `Path` against a `str`, so it never matched and every template lookup stat'ed
+  the same directory twice.
+
+### Dependencies
+
+- **Python** — `click` 8.4 → 8.5, `Markdown` 3.10 → 3.11, `pymdown-extensions`
+  11.0 → 12.3, `backrefs` 8.0 → 8.1, `Pygments` 2.20 → 2.21, `platformdirs`
+  4.11 → 4.13, `markupsafe` 3.0.3 → 3.0.4, `marz-search` 0.3.0 → 0.3.1,
+  `minify-go` 2.24.17 → 2.24.24; optional extras `pillow` 12 → 13, `cairosvg`
+  2.9.0 → 2.9.1, `pypdf` 6.15 → 6.21, `playwright` 1.62 → 1.64. The full suite
+  passes against the upgraded set.
+- **Frontend** — `katex` 0.19.0 → 0.19.1, `lucide-static` 1.57 → 1.62,
+  `simple-icons` 16.35 → 16.36, `@primer/octicons` 19.40 → 19.42,
+  `@fortawesome/fontawesome-free` 7.1 → 7.3, `postcss` 8.5.26 → 8.5.32,
+  `autoprefixer` 10.6.1 → 10.6.2, `sass` 1.105 → 1.106, `svgo` 4.0 → 4.1,
+  `preact` 10 → 11. Vendored KaTeX, Mermaid and the search worker were rebuilt.
+- **Tooling** — `ruff` is now pinned to the same version in `pyproject.toml` and
+  both workflows (0.17.3); they had drifted to 0.17.0 vs 0.16.6, so a local
+  `ruff check` did not match the gate. `eslint` 10.12 → 10.13 and
+  `typescript-eslint` 8.71 → 8.72. `typescript` stays on 6.x: 7.0 is available
+  but `typescript-eslint` still constrains it to `<6.1.0`.
+
 ## [13.0.4] — 2026-10-23
 
 ### Added
