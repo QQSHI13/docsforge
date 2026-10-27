@@ -61,6 +61,29 @@ describe('links helpers', () => {
     it('skips links without parens', () => {
       assert.deepStrictEqual(extractLinks('no [links] here'), []);
     });
+
+    it('finds destinations containing spaces', () => {
+      // python-markdown renders both of these with a space in the href, so the
+      // scanner must see them too - otherwise rename leaves a dead link and no
+      // hover/definition/quick-fix fires on it.
+      const src = 'a [one](my page.md) b [two](<other page.md>) c';
+      assert.deepStrictEqual(
+        extractLinks(src).map((l) => l.dest),
+        ['my page.md', 'other page.md'],
+      );
+    });
+
+    it('strips a trailing link title', () => {
+      assert.deepStrictEqual(
+        extractLinks('[a](x.md "the title")').map((l) => l.dest),
+        ['x.md'],
+      );
+      assert.deepStrictEqual(
+        extractLinks(`[a](y.md 'the title')`).map((l) => l.dest),
+        ['y.md'],
+      );
+    });
+
   });
 
   describe('extractHeadings', () => {

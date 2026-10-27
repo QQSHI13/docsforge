@@ -58,11 +58,31 @@ export function extractLinks(source: string): Array<{ dest: string; offset: numb
 /** Raw link scan without code masking (internal; tests). */
 export function extractLinksRaw(source: string): Array<{ dest: string; offset: number; line: number }> {
   const links: Array<{ dest: string; offset: number; line: number }> = [];
-  const re = /!?\[[^\]]*\]\(\s*([^)\s]+)(?:\s+["'][^"']*["'])?\s*\)/g;
+  // The destination group accepts both forms the engine renders:
+  //   [a](<my page.md>)  angle-bracketed - spaces need no quoting
+  //   [a](my page.md)    bare, with spaces (python-markdown allows it even
+  //                      though CommonMark forbids unescaped spaces here)
+  //   [a](x.md "title")  bare + optional title
+  // The old `([^)\s]+)` stopped at the first space, so every space-containing
+  // link was invisible: rename left it pointing at a 404, and no hover,
+  // definition or quick-fix fired on it. The whole parenthesised run is
+  // captured and split below instead.
+  const re = /!?\[[^\]]*\]\(\s*(<[^>\n]*>|[^)\n]*?)\s*\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(source)) !== null) {
+    const raw = m[1].trim();
+    let dest: string;
+    if (raw.startsWith('<') && raw.endsWith('>')) {
+      dest = raw.slice(1, -1).trim();
+    } else {
+      // Drop a trailing title: `x.md "t"`, `x.md 't'`, `x.md (t)`.
+      dest = raw.replace(/\s+(?:"[^"]*"|'[^']*'|\([^)]*\))\s*$/, '').trim();
+    }
+    if (!dest) {
+      continue;
+    }
     const line = source.slice(0, m.index).split('\n').length - 1;
-    links.push({ dest: m[1], offset: m.index, line });
+    links.push({ dest, offset: m.index, line });
   }
   return links;
 }
