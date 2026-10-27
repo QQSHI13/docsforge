@@ -409,9 +409,10 @@ def readtime(html: str, words_per_minute: int):
     parser.feed(html)
     parser.close()
 
-    # Extract words from text and compute readtime in seconds
+    # Extract words from text and compute readtime in seconds. Clamp the rate:
+    # a configured 0 passes validation and would otherwise divide by zero.
     words = len(re.split(r"\W+", "".join(parser.text)))
-    seconds = ceil(words / words_per_minute * 60)
+    seconds = ceil(words / max(1, words_per_minute) * 60)
 
     # Account for additional images
     delta = 12
@@ -684,6 +685,22 @@ class Reference(Link):
 # Helper functions
 # -----------------------------------------------------------------------------
 
+# Reject generated paths that escape the docs tree
+def _validate_generated_path(path: str) -> None:
+    """Raise when a generated path resolves outside the docs directory.
+
+    Every path the blog plugin generates is assembled from user-controllable
+    strings - post `slug` front matter, category names, author slugs - and the
+    `*_url_format` / `post_url_format` config options, then normalized with
+    `posixpath.normpath`, which collapses `..` segments. Without this check a
+    post with `slug: ../../../../tmp/x` writes its page outside the site.
+    """
+    normalized = posixpath.normpath(path)
+    if posixpath.isabs(normalized) or normalized == ".." or normalized.startswith("../"):
+        raise PluginError(
+            f"Invalid generated path '{path}': it resolves outside the docs directory"
+        )
+
 # Patch configuration
 def _patch(config: DocsForgeConfig):
     config = copy(config)
@@ -762,6 +779,11 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # Initialize entrypoint
         self.blog: View
 
+        # Paths claimed by generated posts, used to disambiguate duplicate
+        # slugs (two posts with the same title and date). Keyed by path so the
+        # second post gets a `-2` suffix instead of overwriting the first.
+        self._claimed_paths: dict[str, Post] = {}
+
         # Initialize and resolve authors, if enabled
         if self.config.authors:
             self.authors = self._resolve_authors(config)
@@ -783,6 +805,12 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     def on_files(self, files, *, config):
         if not self.config.enabled:
             return
+
+        # Recompute claimed paths every build: `serve` reuses the plugin
+        # instance across rebuilds, and a path freed by a deleted post must
+        # become claimable again.
+        self._claimed_paths = {}
+
 
         # Resolve path to entrypoint and site directory
         root = posixpath.normpath(self.config.blog_dir)
@@ -1823,7 +1851,38 @@ class BlogPlugin(BasePlugin[BlogConfig]):
 
         # Normalize path and strip slashes at the beginning and end
         path = posixpath.normpath(path.strip("/"))
-        return posixpath.join(self.config.blog_dir, f"{path}.md")
+        return self._claim_path(posixpath.join(self.config.blog_dir, f"{path}.md"), post)
+
+    def _claim_path(self, path: str, post: Post) -> str:
+        """Return *path*, disambiguating it if another post already claimed it.
+
+        Two posts with the same title and date derive the same slug, and one
+        of them was silently overwritten - its body existed nowhere in the
+        output while the index still listed it. The tags plugin already
+        disambiguates duplicate slugs the same way (see `used_slugs` there).
+        """
+        _validate_generated_path(path)
+        claimed = getattr(self, "_claimed_paths", None)
+        if claimed is None:
+            claimed = self._claimed_paths = {}
+        if path not in claimed:
+            claimed[path] = post
+            return path
+        if claimed[path] is post:
+            return path
+
+        base, _ = posixpath.splitext(path)
+        index = 2
+        candidate = f"{base}-{index}.md"
+        while candidate in claimed:
+            index += 1
+            candidate = f"{base}-{index}.md"
+        claimed[candidate] = post
+        log.warning(
+            f"Post '{post.file.src_uri}' maps to the same URL as "
+            f"'{claimed[path].file.src_uri}'; using '{candidate}' instead."
+        )
+        return candidate
 
     # Format path for archive
     def _format_path_for_archive(self, post: Post, config: DocsForgeConfig):
@@ -1939,6 +1998,16 @@ class BlogPlugin(BasePlugin[BlogConfig]):
     # either inside the temporary directory or the docs directory
     def _path_to_file(self, path: str, config: DocsForgeConfig, *, temp = True):
         assert path.endswith(".md")
+
+        # Every path routed through here is assembled from user-controllable
+        # strings (post `slug` front matter, category names, author slugs, and
+        # the `*_url_format` / `post_url_format` config options), then run
+        # through posixpath.normpath, which collapses `..` segments. Without
+        # this check a post with `slug: ../../../../tmp/x` writes its page
+        # outside the site directory.
+        _validate_generated_path(path)
+
+
         file = File(
             path,
             config.docs_dir if not temp else self.temp_dir,
@@ -2011,14 +2080,6 @@ def _find_anchor(toc: TableOfContents, id: str):
         if isinstance(nested, AnchorLink):
             return nested
     return None
-
-# -----------------------------------------------------------------------------
-# Data
-# -----------------------------------------------------------------------------
-
-# Set up logging
-log = logging.getLogger("mkdocs.material.blog")
-
 
 #-----------------------------------------------------------------------------
 # From __init__.py
