@@ -67,6 +67,11 @@ except OSError as e:
 # Layout templates (embedded)
 # -----------------------------------------------------------------------------
 
+# Upper bound on a single downloaded font file. Real TTF/OTF files are well
+# under this; the cap only stops a hostile or broken response from filling
+# memory during the streaming read in _fetch_font_from_google_fonts.
+MAX_FONT_SIZE = 16 * 1024 * 1024
+
 # From social/templates/default.yml
 _LAYOUT_DEFAULT = dedent("""\
         # -----------------------------------------------------------------------------
@@ -2122,8 +2127,15 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         if variant:
             style = f"{variant} {style}"
 
-        # Check for availability of font style
-        list = sorted(os.listdir(path))
+        # Check for availability of font style. Guarded: the family directory
+        # can exist yet be empty, or vanish between the isdir check and the
+        # listdir call (concurrent build, wiped cache).
+        try:
+            list = sorted(os.listdir(path))
+        except OSError as e:
+            raise _FontUnavailableError(
+                f"Font family '{family}' unavailable ({e}), skipping social cards"
+            ) from e
         for file in list:
             name, _ = os.path.splitext(file)
             if name == style:
@@ -2145,6 +2157,14 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             # "10pt Regular" over "10pt Condensed Regular". This is a heuristic.
             if "Regular" in name and (not fallback or len(name) < len(fallback)):
                 fallback = name
+
+        # An empty directory leaves no candidate; recursing here would call
+        # _resolve_font(family, "") forever (RecursionError) because the same
+        # empty list would be produced again on entry.
+        if not fallback:
+            raise _FontUnavailableError(
+                f"Font family '{family}' has no font files, skipping social cards"
+            )
 
         # Fall back to regular font (guess if there are multiple)
         return self._resolve_font(family, fallback)
@@ -2204,7 +2224,10 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # URLs to font files, as we're going to rename them anyway. This should
         # be more resilient than trying to correct the JSON syntax.
         url = f"https://fonts.google.com/download/list?family={family}"
-        res = requests.get(url, timeout = (5, 30))
+        # (connect, read) timeouts. A hung Google Fonts endpoint must not stall
+        # the build: without a bound here one family blocks every page that
+        # needs a card.
+        res = requests.get(url, timeout = (5, 15))
 
         # Ensure that the download succeeded
         if res.status_code != 200:
@@ -2214,17 +2237,35 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             )
 
         # Extract font URLs from manifest
-        for match in re.findall(
-            r"\"(https:(?:.*?)\.[ot]tf)\"", str(res.content)
-        ):
-            with requests.get(match, timeout = (5, 30)) as res:
+        matches = re.findall(r"\"(https:(?:.*?)\.[ot]tf)\"", str(res.content))
+        if not matches:
+            # Manifest answered but carried no font URLs (Google changed the
+            # format): fail as "unavailable" rather than letting the caller
+            # listdir a directory that was never created.
+            raise PluginError(
+                f"Google Fonts manifest for '{family}' contained no font files"
+            )
+
+        for match in matches:
+            with requests.get(match, timeout = (5, 15), stream = True) as res:
                 res.raise_for_status()
+
+                # Cap the download like the privacy plugin does, so a huge or
+                # endless response cannot exhaust memory.
+                content = bytearray()
+                for chunk in res.iter_content(chunk_size = 65536):
+                    content.extend(chunk)
+                    if len(content) > MAX_FONT_SIZE:
+                        raise PluginError(
+                            f"Font file for '{family}' exceeds {MAX_FONT_SIZE} bytes"
+                        )
+                content = bytes(content)
 
                 # Construct image font for analysis by directly reading the
                 # contents from the response without priorily writing to a
                 # temporary file (like we did before), as this might lead to
                 # problems on Windows machines, see https://t.ly/LiF_k
-                with BytesIO(res.content) as f:
+                with BytesIO(content) as f:
                     font = ImageFont.truetype(f)
 
                 # Extract font family name and style
@@ -2233,14 +2274,25 @@ class SocialPlugin(BasePlugin[SocialConfig]):
 
                 # Write file to cache directory
                 target = os.path.join(path, family, f"{name}.ttf")
-                write_file(res.content, target)
+                write_file(content, target)
 
     # -------------------------------------------------------------------------
 
     # Retrieve configuration value - each page can override certain parts of
     # the site configuration, depending on the type and structure of the value
     def _config(self, name: str, page: Page):
-        meta = page.meta.get("social", {})
+        meta = page.meta.get("social")
+
+        # `social:` front matter is normally a mapping, but a page may set a
+        # scalar to switch cards off for itself (`social: false`) - the most
+        # natural way to express that. Treat a bare bool as the `cards`
+        # override (not as "no overrides") so it actually disables the card,
+        # and any other scalar as no page-level overrides at all. Either way
+        # we never call .get() on a bool and crash the page.
+        if isinstance(meta, bool):
+            meta = {"cards": meta}
+        elif not isinstance(meta, dict):
+            meta = {}
 
         # Primitive values: choose page- over site-level configuration
         if isinstance(self.config[name], (bool, str, int, float)):
