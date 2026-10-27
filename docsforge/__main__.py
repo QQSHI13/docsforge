@@ -164,20 +164,23 @@ def build(strict, pdf, jobs):
 
     # PDF export
     if pdf:
-        import yaml
-
         from docsforge import cli_core
+        from docsforge.config_base import _open_config_file
         from docsforge.pdf import build_pdf as export_pdf
+        from docsforge.yaml_utils import yaml_load
+
         config_file = cli_core.find_config_file()
         if config_file:
             docs_dir = "docs"
             try:
-                with open(config_file) as f:
-                    cfg = yaml.load(f, Loader=yaml.FullLoader) or {}
+                with _open_config_file(config_file) as f:
+                    # Engine loader: yaml.FullLoader rejects `!ENV` tags, and
+                    # the except below would hide that behind a wrong docs_dir.
+                    cfg = yaml_load(f) or {}
                 docs_dir = cfg.get("docs_dir", "docs")
             except Exception:
                 pass
-            pdf_kwargs = {"skip_build": True}
+            pdf_kwargs = {}
             if jobs is not None:
                 pdf_kwargs["concurrency"] = jobs
             sys.exit(export_pdf(docs_dir, **pdf_kwargs))

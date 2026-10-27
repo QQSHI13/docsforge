@@ -72,9 +72,13 @@ def detect_environment() -> dict:
         # Check if docs/ directory exists
         try:
             from docsforge.config_base import _open_config_file
+            from docsforge.yaml_utils import yaml_load
+
             with _open_config_file(config_path) as f:
-                import yaml
-                cfg = yaml.load(f, Loader=yaml.FullLoader) or {}
+                # The engine's loader, not yaml.FullLoader: the latter raises on
+                # `!ENV` tags, which the except below would swallow - leaving
+                # the wrong docs_dir behind with no diagnostic.
+                cfg = yaml_load(f) or {}
                 docs_dir = cfg.get("docs_dir", "docs")
                 docs_path = Path(docs_dir)
                 result["docs_dir_exists"] = docs_path.exists()
@@ -362,13 +366,12 @@ def _check_optional_deps(config_file=None):
     Checks configured plugins against importable packages and logs warnings
     with the exact install command needed.
     """
-    import yaml
-
     from docsforge.config_base import _open_config_file
+    from docsforge.yaml_utils import yaml_load
 
     try:
         with _open_config_file(config_file) as f:
-            cfg = yaml.load(f, Loader=yaml.FullLoader) or {}
+            cfg = yaml_load(f) or {}
     except Exception:
         return  # Best-effort, don't fail build because dep check failed
 
