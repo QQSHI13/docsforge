@@ -27,35 +27,35 @@ classifiers = [
 dynamic = ["version"]
 requires-python = ">=3.10"
 dependencies = [
-    "click >=8.4.2",
+    "click >=8.5.0",
     "Jinja2 >=3.1.6",
-    "markupsafe >=3.0.3",
-    "Markdown >=3.10.3",
+    "markupsafe >=3.0.4",
+    "Markdown >=3.11.2",
     "PyYAML >=6.0.3",
     "watchdog >=6.0.0",
     "mergedeep >=1.3.4",
     "pyyaml_env_tag >=1.1",
     "packaging >=26.3",
     "pathspec >=1.1.1",
-    "platformdirs >=4.11.2",
+    "platformdirs >=4.13.6",
     "colorama >=0.4.6",
-    "pymdown-extensions >=11.0.1",
-    "backrefs >=8.0",
+    "pymdown-extensions >=12.3",
+    "backrefs >=8.1",
     "requests >=2.34.2",
     "babel >=2.18.0",
-    "pygments >=2.20.0",
-    "marz-search >=0.3.0",
-    "minify-go >=2.24.17",
+    "pygments >=2.21.0",
+    "marz-search >=0.3.1",
+    "minify-go >=2.24.24",
 ]
 
 [project.optional-dependencies]
 # Transitional no-op: Marz handles CJK natively, jieba is no longer used.
 chinese = []
-all = ["playwright>=1.62.0", "docsforge[pdf]", "docsforge[social]"]
-pdf = ["playwright>=1.62.0", "pypdf>=6.15.0"]
-social = ["pillow>=12.3.0", "cairosvg>=2.9.0"]
+all = ["playwright>=1.64.1", "docsforge[pdf]", "docsforge[social]"]
+pdf = ["playwright>=1.64.1", "pypdf>=6.21.2"]
+social = ["pillow>=13.0.0", "cairosvg>=2.9.1"]
 # Pinned to the version CI enforces, so `ruff check` locally matches the gate.
-dev = ["pytest>=8.0", "pytest-mock>=3.14", "ruff==0.17.0"]
+dev = ["pytest>=9.1.1", "pytest-mock>=3.17.0", "ruff==0.17.3"]
 
 [project.urls]
 Documentation = "https://qqshi13.github.io/docsforge"
