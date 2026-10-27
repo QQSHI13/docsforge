@@ -1148,11 +1148,6 @@ def build(
             logger.removeHandler(warning_counter)
 
 
-def site_directory_contains_stale_files(site_directory: str) -> bool:
-    """Check if the site directory contains stale files from a previous build."""
-    return bool(os.path.exists(site_directory) and os.listdir(site_directory))
-
-
 def _parse_svg_length(value: str) -> int | None:
     """Extract a numeric pixel length from an SVG width/height attribute."""
     value = value.strip()
