@@ -19,6 +19,7 @@ import urllib.parse
 from pathlib import Path
 
 from docsforge.config_defaults import DEFAULT_CONCURRENCY
+from docsforge.yaml_utils import yaml_load
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +107,29 @@ def _is_within(local: Path, base: Path) -> bool:
         return False
 
 
+def _resolve_local_request(url: str, site_path: Path) -> tuple[str, Path | None]:
+    """Decide what to do with a local (``file:``) request during rendering.
+
+    Returns ``("continue", None)`` when the URL is already inside the site,
+    ``("fulfill", path)`` when it maps onto the site directory, and
+    ``("abort", None)`` when it points somewhere else on the machine.
+
+    Pages may contain raw HTML, so an `<iframe src="file:///etc/passwd">` (or
+    any other local path) would otherwise be read by Chromium and baked into
+    the exported PDF. Root-relative references such as `/assets/main.css`
+    resolve against the filesystem root under `file://`, so they are mapped
+    back onto the site directory - containment still applies to both.
+    """
+    parsed = urllib.parse.urlparse(url)
+    local = Path(urllib.parse.unquote(parsed.path))
+    if _is_within(local, site_path):
+        return "continue", None
+    mapped = site_path / local.as_posix().lstrip("/")
+    if mapped.exists() and _is_within(mapped, site_path):
+        return "fulfill", mapped
+    return "abort", None
+
+
 # ---------------------------------------------------------------------------
 # PDF cache — mirrors the site build's incremental cache. Stored in the same
 # directory as the build cache (<project>/.docsforge/cache/pdf.json), it maps
@@ -171,25 +195,64 @@ class PdfCache:
         _write_json(self.path, self.data)
 
 
+def _find_config_in(directory: Path) -> Path | None:
+    """Return the docsforge config file in *directory*, if there is one."""
+    for name in ("docsforge.yml", "docsforge.yaml"):
+        candidate = directory / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _resolve_project(docs_dir: str) -> tuple[Path, Path, dict]:
+    """Resolve ``(project_dir, site_path, cfg)`` for a PDF export.
+
+    The project root is located through the config file rather than inferred
+    from the docs directory name. The old heuristic ("if the directory is
+    called `docs`, its parent is the project") broke every site using
+    `docs_dir: content`: the site path became `content/site` and the export
+    failed with "Site directory not found" right after a successful build.
+    """
+    docs_path = Path(docs_dir)
+
+    # Prefer a config file next to the cwd (where `docsforge build` ran), then
+    # fall back to the docs directory and its parent for programmatic callers.
+    candidates = [Path.cwd(), docs_path, docs_path.parent]
+    seen: set[Path] = set()
+    project_dir = docs_path.parent if docs_path.name == "docs" else docs_path
+    cfg: dict = {}
+    for raw_candidate in candidates:
+        candidate = raw_candidate.resolve()
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        config_path = _find_config_in(candidate)
+        if config_path is None:
+            continue
+        project_dir = candidate
+        try:
+            # Same loader the engine uses, so `!ENV` tags resolve instead of
+            # raising and silently falling back to the defaults. yaml_load
+            # takes a stream or a string, not a Path.
+            with open(config_path, encoding="utf-8") as f:
+                cfg = yaml_load(f) or {}
+        except Exception as e:
+            log.warning(f"Could not read {config_path}: {e}")
+        break
+
+    site_dir = cfg.get("site_dir", "site")
+    if not isinstance(site_dir, str):
+        site_dir = "site"
+    return project_dir, project_dir / site_dir, cfg
+
+
 def build_pdf(docs_dir: str, output_dir: str = "pdf", **kwargs) -> int:
     """Build the site and export to PDF via Playwright."""
     if not HAS_PLAYWRIGHT:
         log.error("Playwright required. Install: pip install playwright")
         return 1
 
-    project_dir = Path(docs_dir).parent if Path(docs_dir).name == "docs" else Path(docs_dir)
-
-    config_path = project_dir / "docsforge.yml"
-    site_dir = "site"
-    cfg: dict = {}
-    if config_path.exists():
-        try:
-            import yaml
-            cfg = yaml.load(config_path.read_text(), Loader=yaml.FullLoader) or {}
-            site_dir = cfg.get("site_dir", "site")
-        except Exception:
-            pass
-    site_path = project_dir / site_dir
+    project_dir, site_path, cfg = _resolve_project(docs_dir)
 
     if not site_path.is_dir():
         log.error(f"Site directory not found: {site_path}. Run 'docsforge build' first.")
@@ -257,7 +320,13 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4, cach
     for html_file in html_files:
         rel = html_file.relative_to(site_path).as_posix()
         pdf_rel = rel[: -len(".html")] + ".pdf"
-        if fresh and not cache.should_render(pdf_rel, FileHasher.hash_file(html_file)):
+        if (
+            fresh
+            and not cache.should_render(pdf_rel, FileHasher.hash_file(html_file))
+            # The hash alone is not enough: a deleted or half-written PDF
+            # would otherwise be reported as up to date and never restored.
+            and (output_path / pdf_rel).is_file()
+        ):
             continue
         todo.append((html_file, pdf_rel))
 
@@ -291,7 +360,13 @@ async def _render(site_path: Path, output_path: Path, concurrency: int = 4, cach
                     url = route.request.url
                     parsed = urllib.parse.urlparse(url)
                     if parsed.scheme == "file":
-                        return await route.continue_()
+                        action, local_file = _resolve_local_request(url, site_path)
+                        if action == "continue":
+                            return await route.continue_()
+                        if action == "fulfill" and local_file is not None:
+                            return await route.fulfill(path=str(local_file))
+                        log.warning(f"Blocked local file outside the site: {parsed.path}")
+                        return await route.abort()
                     if parsed.scheme in ("http", "https"):
                         if ".." in parsed.path:
                             return await route.abort()
