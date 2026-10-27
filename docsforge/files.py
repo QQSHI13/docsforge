@@ -570,6 +570,12 @@ def get_files(config: DocsForgeConfig) -> Files:
     files: list[File] = []
     conflicting_files: list[tuple[File, File]] = []
     visited_inodes: set[tuple[int, int]] = set()
+    # Shared across the whole walk, not per directory: two files in *different*
+    # directories can map to the same dest_uri (e.g. `foo.md` and
+    # `foo/index.md` both build to `foo/index.html`). A per-directory dict
+    # never compared those, so both were built and whichever finished last won
+    # - output flipped between builds with no warning.
+    files_by_dest: dict[str, File] = {}
     for source_dir, dirnames, filenames in os.walk(config["docs_dir"], followlinks=True):
         relative_dir = os.path.relpath(source_dir, config["docs_dir"])
 
@@ -590,7 +596,6 @@ def get_files(config: DocsForgeConfig) -> Files:
         dirnames.sort()
         filenames.sort(key=_file_sort_key)
 
-        files_by_dest: dict[str, File] = {}
         for filename in filenames:
             file = File(
                 os.path.join(relative_dir, filename),
