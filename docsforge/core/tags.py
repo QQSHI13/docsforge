@@ -169,7 +169,7 @@ class TagsConfig(Config):
     enabled = Type(bool, default = True)
     tags = Type(bool, default = True)
     tags_file = Optional(Type(str))
-    tags_extra_files = Optional(Type(DictOfItems(Type(list))))
+    tags_extra_files = Optional(DictOfItems(Type(list)))
     tags_slugify = Type(Callable, default = slugify())
     tags_hierarchy = Type(bool, default = False)
     tags_hierarchy_separator = Type(str, default = "/")
@@ -187,33 +187,19 @@ class TagsConfig(Config):
     listings_sort_reverse = Type(bool, default = False)
     listings_tags_sort_by = Type(Callable, default = tag_name)
     listings_tags_sort_reverse = Type(bool, default = False)
-    listings_shuffle = Optional(Type(int))
-    listings_limit = Optional(Type(int))
-    listings_pagination = Type(int, default = 10)
-    listings_pagination_keep_content = Type(bool, default = True)
-    listings_more = Type(bool, default = True)
-    listings_page_separator = Type(str, default = "<!-- more -->")
     shadow = Type(bool, default = False)
     shadow_tags = Optional(Type(list))
     shadow_tags_prefix = Optional(Type(str))
     shadow_tags_suffix = Optional(Type(str))
     shadow_on_serve = Type(bool, default = True)
-    shadow_page_limit = Optional(Type(int))
     tags_sort_by = Optional(Type(Callable))
     tags_sort_reverse = Type(bool, default = False)
     tags_slugify_format = Type(str, default = "{slug}")
     tags_slugify_separator = Type(str, default = "-")
     export = Type(bool, default = False)
     export_file = Type(str, default = "tags.json")
-    export_json_encoder = Optional(Type(str))
-    export_json_indent = Optional(Type(int))
-    export_json_sort_keys = Type(bool, default = False)
-    export_json_ensure_ascii = Type(bool, default = True)
-    export_json_separators = Optional(Type(tuple[str, str]))
     export_only = Type(bool, default = False)
     filters = Optional(Type(FilterConfig))
-    filter_on_serve = Type(bool, default = False)
-    filter_on_build = Type(bool, default = True)
     listings_layout = Type(str, default = "default")
     listings_toc = Type(bool, default = True)
     listings_map = Type(dict, default = {})
@@ -315,7 +301,7 @@ class ListingManager:
         Returns:
             Printable representation.
         """
-        return _print(self)
+        return _print_listing_manager(self)
 
     def __iter__(self) -> Iterator[Listing]:
         """
@@ -731,7 +717,7 @@ class ListingManager:
 # Functions
 # -----------------------------------------------------------------------------
 
-def _print(manager: ListingManager, indent: int = 0) -> str:
+def _print_listing_manager(manager: ListingManager, indent: int = 0) -> str:
     """
     Return a printable representation of a listing manager.
 
@@ -922,7 +908,7 @@ class ListingTree:
         Returns:
             Printable representation.
         """
-        return _print(self)
+        return _print_listing_tree(self)
 
     def __hash__(self) -> int:
         """
@@ -999,7 +985,7 @@ class ListingTree:
 # Functions
 # -----------------------------------------------------------------------------
 
-def _print(tree: ListingTree, indent: int = 0) -> str:
+def _print_listing_tree(tree: ListingTree, indent: int = 0) -> str:
     """
     Return a printable representation of a listing tree.
 
@@ -1017,7 +1003,7 @@ def _print(tree: ListingTree, indent: int = 0) -> str:
     lines.extend(" " * (indent + 2) + repr(mapping) for mapping in tree.mappings)
 
     # Print subtrees
-    lines.extend(_print(child, indent + 2) for child in tree.children.values())
+    lines.extend(_print_listing_tree(child, indent + 2) for child in tree.children.values())
 
     # Concatenate everything
     return "\n".join(lines)
@@ -1057,7 +1043,7 @@ class MappingManager:
         Returns:
             Printable representation.
         """
-        return _print(self)
+        return _print_mapping_manager(self)
 
     def __iter__(self) -> Iterator[Mapping]:
         """
@@ -1221,7 +1207,10 @@ class MappingManager:
             The configured tag.
         """
         if not tag.hidden:
-            tag.hidden = tag in (self.config.shadow_tags or [])
+            # Compare by name: Tag.__eq__ asserts the other operand is a Tag,
+            # so `tag in ["draft"]` raised AssertionError and made the whole
+            # `shadow_tags` option crash any build that used it.
+            tag.hidden = tag.name in (self.config.shadow_tags or [])
 
         # Check if tag matches shadow prefix, if defined
         if not tag.hidden and self.config.shadow_tags_prefix:
@@ -1238,7 +1227,7 @@ class MappingManager:
 # Functions
 # -----------------------------------------------------------------------------
 
-def _print(manager: MappingManager, indent: int = 0) -> str:
+def _print_mapping_manager(manager: MappingManager, indent: int = 0) -> str:
     """
     Return a printable representation of a mapping manager.
 
