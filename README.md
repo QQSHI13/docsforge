@@ -118,7 +118,7 @@ pip install docsforge
 You get:
 - **Engine** — ProperDocs/MkDocs fork, vendored and maintained (no longer tracks upstream, so it can evolve independently)
 - **Theme** — Material for MkDocs, fully included
-- **Plugins** — 8 built-in: search, tags, blog, info, meta, minify, privacy, i18n
+- **Plugins** — 9 built-in: search, tags, blog, info, meta, minify, privacy, i18n, social
 - **Markdown** — 39 extensions pre-configured (36 default + 3 built-in, pymdownx + python-markdown)
 - **Math** — KaTeX vendored (`$$...$$` works out of the box, offline)
 - **Highlighting** — Pygments at build time
