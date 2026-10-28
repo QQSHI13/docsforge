@@ -942,10 +942,13 @@ class DocsForgeFormattingProvider implements vscode.DocumentFormattingEditProvid
 
 /** Register all providers for a workspace root. */
 export function registerProviders(context: vscode.ExtensionContext, root: string): void {
+  // RelativePattern, not `${root}/**/*.md`: a Windows root like `C:\work`
+  // lands backslashes in the glob, which VS Code's glob parser reads as
+  // escapes, so the selector never matched and every provider stayed silent.
   const sel: vscode.DocumentSelector = {
     scheme: 'file',
     language: 'markdown',
-    pattern: `${root}/**/*.md`,
+    pattern: new vscode.RelativePattern(root, '**/*.md'),
   };
 
   // Warm the cached docs list and invalidate it on md create/delete (debounced).

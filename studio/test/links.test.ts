@@ -18,6 +18,7 @@ import {
   linkFromWarning,
   severityForLevel,
   docsDirFromConfig,
+  parseDocsDir,
   loadValidation,
   docAbsPath,
   slugifyHeading,
@@ -110,6 +111,46 @@ describe('links helpers', () => {
     });
   });
 
+  describe('link offsets', () => {
+    it('records the opening paren so offset + 1 is the destination', () => {
+      // Every consumer computes edits as `offset + 1 … offset + 1 + len`; the
+      // old match-start offset landed on the closing `]` and rewrote labels.
+      const src = 'See [text](target.md) here.';
+      const [link] = extractLinks(src);
+      assert.strictEqual(src[link.offset], '(');
+      assert.strictEqual(src.slice(link.offset + 1, link.offset + 1 + link.dest.length), 'target.md');
+    });
+
+    it('keeps offsets correct for images and repeated links', () => {
+      const src = '![img](a.png) [x](b.md) [y](b.md)';
+      for (const link of extractLinks(src)) {
+        assert.strictEqual(src[link.offset], '(');
+        assert.strictEqual(src.slice(link.offset + 1, link.offset + 1 + link.dest.length), link.dest);
+      }
+    });
+
+    it('linkAtPosition hits the label and the destination', () => {
+      const line = 'see [text](target.md) end';
+      const links = extractLinks(line);
+      assert.strictEqual(linkAtPosition(line, links, 6)?.dest, 'target.md'); // inside '[text]'
+      assert.strictEqual(linkAtPosition(line, links, 12)?.dest, 'target.md'); // inside dest
+      assert.strictEqual(linkAtPosition(line, links, 23), null); // after it
+    });
+  });
+
+  describe('extractLinks on Windows separators', () => {
+    it('normalizes backslashes in the destination', () => {
+      const links = extractLinks('a [one](guide\\foo.md#sec) b');
+      assert.deepStrictEqual(links.map((l) => l.dest), ['guide/foo.md#sec']);
+    });
+
+    it('normalization is length-preserving', () => {
+      const src = '[x](a\\b\\c.md)';
+      const [link] = extractLinks(src);
+      assert.strictEqual(src.slice(link.offset + 1, link.offset + 1 + link.dest.length), 'a\\b\\c.md');
+    });
+  });
+
   describe('resolveLinkTarget', () => {
     const docs = '/site/docs';
 
@@ -126,6 +167,19 @@ describe('links helpers', () => {
 
     it('rejects escaping the docs dir', () => {
       assert.strictEqual(resolveLinkTarget(docs, 'a/b.md', '../../x.md'), null);
+    });
+
+    it('resolves Windows-style backslash targets', () => {
+      // A link written `guide\\foo.md` must resolve with posix math; the
+      // backslash used to make every match fail silently.
+      const win = resolveLinkTarget('C:\\site\\docs', 'guide/index.md', 'sub\\foo.md');
+      assert.strictEqual(win?.srcUri, 'guide/sub/foo.md');
+      assert.strictEqual(win?.absPath, path.join('C:\\site\\docs', 'guide', 'sub', 'foo.md'));
+      // Mixed separators resolve the same way.
+      assert.strictEqual(
+        resolveLinkTarget(docs, 'a/b.md', 'c\\d.md')?.srcUri,
+        resolveLinkTarget(docs, 'a/b.md', 'c/d.md')?.srcUri,
+      );
     });
   });
 
@@ -194,6 +248,29 @@ describe('links helpers', () => {
 
     it('defaults to docs', () => {
       assert.strictEqual(docsDirFromConfig(tmp), 'docs');
+    });
+
+    it('reads a quoted docs_dir containing spaces', () => {
+      // The old regex captured only `my` here, so every later path missed and
+      // the extension went silent.
+      fs.writeFileSync(path.join(tmp, 'docsforge.yml'), 'site_name: X\ndocs_dir: "my docs"\n');
+      assert.strictEqual(docsDirFromConfig(tmp), 'my docs');
+    });
+  });
+
+  describe('parseDocsDir', () => {
+    it('reads quoted, unquoted and commented values', () => {
+      assert.strictEqual(parseDocsDir('docs_dir: "my docs"\n'), 'my docs');
+      assert.strictEqual(parseDocsDir("docs_dir: 'my docs'\n"), 'my docs');
+      assert.strictEqual(parseDocsDir('docs_dir: content\n'), 'content');
+      assert.strictEqual(parseDocsDir('docs_dir: content  # the docs\n'), 'content');
+      assert.strictEqual(parseDocsDir('site_name: X\n  docs_dir: src/site\n'), 'src/site');
+    });
+
+    it('returns null when the key is absent or unusable', () => {
+      assert.strictEqual(parseDocsDir('site_name: X\n'), null);
+      assert.strictEqual(parseDocsDir('docs_dir:\n'), null);
+      assert.strictEqual(parseDocsDir('docs_dir: ../escape\n'), null);
     });
   });
 
@@ -298,7 +375,8 @@ describe('links helpers', () => {
     it('computeAnchorRenameEdits rewrites links with the old anchor', () => {
       fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# A\n\n[Sec](b.md#old-anchor)\n');
       fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n\n## Old Anchor\n');
-      const edits = computeAnchorRenameEdits(tmp, 'b.md', 'old-anchor', 'new-anchor');
+      const { edits, ambiguous } = computeAnchorRenameEdits(tmp, 'b.md', 'old-anchor', 'new-anchor');
+      assert.strictEqual(ambiguous.length, 0);
       assert.strictEqual(edits.size, 1);
       const fileEdits = edits.get(path.join(tmp, 'docs', 'a.md'))!;
       assert.strictEqual(fileEdits.length, 1);
@@ -309,8 +387,67 @@ describe('links helpers', () => {
       fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# A\n\n[Sec](c.md#old-anchor)\n');
       fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
       fs.writeFileSync(path.join(tmp, 'docs', 'c.md'), '# C\n\n## Old Anchor\n');
-      const edits = computeAnchorRenameEdits(tmp, 'b.md', 'old-anchor', 'new-anchor');
+      const { edits } = computeAnchorRenameEdits(tmp, 'b.md', 'old-anchor', 'new-anchor');
       assert.strictEqual(edits.size, 0);
+    });
+
+    it('computeAnchorRenameEdits returns no edits for an empty slug', () => {
+      fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), '# A\n\n[Sec](b.md#install)\n');
+      fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n\n## Install\n');
+      // `## !!!` slugifies to '' - an empty anchor is never a rename target.
+      for (const [oldSlug, newSlug] of [['install', ''], ['', 'install']]) {
+        const { edits } = computeAnchorRenameEdits(tmp, 'b.md', oldSlug, newSlug);
+        assert.strictEqual(edits.size, 0);
+      }
+    });
+
+    it('computeAnchorRenameEdits skips links when two headings share a slug', () => {
+      // Both headings slugify to #install; rewriting every #install link would
+      // repoint the ones that belong to the other heading.
+      fs.writeFileSync(
+        path.join(tmp, 'docs', 'a.md'),
+        '# A\n\n[one](b.md#install) and [two](b.md#install)\n',
+      );
+      fs.writeFileSync(
+        path.join(tmp, 'docs', 'b.md'),
+        '# B\n\n## Install\n\ntext\n\n## Install!\n',
+      );
+      const { edits, ambiguous } = computeAnchorRenameEdits(tmp, 'b.md', 'install', 'setup');
+      assert.deepStrictEqual(ambiguous.map((a) => a.line), [2, 6]);
+      assert.strictEqual(edits.size, 0);
+    });
+
+    it('computeAnchorRenameEdits only touches links in the renamed heading\'s window', () => {
+      // Same page, two #install headings: a link after the first heading but
+      // before the second belongs to the first; the one after the second
+      // belongs to the second.
+      fs.writeFileSync(
+        path.join(tmp, 'docs', 'b.md'),
+        [
+          '# B',
+          '',
+          '## Install',
+          '',
+          'see [a](#install)',
+          '',
+          '## Install!',
+          '',
+          'see [b](#install)',
+          '',
+        ].join('\n'),
+      );
+      const first = computeAnchorRenameEdits(tmp, 'b.md', 'install', 'setup', 2);
+      assert.strictEqual(first.edits.get(path.join(tmp, 'docs', 'b.md'))!.length, 1);
+      // Line 4 is the first occurrence's link; line 8 belongs to the second.
+      const fileEdits = first.edits.get(path.join(tmp, 'docs', 'b.md'))!;
+      const text = fs.readFileSync(path.join(tmp, 'docs', 'b.md'), 'utf-8');
+      assert.strictEqual(text.slice(fileEdits[0].start, fileEdits[0].end), 'install');
+      assert.ok(text.slice(0, fileEdits[0].start).endsWith('see [a](#'), 'link inside the first window');
+      // Renaming the second occurrence hits only its own link.
+      const second = computeAnchorRenameEdits(tmp, 'b.md', 'install', 'setup', 6);
+      const secondEdits = second.edits.get(path.join(tmp, 'docs', 'b.md'))!;
+      assert.strictEqual(secondEdits.length, 1);
+      assert.ok(text.slice(0, secondEdits[0].start).endsWith('see [b](#'));
     });
   });
 });
@@ -463,9 +600,12 @@ describe('frontmatter', () => {
 
 describe('review fixes', () => {
   it('slugifies CJK the way the engine does', () => {
-    assert.strictEqual(slugifyHeading('你好'), '你好');
-    assert.strictEqual(slugifyHeading('Hello 你好'), 'hello-你好');
-    assert.strictEqual(slugifyHeading('Hello_World'), 'hello-world');
+    // Engine (markdown toc slugify, non-unicode mode) ASCII-folds: CJK has no
+    // ASCII base so it is dropped, not kept. Verified against Python:
+    //   slugify('你好', '-') == '' and slugify('Hello 你好', '-') == 'hello'.
+    assert.strictEqual(slugifyHeading('你好'), '');
+    assert.strictEqual(slugifyHeading('Hello 你好'), 'hello');
+    assert.strictEqual(slugifyHeading('Hello_World'), 'hello_world');
   });
 
   it('matches locales case-insensitively', () => {
@@ -571,11 +711,11 @@ describe('review fixes', () => {
       fs.writeFileSync(path.join(tmp, 'docs', 'b.md'), '# B\n');
       const aAbs = path.join(tmp, 'docs', 'a.md');
       // Renaming b.md's anchor: only the cross-page link moves.
-      const forB = computeAnchorRenameEdits(tmp, 'b.md', 'old-head', 'new-head');
+      const forB = computeAnchorRenameEdits(tmp, 'b.md', 'old-head', 'new-head').edits;
       assert.strictEqual(forB.get(aAbs)?.length, 1);
       assert.strictEqual(forB.get(aAbs)![0].text, 'new-head');
       // Renaming a.md's anchor: only the same-page link moves.
-      const forA = computeAnchorRenameEdits(tmp, 'a.md', 'old-head', 'new-head');
+      const forA = computeAnchorRenameEdits(tmp, 'a.md', 'old-head', 'new-head').edits;
       assert.strictEqual(forA.get(aAbs)?.length, 1);
       assert.strictEqual(forA.get(aAbs)![0].text, 'new-head');
     } finally {
@@ -606,7 +746,36 @@ describe('computeFolderRename', () => {  let tmp: string;
   });
 });
 
+describe('slugifyHeading parity with engine', () => {
+  // Reference vectors generated by the real engine:
+  //   python -c "from markdown.extensions.toc import slugify; ..."
+  // These pin the TS implementation to markdown.extensions.toc.slugify
+  // (non-unicode mode: NFKD + ASCII-fold) so anchors predicted here match the
+  // ids the build emits. If the engine slug changes, regenerate these.
+  const CASES: Array<[string, string]> = [
+    ['Getting Started (v2.0)', 'getting-started-v20'],
+    ['Hello, World! 你好', 'hello-world'],
+    ['  Multiple   spaces  ', 'multiple-spaces'],
+    ['Café au lait', 'cafe-au-lait'],
+    ['snake_case title', 'snake_case-title'],
+    ['foo--bar__baz', 'foo-bar__baz'],
+    ['100% Sure?', '100-sure'],
+    ['Ünïcödé üüü', 'unicode-uuu'],
+    ['你好 World', 'world'],
+    ['a　b　c', 'a-b-c'],
+    ['Intro: Part (1)', 'intro-part-1'],
+    ['naïve résumé', 'naive-resume'],
+    ['a_b  c', 'a_b-c'],
+  ];
+  for (const [input, expected] of CASES) {
+    it(`slugs ${JSON.stringify(input)} -> ${JSON.stringify(expected)}`, () => {
+      assert.strictEqual(slugifyHeading(input), expected);
+    });
+  }
+});
+
 describe('companion rename (auto-rename semantics)', () => {
+
   let tmp: string;
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-vscode-'));

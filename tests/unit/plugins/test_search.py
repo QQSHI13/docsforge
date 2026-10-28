@@ -210,3 +210,36 @@ class TestMarzLangMapping:
             raw = idx.generate_marz_index()
         loaded = marz.Index.from_bytes(raw)
         assert any(h.ref.startswith("p/") for h in loaded.search("繁體中文內容測試"))
+
+
+class TestEntriesCacheTmpFile:
+    """Two concurrent builds in one project must not share a temp filename."""
+
+    def test_tmp_file_is_pid_unique(self, tmp_path, monkeypatch):
+        import json
+        import os
+
+        from docsforge.core.search import SearchPlugin
+
+        plugin = SearchPlugin()
+        plugin.load_config({})
+        cache_file = tmp_path / "search_entries.json"
+        plugin._entries_cache_file = cache_file
+        plugin._entries_cache = {"": {"index.md": [{"location": "index.md"}]}}
+
+        seen = {}
+        real_open = open
+
+        def tracking_open(path, *args, **kwargs):
+            seen["path"] = str(path)
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.open", tracking_open)
+        plugin._save_entries_cache()
+
+        assert cache_file.exists()
+        assert json.loads(cache_file.read_text()) == plugin._entries_cache
+        assert seen["path"] != str(cache_file.with_suffix(".tmp"))
+        assert f".{os.getpid()}.tmp" in seen["path"]
+        # The temp file is cleaned up, not left behind.
+        assert not list(tmp_path.glob("*.tmp"))

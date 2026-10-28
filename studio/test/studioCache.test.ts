@@ -20,7 +20,8 @@ describe('studio headings cache', () => {
 
   it('indexes headings with slugs and persists the store', () => {
     const got = getHeadings(tmp, doc);
-    assert.deepStrictEqual(got.map((h) => h.slug), ['hello-world', 'sub-section']);
+    // Engine (markdown toc slugify) keeps underscores: Sub_Section → sub_section.
+    assert.deepStrictEqual(got.map((h) => h.slug), ['hello-world', 'sub_section']);
     assert.ok(fs.existsSync(studioCachePath(tmp)));
     // Second call is served from cache (delete source → stale-free hit).
     const again = getHeadings(tmp, doc);

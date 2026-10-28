@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import threading
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, ClassVar
 
@@ -76,19 +77,44 @@ class CacheManager:
     # Temp files are PID-unique, but two same-PID writers (e.g. threads of one
     # build) could otherwise race: writer A replaces the file, writer B
     # replaces it again, then A's cleanup deletes B's file.
-    _write_locks: ClassVar[dict[str, Any]] = {}
+    #
+    # The dict is a ClassVar (one lock per path, shared by every manager in the
+    # process) and is only ever touched under `_write_locks_guard`: a plain
+    # get-then-setdefault race could hand two threads two different locks for
+    # the same path, which defeats the whole mechanism.
+    _write_locks: ClassVar[dict[str, threading.Lock]] = {}
+    _write_locks_guard: ClassVar[threading.Lock] = threading.Lock()
+
+    def _lock_for(self, path: Path) -> threading.Lock:
+        """Return the process-wide write lock for one cache file."""
+        key = str(path.resolve())
+        with self._write_locks_guard:
+            lock = self._write_locks.get(key)
+            if lock is None:
+                lock = self._write_locks[key] = threading.Lock()
+            return lock
+
+    def _prune_write_locks(self) -> None:
+        """Drop write locks for cache files that no longer exist.
+
+        Without this the ClassVar dict grows for every cache path the process
+        ever wrote (one per project/serve session). Only unlocked entries for
+        missing files are removed: an in-flight writer holds its lock (or gets
+        the same entry from `_lock_for`, since creating the entry precedes the
+        write), so no live lock is ever discarded and two threads can never end
+        up holding two different locks for one path.
+        """
+        with self._write_locks_guard:
+            for key, lock in list(self._write_locks.items()):
+                if not os.path.exists(key) and not lock.locked():
+                    del self._write_locks[key]
 
     def _write_json(self, path: Path, data: dict[str, Any]) -> None:
         """Write JSON file atomically."""
         # PID-unique temp file: concurrent builds must not clobber each
         # other's temp file (a fixed `.tmp` suffix would).
         tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-        key = str(path.resolve())
-        lock = self._write_locks.get(key)
-        if lock is None:
-            import threading
-
-            lock = self._write_locks.setdefault(key, threading.Lock())
+        lock = self._lock_for(path)
         try:
             lock.acquire()
             with open(tmp, "w", encoding="utf-8") as f:
@@ -102,12 +128,7 @@ class CacheManager:
     def _write_text(self, path: Path, text: str) -> None:
         """Write a scalar text file atomically (tmp + os.replace, PID-unique)."""
         tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-        key = str(path.resolve())
-        lock = self._write_locks.get(key)
-        if lock is None:
-            import threading
-
-            lock = self._write_locks.setdefault(key, threading.Lock())
+        lock = self._lock_for(path)
         try:
             lock.acquire()
             with open(tmp, "w", encoding="utf-8") as f:
@@ -526,6 +547,11 @@ class BuildPlanner:
     ) -> list[Path]:
         """Find output files that don't have corresponding source files.
 
+        Every output type is considered, not just ``.html``: a deleted
+        ``docs/foo.png`` leaves ``site/foo.png`` behind exactly like a deleted
+        page leaves ``site/foo/index.html``, and a stale asset is served (and
+        cached by the service worker) forever.
+
         Returns list of orphaned output files to delete.
         """
         orphaned = []
@@ -572,6 +598,31 @@ class BuildPlanner:
                 orphaned.append(output_file)
 
         return orphaned
+
+    @staticmethod
+    def prune_empty_dirs(output_dir: Path, removed: Path) -> None:
+        """Remove directories left empty by deleting an orphaned output.
+
+        Walks up from `removed` while the directory is empty, stopping at
+        `output_dir` — the site directory itself is never removed, and nothing
+        outside it is ever touched.
+        """
+        parent = removed.parent
+        output_dir = output_dir.resolve()
+        while True:
+            try:
+                current = parent.resolve()
+            except OSError:
+                return
+            if current == output_dir or not current.is_relative_to(output_dir):
+                return
+            with contextlib.suppress(OSError):
+                parent.rmdir()
+                parent = parent.parent
+                continue
+            # rmdir failed: either not empty (nothing left to prune) or an
+            # error worth stopping on. Either way the walk is done.
+            return
 
     def invalidate(self) -> None:
         """Clear cached hashes/deps (in-memory + disk) for a full rebuild.
@@ -657,3 +708,7 @@ class BuildPlanner:
             self.cache.set_nav_sig(nav_sig)
             self.nav_sig = nav_sig
         self.cache.set_version(CACHE_VERSION)
+        # Opportunity to shrink the process-wide write-lock registry: by the
+        # time a build saves its cache, every stale entry references a file
+        # from an earlier build/session that no longer exists.
+        self.cache._prune_write_locks()

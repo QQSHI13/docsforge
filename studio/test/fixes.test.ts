@@ -14,6 +14,7 @@ import {
   collectFootnoteWarnings,
   tryLoadValidation,
   slugifyHeading,
+  renameHeadingLine,
 } from '../src/links';
 
 describe('studio fixes', () => {
@@ -38,6 +39,34 @@ describe('studio fixes', () => {
         shouldEscalateToSigkill({ exitCode: 1, signalCode: null }),
         false,
       );
+    });
+  });
+
+  describe('fix 2: renameAnchor treats the new title literally', () => {
+    it('does not expand $& in the new heading text', () => {
+      // A string replacement would splice the whole matched heading in,
+      // corrupting the line instead of renaming it.
+      const out = renameHeadingLine('## Install', 'Install', 'A $& B');
+      assert.strictEqual(out, '## A $& B');
+    });
+
+    it('does not expand $1 / $$ / $` / $\'', () => {
+      for (const title of ['A $1 B', 'A $$ B', 'A $` B', "A $' B", 'cost $5']) {
+        assert.strictEqual(renameHeadingLine('### Old', 'Old', title), `### ${title}`);
+      }
+    });
+
+    it('keeps the heading level and trailing #s', () => {
+      assert.strictEqual(renameHeadingLine('#### Old ####', 'Old', 'New'), '#### New');
+    });
+
+    it('leaves the line untouched when the title does not match', () => {
+      assert.strictEqual(renameHeadingLine('## Other', 'Old', 'New'), '## Other');
+    });
+
+    it('slugifies a dollar-sign title without injecting the match', () => {
+      const renamed = renameHeadingLine('## Install', 'Install', 'A $& B');
+      assert.strictEqual(slugifyHeading(renamed.replace(/^#+\s*/, '')), 'a-b');
     });
   });
 
@@ -197,7 +226,7 @@ describe('studio fixes', () => {
 
     it('slugifyHeading is the single canonical slug', () => {
       // Underscore/heading edge where the old ad-hoc regex diverged.
-      assert.strictEqual(slugifyHeading('Hello_World'), 'hello-world');
+      assert.strictEqual(slugifyHeading('Hello_World'), 'hello_world');
       assert.strictEqual(slugifyHeading('Hello_World'), slugifyHeading('hello_world'));
     });
   });

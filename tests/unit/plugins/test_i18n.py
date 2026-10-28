@@ -208,3 +208,32 @@ class TestOnPageContent:
         plugin.on_page_content("<p>hello</p>", page=page, config={}, files=[])
         assert page.i18n_locale == "zh"
         assert {a["locale"] for a in page.i18n_alternates} == {"en", "zh"}
+
+
+class TestFallbackToDefaultIsRetired:
+    """`fallback_to_default` was accepted but never read.
+
+    The locale-agnostic architecture emits a sibling file per locale instead of
+    generating fallback pages, so the flag has nothing left to switch on. It is
+    declared deprecated rather than deleted: an unknown key is a validation
+    error, so dropping it outright would break existing configs.
+    """
+
+    def test_default_config_warns_about_nothing(self):
+        from docsforge.core.i18n import I18nConfig
+
+        cfg = I18nConfig()
+        cfg.load_dict({})
+        errors, warnings = cfg.validate()
+        assert errors == []
+        assert warnings == []
+
+    def test_setting_the_option_warns_but_loads(self):
+        from docsforge.core.i18n import I18nConfig
+
+        cfg = I18nConfig()
+        cfg.load_dict({"fallback_to_default": False})
+        errors, warnings = cfg.validate()
+        assert errors == [], "existing configs must keep loading"
+        assert any(key == "fallback_to_default" for key, _ in warnings)
+        assert any("ignored" in msg for _, msg in warnings)

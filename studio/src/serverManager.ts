@@ -28,6 +28,10 @@ interface RootState {
   processCloseHandler: ((code: number | null) => void) | null;
   processErrorHandler: ((err: Error) => void) | null;
   startSafetyTimeout: NodeJS.Timeout | null;
+  /** Pending SIGTERM → SIGKILL escalation timers. Tracked so dispose() can
+   *  cancel them: left running, they fire into a dead extension host. */
+  serveEscalationTimer: NodeJS.Timeout | null;
+  buildEscalationTimer: NodeJS.Timeout | null;
 }
 
 function freshRootState(): RootState {
@@ -42,6 +46,8 @@ function freshRootState(): RootState {
     processCloseHandler: null,
     processErrorHandler: null,
     startSafetyTimeout: null,
+    serveEscalationTimer: null,
+    buildEscalationTimer: null,
   };
 }
 
@@ -53,6 +59,9 @@ export class ServerManager {
   private watchedPidfiles = new Set<string>();
   private static stateChangeEmitter = new vscode.EventEmitter<void>();
   private static emitterDisposed = false;
+  /** True while dispose() runs: kills must be immediate there (no escalation
+   *  timer, whose callback would land after the extension host is gone). */
+  private disposing = false;
   static instance: ServerManager | undefined;
 
   private static ensureEmitter(): vscode.EventEmitter<void> {
@@ -502,14 +511,24 @@ export class ServerManager {
       if (st.processErrorHandler) { proc.removeListener('error', st.processErrorHandler); }
       let exited = false;
       proc.once('close', () => { exited = true; });
+      if (this.disposing) {
+        // Teardown: no tick left on which to escalate, so kill outright and
+        // leave no timer behind to fire into a dead extension host.
+        try { proc.kill('SIGKILL'); } catch { /* already exited */ }
+        return;
+      }
       proc.kill('SIGTERM');
-      const sigkillTimer = setTimeout(() => {
+      st.serveEscalationTimer = setTimeout(() => {
+        st.serveEscalationTimer = null;
         if (!exited && shouldEscalateToSigkill(proc)) {
           try { proc.kill('SIGKILL'); } catch { /* already exited */ }
         }
       }, 2000);
       proc.once('close', () => {
-        clearTimeout(sigkillTimer);
+        if (st.serveEscalationTimer) {
+          clearTimeout(st.serveEscalationTimer);
+          st.serveEscalationTimer = null;
+        }
         this.cleanupAfterStop(st, workspaceRoot!);
         if (!silent) vscode.window.showInformationMessage(`DocsForge server stopped${label}`);
       });
@@ -559,8 +578,16 @@ export class ServerManager {
     ServerManager.emitStateChange();
     let exited = false;
     proc.once('close', () => { exited = true; });
+    if (this.disposing) {
+      try { proc.kill('SIGKILL'); } catch { /* already exited */ }
+      return;
+    }
     proc.kill('SIGTERM');
-    setTimeout(() => {
+    if (st.buildEscalationTimer) {
+      clearTimeout(st.buildEscalationTimer);
+    }
+    st.buildEscalationTimer = setTimeout(() => {
+      st.buildEscalationTimer = null;
       if (!exited && shouldEscalateToSigkill(proc)) {
         try { proc.kill('SIGKILL'); } catch { /* already exited */ }
       }
@@ -718,9 +745,25 @@ export class ServerManager {
     }
   }
 
+  /** Cancel the SIGTERM → SIGKILL escalation timers for a root. */
+  private clearEscalationTimers(st: RootState) {
+    if (st.serveEscalationTimer) {
+      clearTimeout(st.serveEscalationTimer);
+      st.serveEscalationTimer = null;
+    }
+    if (st.buildEscalationTimer) {
+      clearTimeout(st.buildEscalationTimer);
+      st.buildEscalationTimer = null;
+    }
+  }
+
   dispose() {
+    this.disposing = true;
     for (const st of this.servers.values()) {
       this.clearStartSafetyTimeout(st);
+      // A pending escalation timer is useless here: its callback fires ~2s
+      // after the extension host is already gone.
+      this.clearEscalationTimers(st);
     }
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
@@ -732,6 +775,27 @@ export class ServerManager {
     this.watchedPidfiles.clear();
     this.editorWatch?.dispose();
     this.editorWatch = null;
+    // Kill build children synchronously and unconditionally. stop() reroutes
+    // to stopBuild only when no server is running, so a root that was both
+    // serving and building kept its build child alive; on Windows the python
+    // process then outlived every window reload as an orphan.
+    for (const st of this.servers.values()) {
+      const proc = st.buildProcess;
+      if (!proc) {
+        continue;
+      }
+      st.buildProcess = null;
+      st.building = false;
+      st.buildCancelled = true;
+      try {
+        // SIGKILL rather than SIGTERM: there is no later tick left to
+        // escalate on, so the kill has to be final (on Windows this maps to
+        // TerminateProcess; the engine's own writes are atomic).
+        proc.kill('SIGKILL');
+      } catch {
+        /* already exited */
+      }
+    }
     for (const root of [...this.servers.keys()]) {
       this.stop(/* silent */ true, root);
     }

@@ -372,7 +372,8 @@ def _check_optional_deps(config_file=None):
     try:
         with _open_config_file(config_file) as f:
             cfg = yaml_load(f) or {}
-    except Exception:
+    except Exception as e:
+        log.debug(f"Skipping optional dependency check, config could not be loaded: {e}")
         return  # Best-effort, don't fail build because dep check failed
 
     plugins_cfg = cfg.get("plugins", [])

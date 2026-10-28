@@ -24,7 +24,7 @@ from docsforge.build import (
     _write_outputs,
 )
 from docsforge.config_base import load_config
-from docsforge.exceptions import BuildError, BuildErrorGroup
+from docsforge.exceptions import BuildError
 from docsforge.files import File, Files
 from docsforge.pages import Page
 
@@ -110,7 +110,13 @@ class TestWriteOutputsStrictMode:
 
 
 class TestPopulateChangedPagesErrors:
-    def test_collects_all_populate_errors(self, tmp_path, monkeypatch):
+    """Populate must follow the same strict/non-strict policy as _write_outputs.
+
+    Previously any populate error aborted the build even when `strict` was
+    False, so one bad page killed an otherwise-fine incremental build.
+    """
+
+    def _setup(self, tmp_path, monkeypatch):
         cfg = _load_config(tmp_path)
         monkeypatch.chdir(tmp_path)
 
@@ -124,10 +130,53 @@ class TestPopulateChangedPagesErrors:
             raise BuildError("boom")
 
         monkeypatch.setattr(build_mod, "_populate_page", _bad_populate)
+        return cfg, files, [file_a, file_b]
 
-        with pytest.raises(BuildErrorGroup, match="Errors populating pages") as exc_info:
-            _populate_changed_pages(cfg, files, Mock(), [file_a, file_b], lambda level: True, None)
-        assert len(exc_info.value.exceptions) == 2
+    def test_non_strict_logs_and_marks_failed(self, tmp_path, monkeypatch, caplog):
+        cfg, files, doc_files = self._setup(tmp_path, monkeypatch)
+        cfg.strict = False
+
+        with caplog.at_level("WARNING", logger="docsforge.build"):
+            plans = _populate_changed_pages(cfg, files, Mock(), doc_files, lambda level: True, None)
+
+        assert "failed to render" in caplog.text
+        # Every page is marked failed so the write stage skips all of them.
+        assert [plan.populate_failed for plan in plans] == [True, True]
+
+    def test_strict_raises(self, tmp_path, monkeypatch):
+        cfg, files, doc_files = self._setup(tmp_path, monkeypatch)
+        cfg.strict = True
+
+        with pytest.raises(BuildError, match="boom"):
+            _populate_changed_pages(cfg, files, Mock(), doc_files, lambda level: True, None)
+
+    def test_failed_pages_are_not_written(self, tmp_path, monkeypatch):
+        """A page that failed to populate must not be rendered in _write_outputs."""
+        cfg, files, doc_files = self._setup(tmp_path, monkeypatch)
+        cfg.strict = False
+
+        planner = Mock()
+        planner.should_rebuild.return_value = True
+        plans = _populate_changed_pages(cfg, files, planner, doc_files, lambda level: True, None)
+
+        written = []
+        monkeypatch.setattr(build_mod, "_build_page", lambda page, *a, **k: written.append(page))
+
+        nav = Mock()
+        env = Mock()
+        env.get_template.return_value = Mock(render=Mock(return_value="<p>x</p>"))
+        cfg.plugins.on_env = Mock(return_value=env)
+        cfg.theme.static_templates = []
+        cfg.extra_templates = []
+        planner.validation = {}
+
+        built_any, built_sources = _write_outputs(
+            cfg, files, nav, env, planner, doc_files, lambda level: True, plans=plans
+        )
+
+        assert written == []
+        assert built_any is False
+        assert built_sources == set()
 
 
 class TestFinalizeBuildOrder:

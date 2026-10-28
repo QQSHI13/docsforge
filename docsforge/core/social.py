@@ -20,6 +20,7 @@ import pickle
 import posixpath
 import re
 import sys
+import time
 from concurrent.futures import Future
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import copy
@@ -43,6 +44,16 @@ from docsforge.config_defaults import DocsForgeConfig
 from docsforge.config_options import Choice, Deprecated, DictOfItems, ListOfItems, SubConfig, Type
 from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.exceptions import PluginError
+from docsforge.fetch import (
+    DEADLINE,
+    DOWNGRADE,
+    INTERNAL,
+    REDIRECTS,
+    SCHEME,
+    SIZE,
+    FetchError,
+    fetch_bytes,
+)
 from docsforge.files import File
 from docsforge.pages import Page
 from docsforge.utils import copy_file, write_file
@@ -55,13 +66,13 @@ except ImportError as e:
 else:
     import_errors = set()
 
+# `cairosvg` is imported lazily, by _svg2png on the first card that actually
+# renders an SVG: importing it costs several seconds (it loads Cairo's shared
+# libraries), and a site with `social` enabled but no cards - or a build that
+# renders only cached cards - should not pay that. `cairosvg_error` keeps the
+# failure text from that first attempt so on_config can report a broken
+# install without paying for the import on every build.
 cairosvg_error: str = ""
-try:
-    from cairosvg import svg2png
-except ImportError as e:
-    import_errors.add(repr(e))
-except OSError as e:
-    cairosvg_error = str(e)
 
 # -----------------------------------------------------------------------------
 # Layout templates (embedded)
@@ -71,6 +82,16 @@ except OSError as e:
 # under this; the cap only stops a hostile or broken response from filling
 # memory during the streaming read in _fetch_font_from_google_fonts.
 MAX_FONT_SIZE = 16 * 1024 * 1024
+
+# Overall deadline for fetching one font family (manifest + every font file),
+# and the per-request (connect, read) timeouts underneath it. Without the
+# deadline a slow-drip server could keep a card render waiting indefinitely;
+# without the per-request bound a hung endpoint would never even start it.
+FONT_FETCH_TIMEOUT = 10
+FONT_FETCH_DEADLINE = 60
+# Maximum number of redirects followed for a single font file.
+MAX_FONT_REDIRECTS = 5
+
 
 # From social/templates/default.yml
 _LAYOUT_DEFAULT = dedent("""\
@@ -1064,6 +1085,42 @@ _LAYOUTS = {
 def x_filter(value: str | None):
     return value or ""
 
+
+def _svg2png(data: bytes, *, output_width: int) -> bytes:
+    """Rasterize an SVG with cairosvg, importing it on first use.
+
+    cairosvg is imported here rather than at module scope because the import
+    alone costs seconds (it loads Cairo's shared libraries), and every build
+    with the plugin enabled would otherwise pay it - including builds where no
+    card is rendered or all cards come from the cache. A failed import is
+    recorded in `cairosvg_error` so on_config can explain why cards are broken
+    without having paid for the import itself.
+    """
+    # The recorded failure is module-level so on_config - and a later serve
+    # rebuild in the same process - can report a broken install without
+    # paying for the import itself.
+    global cairosvg_error  # noqa: PLW0603
+    try:
+        from cairosvg import svg2png
+    except ImportError as e:
+        import_errors.add(repr(e))
+        cairosvg_error = ""
+        raise PluginError(
+            'Required dependencies of "social" plugin not found:\n'
+            + repr(e)
+            + "\n\n"
+            + '--> Install with: pip install "docsforge[social]"'
+        ) from None
+    except OSError as e:
+        cairosvg_error = str(e)
+        raise PluginError(
+            '"cairosvg" Python module is installed, but it crashed with:\n'
+            + str(e)
+            + "\n\n"
+            + "--> Check out the troubleshooting guide: https://t.ly/MfX6u"
+        ) from None
+    return svg2png(data, output_width = output_width)
+
 # -----------------------------------------------------------------------------
 # Classes (from social/layout.py)
 # -----------------------------------------------------------------------------
@@ -1736,7 +1793,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             with open(background.image, "rb") as f:
                 data = f.read()
                 if background.image.endswith(".svg"):
-                    data = svg2png(data, output_width = input.width)
+                    data = _svg2png(data, output_width = input.width)
 
             # Resize image to cover entire area
             image = Image.open(BytesIO(data)).convert("RGBA")
@@ -1788,7 +1845,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # Rasterize vector image given by icon to match the size of the
         # input image, resize it and render it on top of the input image
         image = Image.open(BytesIO(
-            svg2png(data.encode("utf-8"), output_width = input.width)
+            _svg2png(data.encode("utf-8"), output_width = input.width)
         ))
         input.alpha_composite(_resize_contain(image.convert("RGBA"), input))
 
@@ -2218,6 +2275,7 @@ class SocialPlugin(BasePlugin[SocialConfig]):
     # Fetch font family from Google Fonts
     def _fetch_font_from_google_fonts(self, family: str):
         path = os.path.join(self.config.cache_dir, "fonts")
+        deadline = time.monotonic() + FONT_FETCH_DEADLINE
 
         # Download manifest from Google Fonts - Google returns JSON with syntax
         # errors, so we just treat the response as plain text and parse out all
@@ -2227,7 +2285,9 @@ class SocialPlugin(BasePlugin[SocialConfig]):
         # (connect, read) timeouts. A hung Google Fonts endpoint must not stall
         # the build: without a bound here one family blocks every page that
         # needs a card.
-        res = requests.get(url, timeout = (5, 15))
+        res = requests.get(
+            url, timeout = (FONT_FETCH_TIMEOUT, FONT_FETCH_TIMEOUT)
+        )
 
         # Ensure that the download succeeded
         if res.status_code != 200:
@@ -2247,34 +2307,67 @@ class SocialPlugin(BasePlugin[SocialConfig]):
             )
 
         for match in matches:
-            with requests.get(match, timeout = (5, 15), stream = True) as res:
-                res.raise_for_status()
+            content = self._download_font(family, match, deadline)
 
-                # Cap the download like the privacy plugin does, so a huge or
-                # endless response cannot exhaust memory.
-                content = bytearray()
-                for chunk in res.iter_content(chunk_size = 65536):
-                    content.extend(chunk)
-                    if len(content) > MAX_FONT_SIZE:
-                        raise PluginError(
-                            f"Font file for '{family}' exceeds {MAX_FONT_SIZE} bytes"
-                        )
-                content = bytes(content)
+            # Construct image font for analysis by directly reading the
+            # contents from the response without priorily writing to a
+            # temporary file (like we did before), as this might lead to
+            # problems on Windows machines, see https://t.ly/LiF_k
+            with BytesIO(content) as f:
+                font = ImageFont.truetype(f)
 
-                # Construct image font for analysis by directly reading the
-                # contents from the response without priorily writing to a
-                # temporary file (like we did before), as this might lead to
-                # problems on Windows machines, see https://t.ly/LiF_k
-                with BytesIO(content) as f:
-                    font = ImageFont.truetype(f)
+            # Extract font family name and style
+            name, style = font.getname()
+            name = " ".join([name.replace(family, ""), style]).strip()
 
-                # Extract font family name and style
-                name, style = font.getname()
-                name = " ".join([name.replace(family, ""), style]).strip()
+            # Write file to cache directory
+            target = os.path.join(path, family, f"{name}.ttf")
+            write_file(content, target)
 
-                # Write file to cache directory
-                target = os.path.join(path, family, f"{name}.ttf")
-                write_file(content, target)
+    def _download_font(self, family: str, url: str, deadline: float) -> bytes:
+        """Download one font file, returning its bytes.
+
+        The URLs come from a third party's response body and the bytes are
+        cached and handed to `ImageFont.truetype`, so they go through the
+        shared guarded fetch: plain http(s) only, never an internal host, and
+        no redirect hop that lands somewhere private or downgrades to http.
+        """
+        # Remaining time for the whole family, so one slow font file cannot
+        # push the family past FONT_FETCH_DEADLINE.
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise PluginError(
+                f"Fetching font family '{family}' exceeded {FONT_FETCH_DEADLINE}s"
+            )
+        try:
+            return fetch_bytes(
+                url,
+                timeout = FONT_FETCH_TIMEOUT,
+                deadline = min(remaining, FONT_FETCH_DEADLINE),
+                max_bytes = MAX_FONT_SIZE,
+                max_redirects = MAX_FONT_REDIRECTS,
+                session = requests,
+            )
+        except FetchError as error:
+            raise PluginError(self._fetch_error(error, family)) from None
+
+    # Phrase one refusal from the shared guarded fetch for the font download,
+    # keeping the messages the tests and troubleshooting guide refer to.
+    def _fetch_error(self, error: FetchError, family: str) -> str:
+        if error.kind == SCHEME:
+            return f"Unsupported font URL scheme for '{family}': {error}"
+        if error.kind == INTERNAL:
+            return f"Refusing to download font from internal address for '{family}': {error}"
+        if error.kind == DOWNGRADE:
+            return f"Redirect downgraded https to http, blocked for '{family}': {error}"
+        if error.kind == REDIRECTS:
+            return f"Too many redirects fetching font for '{family}'"
+        if error.kind == SIZE:
+            return f"Font file for '{family}' exceeds {MAX_FONT_SIZE} bytes"
+        if error.kind == DEADLINE:
+            return f"Fetching font family '{family}' exceeded {FONT_FETCH_DEADLINE}s"
+        return str(error)
+
 
     # -------------------------------------------------------------------------
 
@@ -2497,5 +2590,6 @@ def _anchor(data: str):
 # Data
 # -----------------------------------------------------------------------------
 
-# Set up logging
-log = logging.getLogger("mkdocs.material.social")
+# Set up logging - inside the `docsforge` namespace (a `mkdocs.material.*`
+# name would escape logger filtering configured on the `docsforge` logger).
+log = logging.getLogger("docsforge.social")

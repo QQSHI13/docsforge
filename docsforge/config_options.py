@@ -11,7 +11,6 @@ import string
 import sys
 import traceback
 import types
-import warnings
 from collections import Counter, UserString
 from collections.abc import Callable, Collection, Iterator, Mapping, MutableMapping
 from pathlib import Path
@@ -20,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar, overload
 from urllib.parse import quote as urlquote
 from urllib.parse import urlsplit, urlunsplit
 
-import markdown
 import pathspec.gitignore
 
 from docsforge import utils
@@ -539,46 +537,6 @@ class Optional(Generic[T], BaseConfigOption[T | None]):
         self.warnings = self.option.warnings
 
 
-class RepoURL(URL):
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "RepoURL is no longer used in DocsForge and will be removed.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-    def post_validation(self, config: Config, key_name: str):
-        repo_host = urlsplit(config["repo_url"]).netloc.lower()
-        edit_uri = config.get("edit_uri")
-
-        # derive repo_name from repo_url if unset
-        if config["repo_url"] is not None and config.get("repo_name") is None:
-            if repo_host == "github.com":
-                config["repo_name"] = "GitHub"
-            elif repo_host == "bitbucket.org":
-                config["repo_name"] = "Bitbucket"
-            elif repo_host == "gitlab.com":
-                config["repo_name"] = "GitLab"
-            else:
-                config["repo_name"] = repo_host.split(".")[0].title()
-
-        # derive edit_uri from repo_name if unset
-        if config["repo_url"] is not None and edit_uri is None:
-            if repo_host in {"github.com", "gitlab.com"}:
-                edit_uri = "edit/master/docs/"
-            elif repo_host == "bitbucket.org":
-                edit_uri = "src/default/docs/"
-            else:
-                edit_uri = ""
-
-        # ensure a well-formed edit_uri
-        if edit_uri and not edit_uri.endswith("/"):
-            edit_uri += "/"
-
-        config["edit_uri"] = edit_uri
-
-
 class EditURI(Type[str]):
     def __init__(self, repo_url_key: str) -> None:
         super().__init__(str)
@@ -1030,6 +988,11 @@ class MarkdownExtensions(OptionallyRequired[list[str]]):
 
         extensions = utils.reduce_list(self.builtins + extensions)
 
+        # Imported here rather than at module level: `docsforge.config_options`
+        # is imported by every CLI path (including `docsforge check`), and
+        # Markdown is only genuinely needed once extensions are validated.
+        import markdown
+
         # Confirm that Markdown considers extensions to be valid
         md = markdown.Markdown()
         for ext in extensions:
@@ -1075,6 +1038,12 @@ class Plugins(OptionallyRequired[PluginCollection]):
     def run_validation(self, value: object) -> PluginCollection:
         if not isinstance(value, (list, tuple, dict)):
             raise ValidationError("Invalid Plugins configuration. Expected a list or dict.")
+        # Re-validating an already-validated config (preview, blog, tags) hands
+        # back the collection we produced last time. Re-instantiating every
+        # plugin then is pure waste, so reuse it.
+        if value is getattr(self, "plugins", None):
+            log.debug("Plugins config unchanged, reusing already instantiated plugins.")
+            return self.plugins
         self.plugins = PluginCollection()
         self._instance_counter: MutableMapping[str, int] = Counter()
 

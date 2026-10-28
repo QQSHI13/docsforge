@@ -17,6 +17,7 @@ import {
   computeDocumentRename,
   computeFolderRename,
   computeAnchorRenameEdits,
+  renameHeadingLine,
   isFolderRenameEvent as isFolderRenameEventPure,
   findRenameCollision as findRenameCollisionPure,
 } from './links';
@@ -155,15 +156,30 @@ export function registerRenameCommands(
         return;
       }
       const newSlug = slugifyHeading(newTitle.trim());
-      const edits = computeAnchorRenameEdits(workspaceRoot, docSrcUri, oldSlug, newSlug);
+      if (!oldSlug || !newSlug) {
+        vscode.window.showWarningMessage(
+          `DocsForge: "${newTitle.trim()}" has no usable anchor slug.`,
+        );
+        return;
+      }
+      const { edits, ambiguous } = computeAnchorRenameEdits(
+        workspaceRoot, docSrcUri, oldSlug, newSlug, heading.line,
+      );
+      if (ambiguous.length > 1) {
+        vscode.window.showWarningMessage(
+          `DocsForge: #${oldSlug} appears ${ambiguous.length} times in this document ` +
+            `(lines ${ambiguous.map((a) => a.line + 1).join(', ')}). ` +
+            'Links to it are ambiguous, so only same-page links after the renamed ' +
+            'heading were updated.',
+        );
+      }
       const edit = new vscode.WorkspaceEdit();
       // Update the heading line itself.
       const line = editor.document.lineAt(heading.line);
-      const escaped = heading.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const newLineText = line.text.replace(
-        new RegExp(`^(#{1,6})\\s+${escaped}\\s*#*\\s*$`),
-        `$1 ${newTitle.trim()}`,
-      );
+      // Replacement FUNCTION, not a string: `$&`, `$1`, `` $` `` etc. in the
+      // new title are substitution patterns in a string replacement, so a
+      // title like `A $& B` would splat the whole matched heading in.
+      const newLineText = renameHeadingLine(line.text, heading.title, newTitle.trim());
       let headingEdited = false;
       if (newLineText !== line.text) {
         edit.replace(editor.document.uri, line.range, newLineText);

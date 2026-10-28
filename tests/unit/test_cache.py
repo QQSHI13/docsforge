@@ -7,6 +7,7 @@ shipped broken in v11.1.3 and was fixed in v11.1.4).
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
 import pytest
@@ -414,6 +415,67 @@ class TestBuildPlanner:
         p = BuildPlanner(cm, FileHasher())
         p.save(config_hash="x")
         assert cm.get_version() == CACHE_VERSION
+
+    def test_find_orphaned_outputs_includes_assets(self, tmp_path: Path):
+        """Deleted assets (not just .html) must be reported as orphaned.
+
+        The old code only looked at ``.html`` outputs, so a deleted
+        ``docs/img/foo.png`` left ``site/img/foo.png`` in the built site (and
+        in the service-worker cache manifest) forever.
+        """
+        docs = tmp_path / "docs"
+        site = tmp_path / "site"
+        docs.mkdir()
+        site.mkdir()
+        (docs / "kept.md").write_text("k")
+        (site / "kept").mkdir()
+        (site / "kept" / "index.html").write_text("k")
+        (site / "gone.png").write_text("png")
+        (site / "sub").mkdir()
+        (site / "sub" / "old.svg").write_text("<svg/>")
+        p = self._planner(tmp_path)
+        orphaned = {o.relative_to(site).as_posix() for o in p.find_orphaned_outputs(docs, site)}
+        assert orphaned == {"gone.png", "sub/old.svg"}
+
+    def test_prune_empty_dirs_stops_at_site_dir(self, tmp_path: Path):
+        site = tmp_path / "site"
+        nested = site / "a" / "b"
+        nested.mkdir(parents=True)
+        removed = nested / "page.html"
+        removed.write_text("x")
+        removed.unlink()
+
+        BuildPlanner.prune_empty_dirs(site, removed)
+
+        assert site.exists(), "the site directory itself must never be removed"
+        assert not (site / "a").exists()
+
+    def test_prune_empty_dirs_keeps_non_empty_parents(self, tmp_path: Path):
+        site = tmp_path / "site"
+        parent = site / "a"
+        parent.mkdir(parents=True)
+        removed = parent / "page.html"
+        removed.write_text("x")
+        (parent / "keep.png").write_text("p")
+
+        BuildPlanner.prune_empty_dirs(site, removed)
+
+        assert parent.exists()
+        assert (parent / "keep.png").exists()
+
+    def test_write_locks_are_shared_and_pruned(self, tmp_path: Path):
+        """One lock per cache path, and stale entries are dropped on save."""
+        cm = CacheManager(cache_dir=tmp_path / "c")
+        other = CacheManager(cache_dir=tmp_path / "c")
+        assert cm._lock_for(cm.hashes_file) is other._lock_for(other.hashes_file)
+
+        # A lock for a file that does not exist is prunable.
+        CacheManager._write_locks[str(tmp_path / "gone.json")] = threading.Lock()
+        planner = BuildPlanner(cm, FileHasher())
+        planner.save(config_hash="x")
+        assert str(tmp_path / "gone.json") not in CacheManager._write_locks
+        # Locks of files that still exist survive.
+        assert str(cm.hashes_file.resolve()) in CacheManager._write_locks
 
     def test_should_scan_orphans_skips_when_no_removals(self, tmp_path: Path):
         p = self._planner(tmp_path)

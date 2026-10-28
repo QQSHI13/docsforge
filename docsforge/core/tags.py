@@ -741,8 +741,10 @@ def _print_listing_manager(manager: ListingManager, indent: int = 0) -> str:
 # Data
 # -----------------------------------------------------------------------------
 
-# Set up logging
-log = logging.getLogger("mkdocs.material.plugins.tags")
+# Set up logging - inside the `docsforge` namespace so that `--quiet` and
+# logger filtering configured on `docsforge` also apply to this plugin (a
+# `mkdocs.material.*` name escapes it and keeps printing).
+log = logging.getLogger("docsforge.tags")
 
 
 #-----------------------------------------------------------------------------

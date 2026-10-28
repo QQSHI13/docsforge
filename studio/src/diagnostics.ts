@@ -34,6 +34,15 @@ export { collectFootnoteWarnings, tryLoadValidation };
 /** Debounce interval for validation.json change → refresh. */
 export const DIAGNOSTICS_DEBOUNCE_MS = 250;
 
+/** Per-file scan cache entry: the footnote scan (and the source text link
+ *  diagnostics need) only reruns when mtime or size changes. */
+interface FileScan {
+  mtimeMs: number;
+  size: number;
+  text: string | null;
+  footnotes: Array<{ line: number; message: string }>;
+}
+
 export class DocsForgeDiagnostics {
   private collection: vscode.DiagnosticCollection;
   private watcher: fs.FSWatcher | null = null;
@@ -41,6 +50,7 @@ export class DocsForgeDiagnostics {
   private refreshTimer: NodeJS.Timeout | null = null;
   private lastMtimeMs = 0;
   private published = new Set<string>();
+  private scans = new Map<string, FileScan>();
   private root: string;
   private docsDir: string;
   private validationPath: string;
@@ -103,13 +113,50 @@ export class DocsForgeDiagnostics {
     }, DIAGNOSTICS_DEBOUNCE_MS);
   }
 
+  /** Source text + footnote scan for one file, memoized on (mtimeMs, size).
+   *  A diagnostics refresh runs on every serve rebuild, so re-reading and
+   *  re-scanning a multi-thousand-page tree synchronously on each one froze
+   *  the UI; unchanged files now cost a stat instead. Returns null when the
+   *  file cannot be read. */
+  private scanFile(absPath: string): FileScan | null {
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(absPath);
+    } catch {
+      this.scans.delete(absPath);
+      return null;
+    }
+    const cached = this.scans.get(absPath);
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+      return cached;
+    }
+    let text: string | null;
+    try {
+      text = fs.readFileSync(absPath, 'utf-8');
+    } catch {
+      this.scans.delete(absPath);
+      return null;
+    }
+    const entry: FileScan = {
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      text,
+      footnotes: text === null
+        ? []
+        : checkFootnotes(text).map((w) => ({ line: w.line, message: w.message })),
+    };
+    this.scans.set(absPath, entry);
+    return entry;
+  }
+
   /** Re-read validation.json and publish diagnostics.
    *
    * Parses first and only mutates the collection on success: a missing file
    * publishes an empty (cleared-diff) state, while a corrupt/mid-write file
    * keeps stale squiggles so the update is retried on the next tick instead
    * of being lost. Footnotes are computed over the whole docs tree,
-   * independent of validation.json coverage.
+   * independent of validation.json coverage, with per-file results cached by
+   * (mtimeMs, size) so a refresh only scans files that actually changed.
    */
   refresh(): void {
     const parsed = tryLoadValidation(this.root);
@@ -119,6 +166,7 @@ export class DocsForgeDiagnostics {
     this.lastMtimeMs = this.mtimeMs();
     const data = parsed.data;
     const byFile = new Map<string, vscode.Diagnostic[]>();
+    const seen = new Set<string>();
 
     for (const [srcUri, entry] of Object.entries(data)) {
       const warnings = entry?.warnings ?? [];
@@ -128,21 +176,19 @@ export class DocsForgeDiagnostics {
       // Contained resolution: a crafted/stale validation.json key must not
       // pull diagnostics (or file reads) outside the docs dir.
       const absPath = docAbsPathSafe(this.root, this.docsDir, srcUri);
-      if (!absPath || !fs.existsSync(absPath)) {
+      if (!absPath) {
         continue;
       }
-      let sourceText: string | null = null;
+      const scan = this.scanFile(absPath);
+      if (!scan) {
+        continue;
+      }
+      seen.add(absPath);
+      const sourceText = scan.text ?? '';
       const diags: vscode.Diagnostic[] = [];
       for (const [level, message] of warnings) {
         const dest = linkFromWarning(String(message));
         if (dest) {
-          if (sourceText === null) {
-            try {
-              sourceText = fs.readFileSync(absPath, 'utf-8');
-            } catch {
-              sourceText = '';
-            }
-          }
           // A broken link may appear multiple times (e.g. the same anchor in
           // several rows of a table) — squiggle at every occurrence.
           // Occurrences inside fenced code are documentation examples, not
@@ -178,14 +224,7 @@ export class DocsForgeDiagnostics {
         }
       }
       // Footnote diagnostics (extension-side, no build needed).
-      if (sourceText === null) {
-        try {
-          sourceText = fs.readFileSync(absPath, 'utf-8');
-        } catch {
-          sourceText = '';
-        }
-      }
-      for (const fn of checkFootnotes(sourceText)) {
+      for (const fn of scan.footnotes) {
         const diag = new vscode.Diagnostic(
           new vscode.Range(fn.line, 0, fn.line, 1000),
           fn.message,
@@ -199,11 +238,21 @@ export class DocsForgeDiagnostics {
 
     // Footnotes for files absent from validation.json (never built / clean).
     const docsDirAbs = path.join(this.root, this.docsDir);
-    for (const [absPath, warnings] of collectFootnoteWarnings(docsDirAbs)) {
-      if (byFile.has(absPath)) {
+    let docs: Array<{ absPath: string; srcUri: string }> = [];
+    try {
+      docs = walkDocs(docsDirAbs);
+    } catch {
+      docs = [];
+    }
+    for (const doc of docs) {
+      if (seen.has(doc.absPath) || byFile.has(doc.absPath)) {
         continue;
       }
-      const diags: vscode.Diagnostic[] = warnings.map((fn) => {
+      const scan = this.scanFile(doc.absPath);
+      if (!scan || !scan.footnotes.length) {
+        continue;
+      }
+      const diags: vscode.Diagnostic[] = scan.footnotes.map((fn) => {
         const diag = new vscode.Diagnostic(
           new vscode.Range(fn.line, 0, fn.line, 1000),
           fn.message,
@@ -212,8 +261,17 @@ export class DocsForgeDiagnostics {
         diag.source = 'docsforge';
         return diag;
       });
-      byFile.set(absPath, diags);
+      byFile.set(doc.absPath, diags);
     }
+    // Drop cache entries for files that vanished (or left the docs tree), so
+    // the map cannot grow across a long session.
+    const live = new Set<string>([...docs.map((d) => d.absPath), ...byFile.keys()]);
+    for (const cached of this.scans.keys()) {
+      if (!live.has(cached)) {
+        this.scans.delete(cached);
+      }
+    }
+
 
     // Translation coverage (extension-side, no build needed): a base page
     // missing a locale variant, or a translation without a base page, is an

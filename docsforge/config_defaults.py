@@ -367,9 +367,3 @@ class DocsForgeConfig(base.Config):
         loader = get_yaml_loader(config=self)
         self.load_dict(yaml_load(config_file, loader))
 
-
-
-
-def get_schema() -> base.PlainConfigSchema:
-    """Soft-deprecated, do not use."""
-    return DocsForgeConfig._schema

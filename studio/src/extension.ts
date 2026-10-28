@@ -377,6 +377,13 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  // Context keys gate the sidebar items (`when` clauses). A build that was
+  // in flight at reload time leaves `docsforge.buildRunning` true, and the
+  // sidebar then shows "Stop Build" forever — the build child is gone, so
+  // nothing ever clears it. Reset both keys as part of teardown.
+  void vscode.commands.executeCommand('setContext', 'docsforge.buildRunning', false);
+  void vscode.commands.executeCommand('setContext', 'docsforge.serveRunning', false);
+  void vscode.commands.executeCommand('setContext', 'docsforge.serverRunning', false);
   serverManager?.dispose();
   for (const d of allDiagnostics) {
     d.dispose();

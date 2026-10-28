@@ -28,7 +28,7 @@ import pytest
 
 from docsforge import pdf as pdf_mod
 from docsforge.core.blog import readtime
-from docsforge.core.privacy import _is_internal_host
+from docsforge.fetch import is_internal_host as _is_internal_host
 from docsforge.pdf import _resolve_local_request
 
 # ---------------------------------------------------------------------------

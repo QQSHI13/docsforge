@@ -6,6 +6,7 @@ Marz overlapping-bigram indexing, so no word segmentation is needed.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import math
@@ -237,14 +238,25 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         return {}
 
     def _save_entries_cache(self) -> None:
-        """Persist the per-page search-entry cache."""
+        """Persist the per-page search-entry cache.
+
+        The temp file is PID-unique: two builds running at once in the same
+        project (a build plus a `serve` in another shell) would otherwise
+        write the same `.tmp` file and clobber each other's entries.
+        """
         if self._entries_cache_file is None:
             return
         self._entries_cache_file.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._entries_cache_file.with_suffix(".tmp")
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(self._entries_cache, f)
-        tmp.replace(self._entries_cache_file)
+        tmp = self._entries_cache_file.with_name(
+            f"{self._entries_cache_file.name}.{os.getpid()}.tmp"
+        )
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self._entries_cache, f)
+            tmp.replace(self._entries_cache_file)
+        finally:
+            with contextlib.suppress(OSError):
+                tmp.unlink()
 
     def _file_locale(self, src_uri: str) -> str:
         """Return the locale for a source URI, inferring from filename suffix."""

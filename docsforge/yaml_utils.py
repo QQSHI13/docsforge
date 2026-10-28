@@ -34,6 +34,11 @@ def _construct_python_name(
         raise exceptions.ConfigurationError(
             f"Could not resolve python/name tag {suffix!r}: expected 'module.attr'"
         )
+    # `!!python/name:` can name any module, but the mkdocs-compatible uses are
+    # Markdown helpers (slugify functions, etc.). Log anything else so an
+    # unexpected import in a semi-trusted config is at least visible at -v.
+    if not module_name.startswith(("markdown", "pymdownx")):
+        log.debug(f"!!python/name tag imports non-Markdown module {module_name!r} (tag {suffix!r})")
     try:
         module = importlib.import_module(module_name)
         value: Any = module
@@ -42,7 +47,9 @@ def _construct_python_name(
         return value
     except (ImportError, AttributeError) as e:
         raise exceptions.ConfigurationError(
-            f"Could not resolve python/name tag {suffix!r}: {e}"
+            f"Could not resolve python/name tag {suffix!r}: {e}. "
+            "The tag must name an importable 'module.attr' (e.g. "
+            "!!python/name:pymdownx.slugs.uslugify) and its module must be installed."
         ) from e
 
 
@@ -140,6 +147,32 @@ def get_yaml_loader(loader=yaml.SafeLoader, config: DocsForgeConfig | None = Non
         global loader unaltered.
         """
 
+        def __init__(self, stream):
+            super().__init__(stream)
+            # PyYAML does not tell constructors which file they are reading, so
+            # remember the stream name for error messages (may be None).
+            self.source_name = getattr(stream, "name", None)
+
+        def construct_mapping(self, node, deep=False):
+            """Reject duplicate keys instead of silently keeping the last one."""
+            if isinstance(node, yaml.MappingNode):
+                self.flatten_mapping(node)
+                seen: dict[Any, int] = {}
+                for key_node, _value_node in node.value:
+                    if key_node.tag == "tag:yaml.org,2002:merge":
+                        continue  # `<<:` may legally repeat; flatten_mapping merged them.
+                    key: Any = self.construct_object(key_node, deep=deep)
+                    line = key_node.start_mark.line + 1
+                    if key in seen:
+                        where = self.source_name or "<string>"
+                        raise exceptions.ConfigurationError(
+                            f"Duplicate key {key!r} in {where}: "
+                            f"first defined on line {seen[key]}, again on line {line}."
+                        )
+                    seen[key] = line
+            return super().construct_mapping(node, deep=deep)
+
+
     # Attach Environment Variable constructor.
     # See https://github.com/waylan/pyyaml-env-tag
     Loader.add_constructor("!ENV", yaml_env_tag.construct_env_tag)
@@ -154,11 +187,33 @@ def get_yaml_loader(loader=yaml.SafeLoader, config: DocsForgeConfig | None = Non
 
 
 def yaml_load(
-    source: IO | str, loader: type[yaml.BaseLoader | yaml.SafeLoader] | None = None
+    source: IO | str,
+    loader: type[yaml.BaseLoader | yaml.SafeLoader] | None = None,
+    _inheriting: list[str] | None = None,
 ) -> dict[str, Any]:
     """Return dict of source YAML file using loader, recursively deep merging inherited parent."""
     if loader is None:
         loader = get_yaml_loader()
+    # Stack of realpaths currently being resolved, so INHERIT cycles are
+    # reported as a ConfigurationError instead of recursing until RecursionError.
+    inheriting = _inheriting if _inheriting is not None else []
+    own_path = None if isinstance(source, str) else getattr(source, "name", None)
+    own_realpath = os.path.realpath(own_path) if own_path else None
+    if own_realpath is not None:
+        inheriting.append(own_realpath)
+    try:
+        return _yaml_load_inherited(source, loader, inheriting, own_path)
+    finally:
+        if own_realpath is not None:
+            inheriting.remove(own_realpath)
+
+
+def _yaml_load_inherited(
+    source: IO | str,
+    loader: type[yaml.BaseLoader | yaml.SafeLoader],
+    inheriting: list[str],
+    own_path: str | None,
+) -> dict[str, Any]:
     try:
         result = yaml.load(source, Loader=loader)
     except yaml.YAMLError as e:
@@ -167,17 +222,13 @@ def yaml_load(
         )
     if result is None:
         return {}
-    if (
-        "INHERIT" in result
-        and not isinstance(source, str)
-        and getattr(source, "name", None) is not None
-    ):
+    if "INHERIT" in result and own_path is not None:
         relpath = result.pop("INHERIT")
         if not isinstance(relpath, str):
             raise exceptions.ConfigurationError(
                 f"INHERIT must be a file path, got {type(relpath).__name__}"
             )
-        config_dir = os.path.realpath(os.path.dirname(source.name))
+        config_dir = os.path.realpath(os.path.dirname(own_path))
         abspath = os.path.realpath(os.path.join(config_dir, relpath))
         try:
             common = os.path.commonpath([config_dir, abspath])
@@ -194,9 +245,15 @@ def yaml_load(
             raise exceptions.ConfigurationError(
                 f"Inherited config file '{relpath}' does not exist at '{abspath}'."
             )
+        if abspath in inheriting:
+            chain = " -> ".join([*inheriting, abspath])
+            raise exceptions.ConfigurationError(
+                f"Circular INHERIT chain detected: {chain}. "
+                "A config file cannot inherit from itself, directly or through another file."
+            )
         log.debug(f"Loading inherited configuration file: {abspath}")
         with open(abspath, "rb") as fd:
-            parent = yaml_load(fd, loader)
+            parent = yaml_load(fd, loader, inheriting)
         result = deep_merge_dicts(parent, result)
     return result
 

@@ -111,13 +111,14 @@ class TestBuiltinPluginDeclarations:
 
 
 class TestCheckNav:
-    def _run_check(self, tmp_path, monkeypatch, capsys):
+    def _run_check(self, tmp_path, monkeypatch, capsys, **kwargs):
         from docsforge.check import check
 
         monkeypatch.chdir(tmp_path)
-        rc = check()
+        rc = check(**kwargs)
         out = capsys.readouterr().out
         return rc, out
+
 
     def test_nav_missing_file_is_error(self, tmp_path, monkeypatch, capsys):
         _write_config(
@@ -220,6 +221,32 @@ class TestLivereloadShutdown:
 
 
 class TestDisabledPluginDisplay:
+    def test_grouped_dict_plugins_all_shown(self, tmp_path, monkeypatch, capsys):
+        """A single dict item grouping several plugins must report every key."""
+        from docsforge.check import check
+
+        _write_config(
+            tmp_path,
+            """
+            site_name: Test
+            plugins:
+              - search: {}
+                tags: {}
+                some-third-party: {}
+            nav:
+              - Home: index.md
+            """,
+        )
+        monkeypatch.chdir(tmp_path)
+        # Skip full validation: a multi-key list item is rejected by the plugin
+        # config option, and this test is about the display/check path.
+        assert check(full_validation=False) == 0
+        out = capsys.readouterr().out
+        assert "✓ search" in out
+        assert "✓ tags" in out
+        assert "some-third-party (third-party plugin)" in out
+
+
     def test_disabled_builtins_show_disabled_without_warning(
         self, tmp_path, monkeypatch, capsys
     ):

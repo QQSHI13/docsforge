@@ -1,5 +1,89 @@
 ## [Unreleased]
 
+### Security
+
+- **The social plugin fetched card fonts without network guards** — the privacy
+  plugin had grown SSRF protections (private/link-local/metadata address
+  refusal, per-hop redirect re-checks, an https-downgrade block), but the social
+  plugin's font download had none, then fed the bytes to a font parser and
+  cached them. Font fetching now goes through the same guarded path.
+
+### Fixed
+
+- **Non-strict builds still failed on a single bad page** — the page-populate
+  stage raised on any render error even without `--strict`, while the write
+  stage continued. One broken page now only warns (and is skipped) unless
+  `--strict` is set, consistently across both stages.
+- **Generated markdown pages crashed the build** — a freshness check called
+  `Path(None)` for files with no source on disk. Generated pages are now
+  always treated as fresh.
+- **Snippet-include pages rebuilt on every incremental build** — the two
+  per-page stages resolved the `--8<--` include dependency set from different
+  markdown, so the cache kept pruning deps the other stage had just added.
+  File deps are now computed once and shared.
+- **`INHERIT:` cycles crashed with a stack overflow** — a file inheriting from
+  itself (directly or in a cycle) raised `RecursionError`. It now reports a
+  clear `ConfigurationError` naming the cycle.
+- **Duplicate YAML keys were silently accepted** — `site_name:` twice kept the
+  last value with no warning. Duplicate keys are now rejected with a
+  `ConfigurationError` naming the file, key and line numbers.
+- **`docsforge check` skipped dict-style plugins** — `plugins: [{search: …, tags: …}]`
+  validated only the first entry. Every plugin in a mapping is now checked.
+- **The privacy plugin could drop adjacent tags** — a tag-matching regex could
+  swallow two neighbouring tags (`<img>` next to `<script>`) into one match and
+  re-emit only the last, so an image vanished from the built page. Each tag is
+  now parsed and preserved exactly once.
+- **External images with spaces around `=` were never inlined** — the privacy
+  matcher missed `<img src = "…">`, so those requests still leaked visitors'
+  IPs to third parties. Whitespace around `=` is now matched.
+- **`--jobs`/`--strict` blog pagination built on a discarded side effect** —
+  paginated archive/category pages were constructed then thrown away, relying
+  on a constructor side effect and leaving them unnamed. The page is now used
+  and named directly.
+- **Blog post `.meta.yml` merging silently disabled** — the blog plugin looked
+  up the meta plugin by a hard-coded entry-point name; if that lookup missed,
+  post metadata merging stopped with a confusing "expected created date" error.
+  It now falls back to finding the meta plugin by type.
+- **A VS Code reload during a build orphaned the build process** — the
+  extension's `dispose()` didn't stop an in-flight build child, and on Windows
+  the Python process survived every reload. `dispose()` now kills it.
+- **`renameAnchor` corrupted headings containing `$`** — the replacement string
+  went through `String.replace` substitution, so a title like `A $& B` inserted
+  the whole match. A replacement function is used instead.
+- **Windows: several Studio features silently never fired** — link targets with
+  backslashes never matched, and the document-selector glob treated `\` as an
+  escape so every provider was dead on Windows. Paths are normalised and
+  `RelativePattern` is used.
+
+### Changed
+
+- **Studio heading slugs now match the engine exactly** — the extension
+  hand-rolled a heading-slug function that had drifted from the real engine
+  (it kept CJK and collapsed underscores, both wrong). The build now writes a
+  `slug-rules.json` and the extension consumes it, falling back to a corrected
+  implementation; a parity test pins the two together against reference vectors.
+
+- **The two per-page build loops are merged into one pipeline** — the populate
+  and write stages each walked every dirty page and each parsed snippet deps.
+  They are now a single pipeline with one error policy and one dep-parse pass;
+  incremental output is byte-identical.
+
+- **One guarded-fetch helper replaces three drifted copies** — a new
+  `docsforge/fetch.py` centralises the SSRF guards, redirect re-checks and size
+  caps that privacy and social each had partial local copies of. The dead
+  `url_cache.py` (zero callers, weakest guards) is deleted.
+
+- **`cairosvg` is imported lazily by the social plugin** — merely importing the
+  plugin cost ~4s because `cairosvg` loaded at module top. The import is now
+  deferred to card rendering (~0.6s).
+
+### Removed
+
+- Dead code: `files.py` legacy shims (`src_paths`, `_files`, `_sort_files`,
+  `_filter_paths`), `config_base.py` `load_file`/`user_configs`, the duplicated
+  dead `get_schema` in both config files, `config_options.py` `RepoURL`,
+  `info.py` `_get_exclusion_patterns`, and `url_cache.py`.
+
 ### Changed
 
 - **Python 3.10 is no longer supported; the floor is now 3.11** — 3.10 reached

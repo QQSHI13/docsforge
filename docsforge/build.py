@@ -14,6 +14,7 @@ import struct
 import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlsplit
@@ -25,11 +26,12 @@ import docsforge
 from docsforge import templates, utils
 from docsforge.asset_optimizer import OPTIMIZER_MANAGED_DIRS, optimize_assets
 from docsforge.cache import BuildPlanner, CacheManager, DependencyTracker, FileHasher
-from docsforge.exceptions import Abort, BuildError, BuildErrorGroup
+from docsforge.exceptions import Abort, BuildError
 from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusions
 from docsforge.git_info import get_git_page_info, prefetch_git_page_info
 from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
+from docsforge.slugger import compute_rules, write_rules
 from docsforge.structure import restore_rendering_page, set_rendering_page
 
 if TYPE_CHECKING:
@@ -87,7 +89,9 @@ def get_context(
         # Inject git revision info into page meta if available and not disabled
         extra_cfg = config.get("extra", {})
         git_enabled = getattr(extra_cfg, "git_revision_date", True) if extra_cfg else True
-        if git_enabled and not page.meta.get("git_revision_date_localized"):
+        # Generated files (File.generated / a plugin's temp source) have no
+        # on-disk source, so there is no history to look up.
+        if git_enabled and page.file.abs_src_path and not page.meta.get("git_revision_date_localized"):
             git_info = get_git_page_info(page.file.abs_src_path)
             if git_info:
                 page.meta["git_revision_date_localized"] = git_info["updated_display"]
@@ -230,6 +234,16 @@ def _build_locale_static_templates(
         return
 
     base_url = urlsplit(config.site_url or "/").path
+    # The language is a GLOBAL template variable: partials/language.html and
+    # base.html read `config.theme.language` (and `config.extra.i18n_current_locale`)
+    # directly, so there is no render-local override the templates honour —
+    # threading it through the context would mean editing every template that
+    # reads it. Instead the mutation window is kept as short as possible and
+    # both values are restored in a `finally`, so a failing render (or a plugin
+    # reading the theme language afterwards) can never observe a locale that is
+    # not the site's own. Nothing else runs concurrently here: this function is
+    # called sequentially before page rendering starts.
+    had_prev_language = "language" in config.theme
     prev_language = config.theme.get("language")
     prev_locale = getattr(config.extra, "i18n_current_locale", None)
     had_prev_locale = hasattr(config.extra, "i18n_current_locale")
@@ -268,7 +282,9 @@ def _build_locale_static_templates(
                         os.path.join(config.site_dir, out_name),
                     )
     finally:
-        if prev_language is not None:
+        # Restore key *presence*, not just value: a language set to None must
+        # not silently become an explicit None after the loop.
+        if had_prev_language:
             config.theme["language"] = prev_language
         else:
             config.theme.pop("language", None)
@@ -442,7 +458,13 @@ def _build_page(
         if not isinstance(e, BuildError):
             message += f" {e}"
         log.error(message)
-        # Continue building other pages instead of crashing
+        # Strict builds abort here; non-strict ones skip this page in place
+        # (nothing is written for it) and carry on with the others. Deliberate
+        # behaviour change gap: an in-place skip returns normally, so the write
+        # phase counts the page as processed and caches it — pre-existing, and
+        # pinned by a test that expects built_any=True for such a page. Render
+        # and dependency failures do not take this path: _populate_page raises,
+        # so those pages are marked failed, never written and never cached.
         if config.strict:
             raise
         return
@@ -503,6 +525,38 @@ def _prepare_build(
     return config, warning_counter, inclusion
 
 
+def _get_i18n_plugin(config: DocsForgeConfig):
+    """Return the configured i18n plugin, if any (both entry-point names)."""
+    plugins = getattr(config, "plugins", None)
+    if not plugins:
+        return None
+    for key in ("material/i18n", "i18n"):
+        plugin = plugins.get(key) if hasattr(plugins, "get") else None
+        if plugin is not None:
+            return plugin
+    return None
+
+
+def _read_nav_source(page: Page, config: DocsForgeConfig) -> None:
+    """Read one page's source for its nav title, never silently failing.
+
+    A page whose source cannot be read must not abort the build here — it will
+    fail loudly (or be skipped, depending on `strict`) in the render stage.
+    But the failure must be *reported*: swallowing it silently left the page's
+    title as None, which made `nav_sig` depend on which pages happened to be
+    readable and could force a spurious full rebuild.
+    """
+    if getattr(page, "markdown", None) is not None:
+        return
+    try:
+        page.read_source(config)
+    except Exception as e:
+        message = f"Could not read source of '{page.file.src_uri}' for the navigation title:"
+        if not isinstance(e, BuildError):
+            message += f" {e}"
+        log.warning(message)
+
+
 def _ensure_nav_titles(nav: Navigation, config: DocsForgeConfig) -> None:
     """Load Markdown source titles for every page in the navigation.
 
@@ -511,40 +565,20 @@ def _ensure_nav_titles(nav: Navigation, config: DocsForgeConfig) -> None:
     signature detect title changes on incremental builds.
     """
     for page in nav.pages:
-        try:
-            if getattr(page, "markdown", None) is None:
-                page.read_source(config)
-        except Exception:
-            pass
+        _read_nav_source(page, config)
 
     # i18n: locale navs hold distinct Page objects (e.g. setup/index.zh.md)
     # whose frontmatter (title, meta.icon for tabs/sidebar) is otherwise only
     # loaded when that file is dirty. On incremental rebuilds skipped locale
     # index pages kept meta={} so translated tabs lost their icons. Preload
     # them here just like the default nav.
-    try:
-        plugins = getattr(config, "plugins", None)
-        i18n_plugin = None
-        if plugins is not None:
-            for key in ("material/i18n", "i18n"):
-                try:
-                    i18n_plugin = plugins[key]
-                    break
-                except KeyError:
-                    continue
-        locale_navs = getattr(i18n_plugin, "_locale_navs", None) if i18n_plugin is not None else None
-        if locale_navs:
-            for locale_nav in list(locale_navs.values()):
-                if locale_nav is nav:
-                    continue
-                for page in getattr(locale_nav, "pages", []):
-                    try:
-                        if getattr(page, "markdown", None) is None:
-                            page.read_source(config)
-                    except Exception:
-                        pass
-    except Exception:
-        pass
+    i18n_plugin = _get_i18n_plugin(config)
+    locale_navs = getattr(i18n_plugin, "_locale_navs", None) or {}
+    for locale_nav in locale_navs.values():
+        if locale_nav is nav:
+            continue
+        for page in getattr(locale_nav, "pages", []):
+            _read_nav_source(page, config)
 
 
 def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
@@ -605,25 +639,14 @@ def _nav_signature(nav: Navigation, config: DocsForgeConfig) -> str:
     # i18n: locale nav titles/icons must also invalidate the signature.
     # Otherwise a zh-only frontmatter title/icon change rebuilds just that
     # file while other zh pages keep stale nav text/icons.
-    try:
-        plugins = getattr(config, "plugins", None)
-        i18n_plugin = None
-        if plugins is not None:
-            for key in ("material/i18n", "i18n"):
-                try:
-                    i18n_plugin = plugins[key]
-                    break
-                except KeyError:
-                    continue
-        locale_navs = getattr(i18n_plugin, "_locale_navs", None) if i18n_plugin is not None else None
-        if locale_navs:
-            data["i18n"] = {
-                str(locale): [_serialize(i) for i in locale_nav.items]
-                for locale, locale_nav in sorted(locale_navs.items(), key=lambda kv: str(kv[0]))
-                if locale_nav is not nav
-            }
-    except Exception:
-        pass
+    i18n_plugin = _get_i18n_plugin(config)
+    locale_navs = getattr(i18n_plugin, "_locale_navs", None) or {}
+    others = {locale: nav_ for locale, nav_ in locale_navs.items() if nav_ is not nav}
+    if others:
+        data["i18n"] = {
+            str(locale): [_serialize(i) for i in locale_nav.items]
+            for locale, locale_nav in sorted(others.items(), key=lambda kv: str(kv[0]))
+        }
     hasher = hashlib.sha256()
     hasher.update(json.dumps(data, ensure_ascii=False, sort_keys=True).encode("utf-8"))
     return hasher.hexdigest()[:32]
@@ -661,7 +684,7 @@ def _collect_files_and_nav(
         orphaned = planner.find_orphaned_outputs(docs_dir, site_dir, known_dest_uris)
         for f in orphaned:
             log.debug(f"Removing orphaned output: {f}")
-            _remove_orphaned_output(f)
+            _remove_orphaned_output(f, site_dir)
     planner.update_sources(current_sources)
 
     nav = get_navigation(files, config)
@@ -684,12 +707,142 @@ def _collect_files_and_nav(
     return files, env, nav, all_doc_files, sources_changed, nav_changed
 
 
-def _remove_orphaned_output(path: Path) -> None:
-    """Remove an orphaned output file, logging a warning on transient errors."""
+def _remove_orphaned_output(path: Path, site_dir: Path | None = None) -> None:
+    """Remove an orphaned output file, logging a warning on transient errors.
+
+    When `site_dir` is given, directories left empty by the removal are pruned
+    too (never `site_dir` itself) — otherwise every deleted page/asset leaves an
+    empty directory behind in the built site.
+    """
     try:
         path.unlink()
     except OSError as exc:
         log.warning(f"Could not remove orphaned output {path}: {exc}")
+        return
+    if site_dir is not None:
+        BuildPlanner.prune_empty_dirs(site_dir, path)
+
+
+@dataclass
+class _PagePlan:
+    """One documentation page's rebuild decision, shared by both build stages.
+
+    The dependency set is computed exactly once, here, because that is the only
+    point where it can be: `pymdownx.snippets` consumes the ``--8<--`` markers
+    during `md.convert()`, so the marker text only exists in `page.markdown`
+    right after `read_source`. Re-deriving the set later (the write stage used
+    to re-read the file from disk) produced a *different* set whenever a plugin
+    rewrote the markdown in `on_page_markdown`, and every such mismatch made
+    `update_cache` prune deps the freshness check had just counted on — which
+    rebuilt every snippet-include page on every build.
+    """
+
+    page: Page
+    # None for generated files (`File.generated`, a plugin's temp source): they
+    # have nothing on disk to stat or hash, so they are always rebuilt.
+    source_path: Path | None
+    output_path: Path
+    deps: list[str]
+    rebuild: bool
+    # Set when any per-page stage failed for this page — `_populate_page`
+    # (render) or `_build_page` (template + write). A failed page is never
+    # written and never cached, so a non-strict build neither publishes broken
+    # output nor remembers the failure as "up to date" (the next build retries
+    # it). Named for the stage that introduced the flag; both stages set it.
+    populate_failed: bool = False
+
+
+def _page_failure(config: DocsForgeConfig, plan: _PagePlan, exc: BaseException) -> None:
+    """Apply the build's single per-page error policy.
+
+    Every per-page stage routes its failures here, so strict and non-strict
+    cannot diverge between rendering and writing:
+
+    - strict: re-raise, aborting the build on the first bad page. The error was
+      already logged where it happened.
+    - non-strict: mark the plan failed and carry on with the other pages. The
+      write phase skips a failed plan, so nothing is published for it.
+    """
+    if config.strict:
+        raise exc.with_traceback(exc.__traceback__)
+    plan.populate_failed = True
+
+
+def _page_deps(page: Page, config: DocsForgeConfig, files: Files) -> list[str]:
+    """Return the full dependency list for one page (snippets + plugin deps)."""
+    abs_src = page.file.abs_src_path
+    source_path = Path(abs_src) if abs_src else Path(config.docs_dir) / page.file.src_uri
+    # Snippet includes are file dependencies. `base_paths` must match the set
+    # `update_cache` records, otherwise the freshness check and the cache
+    # disagree and the page rebuilds forever.
+    file_deps = DependencyTracker.get_file_deps(
+        source_path,
+        page.markdown,
+        base_paths=[Path(config.docs_dir)],
+    )
+    # Let plugins declare render dependencies (e.g. a blog entrypoint whose
+    # listing derives from every post). An added/removed dependency forces a
+    # re-render even when the page's own source is unchanged.
+    return config.plugins.on_page_deps(file_deps, page=page, files=files, config=config)
+
+
+def _plan_pages(
+    config: DocsForgeConfig,
+    files: Files,
+    planner: BuildPlanner,
+    all_doc_files: list[File],
+    force_all: bool = False,
+) -> list[_PagePlan]:
+    """Decide which pages need rebuilding, once, for both build stages."""
+    plans: list[_PagePlan] = []
+    for file in all_doc_files:
+        assert file.page is not None
+        abs_src = file.abs_src_path
+        source_path = Path(abs_src) if abs_src else None
+        output_path = Path(file.abs_dest_path)
+        deps = _page_deps(file.page, config, files)
+
+        if force_all or source_path is None:
+            # No source on disk (generated file) means no mtime/hash to
+            # compare: treat it as always fresh rather than crashing on
+            # `Path(None)`.
+            rebuild = True
+        else:
+            rebuild = planner.should_rebuild(source_path, output_path) or planner.deps_changed(
+                source_path, deps
+            )
+        if not rebuild:
+            log.debug(f"Skipping unchanged page: {file.src_uri}")
+        plans.append(_PagePlan(file.page, source_path, output_path, deps, rebuild))
+    return plans
+
+
+def _ensure_page_objects(
+    config: DocsForgeConfig,
+    all_doc_files: list[File],
+    serve_url: str | None,
+) -> None:
+    """Give every documentation file a `Page` and report excluded drafts.
+
+    Files outside the nav get a Page too (they are still rendered and written,
+    just unlisted); a serve build reports the drafts it previews but a real
+    build would drop.
+    """
+    excluded: list[str] = []
+    for file in all_doc_files:
+        log.debug(f"Reading: {file.src_uri}")
+        if file.page is None and file.inclusion.is_not_in_nav():
+            if serve_url and file.inclusion.is_excluded():
+                excluded.append(urljoin(serve_url, file.url))
+            Page(None, file, config)
+        assert file.page is not None
+
+    if excluded:
+        log.info(
+            "The following pages are being built only for the preview "
+            "but will be excluded from `docsforge build` per `draft_docs` config:\n  - %s",
+            "\n  - ".join(excluded),
+        )
 
 
 def _populate_changed_pages(
@@ -700,85 +853,58 @@ def _populate_changed_pages(
     inclusion: Callable[[InclusionLevel], bool],
     serve_url: str | None,
     force_all: bool = False,
-) -> list[Page]:
-    """Render Markdown for all changed pages in parallel."""
-    excluded: list[str] = []
-    to_populate: list[Page] = []
-    for file in all_doc_files:
-        log.debug(f"Reading: {file.src_uri}")
-        if file.page is None and file.inclusion.is_not_in_nav():
-            if serve_url and file.inclusion.is_excluded():
-                excluded.append(urljoin(serve_url, file.url))
-            Page(None, file, config)
-        assert file.page is not None
+    plans: list[_PagePlan] | None = None,
+) -> list[_PagePlan]:
+    """Render phase of the page pipeline: plan, then render Markdown in parallel.
 
-        # Check if page needs rebuilding
-        source_path = Path(file.abs_src_path)
-        output_path = Path(file.abs_dest_path)
+    Returns the plans annotated with which pages failed; the write phase
+    (_write_pages) consumes the same list, so both agree on the rebuild set and
+    on the dependency set recorded in the cache. Failures go through the single
+    `_page_failure` policy (strict: abort; non-strict: mark and continue).
 
-        # Snippet includes are file dependencies: compute them up front so
-        # the freshness check sees the same set that update_cache records.
-        # Otherwise pages with includes would rebuild on every build.
-        file_deps = DependencyTracker.get_file_deps(
-            source_path,
-            file.page.markdown,
-            base_paths=[Path(config.docs_dir)],
-        )
-        # Let plugins declare render dependencies (e.g. a blog entrypoint
-        # whose listing derives from every post). An added/removed dependency
-        # forces a re-render even when the page's own source is unchanged.
-        extra_deps = config.plugins.on_page_deps(file_deps, page=file.page, files=files, config=config)
+    The heavy work (read_source + render/markdown.convert) runs in the pool: it
+    is thread-safe (per-thread Markdown instance) and only plugin events are
+    serialized via plugin_lock.
+    """
+    _ensure_page_objects(config, all_doc_files, serve_url)
 
-        if (
-            not force_all
-            and not planner.should_rebuild(source_path, output_path)
-            and not planner.deps_changed(source_path, extra_deps)
-        ):
-            log.debug(f"Skipping unchanged page: {file.src_uri}")
-            continue
+    if plans is None:
+        plans = _plan_pages(config, files, planner, all_doc_files, force_all=force_all)
+    to_render = [plan for plan in plans if plan.rebuild]
+    if not to_render:
+        return plans
 
-        to_populate.append(file.page)
-
-    # Render Markdown for all changed pages in parallel. The heavy work
-    # (read_source + render/markdown.convert) is thread-safe (per-thread
-    # Markdown instance); only plugin events are serialized via plugin_lock.
     plugin_lock = threading.RLock()
     max_workers = max(1, config.concurrency)
-    if to_populate:
-        log.info(f"Rendering {len(to_populate)} pages...")
-        ex = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-        try:
-            futures = [
-                ex.submit(_populate_page, p, config, files, True, plugin_lock)
-                for p in to_populate
-            ]
-            errors: list[BaseException] = []
-            for f in _as_completed(futures):
-                try:
-                    f.result()
-                except BaseException as e:
-                    errors.append(e)
-            if errors:
-                if len(errors) == 1:
-                    raise errors[0]
-                raise BuildErrorGroup("Errors populating pages", errors)
-        except BaseException:
-            # Interrupted (e.g. Ctrl-C during serve): don't join running
-            # workers, just cancel what's queued so shutdown is prompt.
-            # Pages keep no partial cache state, so the next build retries.
-            ex.shutdown(wait=False, cancel_futures=True)
-            raise
-        else:
-            ex.shutdown(wait=True)
+    log.info(f"Rendering {len(to_render)} pages...")
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+    failures = 0
+    try:
+        futures = [
+            (ex.submit(_populate_page, plan.page, config, files, True, plugin_lock), plan)
+            for plan in to_render
+        ]
+        for future, plan in futures:
+            try:
+                _wait_future(future)
+            except Exception as e:
+                # Error already logged in _populate_page. In strict mode
+                # _page_failure re-raises and the shutdown below cancels the
+                # queued work; otherwise the page is marked and skipped.
+                failures += 1
+                _page_failure(config, plan, e)
+    except BaseException:
+        # Interrupted (e.g. Ctrl-C during serve): don't join running workers,
+        # just cancel what's queued so shutdown is prompt. Pages keep no
+        # partial cache state, so the next build retries.
+        ex.shutdown(wait=False, cancel_futures=True)
+        raise
+    else:
+        ex.shutdown(wait=True)
 
-    if excluded:
-        log.info(
-            "The following pages are being built only for the preview "
-            "but will be excluded from `docsforge build` per `draft_docs` config:\n  - %s",
-            "\n  - ".join(excluded),
-        )
-
-    return to_populate
+    if failures:
+        log.warning(f"Skipped {failures} page(s) that failed to render")
+    return plans
 
 
 def _serialize_validation(page: Page) -> dict:
@@ -811,21 +937,96 @@ def _restore_validation(page: Page, data: dict | None, files: Files) -> None:
     page.links_to_anchors = links or None
 
 
-def _write_outputs(
+def _write_pages(
     config: DocsForgeConfig,
     files: Files,
     nav: Navigation,
     env: jinja2.Environment,
     planner: BuildPlanner,
     all_doc_files: list[File],
-    inclusion: Callable[[InclusionLevel], bool],
     force_all: bool = False,
+    plans: list[_PagePlan] | None = None,
 ) -> tuple[bool, set[str]]:
-    """Copy static assets and build all changed pages in parallel.
+    """Write phase: template, write and cache every successfully rendered page.
+
+    Serial on purpose: writes and cache mutations must stay ordered, and only
+    one page may be ``active`` at a time (the sidebar-highlight race). Renders
+    already happened in parallel in the render phase.
+
+    Pages no longer needing a rebuild, and pages that failed to render, are
+    skipped together: a failed page has missing or stale markdown, so writing
+    it would publish broken output. The cache is updated only for pages that
+    were actually written — otherwise the next run would treat a broken page as
+    up to date and silently keep its old output.
 
     Returns ``(built_any, built_sources)``: whether any page was written, and
     the set of source paths that were rebuilt.
     """
+    if plans is None:
+        plans = _plan_pages(config, files, planner, all_doc_files, force_all=force_all)
+    pages_to_build = [plan for plan in plans if plan.rebuild and not plan.populate_failed]
+
+    built_any = False
+    built_sources: set[str] = set()
+    if not pages_to_build:
+        return built_any, built_sources
+
+    # Warm git revision dates concurrently (S1): every page render below calls
+    # get_git_page_info, whose history walks cost ~100ms each. Prefetching
+    # fills the same cache through the same per-file git commands, so output is
+    # identical — the renders just stop waiting on serial walks. Generated
+    # files have no source path to warm.
+    prefetch_git_page_info(
+        [plan.page.file.abs_src_path for plan in pages_to_build if plan.page.file.abs_src_path]
+    )
+    page_lock = threading.RLock()
+    log.info(f"Writing {len(pages_to_build)} pages...")
+    failures = 0
+    for plan in pages_to_build:
+        try:
+            _build_page(
+                plan.page,
+                config,
+                all_doc_files,
+                nav,
+                env,
+                True,
+                plan.page.file.inclusion.is_excluded(),
+                page_lock,
+            )
+        except Exception as e:
+            # Error already logged in _build_page. Strict mode re-raises and
+            # aborts; otherwise the page is skipped, uncached, and retried next
+            # build. Same policy function as the render phase.
+            failures += 1
+            _page_failure(config, plan, e)
+            continue
+
+        # Cache only what was written. Reuse the deps computed once while
+        # planning: same raw markdown (snippet markers are consumed during
+        # md.convert(), so page.content cannot be used), same plugin-declared
+        # extras, hence the same set the freshness check compared against.
+        if plan.source_path is not None:
+            planner.update_cache(plan.source_path, plan.output_path, plan.deps)
+        # Persist link/anchor validation data so skipped pages can be
+        # re-validated on later incremental builds.
+        planner.validation[plan.page.file.src_uri] = _serialize_validation(plan.page)
+        built_sources.add(plan.page.file.src_uri)
+        built_any = True
+
+    if failures:
+        log.warning(f"Skipped {failures} page(s) that failed to build")
+    return built_any, built_sources
+
+
+def _write_static_outputs(
+    config: DocsForgeConfig,
+    files: Files,
+    nav: Navigation,
+    env: jinja2.Environment,
+    inclusion: Callable[[InclusionLevel], bool],
+) -> jinja2.Environment:
+    """Run `env` plugins, copy static assets, build theme/extra templates."""
     # Run `env` plugin events.
     env = config.plugins.on_env(env, config=config, files=files)
 
@@ -844,104 +1045,67 @@ def _write_outputs(
     for template in config.extra_templates:
         _build_extra_template(template, env, files, config, nav)
 
-    log.debug("Building markdown pages.")
-    # Use ThreadPoolExecutor for parallel page building (I/O-bound: template render + file write)
-    page_lock = threading.RLock()
+    return env
 
-    # Collect pages that need rebuilding first so we don't create an executor
-    # (and pay its worker-thread shutdown cost) when nothing changed.
-    pages_to_build: list[tuple[Page, Path, Path, list[str]]] = []
-    for file in all_doc_files:
-        assert file.page is not None
-        source_path = Path(file.abs_src_path)
-        output_path = Path(file.abs_dest_path)
-        # Same freshness rule as _populate_changed_pages: snippet includes
-        # are file deps, computed up front so the check sees the same set
-        # that update_cache records. Plugins may declare extra render
-        # dependencies (e.g. a blog entrypoint that lists every post), so an
-        # added/removed dependency must force a rebuild here too.
-        file_deps = DependencyTracker.get_file_deps(
-            source_path,
-            file.page.markdown,
-            base_paths=[Path(config.docs_dir)],
-        )
-        extra_deps = config.plugins.on_page_deps(file_deps, page=file.page, files=files, config=config)
-        if (
-            force_all
-            or planner.should_rebuild(source_path, output_path)
-            or planner.deps_changed(source_path, extra_deps)
-        ):
-            pages_to_build.append((file.page, source_path, output_path, file_deps))
 
-    built_any = False
-    built_sources: set[str] = set()
-    if pages_to_build:
-        # Warm git revision dates concurrently (S1): every page render below
-        # calls get_git_page_info, whose history walks cost ~100ms each.
-        # Prefetching fills the same cache through the same per-file git
-        # commands, so output is identical — the renders just stop waiting
-        # on serial walks (and on low-concurrency machines, on serial
-        # rendering too).
-        prefetch_git_page_info([page.file.abs_src_path for page, _, _, _ in pages_to_build])
-        max_workers = max(1, config.concurrency)
-        log.info(f"Writing {len(pages_to_build)} pages...")
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-        try:
-            futures = [
-                (
-                    executor.submit(
-                        _build_page,
-                        page, config, all_doc_files, nav, env, True,
-                        page.file.inclusion.is_excluded(),
-                        page_lock,
-                    ),
-                    source_path,
-                    output_path,
-                    page,
-                    file_deps,
-                )
-                for page, source_path, output_path, file_deps in pages_to_build
-            ]
+def _build_page_pipeline(
+    config: DocsForgeConfig,
+    files: Files,
+    nav: Navigation,
+    env: jinja2.Environment,
+    planner: BuildPlanner,
+    all_doc_files: list[File],
+    inclusion: Callable[[InclusionLevel], bool],
+    serve_url: str | None = None,
+    force_all: bool = False,
+) -> tuple[bool, set[str]]:
+    """The single per-page pipeline: plan -> render (parallel) -> write -> cache.
 
-            # Wait for all pages to complete (in submission order so the
-            # cache updates below stay ordered; each wait polls so Ctrl+C
-            # lands even mid-render on Windows).
-            for future, source_path, output_path, page, file_deps in futures:
-                try:
-                    _wait_future(future)
-                except Exception:
-                    # Error already logged in _build_page; continue with other pages
-                    # unless strict mode is enabled, in which case we must fail.
-                    # Do NOT update the cache for a failed build — otherwise the
-                    # next run would consider the page up-to-date and silently keep
-                    # the broken output.
-                    if config.strict:
-                        raise
-                    continue
+    One error policy for the whole pipeline (`_page_failure`): strict raises on
+    the first failure, non-strict logs it, marks the page failed and continues;
+    a failed page is never written and never cached.
 
-                # Update cache after successful build. Reuse the file_deps
-                # computed up front (same raw markdown — snippet markers are
-                # consumed during md.convert(), so page.content cannot be
-                # used) to avoid a double parse.
-                # Merge plugin-declared render dependencies (blog views list
-                # their posts) so they are recorded for future incremental
-                # builds.
-                deps = config.plugins.on_page_deps(file_deps, page=page, files=files, config=config)
-                planner.update_cache(source_path, output_path, deps)
-                # Persist link/anchor validation data so skipped pages can be
-                # re-validated on later incremental builds.
-                planner.validation[page.file.src_uri] = _serialize_validation(page)
-                built_sources.add(page.file.src_uri)
-                built_any = True
-        except BaseException:
-            # Interrupted: cancel queued pages instead of joining them so
-            # Ctrl-C during serve stops promptly.
-            executor.shutdown(wait=False, cancel_futures=True)
-            raise
-        else:
-            executor.shutdown(wait=True)
+    The two phases are kept as two drain points rather than interleaved on
+    purpose: renders fully complete before any write starts, which is exactly
+    the isolation the previous split imposed. Interleaving would let a
+    `_build_page` hook (holding ``page_lock``) run concurrently with a
+    `_populate_page` hook (holding ``plugin_lock``) — different locks, so no
+    mutual exclusion, and plugins may assume the stages never overlap.
+    """
+    _ensure_page_objects(config, all_doc_files, serve_url)
+    plans = _plan_pages(config, files, planner, all_doc_files, force_all=force_all)
 
-    return built_any, built_sources
+    # Render phase: parallel, and it annotates the shared plans with failures.
+    _populate_changed_pages(config, files, planner, all_doc_files, inclusion, serve_url, plans=plans)
+
+    env = _write_static_outputs(config, files, nav, env, inclusion)
+    return _write_pages(config, files, nav, env, planner, all_doc_files, plans=plans)
+
+
+def _write_outputs(
+    config: DocsForgeConfig,
+    files: Files,
+    nav: Navigation,
+    env: jinja2.Environment,
+    planner: BuildPlanner,
+    all_doc_files: list[File],
+    inclusion: Callable[[InclusionLevel], bool],
+    force_all: bool = False,
+    plans: list[_PagePlan] | None = None,
+) -> tuple[bool, set[str]]:
+    """Static assets + the write phase, for a plan list produced elsewhere.
+
+    Kept as a separate entry point for callers that supply already-rendered
+    pages; `_build_page_pipeline` is the path a real build takes. Shares the
+    write implementation and error policy with it — nothing is duplicated.
+
+    Returns ``(built_any, built_sources)``: whether any page was written, and
+    the set of source paths that were rebuilt.
+    """
+    env = _write_static_outputs(config, files, nav, env, inclusion)
+    return _write_pages(
+        config, files, nav, env, planner, all_doc_files, force_all=force_all, plans=plans
+    )
 
 
 def _restore_missing_static_outputs(files: Files) -> int:
@@ -1076,6 +1240,15 @@ def _finalize_build(
     # no service-worker churn.
     _generate_pwa_manifest_and_precache(config, files, nav, planner)
 
+    # Write the canonical heading-slug rules next to validation.json so the
+    # Studio extension reproduces the engine's anchor ids instead of relying
+    # on a hand-maintained second implementation (they drifted before).
+    # Guarded: unit tests drive _finalize_build with a Mock planner whose
+    # cache_dir is not a real path.
+    cache_dir = getattr(planner.cache, "cache_dir", None)
+    if isinstance(cache_dir, (str, os.PathLike)):
+        write_rules(Path(cache_dir) / "slug-rules.json", compute_rules())
+
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
     planner.save(
@@ -1124,11 +1297,14 @@ def build(
         files, env, nav, all_doc_files, sources_changed, nav_changed = _collect_files_and_nav(
             config, planner, inclusion
         )
-        _populate_changed_pages(
-            config, files, planner, all_doc_files, inclusion, serve_url, force_all=nav_changed
-        )
-        built_any, built_sources = _write_outputs(
-            config, files, nav, env, planner, all_doc_files, inclusion, force_all=nav_changed
+        # One pipeline for the page work: plan -> render (parallel) -> write
+        # (serial) -> cache. The dependency set can only be derived from the raw
+        # markdown, so it is computed once while planning and threaded through,
+        # keeping the freshness check and the cache update in exact agreement.
+        # One error policy covers both phases (see `_page_failure`).
+        built_any, built_sources = _build_page_pipeline(
+            config, files, nav, env, planner, all_doc_files, inclusion,
+            serve_url=serve_url, force_all=nav_changed,
         )
         _finalize_build(
             config, files, nav, planner, warning_counter,

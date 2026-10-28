@@ -17,6 +17,7 @@ from docsforge import config_options
 from docsforge.config_base import load_config
 from docsforge.core import social as social_module
 from docsforge.core.social import SocialPlugin
+from docsforge.exceptions import PluginError
 
 
 def _load_config(tmp_path: Path):
@@ -527,4 +528,178 @@ class TestFontFetchResilience:
         # A new build clears the failure set, so recovery is retried once.
         plugin.on_config(cfg)
         assert plugin._font_fetch_failed == set()
+        plugin.on_shutdown()
+
+
+class TestFontFetchSsrfGuards:
+    """Font URLs come from a third party's response body, so they get the same
+    guards as the privacy plugin: no internal hosts, no scheme downgrade, no
+    redirect to a private address, plus a deadline and a size cap."""
+
+    def _plugin(self, tmp_path):
+        plugin = SocialPlugin()
+        plugin.load_config({"cache_dir": str(tmp_path / ".cache")})
+        plugin.on_config(_load_config(tmp_path))
+        return plugin
+
+    def _response(self, body: bytes = b"", status: int = 200, location: str | None = None):
+        class _Res:
+            def __init__(self):
+                self.status_code = status
+                self.headers = {"content-type": "font/ttf"}
+                if location is not None:
+                    self.headers["location"] = location
+                self.url = ""
+                self.is_redirect = location is not None
+                self.is_permanent_redirect = False
+                self.reason = "Found"
+
+            def iter_content(self, chunk_size=8192):
+                yield body
+
+            def raise_for_status(self):
+                pass
+
+            def close(self):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                self.close()
+
+        return _Res()
+
+    def test_internal_host_is_refused(self, tmp_path, monkeypatch):
+        plugin = self._plugin(tmp_path)
+        calls = []
+
+        def fake_get(url, **kwargs):
+            calls.append(url)
+            return self._response(b"font")
+
+        monkeypatch.setattr(social_module.requests, "get", fake_get)
+
+        with pytest.raises(PluginError, match="internal address"):
+            plugin._download_font("Roboto", "https://127.0.0.1/font.ttf", deadline=1e18)
+        assert calls == []
+        plugin.on_shutdown()
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://169.254.169.254/latest/meta-data/font.ttf",
+            "https://10.0.0.5/font.ttf",
+            "https://192.168.1.1/font.ttf",
+            "http://localhost/font.ttf",
+        ],
+    )
+    def test_private_and_metadata_addresses_refused(self, tmp_path, monkeypatch, url):
+        plugin = self._plugin(tmp_path)
+        monkeypatch.setattr(
+            social_module.requests, "get", lambda u, **kw: self._response(b"font")
+        )
+        with pytest.raises(PluginError, match="internal address"):
+            plugin._download_font("Roboto", url, deadline=1e18)
+        plugin.on_shutdown()
+
+    def test_unsupported_scheme_is_refused(self, tmp_path, monkeypatch):
+        plugin = self._plugin(tmp_path)
+        calls = []
+        monkeypatch.setattr(
+            social_module.requests,
+            "get",
+            lambda u, **kw: calls.append(u) or self._response(b"font"),
+        )
+        with pytest.raises(PluginError, match="Unsupported font URL scheme"):
+            plugin._download_font("Roboto", "file:///etc/passwd", deadline=1e18)
+        assert calls == []
+        plugin.on_shutdown()
+
+    def test_redirect_to_internal_address_is_blocked(self, tmp_path, monkeypatch):
+        plugin = self._plugin(tmp_path)
+        # https -> https keeps the downgrade guard quiet, so this exercises the
+        # per-hop internal-address re-check specifically.
+        responses = {
+            "https://fonts.example/f.ttf": self._response(location="https://127.0.0.1/f.ttf"),
+        }
+
+        def fake_get(url, **kwargs):
+            return responses.get(url, self._response(b"font"))
+
+        monkeypatch.setattr(social_module.requests, "get", fake_get)
+        with pytest.raises(PluginError, match="internal address"):
+            plugin._download_font(
+                "Roboto", "https://fonts.example/f.ttf", deadline=1e18
+            )
+        plugin.on_shutdown()
+
+    def test_https_downgrade_redirect_is_blocked(self, tmp_path, monkeypatch):
+        plugin = self._plugin(tmp_path)
+
+        def fake_get(url, **kwargs):
+            return self._response(location="http://cdn.example/f.ttf")
+
+        monkeypatch.setattr(social_module.requests, "get", fake_get)
+        with pytest.raises(PluginError, match="downgraded https"):
+            plugin._download_font(
+                "Roboto", "https://fonts.example/f.ttf", deadline=1e18
+            )
+        plugin.on_shutdown()
+
+    def test_redirect_loop_is_bounded(self, tmp_path, monkeypatch):
+        plugin = self._plugin(tmp_path)
+        monkeypatch.setattr(
+            social_module.requests,
+            "get",
+            lambda u, **kw: self._response(location="https://fonts.example/again.ttf"),
+        )
+        with pytest.raises(PluginError, match="Too many redirects"):
+            plugin._download_font(
+                "Roboto", "https://fonts.example/f.ttf", deadline=1e18
+            )
+        plugin.on_shutdown()
+
+    def test_oversized_font_is_refused(self, tmp_path, monkeypatch):
+        plugin = self._plugin(tmp_path)
+        oversized = b"x" * (social_module.MAX_FONT_SIZE + 1)
+        monkeypatch.setattr(
+            social_module.requests, "get", lambda u, **kw: self._response(oversized)
+        )
+        with pytest.raises(PluginError, match="exceeds"):
+            plugin._download_font(
+                "Roboto", "https://fonts.example/f.ttf", deadline=1e18
+            )
+        plugin.on_shutdown()
+
+    def test_expired_deadline_stops_the_fetch(self, tmp_path, monkeypatch):
+        plugin = self._plugin(tmp_path)
+        monkeypatch.setattr(
+            social_module.requests, "get", lambda u, **kw: self._response(b"font")
+        )
+        with pytest.raises(PluginError, match="exceeded"):
+            plugin._download_font("Roboto", "https://fonts.example/f.ttf", deadline=0)
+        plugin.on_shutdown()
+
+    def test_manifest_urls_are_checked(self, tmp_path, monkeypatch):
+        """A manifest that lists an internal URL must not be followed."""
+        plugin = self._plugin(tmp_path)
+
+        class _Manifest:
+            status_code = 200
+            reason = "OK"
+            content = b'{"x": "https://169.254.169.254/font.ttf"}'
+
+        calls = []
+
+        def fake_get(url, **kwargs):
+            calls.append(url)
+            return _Manifest()
+
+        monkeypatch.setattr(social_module.requests, "get", fake_get)
+        with pytest.raises(PluginError, match="internal address"):
+            plugin._fetch_font_from_google_fonts("Roboto")
+        # Only the manifest was requested; the untrusted URL never was.
+        assert len(calls) == 1
         plugin.on_shutdown()

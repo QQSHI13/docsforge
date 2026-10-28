@@ -8,8 +8,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import pytest
-
 from docsforge.files import File, Files, InclusionLevel
 
 
@@ -268,14 +266,6 @@ class TestFileRepr:
         repr(f)
         # dest_uri is a cached_property; repr should not populate its cache.
         assert "dest_uri" not in f.__dict__
-
-
-class TestDeprecatedHelpers:
-    def test_sort_files_emits_deprecation_warning(self):
-        from docsforge.files import _sort_files
-
-        with pytest.warns(DeprecationWarning, match="_sort_files is soft-deprecated"):
-            _sort_files(["b.md", "a.md", "index.md"])
 
 
 class TestReadmeIndexConflict:

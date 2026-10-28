@@ -484,6 +484,19 @@ class Post(Page):
             # posts must be loaded prior to constructing the navigation in
             # `on_files` but the meta plugin first runs in `on_page_markdown`.
             plugin: MetaPlugin = config.plugins.get("material/meta")
+            if plugin is None:
+                # The entry-point name is not guaranteed: a renamed, forked,
+                # or explicitly namespaced registration of the same plugin
+                # would miss the lookup above and .meta.yml files would be
+                # silently ignored for posts (surfacing later as confusing
+                # "expected created date" errors). Fall back to the class.
+                plugin = next(
+                    (
+                        p for p in config.plugins.values()
+                        if isinstance(p, MetaPlugin)
+                    ),
+                    None,
+                )
             if plugin:
                 # `on_page_markdown` returns None to mean "keep the original
                 # markdown" (see the plugin event contract in plugin_base.py),
@@ -743,7 +756,7 @@ def _patch(config: DocsForgeConfig):
 # -----------------------------------------------------------------------------
 
 # Set up logging
-log = logging.getLogger("mkdocs.material.blog")
+log = logging.getLogger("docsforge.blog")
 
 
 
@@ -1596,14 +1609,18 @@ class BlogPlugin(BasePlugin[BlogConfig]):
             # Temporarily remove view from navigation
             file.inclusion = InclusionLevel.EXCLUDED
 
-            # Create page, if it does not exist
-            if not isinstance(file.page, View):
-                view.__class__(None, file, config)
+            # Create page, if it does not exist - the constructed page must
+            # be kept and used. Relying on Page.__init__ setting `file.page`
+            # as a side effect left the local name unbound, so every paginated
+            # page silently had `name=None`.
+            page = file.page
+            if not isinstance(page, View):
+                page = view.__class__(view.name, file, config)
 
             # Assign posts to page and add to pagination list
-            assert isinstance(file.page, View)
-            file.page.posts = view.posts
-            pages.append(file.page)
+            assert isinstance(page, View)
+            page.posts = view.posts
+            pages.append(page)
 
         # Share the final, stable pages list with every paginated page
         for page in pages:

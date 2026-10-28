@@ -13,6 +13,9 @@ const VIEW_ID = 'docsforge.output';
 
 /** Max lines kept in the view's scrollback buffer. */
 const MAX_LINES = 5000;
+/** The webview trims down to this many lines once it passes MAX_LINES, so
+ *  removals happen per chunk rather than on every arriving line. */
+const TRIM_TO_LINES = 4000;
 
 export class DocsForgeLogPanel implements vscode.WebviewViewProvider {
   private static singleton: DocsForgeLogPanel | undefined;
@@ -103,25 +106,48 @@ export class DocsForgeLogPanel implements vscode.WebviewViewProvider {
          background: var(--vscode-editor-background);
          color: var(--vscode-editor-foreground); }
   #log { padding: 8px 12px; white-space: pre-wrap; word-break: break-word; }
+  #log > div { white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <pre id="log"></pre>
 <script nonce="${nonce}">
+  const MAX_LINES = ${MAX_LINES};
+  // Trim well below the cap so removals happen in batches (per chunk node),
+  // not once per arriving line.
+  const TRIM_TO = ${TRIM_TO_LINES};
   const log = document.getElementById('log');
   const vscode = acquireVsCodeApi();
+  let lineCount = 0;
   function scrollToBottom() { window.scrollTo(0, document.body.scrollHeight); }
+  function addChunk(text, count) {
+    const node = document.createElement('div');
+    node.dataset.lines = String(count);
+    node.textContent = text;
+    log.appendChild(node);
+    lineCount += count;
+  }
+  // The renderer must not grow forever: an all-day serve session would
+  // otherwise accumulate every line ever printed. Drop the oldest chunk nodes
+  // once the buffer passes the cap, keeping at least TRIM_TO lines.
+  function trim() {
+    while (lineCount > TRIM_TO && log.firstChild) {
+      lineCount -= Number(log.firstChild.dataset.lines || 0);
+      log.removeChild(log.firstChild);
+    }
+  }
   window.addEventListener('message', (event) => {
     const msg = event.data;
     if (msg.type === 'append') {
-      // Replay ends with a newline now; guard the join so the first chunk
-      // after a replay never glues onto the last buffered line.
-      if (log.textContent.length && !log.textContent.endsWith('\\n')) log.textContent += '\\n';
-      log.textContent += msg.lines.join('\\n') + '\\n';
+      addChunk(msg.lines.join('\\n') + '\\n', msg.lines.length);
+      if (lineCount > MAX_LINES) trim();
     } else if (msg.type === 'replace') {
-      log.textContent = msg.lines.length ? msg.lines.join('\\n') + '\\n' : '';
+      while (log.firstChild) log.removeChild(log.firstChild);
+      lineCount = 0;
+      if (msg.lines.length) addChunk(msg.lines.join('\\n') + '\\n', msg.lines.length);
     } else if (msg.type === 'clear') {
-      log.textContent = '';
+      while (log.firstChild) log.removeChild(log.firstChild);
+      lineCount = 0;
     }
     scrollToBottom();
   });

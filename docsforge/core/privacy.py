@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import contextlib
 import errno
-import ipaddress
 import logging
 import os
 import posixpath
 import re
-import socket
 import threading
-import time
 from concurrent.futures import Future, wait
 from concurrent.futures.thread import ThreadPoolExecutor
 from fnmatch import fnmatch
@@ -19,7 +16,7 @@ from hashlib import sha1
 from html.parser import HTMLParser
 from re import Match
 from urllib.parse import ParseResult as URL
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import unquote, urlparse
 from xml.etree.ElementTree import Element, tostring
 
 import requests
@@ -38,6 +35,16 @@ from docsforge.config_options import (
 )
 from docsforge.core.plugin_base import BasePlugin, event_priority
 from docsforge.exceptions import PluginError
+from docsforge.fetch import (
+    DEADLINE,
+    DOWNGRADE,
+    INTERNAL,
+    REDIRECTS,
+    SCHEME,
+    SIZE,
+    FetchError,
+    fetch_bytes,
+)
 from docsforge.files import File, Files
 
 # ---------------------------------------------------------------------------
@@ -49,50 +56,59 @@ MAX_DOWNLOAD_SIZE = 16 * 1024 * 1024  # 16 MiB
 # Hard cap on total time spent streaming one asset, so a slow-drip server
 # cannot stall the build indefinitely (the per-socket timeout alone does not
 # bound the overall transfer).
-MAX_DOWNLOAD_TIME = 30
+#
+# Kept deliberately tight: assets are pre-warmed in the download pool from
+# `on_files`, but a page whose asset missed that pass is fetched synchronously
+# from `_parse_html`, which runs while the caller holds the page render lock
+# (`page_content` / `post_page` events in build.py) - every second spent here
+# stalls the whole thread pool, so the ceiling stays at one-shot scale rather
+# than a leisurely bulk-download budget. Worst case per asset is therefore
+# ~MAX_DOWNLOAD_TIME + DEFAULT_TIMEOUT_IN_SECS (~15s: the deadline is checked
+# between chunks, and one blocking read may take a full socket timeout).
+MAX_DOWNLOAD_TIME = 10
 # Maximum number of redirects followed for a single external asset.
 MAX_REDIRECTS = 5
 
 
-def _is_internal_host(hostname: str | None) -> bool:
-    """True when *hostname* resolves to a non-public address.
+# A single HTML start tag.
+#
+# `[^>]*` (the previous shape) is not safe for this job: it lets a match run
+# across a following tag whose own `>` is missing from the matched span, so two
+# adjacent tags collapse into one match and the trailing one is rewritten away
+# (`<img ...><script ...>`). Attribute values may legitimately contain `>`
+# (`alt="a>b"`), so the attribute part is spelled out: name, then an optional
+# `= value` where `=` may be surrounded by spaces (`src = "..."`). A tag that
+# is still unterminated when the page ends simply does not match.
+_REWRITE_TAG_RE = re.compile(
+    r"""<(?P<tag>img|script|a|link|image)(?=[\s/>])"""
+    r"""(?:\s+[^\s=/><\"']+(?:\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]*))?)*\s*/?>""",
+    re.IGNORECASE,
+)
 
-    The privacy plugin downloads whatever URL a page points at, and page
-    content is author-controlled. Without this check an `<img>` pointing at
-    `http://127.0.0.1:port/…`, an RFC1918 host, or the cloud metadata address
-    (169.254.169.254) is fetched on the build machine and the response is
-    copied into the published site - so a docs PR could read build-host
-    services and publish the result.
+# Whether a tag's href/src names a remote resource. "//" (protocol-relative)
+# and "http(s)://" are the only shapes that can be external, so everything else
+# is left byte-identical instead of being re-serialized by the parser.
+_EXTERNAL_ATTR_RE = re.compile(
+    r"""\s(?:href|src)\s*=\s*[\"']?(?:https?:)?//""", re.IGNORECASE
+)
 
-    Every resolved address is checked, not just the first: a host with both a
-    public and a private A record must still be rejected.
-    """
-    if not hostname:
-        return True
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except (socket.gaierror, UnicodeError):
-        # Unresolvable: let the request fail on its own terms rather than
-        # reporting a misleading "internal host" error.
-        return False
-    for info in infos:
-        address = info[4][0]
-        try:
-            ip = ipaddress.ip_address(address)
-        except ValueError:
-            continue
-        if ip.version == 6 and ip.ipv4_mapped:
-            ip = ip.ipv4_mapped
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-            or ip.is_unspecified
-        ):
-            return True
-    return False
+
+def _fetch_warning(error: FetchError, url: str) -> str:
+    """Phrase one refusal from the shared guarded fetch for the build log."""
+    if error.kind == SCHEME:
+        return f"Unsupported URL scheme for external file: {url}"
+    if error.kind == INTERNAL:
+        return f"Refusing to download internal/loopback address: {url}"
+    if error.kind == DOWNGRADE:
+        return f"Redirect downgraded https to http, blocked: {error}"
+    if error.kind == REDIRECTS:
+        return f"Too many redirects retrieving {url}"
+    if error.kind == SIZE:
+        return f"External file too large: {url}"
+    if error.kind == DEADLINE:
+        return f"Download timed out: {url}"
+    return str(error)
+
 
 # Expected file extensions
 extensions = {
@@ -124,14 +140,22 @@ class FragmentParser(HTMLParser):
     Previously used lxml for fault-tolerant HTML5 parsing, but it adds 20 MB
     to Docker images. The built-in XML parser doesn't handle HTML5, so we use
     a streaming parser and construct the element ourselves.
+
+    A fragment may hold more than one element (defensive: the caller feeds one
+    tag at a time). Every element is collected, so a rewrite can re-emit all of
+    them instead of silently keeping only the last one.
     """
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.result = None
+        self.fragments: list[Element] = []
 
     def handle_starttag(self, tag, attrs):
-        self.result = Element(tag, dict(attrs))
+        el = Element(tag, dict(attrs))
+        self.fragments.append(el)
+        if self.result is None:
+            self.result = el
 
 # ---------------------------------------------------------------------------
 # Privacy Configuration
@@ -387,12 +411,14 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
         if not self.config.assets:
             return
 
-        for match in re.findall(
-            r"<img[^>]+src=['\"]?(?:https?:)?//[^>]+>",
-            html, flags=re.IGNORECASE | re.MULTILINE
-        ):
-            el = self._parse_fragment(match)
-            url = urlparse(el.get("src"))
+        for match in _REWRITE_TAG_RE.finditer(html):
+            if match.group("tag").lower() != "img":
+                continue
+            el = self._parse_fragment(match.group())
+            src = el.get("src") if el is not None else None
+            if not src:
+                continue
+            url = urlparse(src)
             if not self._is_excluded(url, page.file):
                 self._queue(url, config, concurrent=True)
 
@@ -550,17 +576,25 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
     # -----------------------------------------------------------------------
 
     def _parse_fragment(self, fragment: str):
+        """Parse one HTML tag into an Element, or None if it cannot be parsed.
+
+        Author HTML is not always well-formed. A fragment this parser cannot
+        make sense of is left untouched by the caller - the plugin's job is to
+        fetch assets, not to reject a page because of its markup.
+        """
         parser = FragmentParser()
-        parser.feed(fragment)
-        parser.close()
+        try:
+            parser.feed(fragment)
+            parser.close()
+        except Exception as e:  # html.parser raises on malformed declarations
+            log.debug(f"Couldn't parse HTML fragment ({e}): {fragment}")
+            return None
 
         if isinstance(parser.result, Element):
             return parser.result
 
-        raise PluginError(
-            "Couldn't parse due to possible syntax error in HTML: \n\n"
-            + fragment
-        )
+        log.debug(f"Couldn't parse HTML fragment: {fragment}")
+        return None
 
     def _parse_media(self, initiator: File) -> list[URL]:
         _, extension = posixpath.splitext(initiator.dest_uri)
@@ -588,10 +622,11 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                 return posixpath.join(base.path, file.url)
             return file.url_relative_to(initiator)
 
-        def replace(match: Match):
-            el = self._parse_fragment(match.group())
+        def rewrite(el: Element) -> str:
+            """Rewrite a single parsed tag, returning its replacement HTML."""
+            tag = el.tag.lower()
 
-            if self.config.links and el.tag == "a":
+            if self.config.links and tag == "a":
                 for key, value in self.config.links_attr_map.items():
                     el.set(key, value)
 
@@ -601,46 +636,64 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
                         rel.append("noopener")
                     el.set("rel", " ".join(rel))
 
-            if el.tag == "link":
-                url = urlparse(el.get("href"))
+            if tag in ("link", "image", "script", "img"):
+                attribute = "href" if tag in ("link", "image") else "src"
+                url = urlparse(el.get(attribute))
                 if not self._is_excluded(url, initiator):
-                    rel = el.get("rel", "")
-                    if rel == "preconnect":
-                        return ""
-                    if rel in ("icon", "preload", "stylesheet"):
-                        file = self._queue(url, config)
-                        if file:
-                            el.set("href", resolve(file))
-
-            if el.tag in {"script", "img"}:
-                url = urlparse(el.get("src"))
-                if not self._is_excluded(url, initiator):
+                    if tag == "link":
+                        rel = el.get("rel", "")
+                        if rel == "preconnect":
+                            # A preconnect only warms a remote origin; with the
+                            # asset vendored locally it has no purpose left.
+                            return ""
+                        if rel not in ("icon", "preload", "stylesheet"):
+                            return self._print(el)
                     file = self._queue(url, config)
                     if file:
-                        el.set("src", resolve(file))
-
-            if el.tag == "image":
-                url = urlparse(el.get("href"))
-                if not self._is_excluded(url, initiator):
-                    file = self._queue(url, config)
-                    if file:
-                        el.set("href", resolve(file))
+                        el.set(attribute, resolve(file))
 
             return self._print(el)
 
-        return re.sub(
-            r"<(?:(?:a|link|image)[^>]+href|(?:script|img)[^>]+src)=['\"]?(?:https?:)?//[^>]+>",
-            replace, output, flags=re.IGNORECASE | re.MULTILINE
-        )
+        def replace(match: Match) -> str:
+            tag = match.group()
+            # Cheap pre-filter: only a tag whose href/src names a remote
+            # resource can be external. Local tags keep their exact source
+            # text, so nothing is re-serialized (and no entity re-escaped) for
+            # the overwhelming majority of tags on a page.
+            if not _EXTERNAL_ATTR_RE.search(tag):
+                return tag
 
-    def _print(self, el: Element):
+            parser = FragmentParser()
+            try:
+                parser.feed(tag)
+                parser.close()
+            except Exception as e:  # html.parser raises on malformed markup
+                log.debug(f"Couldn't parse HTML tag ({e}): {tag}")
+                return tag
+            if not parser.fragments:
+                return tag
+
+            # Re-emit every element the fragment yielded. Emitting only the
+            # last one is how an <img> next to a <script> used to vanish from
+            # the built page.
+            return "".join(filter(None, (rewrite(el) for el in parser.fragments)))
+
+        # One tag per match: the pattern is bounded by a single tag's own
+        # attribute list, so it cannot run into the next tag.
+        return _REWRITE_TAG_RE.sub(replace, output)
+
+    def _print(self, *elements: Element) -> str:
+        """Serialize parsed elements back to HTML, in order."""
         temp = "__temp__"
-        for name in el.attrib:
-            if not isinstance(el.attrib[name], str):
-                el.attrib[name] = temp
+        parts = []
+        for el in elements:
+            for name in el.attrib:
+                if not isinstance(el.attrib[name], str):
+                    el.attrib[name] = temp
 
-        data = tostring(el, encoding="unicode")
-        return data.replace(" />", ">").replace(f'="{temp}"', "")
+            data = tostring(el, encoding="unicode")
+            parts.append(data.replace(" />", ">").replace(f'="{temp}"', ""))
+        return "".join(parts)
 
     # -----------------------------------------------------------------------
     # Queue / fetch / patch helpers
@@ -732,123 +785,28 @@ class PrivacyPlugin(BasePlugin[PrivacyConfig]):
             if file.url.startswith("//"):
                 file.url = f"http:{file.url}"
 
-            parsed = urlparse(file.url)
-            if parsed.scheme not in ("http", "https"):
-                log.warning(f"Unsupported URL scheme for external file: {file.url}")
-                return False
-            if _is_internal_host(parsed.hostname):
-                log.warning(
-                    f"Refusing to download internal/loopback address: {file.url}"
-                )
-                return False
-
             log.info(f"Downloading external file: {file.url}")
-            res = None
+            headers: dict[str, str] = {}
             try:
-                # Validate redirects manually so a https:// asset can never be
-                # silently downgraded to http://, and so a redirect cannot
-                # escape to an unsupported scheme.
-                current_url = file.url
-                for _ in range(MAX_REDIRECTS + 1):
-                    res = requests.get(
-                        current_url,
-                        headers={
-                            "User-Agent": " ".join([
-                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                                "AppleWebKit/537.36 (KHTML, like Gecko)",
-                                "Chrome/98.0.4758.102 Safari/537.36",
-                            ])
-                        },
-                        timeout=(DEFAULT_TIMEOUT_IN_SECS, DEFAULT_TIMEOUT_IN_SECS),
-                        stream=True,
-                        allow_redirects=False,
-                    )
-                    if res.is_redirect or res.is_permanent_redirect:
-                        location = res.headers.get("location", "")
-                        res.close()
-                        res = None
-                        next_url = urljoin(current_url, location)
-                        parsed_next = urlparse(next_url)
-                        if parsed_next.scheme not in ("http", "https"):
-                            log.warning(f"Redirect to unsupported scheme blocked: {file.url} -> {next_url}")
-                            return False
-                        if urlparse(current_url).scheme == "https" and parsed_next.scheme == "http":
-                            log.warning(f"Redirect downgraded https to http, blocked: {file.url} -> {next_url}")
-                            return False
-                        # Re-check every hop: a public host is free to redirect
-                        # to a loopback or metadata address.
-                        if _is_internal_host(parsed_next.hostname):
-                            log.warning(
-                                f"Redirect to internal address blocked: {file.url} -> {next_url}"
-                            )
-                            return False
-                        current_url = next_url
-                        continue
-                    break
-                else:
-                    log.warning(f"Too many redirects retrieving {file.url}")
-                    return False
-            except Exception as error:
-                if res is not None:
-                    with contextlib.suppress(Exception):
-                        res.close()
-                log.warning(f"Couldn't retrieve {file.url}: {error}")
+                # The guarded fetch validates this URL and every redirect hop
+                # (plain http(s), no private/loopback/metadata address, no
+                # https -> http downgrade) and bounds the transfer in size and
+                # time. `requests` has the same surface as a Session here, so
+                # the module-level `get` stays mockable.
+                content = fetch_bytes(
+                    file.url,
+                    timeout=DEFAULT_TIMEOUT_IN_SECS,
+                    deadline=MAX_DOWNLOAD_TIME,
+                    max_bytes=MAX_DOWNLOAD_SIZE,
+                    max_redirects=MAX_REDIRECTS,
+                    session=requests,
+                    response_headers=headers,
+                )
+            except FetchError as error:
+                log.warning(_fetch_warning(error, file.url))
                 return False
 
-            try:
-                res.raise_for_status()
-            except Exception as error:
-                with contextlib.suppress(Exception):
-                    res.close()
-                log.warning(f"Couldn't retrieve {file.url}: {error}")
-                return False
-
-            # Validate the final URL after any redirects resolved.
-            parsed_final = urlparse(res.url) if hasattr(res, "url") else urlparse(current_url)
-            if parsed_final.scheme not in ("http", "https"):
-                with contextlib.suppress(Exception):
-                    res.close()
-                log.warning(f"Unsupported URL scheme for external file: {file.url}")
-                return False
-
-            # Enforce a response size cap while streaming, plus a hard overall
-            # deadline so a slow-drip server cannot stall the build forever.
-            content_length = res.headers.get("content-length")
-            if content_length:
-                try:
-                    if int(str(content_length).strip()) > MAX_DOWNLOAD_SIZE:
-                        with contextlib.suppress(Exception):
-                            res.close()
-                        log.warning(f"External file too large: {file.url}")
-                        return False
-                except ValueError:
-                    # Ignore malformed content-length; the streaming cap below
-                    # still bounds the download.
-                    pass
-
-            chunks: list[bytes] = []
-            total_size = 0
-            download_deadline = time.monotonic() + MAX_DOWNLOAD_TIME
-            try:
-                for chunk in res.iter_content(chunk_size=8192):
-                    if not chunk:
-                        continue
-                    chunks.append(chunk)
-                    total_size += len(chunk)
-                    if total_size > MAX_DOWNLOAD_SIZE:
-                        log.warning(f"External file too large: {file.url}")
-                        return False
-                    if time.monotonic() > download_deadline:
-                        log.warning(f"Download timed out: {file.url}")
-                        return False
-            finally:
-                # Always release the connection back to the pool, including
-                # on the early-return paths above. iter_content() consumed
-                # the stream, so res.content is unavailable here.
-                res.close()
-            content = b"".join(chunks)
-
-            mime = res.headers.get("content-type", "").split(";")[0]
+            mime = headers.get("content-type", "").split(";")[0]
             extension = extensions.get(mime)
 
             # Save with content-based hash for cache busting

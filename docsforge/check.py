@@ -269,21 +269,21 @@ def check(config_file=None, strict=None, theme=None, use_directory_urls=None, *,
 
     if plugins:
         print(f"  Plugins:       {len(plugins)} configured")
+        # A dict item may group several plugins (`- {search: {...}, tags: {...}}`);
+        # expand it so every declared plugin is checked, not just the first.
+        declared: list[tuple[str, object]] = []
         for plugin in plugins:
             if isinstance(plugin, str):
-                name = plugin
+                declared.append((plugin, None))
             elif isinstance(plugin, dict):
-                name = next(iter(plugin.keys()))
-            else:
+                declared.extend(plugin.items())
+
+        for name, options in declared:
+            if not isinstance(name, str):
                 continue
 
             clean_name = name.split("/")[-1] if "/" in name else name
             if clean_name in BUILTIN_PLUGINS or name in BUILTIN_PLUGINS:
-                options = (
-                    next(iter(plugin.values()))
-                    if isinstance(plugin, dict)
-                    else None
-                )
                 disabled = isinstance(options, dict) and options.get("enabled") is False
                 if disabled:
                     click.secho(f"                   ✗ {name} (disabled)", fg="yellow")

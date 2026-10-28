@@ -405,3 +405,141 @@ class TestDisabledCreatesNothing:
 
         assert not (docs / "blog").exists()
         assert list(files) == []
+
+
+class _Cfg(dict):
+    """Minimal stand-in for DocsForgeConfig: dict lookups plus attribute reads.
+
+    `Page.__init__` calls `config.get(...)` while the blog plugin reads
+    `config.docs_dir`-style attributes, so both access styles are needed.
+    """
+
+    def __getattr__(self, item):
+        try:
+            return self[item]
+        except KeyError as e:
+            raise AttributeError(item) from e
+
+
+class TestPaginationUsesConstructedPage:
+    """`_generate_pages` must use the page it constructs.
+
+    It used to call `view.__class__(...)` and throw the result away, relying on
+    `Page.__init__` writing `file.page` as a side effect. The local name stayed
+    unbound (so every paginated page silently had `name=None`), and the code
+    read `file.page` back through a different path than the one it built.
+    """
+
+    @pytest.fixture()
+    def plugin(self, tmp_path):
+        from docsforge.core.blog import BlogPlugin
+
+        p = BlogPlugin()
+        p.load_config({})
+        return p
+
+    def _make_view(self, plugin, tmp_path, posts: int, step: int = 2):
+        from types import SimpleNamespace
+
+        from docsforge.core.blog import Archive
+        from docsforge.files import File, Files
+
+        docs = tmp_path / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        blog_dir = docs / "blog"
+        blog_dir.mkdir(exist_ok=True)
+        src = blog_dir / "archive.md"
+        src.write_text("---\ntemplate: blog.html\n---\n\n# Archive\n")
+
+        file = File("blog/archive.md", str(docs), str(tmp_path / "site"), True)
+        config = _Cfg(
+            site_url="https://example.com/",
+            docs_dir=str(docs),
+            site_dir=str(tmp_path / "site"),
+            use_directory_urls=True,
+        )
+        view = Archive("2024", file, config)
+        view.posts = [SimpleNamespace() for _ in range(posts)]
+        plugin.config["pagination_per_page"] = step
+        return view, config, Files([file])
+
+    def test_paginated_page_is_used_and_named(self, plugin, tmp_path):
+        view, config, files = self._make_view(plugin, tmp_path, posts=5)
+        pages = list(plugin._generate_pages(view, config, files))
+
+        # 5 posts / 2 per page -> first page + 2 paginated pages
+        assert len(pages) == 3
+        # Every page keeps the view's name instead of None.
+        assert [p.name for p in pages] == ["2024", "2024", "2024"]
+        # Every page is the object registered on its file (nothing discarded).
+        for page in pages:
+            assert page.file.page is page
+        # The shared pagination list is attached to all of them (compared by
+        # content: `pages` above is a fresh list built from the generator).
+        assert all(p.pages == pages for p in pages)
+
+    def test_single_post_yields_no_extra_pages(self, plugin, tmp_path):
+        view, config, files = self._make_view(plugin, tmp_path, posts=1)
+        pages = list(plugin._generate_pages(view, config, files))
+        assert pages == [view]
+
+
+class TestMetaPluginLookupFallback:
+    """The meta plugin may not be registered under `material/meta`."""
+
+    def _post(self, tmp_path, plugins):
+        """Build a Post whose config carries an arbitrary plugin collection."""
+        from docsforge.core.blog import Post
+        from docsforge.files import File
+
+        docs = tmp_path / "docs" / "blog" / "posts"
+        docs.mkdir(parents=True, exist_ok=True)
+        src = docs / "2024-01-01-p.md"
+        src.write_text("---\ndate: 2024-01-01\n---\n# Post\n\nBody\n")
+
+        file = File(
+            "blog/posts/2024-01-01-p.md",
+            str(tmp_path / "docs"),
+            str(tmp_path / "site"),
+            True,
+        )
+        config = _Cfg(
+            docs_dir=str(tmp_path / "docs"),
+            site_dir=str(tmp_path / "site"),
+            site_url="https://example.com/",
+            use_directory_urls=True,
+            plugins=plugins,
+        )
+        return Post(file, config)
+
+    def test_meta_plugin_found_by_class_when_name_differs(self, tmp_path):
+        from docsforge.core.meta import MetaPlugin
+
+        class FakePlugins(dict):
+            """A collection that never answers the hard-coded entry-point name."""
+
+            def get(self, key, default=None):
+                return None
+
+        meta = MetaPlugin()
+        meta.load_config({"enabled": True})
+        seen = {}
+
+        def on_page_markdown(markdown, *, page, config, files):
+            seen["markdown"] = markdown
+            return markdown + "\n\nfrom meta\n"
+
+        meta.on_page_markdown = on_page_markdown
+        plugins = FakePlugins({"something/else": meta})
+
+        post = self._post(tmp_path, plugins)
+        assert "from meta" in post.markdown
+        assert seen, "meta plugin was never consulted"
+
+    def test_no_meta_plugin_is_harmless(self, tmp_path):
+        class FakePlugins(dict):
+            def get(self, key, default=None):
+                return None
+
+        post = self._post(tmp_path, FakePlugins({"other": object()}))
+        assert "Body" in post.markdown

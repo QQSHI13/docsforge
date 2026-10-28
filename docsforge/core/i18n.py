@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from docsforge.config_base import Config
-from docsforge.config_options import ListOfItems, Optional, SubConfig, Type, ValidationError
+from docsforge.config_options import Deprecated, ListOfItems, Optional, SubConfig, Type, ValidationError
 from docsforge.core.plugin_base import BasePlugin
 from docsforge.files import File, Files, InclusionLevel
 from docsforge.nav import Navigation
@@ -56,8 +56,18 @@ class I18nConfig(Config):
     languages = ListOfItems(SubConfig(I18nLanguageConfig), default=[])
     """List of configured languages. When empty, the plugin does nothing."""
 
-    fallback_to_default = Type(bool, default=True)
-    """Legacy option; the new locale-agnostic architecture never creates fallback pages."""
+    # Accepted for backward compatibility, but never read: the
+    # locale-agnostic architecture emits sibling files per locale instead of
+    # generating fallback pages, so there is nothing for the flag to switch
+    # on. It is declared as deprecated rather than dropped outright so an
+    # existing config keeps loading (an unknown key is a validation error)
+    # and the author is told the setting does nothing.
+    fallback_to_default = Deprecated(
+        message=(
+            "The configuration option '{}' is ignored: DocsForge only builds "
+            "translations that exist and generates no fallback pages."
+        )
+    )
 
 
 class I18nPlugin(BasePlugin[I18nConfig]):

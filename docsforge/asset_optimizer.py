@@ -9,7 +9,10 @@ from urllib.parse import urlsplit
 
 log = logging.getLogger(__name__)
 
-_OPTIMIZER_STATE_VERSION = 1
+# Bumped whenever the cached entry shape changes. v2: mtimes are stored as
+# st_mtime_ns (integer nanoseconds) instead of st_mtime (float seconds, which
+# only has ~1s resolution and could consider a fast edit unchanged).
+_OPTIMIZER_STATE_VERSION = 2
 _OPTIMIZER_STATE_FILE = "asset_optimizer.json"
 
 # File extensions considered assets.
@@ -300,7 +303,7 @@ def _find_referenced_assets(
             refs = _parse_file_refs(file_path, ext, file_dir_str, site_origin)
             try:
                 st = file_path.stat()
-                new_file_state[rel_path] = {"mtime": st.st_mtime, "size": st.st_size, "refs": refs}
+                new_file_state[rel_path] = {"mtime": st.st_mtime_ns, "size": st.st_size, "refs": refs}
             except OSError:
                 pass
 
@@ -449,7 +452,7 @@ def _file_unchanged(path: Path, entry: dict[str, Any] | None) -> bool:
         st = path.stat()
     except OSError:
         return False
-    return st.st_mtime == entry.get("mtime") and st.st_size == entry.get("size")
+    return st.st_mtime_ns == entry.get("mtime") and st.st_size == entry.get("size")
 
 
 def remove_source_maps(site_dir: str, cache_dir: Path | None = None) -> None:
@@ -513,7 +516,7 @@ def remove_source_maps(site_dir: str, cache_dir: Path | None = None) -> None:
                     js_files_modified += 1
 
             st = js_file.stat()
-            new_js_state[rel_path] = {"mtime": st.st_mtime, "size": st.st_size}
+            new_js_state[rel_path] = {"mtime": st.st_mtime_ns, "size": st.st_size}
         except Exception as e:
             log.warning(f"Could not strip source map comment from {js_file}: {e}")
 

@@ -361,3 +361,204 @@ class TestQueueRace:
         t.join(timeout=30)
         plugin._drain_jobs()
         assert len(calls) == 1
+
+
+class TestAdjacentTags:
+    """The tag pattern must never span two tags.
+
+    A greedy `[^>]*` could run across a following tag whose `>` fell outside the
+    match, so `<img ...><script ...>` collapsed into one match and only the last
+    element was re-emitted - the image silently vanished from the built page.
+    """
+
+    @pytest.fixture()
+    def plugin(self, tmp_path):
+        from types import SimpleNamespace
+
+        p = PrivacyPlugin()
+        p.load_config({"cache_dir": str(tmp_path / "cache"), "assets_fetch": False})
+        p.on_config(SimpleNamespace(site_url="https://example.com/", concurrency=1))
+        return p
+
+    @pytest.fixture()
+    def initiator(self, tmp_path):
+
+        docs = tmp_path / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        return privacy_mod.File(
+            "page.md", str(docs), str(tmp_path / "site"), True
+        )
+
+    def _cfg(self, tmp_path):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(site_url="https://example.com/", site_dir=str(tmp_path / "site"))
+
+    def test_adjacent_img_and_script_both_survive(self, plugin, initiator, tmp_path):
+        html = "<img src=x><script src=y></script>"
+        out = plugin._parse_html(html, initiator, self._cfg(tmp_path))
+        assert "<img src=x>" in out
+        assert "<script src=y>" in out
+
+    def test_adjacent_external_img_and_script_both_survive(
+        self, plugin, initiator, tmp_path
+    ):
+        html = (
+            '<img src="https://cdn.example/x.png">'
+            '<script src="https://cdn.example/y.js"></script>'
+        )
+        out = plugin._parse_html(html, initiator, self._cfg(tmp_path))
+        # The image must not be swallowed by the script's match.
+        assert out.count("<img") == 1
+        assert out.count("<script") == 1
+
+    def test_script_replaced_per_config_when_adjacent(self, plugin, initiator, tmp_path):
+        """The script half is still rewritten (excluded here: assets_fetch off
+        means it is left remote), and the image stays put."""
+        html = (
+            '<img src="https://cdn.example/x.png" alt="pic">'
+            '<script src="https://cdn.example/y.js"></script>'
+        )
+        out = plugin._parse_html(html, initiator, self._cfg(tmp_path))
+        assert 'alt="pic"' in out
+        assert "<img" in out and "pic" in out
+
+    def test_malformed_fragment_does_not_kill_the_build(self, plugin, initiator, tmp_path):
+        # A `>` inside an unquoted attribute value used to make the greedy
+        # pattern cut the tag in half; feeding the halves to the parser raised
+        # PluginError and aborted the build.
+        html = '<img src="https://cdn.example/x.png" alt="a>b">'
+        out = plugin._parse_html(html, initiator, self._cfg(tmp_path))
+        assert "cdn.example/x.png" in out
+
+    def test_fragment_starting_mid_tag_is_ignored(self, plugin):
+        assert plugin._parse_fragment('src="https://x">') is None
+
+
+class TestSpacedAttributes:
+    """`src = "..."` (spaces around `=`) must be recognised, or the image is
+    never fetched and the plugin's whole purpose is defeated for it."""
+
+    @pytest.fixture()
+    def plugin(self, tmp_path):
+        from types import SimpleNamespace
+
+        p = PrivacyPlugin()
+        p.load_config({"cache_dir": str(tmp_path / "cache"), "assets_fetch": True})
+        p.on_config(SimpleNamespace(site_url="https://example.com/", concurrency=1))
+        return p
+
+    @pytest.mark.parametrize(
+        "html",
+        [
+            '<img src = "https://cdn.example/x.png">',
+            "<img src = 'https://cdn.example/x.png'>",
+            '<img src= "https://cdn.example/x.png">',
+            '<img src ="https://cdn.example/x.png">',
+            '<img src = "//cdn.example/x.png">',
+        ],
+    )
+    def test_spaced_src_is_queued(self, plugin, tmp_path, monkeypatch, html):
+        queued = []
+
+        def fake_queue(url, config, concurrent=False):
+            queued.append(url.geturl())
+
+        monkeypatch.setattr(plugin, "_queue", fake_queue)
+        from types import SimpleNamespace
+
+        docs = tmp_path / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        initiator = privacy_mod.File("page.md", str(docs), str(tmp_path / "site"), True)
+        cfg = SimpleNamespace(site_url="https://example.com/", site_dir=str(tmp_path / "site"))
+
+        plugin._parse_html(html, initiator, cfg)
+        assert queued, f"spaced attribute was not matched: {html}"
+
+    def test_unspaced_still_queued(self, plugin, tmp_path, monkeypatch):
+        """Sanity check that loosening the pattern did not break the normal form."""
+        queued = []
+        monkeypatch.setattr(
+            plugin, "_queue", lambda url, config, concurrent=False: queued.append(url.geturl())
+        )
+        from types import SimpleNamespace
+
+        docs = tmp_path / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        initiator = privacy_mod.File("page.md", str(docs), str(tmp_path / "site"), True)
+        cfg = SimpleNamespace(site_url="https://example.com/", site_dir=str(tmp_path / "site"))
+        plugin._parse_html(
+            '<img src="https://cdn.example/x.png">', initiator, cfg
+        )
+        assert queued == ["https://cdn.example/x.png"]
+
+
+class TestFragmentParserCollectsAll:
+    def test_multiple_elements_are_all_kept(self):
+        from docsforge.core.privacy import FragmentParser
+
+        p = FragmentParser()
+        p.feed("<img src=a><script src=b>")
+        assert [el.tag for el in p.fragments] == ["img", "script"]
+        assert p.result.tag == "img"
+
+    def test_print_emits_every_element(self):
+        plugin = PrivacyPlugin()
+        from xml.etree.ElementTree import Element
+
+        out = plugin._print(Element("img", {"src": "a"}), Element("script", {"src": "b"}))
+        assert "<img" in out and "<script" in out
+
+
+class TestBothAdjacentTagsRewritten:
+    """End-to-end version of the adjacency check: both external tags are
+    rewritten to local URLs, so neither one is dropped from the page."""
+
+    @pytest.fixture()
+    def plugin(self, tmp_path):
+        from types import SimpleNamespace
+
+        p = PrivacyPlugin()
+        p.load_config({"cache_dir": str(tmp_path / "cache"), "assets_fetch": True})
+        p.on_config(SimpleNamespace(site_url="https://example.com/", concurrency=1))
+        return p
+
+    def test_img_and_script_both_get_local_urls(self, plugin, tmp_path, monkeypatch):
+        from types import SimpleNamespace
+
+        docs = tmp_path / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        initiator = privacy_mod.File("page.md", str(docs), str(tmp_path / "site"), True)
+        cfg = SimpleNamespace(site_url="https://example.com/", site_dir=str(tmp_path / "site"))
+
+        def fake_queue(url, config, concurrent=False):
+            name = url.path.rsplit("/", 1)[-1]
+            file = privacy_mod.File(
+                f"assets/external/{name}", str(docs), str(tmp_path / "site"), True
+            )
+            file.url = f"assets/external/{name}"
+            return file
+
+        monkeypatch.setattr(plugin, "_queue", fake_queue)
+
+        html = (
+            '<img src="https://cdn.example/x.png">'
+            '<script src="https://cdn.example/y.js"></script>'
+        )
+        out = plugin._parse_html(html, initiator, cfg)
+
+        assert out.count("<img") == 1, out
+        assert out.count("<script") == 1, out
+        assert "assets/external/x.png" in out
+        assert "assets/external/y.js" in out
+        # Both remote URLs are gone from the output.
+        assert "cdn.example" not in out
+
+
+class TestDownloadTimeCap:
+    """The synchronous fetch path runs under the page render lock, so the
+    per-asset ceiling must stay small enough not to stall the thread pool."""
+
+    def test_download_ceiling_is_bounded(self):
+        assert privacy_mod.MAX_DOWNLOAD_TIME <= 10
+        assert privacy_mod.DEFAULT_TIMEOUT_IN_SECS <= 10

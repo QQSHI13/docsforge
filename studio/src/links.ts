@@ -10,9 +10,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+/** Canonical docs-relative path: forward slashes only, and collapse any
+ *  doubled separator a user may have typed. Link targets and srcUris travel
+ *  through many code paths; normalizing once at the boundary keeps the
+ *  posix path math from silently missing Windows-style `guide\\foo.md`.
+ *  A 1:1 character swap, so source offsets stay valid. */
+export function normalizeDocPath(p: string): string {
+  return p.replace(/\\/g, '/');
+}
+
 /** Absolute path of a doc uri inside the workspace docs dir. */
 export function docAbsPath(workspaceRoot: string, docsDir: string, srcUri: string): string {
-  return path.join(workspaceRoot, docsDir, ...srcUri.split('/'));
+  return path.join(workspaceRoot, docsDir, ...normalizeDocPath(srcUri).split('/'));
 }
 
 /** Contained variant: null when a validation.json key would escape the docs
@@ -29,7 +38,8 @@ export function docAbsPathSafe(
 export function resolveLinkTarget(
   docsDirAbs: string, srcUri: string, target: string,
 ): { absPath: string; srcUri: string } | null {
-  const base = path.posix.join(path.posix.dirname(srcUri), target);
+  const normalized = normalizeDocPath(target);
+  const base = path.posix.join(path.posix.dirname(srcUri), normalized);
   const norm = path.posix.normalize(base);
   if (norm.startsWith('../')) {
     return null; // escapes docs dir
@@ -55,7 +65,13 @@ export function extractLinks(source: string): Array<{ dest: string; offset: numb
   return extractLinksRaw(maskCode(source));
 }
 
-/** Raw link scan without code masking (internal; tests). */
+/** Raw link scan without code masking (internal; tests).
+ *  `offset` is the absolute index of the `(` that opens the destination, so
+ *  `offset + 1` is the destination itself — the convention every consumer
+ *  already assumes (rename edits, quick fixes, `indexOf('(', offset)`).
+ *  It used to record the match start (`[`), which left every edit computed as
+ *  `offset + 1 … offset + 1 + dest.length` straddling the link label: renames
+ *  rewrote the wrong characters. */
 export function extractLinksRaw(source: string): Array<{ dest: string; offset: number; line: number }> {
   const links: Array<{ dest: string; offset: number; line: number }> = [];
   // The destination group accepts both forms the engine renders:
@@ -81,8 +97,14 @@ export function extractLinksRaw(source: string): Array<{ dest: string; offset: n
     if (!dest) {
       continue;
     }
+    // Accept both separators: a target written `guide\foo.md` (the habit on
+    // Windows) must resolve with posix math below, otherwise every definition,
+    // hover, rename and quick fix silently misses it. The swap is 1:1, so the
+    // recorded offsets stay valid.
+    dest = normalizeDocPath(dest);
+    const openParen = m[0].indexOf('(');
     const line = source.slice(0, m.index).split('\n').length - 1;
-    links.push({ dest, offset: m.index, line });
+    links.push({ dest, offset: m.index + openParen, line });
   }
   return links;
 }
@@ -100,22 +122,77 @@ export function extractHeadings(source: string): Array<{ level: number; title: s
   return headings;
 }
 
-/** Parse docsforge.yml for the docs_dir (default 'docs'). */
+/** Extract the `docs_dir:` value from a config file's text, or null.
+ *  Handles quoted (single/double) values including spaces — the naive
+ *  `["']?([^"'\s#]+)` captured only `my` from `docs_dir: "my docs"` — plus
+ *  unquoted values and trailing `#` comments. */
+export function parseDocsDir(configText: string): string | null {
+  const m = configText.match(
+    /^[ \t]*docs_dir[ \t]*:[ \t]*(?:"([^"\n]*)"|'([^'\n]*)'|([^#\n]*))/m,
+  );
+  if (!m) {
+    return null;
+  }
+  const raw = (m[1] ?? m[2] ?? m[3] ?? '').trim();
+  if (!raw) {
+    return null;
+  }
+  // A path, not a YAML scalar: reject anything that would escape the
+  // workspace or that carries a nested mapping/flow value.
+  const value = normalizeDocPath(raw).replace(/^\.\//, '').replace(/\/+$/, '');
+  if (!value.startsWith('/') && value.split('/').includes('..')) {
+    return null;
+  }
+  return value;
+}
+
+/** Replace a heading line's text, keeping its level and any trailing `#`s.
+ *
+ *  Uses a replacement FUNCTION, not a string: in a string replacement `$&`
+ *  splices in the whole match, `$1` the captured hashes, and `` $` ``/`$'`
+ *  the surrounding text — so renaming a heading to something like
+ *  `A $& B` corrupted the heading instead of writing the title. A function
+ *  receives the equivalent groups as arguments and treats the title
+ *  literally. Public so the dollar-sign behaviour is unit-tested. */
+export function renameHeadingLine(
+  lineText: string, oldTitle: string, newTitle: string,
+): string {
+  const escaped = oldTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return lineText.replace(
+    new RegExp(`^(#{1,6})\\s+${escaped}\\s*#*\\s*$`),
+    (_match: string, hashes: string) => `${hashes} ${newTitle.trim()}`,
+  );
+}
+
+/** Parse docsforge.yml for the docs_dir (default 'docs').
+ *
+ *  A config that simply omits `docs_dir` is normal (the default applies) and
+ *  stays silent. A `docs_dir:` key that exists but cannot be parsed used to
+ *  capture just the first word — `docs_dir: "my docs"` became `my`, so every
+ *  later path missed and the whole extension went dead with no error. That
+ *  case now falls back to 'docs' *and* logs which file it ignored. */
 export function docsDirFromConfig(workspaceRoot: string): string {
   for (const name of ['docsforge.yml', 'docsforge.yaml']) {
     const p = path.join(workspaceRoot, name);
     if (!fs.existsSync(p)) {
       continue;
     }
+    let text: string;
     try {
-      const text = fs.readFileSync(p, 'utf-8');
-      const m = text.match(/^docs_dir\s*:\s*["']?([^"'\s#]+)/m);
-      if (m) {
-        return m[1];
-      }
+      text = fs.readFileSync(p, 'utf-8');
     } catch {
-      /* ignore */
+      continue;
     }
+    const parsed = parseDocsDir(text);
+    if (parsed) {
+      return parsed;
+    }
+    if (/^[ \t]*docs_dir[ \t]*:/m.test(text)) {
+      console.warn(
+        `[docsforge] could not parse docs_dir in ${p}; falling back to "docs".`,
+      );
+    }
+    return 'docs';
   }
   return 'docs';
 }
@@ -175,26 +252,92 @@ export function linkAtPosition(
   character: number,
 ): { dest: string; offset: number; line: number } | null {
   for (const link of links) {
+    // `offset` is the opening paren; extend the hit range back over the
+    // label so hovering/clicking `[text]` acts on the link too.
+    const label = line.lastIndexOf('[', link.offset);
+    const start = label === -1 ? link.offset : label;
     const close = line.indexOf(')', link.offset);
     const end = close === -1 ? line.length : close + 1;
-    if (character >= link.offset && character <= end) {
+    if (character >= start && character <= end) {
       return link;
     }
   }
   return null;
 }
 
-/** Slugify a heading title the way docsforge/markdown-toc does:
- *  lowercase, strip punctuation, whitespace → '-'.
- *  Unicode-aware: the engine's Python `\w` keeps CJK, so `# 你好` slugs to
- *  `你好` — an ASCII-only class would yield `''` and break anchor jumps. */
-export function slugifyHeading(title: string): string {
-  return title
+/** Load the canonical slug rules the engine wrote at build time.
+ *  Returns null when absent (pre-build workspace) so callers fall back to
+ *  FALLBACK_SLUG_RULES. Kept in the same cache dir as validation.json, which
+ *  the extension already knows how to reach. */
+function loadSlugRules(workspaceRoot: string): SlugRules | null {
+  const p = path.join(workspaceRoot, '.docsforge', 'cache', 'slug-rules.json');
+  let raw: string;
+  try {
+    raw = fs.readFileSync(p, 'utf-8');
+  } catch {
+    return null;
+  }
+  try {
+    const data = JSON.parse(raw);
+    if (typeof data.separator === 'string' && typeof data.unicode === 'boolean') {
+      return { separator: data.separator, unicode: data.unicode };
+    }
+  } catch {
+    /* fall through to null */
+  }
+  return null;
+}
+
+/** Rules describing how the engine turns a heading into an anchor id. */
+interface SlugRules {
+  separator: string;
+  unicode: boolean;
+}
+
+/** Rules matching markdown.extensions.toc.slugify in non-unicode mode (the
+ *  engine default): NFKD + ASCII-fold, then strip non-word, collapse
+ *  whitespace/underscore runs to the separator. Used when the engine-written
+ *  slug-rules.json is not present yet. */
+const FALLBACK_SLUG_RULES: SlugRules = { separator: '-', unicode: false };
+
+/** ASCII-fold the way Python's unicodedata.normalize('NFKD') +
+ *  encode('ascii','ignore') does. JS supports NFKD natively via
+ *  String.prototype.normalize, so decompose the whole string and drop any
+ *  char still non-ASCII afterward (CJK, Cyrillic, ß, 你) — exactly the
+ *  ascii/ignore fold. Chars NFKD maps to ASCII (é→e, ü→u, ideographic space
+ *  U+3000→space) survive and are then treated as word chars / whitespace by
+ *  the collapse below. */
+function asciiFold(s: string): string {
+  let out = '';
+  for (const ch of s.normalize('NFKD')) {
+    if (ch.charCodeAt(0) < 0x80) {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/** Slugify a heading title exactly as the engine does (markdown toc
+ *  slugify, non-unicode mode): optional NFKD+ASCII-fold, strip non-word,
+ *  collapse whitespace/underscore runs to the separator, trim separator.
+ *  Prefers the engine-written slug-rules.json; falls back to the compiled-in
+ *  default when not present. */
+export function slugifyHeading(title: string, rules?: SlugRules): string {
+  const r = rules ?? FALLBACK_SLUG_RULES;
+  const sep = r.separator;
+  let value = title;
+  if (!r.unicode) {
+    value = asciiFold(value);
+  }
+  // \w in the engine is Unicode-aware but after the ASCII fold only ASCII
+  // word chars remain, so [^\w\s-] reduces to stripping punctuation/spaces.
+  const esc = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value
+    .replace(/[^\w\s-]/g, '')
+    .trim()
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/[\s_]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+    .replace(new RegExp(`[${esc}\\s]+`, 'g'), sep)
+    .replace(new RegExp(`^${esc}+|${esc}+$`, 'g'), '');
 }
 
 /** Walk all .md files under docs_dir, yielding {absPath, srcUri}. */
@@ -364,23 +507,93 @@ export function computeRenameEdits(
   return edits;
 }
 
+/** Result of an anchor rename computation.
+ *  `edits` maps absPath → the anchor rewrites. `ambiguous` lists the headings
+ *  whose slug collides with another heading in the same document — in that
+ *  case the niche links cannot be attributed to one heading, so they are left
+ *  untouched and the caller can surface a warning. */
+export interface AnchorRenameResult {
+  edits: Map<string, Array<{ start: number; end: number; text: string }>>;
+  /** Headings (1-based line + title) sharing the old slug, when > 1. */
+  ambiguous: Array<{ line: number; title: string }>;
+}
+
 /**
  * Compute edits for renaming a heading anchor: rewrite every link across the
  * docs tree whose anchor slug matches oldSlug into newSlug, when the link
  * resolves to docSrcUri. Anchor-only links (`[#slug]`, same page) resolve
  * to their own file and are rewritten too.
+ *
+ * Duplicate slugs: two headings can slugify to the same value (`## Install`
+ * and `## Install!` both give `install`). Links to `#install` are then
+ * ambiguous — the target is whichever heading comes first, and a same-page
+ * link additionally depends on where it sits in the file. Renaming one of
+ * them and rewriting every `#install` link would silently repoint links that
+ * belonged to the other heading, so a colliding slug produces no edits at
+ * all; `ambiguous` carries the competing headings for the caller to report.
+ *
+ * `renamedHeadingLine` (0-based) disambiguates when the caller knows which
+ * occurrence is being renamed: only same-page links on lines after that
+ * heading and before the next heading with the same slug are rewritten, and
+ * cross-page links stay untouched because the anchor cannot target a specific
+ * occurrence from another file.
  */
 export function computeAnchorRenameEdits(
   workspaceRoot: string,
   docSrcUri: string,
   oldSlug: string,
   newSlug: string,
-): Map<string, Array<{ start: number; end: number; text: string }>> {
-  const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+  renamedHeadingLine?: number,
+): AnchorRenameResult {
   const edits = new Map<string, Array<{ start: number; end: number; text: string }>>();
-  if (!fs.existsSync(docsDirAbs)) {
-    return edits;
+  const ambiguous: Array<{ line: number; title: string }> = [];
+  // An empty slug is not a valid anchor: `#` alone targets the page top, so
+  // "renaming" to it is always a mistake.
+  if (!oldSlug.trim() || !newSlug.trim() || oldSlug === newSlug) {
+    return { edits, ambiguous };
   }
+  const docsDirAbs = path.join(workspaceRoot, docsDirFromConfig(workspaceRoot));
+  if (!fs.existsSync(docsDirAbs)) {
+    return { edits, ambiguous };
+  }
+
+  // Same-slug headings in the renamed document, in source order.
+  const docAbsPath = path.join(docsDirAbs, ...normalizeDocPath(docSrcUri).split('/'));
+  let occurrences: Array<{ line: number; title: string }> = [];
+  let docOccurrenceLines: number[] = [];
+  try {
+    const headings = extractHeadings(fs.readFileSync(docAbsPath, 'utf-8'));
+    occurrences = headings
+      .filter((h) => slugifyHeading(h.title) === oldSlug)
+      .map((h) => ({ line: h.line, title: h.title }));
+    docOccurrenceLines = occurrences.map((o) => o.line);
+  } catch {
+    occurrences = [];
+  }
+
+  // With a collision and no way to tell which occurrence the user means, skip
+  // rather than rewrite links that may point at the other heading.
+  const collides = occurrences.length > 1;
+  if (collides) {
+    ambiguous.push(...occurrences);
+    if (renamedHeadingLine === undefined) {
+      return { edits, ambiguous };
+    }
+  }
+
+  // Same-page links to a specific occurrence: from that heading's line up to
+  // the next heading sharing the slug.
+  const windowsForOccurrence = (line: number): Array<[number, number]> | null => {
+    if (!collides) {
+      return null; // no collision: position does not matter
+    }
+    if (!docOccurrenceLines.includes(line)) {
+      return null;
+    }
+    const next = docOccurrenceLines.find((l) => l > line);
+    return [[line, next ?? Number.POSITIVE_INFINITY]];
+  };
+
   for (const doc of walkDocs(docsDirAbs)) {
     const source = fs.readFileSync(doc.absPath, 'utf-8');
     const fileEdits: Array<{ start: number; end: number; text: string }> = [];
@@ -389,11 +602,27 @@ export function computeAnchorRenameEdits(
       if (!anchor || anchor !== oldSlug) {
         continue;
       }
+      const isSamePage = !target;
       // Empty target = same-page link: only the file being renamed matches.
-      const resolvedSrc = target
-        ? resolveLinkTarget(docsDirAbs, doc.srcUri, target)?.srcUri ?? null
-        : doc.srcUri;
+      const resolvedSrc = isSamePage
+        ? doc.srcUri
+        : resolveLinkTarget(docsDirAbs, doc.srcUri, target)?.srcUri ?? null;
       if (resolvedSrc !== docSrcUri) {
+        continue;
+      }
+      if (isSamePage && collides) {
+        // A same-page link can only be attributed to an occurrence when the
+        // user told us which heading is being renamed.
+        if (renamedHeadingLine === undefined) {
+          continue;
+        }
+        const windows = windowsForOccurrence(renamedHeadingLine);
+        if (!windows || !windows.some(([from, to]) => link.line >= from && link.line < to)) {
+          continue;
+        }
+      }
+      if (!isSamePage && collides) {
+        // Cross-page links cannot select an occurrence: ambiguous, leave it.
         continue;
       }
       fileEdits.push({
@@ -406,7 +635,7 @@ export function computeAnchorRenameEdits(
       edits.set(doc.absPath, fileEdits);
     }
   }
-  return edits;
+  return { edits, ambiguous };
 }
 
 /* ------------------------------------------------------------------ */

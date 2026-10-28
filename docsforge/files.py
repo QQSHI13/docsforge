@@ -78,11 +78,6 @@ class Files:
         return PurePath(path).as_posix() in self._src_uris
 
     @property
-    def src_paths(self) -> dict[str, File]:
-        """Soft-deprecated, prefer `src_uris`."""
-        return {file.src_path: file for file in self}
-
-    @property
     def src_uris(self) -> Mapping[str, File]:
         """
         A mapping containing every file, with the keys being their
@@ -171,16 +166,6 @@ class Files:
                     if os.path.isfile(os.path.join(dir, path)):
                         self.append(File(path, dir, config.site_dir, config.use_directory_urls))
                         break
-
-    @property
-    def _files(self) -> Iterable[File]:
-        warnings.warn("Do not access Files._files.", DeprecationWarning, stacklevel=2)
-        return self
-
-    @_files.setter
-    def _files(self, value: Iterable[File]):
-        warnings.warn("Do not access Files._files.", DeprecationWarning, stacklevel=2)
-        self._src_uris = {f.src_uri: f for f in value}
 
 
 class File:
@@ -646,31 +631,3 @@ def file_sort_key(f: File, /):
 def _file_sort_key(f: str):
     """Always sort `index` or `README` as first filename in list. This works only on basenames of files."""
     return (os.path.splitext(f)[0] not in ("index", "README"), f)
-
-
-def _sort_files(filenames: Iterable[str]) -> list[str]:
-    """Soft-deprecated, do not use."""
-    warnings.warn(
-        "_sort_files is soft-deprecated and will be removed in a future release.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return sorted(filenames, key=_file_sort_key)
-
-
-def _filter_paths(basename: str, path: str, is_dir: bool, exclude: Iterable[str]) -> bool:
-    warnings.warn(
-        "_filter_paths is not used since DocsForge 1.5 and will be removed soon.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    for item in exclude:
-        # Items ending in '/' apply only to directories.
-        if item.endswith("/") and not is_dir:
-            continue
-        # Items starting with '/' apply to the whole path.
-        # In any other cases just the basename is used.
-        match = path if item.startswith("/") else basename
-        if fnmatch.fnmatch(match, item.strip("/")):
-            return True
-    return False

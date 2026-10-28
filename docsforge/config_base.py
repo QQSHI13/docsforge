@@ -5,15 +5,13 @@ import functools
 import logging
 import os
 import sys
-import warnings
 from collections import UserDict
-from collections.abc import Iterator, Mapping, Sequence
-from typing import IO, TYPE_CHECKING, Any, Generic, TypeVar, overload
+from collections.abc import Iterator, Sequence
+from typing import IO, TYPE_CHECKING, Generic, TypeVar, overload
 
 import yaml
 
-from docsforge import exceptions, utils
-from docsforge.utils import weak_property
+from docsforge import exceptions
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
@@ -247,25 +245,6 @@ class Config(UserDict):
 
         self.__user_configs.append(patch)
         self.update(patch)
-
-    def load_file(self, config_file: IO) -> None:
-        """Load config options from the open file descriptor of a YAML file."""
-        warnings.warn(
-            "Config.load_file is not used in DocsForge and will be removed soon. "
-            "Use DocsForgeConfig.load_file instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.load_dict(utils.yaml_load(config_file))
-
-    @weak_property
-    def user_configs(self) -> Sequence[Mapping[str, Any]]:
-        warnings.warn(
-            "user_configs is never used in DocsForge and will be removed soon.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.__user_configs
 
 
 @functools.cache
