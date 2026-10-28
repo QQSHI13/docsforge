@@ -137,9 +137,11 @@ class TestI18nBuild:
         en_html = (site / "index.html").read_text()
         zh_html = (site / "index.zh.html").read_text()
 
-        # <html lang> should follow the page locale.
-        assert re.search(r"<html[^>]+lang=en[\s>]", en_html)
-        assert re.search(r"<html[^>]+lang=zh[\s>]", zh_html)
+        # <html lang> should follow the page locale. Tolerate quoted and
+        # unquoted values: the minifier drops the quotes, and on Python
+        # versions where minify-go has no wheel the output is unminified.
+        assert re.search(r"<html[^>]+lang=[\"']?en[\"'\s>]", en_html)
+        assert re.search(r"<html[^>]+lang=[\"']?zh[\"'\s>]", zh_html)
 
         # Theme UI strings should be in the page language (minified HTML may drop quotes).
         assert re.search(r'aria-label=["\']?Select language[\s>"\']', en_html)
@@ -266,7 +268,13 @@ class TestI18nTabIcons:
 
     @staticmethod
     def _count_tab_icons(html: str) -> int:
-        match = re.search(r"<nav[^>]*md-tabs[\s>].*?</nav>", html, re.DOTALL)
+        # Match the tabs nav with either `class="md-tabs"` (unminified) or a
+        # bare `md-tabs` token (minified, quotes dropped).
+        match = re.search(
+            r"<nav[^>]*(?:class=[\"']?[^\"'>]*md-tabs|md-tabs)[^>]*>.*?</nav>",
+            html,
+            re.DOTALL,
+        )
         assert match, "tabs nav not found"
         return len(re.findall(r"<svg", match.group(0)))
 

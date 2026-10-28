@@ -6,6 +6,16 @@ from pathlib import Path
 import pytest
 
 from docsforge.core.minify import MINIFIERS, MinifyPlugin
+from docsforge.core.minify import minify as _backend
+
+# minify-go publishes per-interpreter wheels (cp310..cp314) with no sdist and
+# no abi3 build, so on newer CPython the plugin runs without a backend: content
+# passes through unchanged. The tests below assert what the Go minifier
+# produces, so they can only run where it is installed.
+requires_backend = pytest.mark.skipif(
+    _backend is None,
+    reason="minify-go has no wheel for this Python version",
+)
 
 
 class TestMinifyPlugin:
@@ -14,6 +24,7 @@ class TestMinifyPlugin:
         assert "js" in MINIFIERS
         assert "css" in MINIFIERS
 
+    @requires_backend
     def test_minify_js_removes_comments(self):
         plugin = MinifyPlugin()
         out = plugin._minify_file_data(
@@ -22,6 +33,7 @@ class TestMinifyPlugin:
         assert "comment" not in out
         assert "var x=1" in out
 
+    @requires_backend
     def test_minify_css_strips_comments_and_whitespace(self):
         plugin = MinifyPlugin()
         out = plugin._minify_file_data(
@@ -30,6 +42,7 @@ class TestMinifyPlugin:
         assert "/* a */" not in out
         assert "red" in out
 
+    @requires_backend
     def test_minify_html_page_strips_comments(self):
         # _minify_html_page uses the minify backend directly.
         plugin = MinifyPlugin()
