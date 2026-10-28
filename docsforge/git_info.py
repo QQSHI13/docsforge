@@ -27,7 +27,8 @@ def _format_git_date(iso_string: str) -> str | None:
     if not iso_string:
         return None
     try:
-        dt = datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
+        # Python 3.11+ `fromisoformat` understands a trailing `Z` itself.
+        dt = datetime.fromisoformat(iso_string)
         return dt.strftime("%b %d, %Y")
     except ValueError:
         return iso_string

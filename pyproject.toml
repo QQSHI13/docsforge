@@ -16,16 +16,16 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Documentation",
     "Topic :: Text Processing",
 ]
 dynamic = ["version"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "click >=8.5.0",
     "Jinja2 >=3.1.6",
@@ -92,9 +92,9 @@ include = ["/docsforge"]
 artifacts = ["/docsforge/templates/.icons/**"]
 
 [tool.ruff]
-# Match requires-python: py310 is what pins F821 on 3.11+ builtins like
-# ExceptionGroup, which is the whole point of running this gate.
-target-version = "py310"
+# Match requires-python. py311 lets the gate drop 3.10-only workarounds and
+# still flags anything newer than the floor (e.g. 3.12+ syntax) as a bug.
+target-version = "py311"
 line-length = 120
 extend-exclude = [
     # Generated or third-party trees, not authored here.

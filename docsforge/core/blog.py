@@ -8,7 +8,7 @@ import posixpath
 import re
 from collections.abc import Callable
 from copy import copy
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from email.utils import format_datetime as _email_format_datetime
 from html.parser import HTMLParser
 from math import ceil
@@ -108,14 +108,14 @@ class PostDate(BaseConfigOption[DateDict]):
             if isinstance(value, datetime):
                 # Set timezone to UTC if not set
                 if value.tzinfo is None:
-                    config[key_name][key] = value.replace(tzinfo=timezone.utc)
+                    config[key_name][key] = value.replace(tzinfo=UTC)
                 continue
 
 
             # Handle date - we set 00:00:00 as the default time, if the author
             # only supplied a date, and convert it to datetime in UTC
             if isinstance(value, date):
-                config[key_name][key] = datetime.combine(value, time()).replace(tzinfo=timezone.utc)
+                config[key_name][key] = datetime.combine(value, time()).replace(tzinfo=UTC)
 
         # Initialize date dictionary
         config[key_name] = DateDict(config[key_name])
@@ -997,8 +997,8 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # formatting, treating naive datetimes as already being in UTC
         def _utc(dt):
             if dt.tzinfo is None:
-                return dt.replace(tzinfo = timezone.utc)
-            return dt.astimezone(timezone.utc)
+                return dt.replace(tzinfo = UTC)
+            return dt.astimezone(UTC)
 
         items = []
         for post_title, url, created, updated_dt, author, desc in self._feed_posts(posts):
@@ -1311,7 +1311,7 @@ class BlogPlugin(BasePlugin[BlogConfig]):
         # if the publishing date is in the future. This, of course, is opt-in
         # and must be explicitly enabled by the author.
         if not isinstance(post.config.draft, bool) and self.config.draft_if_future_date:
-            return post.config.date.created > datetime.now(timezone.utc)
+            return post.config.date.created > datetime.now(UTC)
 
         # Post might be a draft
         return bool(post.config.draft)

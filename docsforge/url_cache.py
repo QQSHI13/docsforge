@@ -84,7 +84,7 @@ def download_and_cache_url(
     ext = ext[:16]
     path = os.path.join(directory, name_hash + ext)
 
-    now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    now = int(datetime.datetime.now(datetime.UTC).timestamp())
     prefix = b"%s%s downloaded at timestamp " % (comment, url.encode())
     # Check for cached file and try to return it
     if os.path.isfile(path):

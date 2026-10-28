@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "docsforge-last-modified"
 version = "0.1.0"
 description = "Example DocsForge plugin: per-page last-modified date from the file mtime."
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = ["docsforge >= 11.0"]
 
 [project.entry-points."docsforge.plugins"]

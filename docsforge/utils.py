@@ -11,7 +11,7 @@ import shutil
 from bisect import insort  # noqa: F401 - legacy re-export
 from collections import defaultdict
 from collections.abc import Collection, Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING, TypeVar
 
@@ -96,7 +96,7 @@ def get_build_timestamp(*, pages: Collection[Page] | None = None) -> int:
         # Lexicographic comparison is OK for ISO date.
         date_string = max(p.update_date for p in pages)
         try:
-            dt = datetime.fromisoformat(date_string).astimezone(timezone.utc)
+            dt = datetime.fromisoformat(date_string).astimezone(UTC)
         except (ValueError, TypeError):
             # Empty or malformed update_date: fall back to the build time
             # instead of crashing the build.
@@ -118,10 +118,10 @@ def get_build_datetime() -> datetime:
     sde = os.environ.get("SOURCE_DATE_EPOCH")
     if sde:
         try:
-            return datetime.fromtimestamp(int(sde), tz=timezone.utc)
+            return datetime.fromtimestamp(int(sde), tz=UTC)
         except (ValueError, OSError):
             pass
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def get_build_date() -> str:

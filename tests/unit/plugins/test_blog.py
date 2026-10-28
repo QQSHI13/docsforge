@@ -1,7 +1,7 @@
 """Unit tests for the blog plugin (docsforge.core.blog)."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -294,9 +294,7 @@ class TestFeedRendering:
 
     def test_rss_pubdate_handles_non_utc_datetime(self):
         """Non-UTC (and naive) datetimes must be normalized to UTC, not crash."""
-        from datetime import timedelta
-
-        from docsforge.core.blog import timezone
+        from datetime import timedelta, timezone
 
         plugin = self._make_plugin()
         post = self._make_post(created=datetime(2024, 1, 1) + timedelta(hours=8))
@@ -309,14 +307,12 @@ class TestFeedRendering:
         assert "05:00:00 GMT" in rss
 
     def test_rss_last_build_date_handles_updated_date(self):
-        from datetime import timedelta
-
-        from docsforge.core.blog import timezone
+        from datetime import timedelta, timezone
 
         plugin = self._make_plugin()
         offset = timezone(timedelta(hours=2))
         post = self._make_post(
-            created=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            created=datetime(2024, 1, 1, tzinfo=UTC),
             updated=datetime(2024, 6, 1, tzinfo=offset),
         )
         rss = plugin._render_rss(
@@ -355,7 +351,6 @@ class TestPostDateCreatedRequired:
             option.pre_validation(config, "date")
 
     def test_scalar_value_still_works(self):
-        from datetime import timezone
 
         from docsforge.config_base import Config
 
@@ -363,7 +358,7 @@ class TestPostDateCreatedRequired:
         config = Config([])
         config["date"] = datetime(2024, 1, 1)
         option.pre_validation(config, "date")
-        assert config["date"].created == datetime(2024, 1, 1, tzinfo=timezone.utc)
+        assert config["date"].created == datetime(2024, 1, 1, tzinfo=UTC)
 
 
 class TestPaginationStep:

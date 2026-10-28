@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC
 from importlib.metadata import EntryPoint
 
 from docsforge import utils
@@ -93,9 +94,8 @@ class TestGetMarkdownTitle:
 class TestBuildDatetime:
     def test_defaults_to_now(self, monkeypatch):
         monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
-        from datetime import timezone
         dt = utils.get_build_datetime()
-        assert dt.tzinfo == timezone.utc
+        assert dt.tzinfo == UTC
 
     def test_honors_source_date_epoch(self, monkeypatch):
         monkeypatch.setenv("SOURCE_DATE_EPOCH", "1700000000")
@@ -104,9 +104,8 @@ class TestBuildDatetime:
 
     def test_invalid_source_date_epoch_falls_back_to_now(self, monkeypatch):
         monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
-        from datetime import timezone
         dt = utils.get_build_datetime()
-        assert dt.tzinfo == timezone.utc  # didn't crash, fell back
+        assert dt.tzinfo == UTC  # didn't crash, fell back
 
 
 class TestNestPaths:
@@ -141,11 +140,11 @@ class TestGetBuildTimestamp:
         assert ts == int(get_build_datetime().timestamp())
 
     def test_valid_date_used(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
         from types import SimpleNamespace
 
         from docsforge.utils import get_build_timestamp
 
-        dt = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        dt = datetime(2024, 1, 2, tzinfo=UTC)
         page = SimpleNamespace(update_date=dt.isoformat())
         assert get_build_timestamp(pages=[page]) == int(dt.timestamp())
