@@ -45,7 +45,12 @@ dependencies = [
     "babel >=2.18.0",
     "pygments >=2.21.0",
     "marz-search >=0.3.1",
-    "minify-go >=2.24.24",
+    # minify-go ships per-interpreter wheels (cp310..cp314) with no sdist and
+    # no abi3 build, so it cannot be installed on 3.15 yet. The minify plugin
+    # degrades to serving unminified output when the backend is missing, which
+    # is far better than an unsatisfiable install on a supported interpreter.
+    # Drop the marker once upstream publishes a cp315 wheel (or an abi3 one).
+    "minify-go >=2.24.24; python_version < '3.15'",
 ]
 
 [project.optional-dependencies]

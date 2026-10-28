@@ -9,7 +9,14 @@ import hashlib
 import logging
 from pathlib import Path
 
-import minify
+try:
+    import minify
+except ImportError:  # pragma: no cover - 3.15+ until minify-go ships a wheel
+    # `minify-go` publishes per-interpreter wheels (cp310..cp314) with no sdist
+    # and no abi3 build, so it is genuinely unavailable on newer CPython. The
+    # plugin stays registered and serves unminified output rather than making
+    # the whole package unimportable.
+    minify = None  # type: ignore[assignment]
 
 from docsforge.config_defaults import DocsForgeConfig
 from docsforge.core.plugin_base import BasePlugin
@@ -37,7 +44,8 @@ class MinifyPlugin(BasePlugin):
     def __init__(self) -> None:
         # original site-relative path -> minified content
         self._pending_minified: dict[str, str] = {}
-        minify.config({})
+        if minify is not None:
+            minify.config({})
 
     @staticmethod
     def _item_path(item) -> str:
@@ -55,6 +63,8 @@ class MinifyPlugin(BasePlugin):
 
     def _minify_file_data(self, file_data: str, mediatype: str) -> str:
         """Minify *file_data* with the Go backend for the given MIME type."""
+        if minify is None:
+            return file_data
         return minify.string(mediatype, file_data)
 
     def _process_extras(self, file_type: str, config: DocsForgeConfig) -> None:
@@ -113,6 +123,8 @@ class MinifyPlugin(BasePlugin):
 
     def _minify_html_page(self, output: str) -> str | None:
         """Minify HTML page content. Always enabled."""
+        if minify is None:
+            return output
         try:
             return minify.string("text/html", output)
         except Exception as e:

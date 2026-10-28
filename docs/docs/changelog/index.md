@@ -18,6 +18,14 @@
   `"Z"` → `"+00:00"` workaround before `datetime.fromisoformat` in
   `docsforge/git_info.py`, which 3.11 handles natively.
 
+- **`minify-go` is skipped on Python 3.15** — it ships one wheel per
+  interpreter (cp310 through cp314) with no sdist and no `abi3` build, so on
+  3.15 the package could not be installed at all. The dependency now carries a
+  `python_version < '3.15'` marker and the minify plugin serves unminified
+  output when the backend is absent, instead of failing at import. HTML, JS and
+  CSS are still correct, just not minified. The marker goes away once upstream
+  publishes a 3.15 wheel.
+
 ## [13.0.5] — 2026-10-28
 
 ### Security
