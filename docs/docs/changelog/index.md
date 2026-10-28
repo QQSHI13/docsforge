@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [13.0.5] — 2026-10-28
+
 ### Security
 
 - **Blog post `slug` could write outside the output directory** — the slug is
