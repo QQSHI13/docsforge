@@ -291,7 +291,7 @@ export class ServerManager {
     }
     const state = await detectEnvironment(root);
     if (!pick.python) {
-      vscode.window.showErrorMessage('DocsForge: no Python interpreter found. Install Python 3.10+ first.');
+      vscode.window.showErrorMessage('DocsForge: no Python interpreter found. Install Python 3.11+ first.');
       return null;
     }
     return ensureDocsforge(root, { ...state, python: pick.python }, (line) => this.logPanel.append(line));

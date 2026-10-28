@@ -22,22 +22,24 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - name: Install ruff
         run: pip install 'ruff==0.17.3'
       - name: Lint
         run: ruff check --output-format=github .
 
-  # Test the oldest and newest supported Pythons (3.10 is the requires-python
-  # floor and what pins ruff's target-version; 3.12 is the reference version
-  # used by every other job). Running just the two ends of the range keeps CI
-  # cheap while still catching version drift in either direction.
+  # Test the oldest, middle and newest supported Pythons. 3.11 is the
+  # requires-python floor (and what pins ruff's target-version), 3.13 is the
+  # reference version used by every other job, and 3.15 is the newest release.
+  # 3.10 was dropped: it went EOL in October 2026 and upstream Material has
+  # dropped it too. Three versions across the range catch drift in either
+  # direction without testing every release.
   test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10', '3.12']
+        python-version: ['3.11', '3.13', '3.15']
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -65,7 +67,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - name: Install DocsForge (editable) + test deps + Playwright
         run: |
           pip install -e .
@@ -98,7 +100,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Install DocsForge (pygments for pygments.css generation)
         # setup-python puts us on a toolcache Python whose site-packages is

@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 LABEL org.opencontainers.image.source="https://github.com/QQSHI13/docsforge"
 LABEL org.opencontainers.image.description="DocsForge - documentation engine with Material theme"

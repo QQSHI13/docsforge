@@ -412,7 +412,7 @@ async function setupEnvironment(): Promise<void> {
   }
   const state = await detectEnvironment(workspaceRoot);
   if (!pick.python) {
-    vscode.window.showErrorMessage('DocsForge: no Python interpreter found. Install Python 3.10+ first.');
+    vscode.window.showErrorMessage('DocsForge: no Python interpreter found. Install Python 3.11+ first.');
     return;
   }
   const python = await ensureDocsforge(
