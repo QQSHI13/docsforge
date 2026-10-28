@@ -265,31 +265,8 @@ export function linkAtPosition(
   return null;
 }
 
-/** Load the canonical slug rules the engine wrote at build time.
- *  Returns null when absent (pre-build workspace) so callers fall back to
- *  FALLBACK_SLUG_RULES. Kept in the same cache dir as validation.json, which
- *  the extension already knows how to reach. */
-function loadSlugRules(workspaceRoot: string): SlugRules | null {
-  const p = path.join(workspaceRoot, '.docsforge', 'cache', 'slug-rules.json');
-  let raw: string;
-  try {
-    raw = fs.readFileSync(p, 'utf-8');
-  } catch {
-    return null;
-  }
-  try {
-    const data = JSON.parse(raw);
-    if (typeof data.separator === 'string' && typeof data.unicode === 'boolean') {
-      return { separator: data.separator, unicode: data.unicode };
-    }
-  } catch {
-    /* fall through to null */
-  }
-  return null;
-}
-
 /** Rules describing how the engine turns a heading into an anchor id. */
-interface SlugRules {
+export interface SlugRules {
   separator: string;
   unicode: boolean;
 }
@@ -298,7 +275,112 @@ interface SlugRules {
  *  engine default): NFKD + ASCII-fold, then strip non-word, collapse
  *  whitespace/underscore runs to the separator. Used when the engine-written
  *  slug-rules.json is not present yet. */
-const FALLBACK_SLUG_RULES: SlugRules = { separator: '-', unicode: false };
+export const FALLBACK_SLUG_RULES: SlugRules = { separator: '-', unicode: false };
+
+/** Absolute path of the engine-written slug rules file. */
+export function slugRulesPath(workspaceRoot: string): string {
+  return path.join(workspaceRoot, '.docsforge', 'cache', 'slug-rules.json');
+}
+
+/** Load the canonical slug rules the engine wrote at build time
+ *  (`docsforge/slugger.py` → `.docsforge/cache/slug-rules.json`).
+ *  Returns null when absent (pre-build workspace) so callers fall back to
+ *  FALLBACK_SLUG_RULES. Kept in the same cache dir as validation.json, which
+ *  the extension already knows how to reach. */
+export function loadSlugRules(workspaceRoot: string): SlugRules | null {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(slugRulesPath(workspaceRoot), 'utf-8');
+  } catch {
+    return null;
+  }
+  try {
+    const data = JSON.parse(raw);
+    if (typeof data.separator === 'string' && typeof data.unicode === 'boolean') {
+      // An empty/whitespace separator cannot be compiled into a regex
+      // character class (an empty class is a SyntaxError), and a separator
+      // made only of spaces is not a separator at all. Fall back rather than
+      // throw: hover runs on a hot path and must never brick.
+      if (!data.separator.trim()) {
+        return null;
+      }
+      // A custom `toc.slugify` callable makes anchors unpredictable from
+      // parameters — the engine flags that, and we use our own fallback.
+      if (data.predictable === false) {
+        return null;
+      }
+      return { separator: data.separator, unicode: data.unicode };
+    }
+  } catch {
+    /* fall through to null */
+  }
+  return null;
+}
+
+/** Per-root memo for loadSlugRules, keyed on the file's mtime+size: a build
+ *  that (re)writes slug-rules.json is picked up without a window reload,
+ *  while hot paths (hover, completion, per-keystroke calls) pay only a stat.
+ *  Returns null when the file is absent or unusable (callers fall back). */
+const slugRulesCache = new Map<string, { mtimeMs: number; size: number; rules: SlugRules | null }>();
+
+export function slugRulesFor(workspaceRoot: string): SlugRules | null {
+  let mtimeMs = 0;
+  let size = -1;
+  try {
+    const st = fs.statSync(slugRulesPath(workspaceRoot));
+    mtimeMs = st.mtimeMs;
+    size = st.size;
+  } catch {
+    // No file yet: nothing to cache, and a build will create it later.
+    slugRulesCache.delete(workspaceRoot);
+    return null;
+  }
+  const hit = slugRulesCache.get(workspaceRoot);
+  if (hit && hit.mtimeMs === mtimeMs && hit.size === size) {
+    return hit.rules;
+  }
+  const rules = loadSlugRules(workspaceRoot);
+  slugRulesCache.set(workspaceRoot, { mtimeMs, size, rules });
+  return rules;
+}
+
+/** Drop the memoized rules for a root (or all roots). */
+export function invalidateSlugRules(workspaceRoot?: string): void {
+  if (workspaceRoot === undefined) {
+    slugRulesCache.clear();
+    return;
+  }
+  slugRulesCache.delete(workspaceRoot);
+}
+
+/** `toc.unique()` duplicate suffix: `install_1` → `['install', 1]`. */
+const UNIQUE_SUFFIX = /^(.*)_(\d+)$/;
+
+/** Resolve a link anchor to the heading it points at, honoring `toc.unique()`
+ *  numbering: `#install` is the first heading slugged `install`, `#install_1`
+ *  the second, `#install_2` the third. Returns undefined when the anchor
+ *  points at nothing (a genuinely broken anchor). */
+export function findHeadingForAnchor<T extends { title: string }>(
+  headings: T[], anchor: string, rules?: SlugRules,
+): T | undefined {
+  const wanted = slugifyHeading(anchor, rules);
+  const slugs = headings.map((h) => slugifyHeading(h.title, rules));
+  const exact = slugs.indexOf(wanted);
+  if (exact !== -1) {
+    return headings[exact];
+  }
+  const m = wanted.match(UNIQUE_SUFFIX);
+  if (!m) {
+    return undefined;
+  }
+  const base = m[1];
+  const occurrence = Number(m[2]);
+  if (occurrence < 1) {
+    return undefined;
+  }
+  const matches = slugs.reduce<number[]>((acc, s, i) => (s === base ? [...acc, i] : acc), []);
+  return occurrence < matches.length ? headings[matches[occurrence]] : undefined;
+}
 
 /** ASCII-fold the way Python's unicodedata.normalize('NFKD') +
  *  encode('ascii','ignore') does. JS supports NFKD natively via
@@ -317,27 +399,45 @@ function asciiFold(s: string): string {
   return out;
 }
 
-/** Slugify a heading title exactly as the engine does (markdown toc
- *  slugify, non-unicode mode): optional NFKD+ASCII-fold, strip non-word,
- *  collapse whitespace/underscore runs to the separator, trim separator.
+/** Escape a separator for use inside a regex character class. `-` is escaped
+ *  too (the generic metacharacter escape omits it because it is only special
+ *  inside a class) and is listed first so it never forms a range. */
+function escapeForCharClass(sep: string): string {
+  return sep.replace(/[-.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
+/** Slugify a heading title exactly as the engine does
+ *  (`docsforge/slugger.py`, mirroring markdown.extensions.toc.slugify):
+ *  optional NFKD+ASCII-fold, strip non-word, collapse whitespace/underscore
+ *  runs to the separator. Edge separators are NOT trimmed — the engine keeps
+ *  them, so `Foo-` slugs to `foo-` and `- Foo` to `-foo`.
  *  Prefers the engine-written slug-rules.json; falls back to the compiled-in
  *  default when not present. */
 export function slugifyHeading(title: string, rules?: SlugRules): string {
-  const r = rules ?? FALLBACK_SLUG_RULES;
-  const sep = r.separator;
-  let value = title;
-  if (!r.unicode) {
-    value = asciiFold(value);
-  }
-  // \w in the engine is Unicode-aware but after the ASCII fold only ASCII
-  // word chars remain, so [^\w\s-] reduces to stripping punctuation/spaces.
-  const esc = sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // A rules object with an unusable separator (empty/whitespace) would build
+  // an invalid character class — treat it as "no rules" instead of throwing.
+  const r = rules && rules.separator.trim() ? rules : FALLBACK_SLUG_RULES;
+  const value = r.unicode ? title : asciiFold(title);
+  const esc = escapeForCharClass(r.separator);
+  // Python `re` `\w` is Unicode-aware in BOTH modes. In non-unicode mode the
+  // ASCII fold above already dropped every non-ASCII char, so JS `\w` is an
+  // exact stand-in. In unicode mode `\w` is ASCII-only in JS and would drop
+  // CJK/Cyrillic — use the property classes Python's `\w` actually matches
+  // (letters, numbers, underscore; combining marks are excluded, verified
+  // against docsforge/slugger.py: slugify('e\u0301tude', unicode) == 'etude').
+  // The literal `-` is kept in the strip class in both modes, exactly like the
+  // engine's `[^\w\s-]` — and nothing else is exempt: the configured
+  // separator is stripped like any other punctuation unless it is `-` or a
+  // word char (verified: slugify('a.b c', separator='.') == 'ab.c' in BOTH
+  // modes). The separator only takes part in the collapse below.
+  const strip = r.unicode
+    ? /[^\p{L}\p{N}_\s\-]/gu
+    : /[^\w\s-]/g;
   return value
-    .replace(/[^\w\s-]/g, '')
+    .replace(strip, '')
     .trim()
     .toLowerCase()
-    .replace(new RegExp(`[${esc}\\s]+`, 'g'), sep)
-    .replace(new RegExp(`^${esc}+|${esc}+$`, 'g'), '');
+    .replace(new RegExp(`[${esc}\\s]+`, 'g'), r.separator);
 }
 
 /** Walk all .md files under docs_dir, yielding {absPath, srcUri}. */
@@ -544,7 +644,9 @@ export function computeAnchorRenameEdits(
   oldSlug: string,
   newSlug: string,
   renamedHeadingLine?: number,
+  rules?: SlugRules,
 ): AnchorRenameResult {
+  const effectiveRules = rules ?? slugRulesFor(workspaceRoot) ?? FALLBACK_SLUG_RULES;
   const edits = new Map<string, Array<{ start: number; end: number; text: string }>>();
   const ambiguous: Array<{ line: number; title: string }> = [];
   // An empty slug is not a valid anchor: `#` alone targets the page top, so
@@ -564,7 +666,7 @@ export function computeAnchorRenameEdits(
   try {
     const headings = extractHeadings(fs.readFileSync(docAbsPath, 'utf-8'));
     occurrences = headings
-      .filter((h) => slugifyHeading(h.title) === oldSlug)
+      .filter((h) => slugifyHeading(h.title, effectiveRules) === oldSlug)
       .map((h) => ({ line: h.line, title: h.title }));
     docOccurrenceLines = occurrences.map((o) => o.line);
   } catch {

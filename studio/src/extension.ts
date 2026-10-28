@@ -15,7 +15,7 @@ import { runNewPage } from './scaffold';
 import { invalidateHeadings } from './studioCache';
 import {
   docsDirFromConfig, resolveLinkTarget, stripLocaleSuffix,
-  splitAnchor, extractLinks, formatMarkdown,
+  splitAnchor, extractLinks, formatMarkdown, invalidateSlugRules, slugRulesFor,
 } from './links';
 
 let serverManager: ServerManager;
@@ -63,6 +63,11 @@ function ensureProjectFeatures(
   registerProviders(context, root);
   registerRenameCommands(context, root);
   registerAutoRename(context, root);
+  // Prime the engine slug rules (`.docsforge/cache/slug-rules.json`) so every
+  // slug consumer in this root — hover, completion, anchor rename — predicts
+  // the anchors the build actually emits. Best-effort: a pre-build workspace
+  // has no file yet and the compiled-in fallback is used instead.
+  void slugRulesFor(root);
   // Format on save, gated by `docsforge.formatOnSave` (off by default).
   // willSave edits ride along with the save (no save loop); the global
   // `editor.formatOnSave` + registered formatter path is untouched.
@@ -354,6 +359,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     ServerManager.onStateChange(() => {
       if (!serverManager.isBuilding()) {
+        // A build (re)writes slug-rules.json, so drop the memoized rules and
+        // the heading index that was derived from the old ones.
+        for (const root of activatedRoots) {
+          invalidateSlugRules(root);
+          invalidateHeadings(root);
+          void slugRulesFor(root);
+        }
         for (const d of allDiagnostics) {
           d.refresh();
         }

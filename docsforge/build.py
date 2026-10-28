@@ -31,7 +31,7 @@ from docsforge.files import File, Files, InclusionLevel, get_files, set_exclusio
 from docsforge.git_info import get_git_page_info, prefetch_git_page_info
 from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
-from docsforge.slugger import compute_rules, write_rules
+from docsforge.slugger import SlugRules, compute_rules, write_rules
 from docsforge.structure import restore_rendering_page, set_rendering_page
 
 if TYPE_CHECKING:
@@ -1156,6 +1156,35 @@ def _restore_missing_static_outputs(files: Files) -> int:
     return restored
 
 
+def _slug_rules_from_config(config: DocsForgeConfig) -> SlugRules:
+    """Read the site's real ``toc`` extension config into canonical slug rules.
+
+    The engine renders heading anchors with the ``toc`` extension's ``slugify``,
+    so its ``separator`` and its stock-vs-custom ``slugify`` choice decide the
+    ids -- writing the built-in defaults would be wrong for any site that
+    overrides either. A custom callable is not derivable from parameters, so
+    those rules are flagged ``predictable=False`` and the Studio falls back to
+    its own implementation instead of trusting ``separator``/``unicode``.
+
+    ``mdx_configs`` is populated from ``markdown_extensions``, and the ``toc``
+    builtin is always registered, so the empty-config path yields the stock
+    rules.
+    """
+    from markdown.extensions.toc import slugify as toc_slugify
+    from markdown.extensions.toc import slugify_unicode as toc_slugify_unicode
+
+    toc_cfg = (config.get("mdx_configs") or {}).get("toc") or {}
+    slugify_fn = toc_cfg.get("slugify") or toc_slugify
+    predictable = slugify_fn in (toc_slugify, toc_slugify_unicode)
+    return compute_rules(
+        separator=toc_cfg.get("separator") or "-",
+        # Only the stock unicode variant keeps non-ASCII word characters; an
+        # unknown callable is unpredictable, so ``unicode`` is moot there.
+        unicode=slugify_fn is toc_slugify_unicode,
+        predictable=predictable,
+    )
+
+
 def _finalize_build(
     config: DocsForgeConfig,
     files: Files,
@@ -1247,7 +1276,7 @@ def _finalize_build(
     # cache_dir is not a real path.
     cache_dir = getattr(planner.cache, "cache_dir", None)
     if isinstance(cache_dir, (str, os.PathLike)):
-        write_rules(Path(cache_dir) / "slug-rules.json", compute_rules())
+        write_rules(Path(cache_dir) / "slug-rules.json", _slug_rules_from_config(config))
 
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""

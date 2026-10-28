@@ -13,6 +13,7 @@ import {
   extractHeadings,
   docsDirFromConfig,
   slugifyHeading,
+  slugRulesFor,
   sanitizePageName,
   computeDocumentRename,
   computeFolderRename,
@@ -132,11 +133,15 @@ export function registerRenameCommands(
         vscode.window.showWarningMessage('DocsForge: no headings found in this document.');
         return;
       }
+      // Engine slug rules (the build-written slug-rules.json): derive once so
+      // every slug below, and the link rewrite, uses the anchors the build
+      // actually emits.
+      const rules = slugRulesFor(workspaceRoot) ?? undefined;
       const cursorLine = editor.selection.active.line;
       const cursorHeading = headings.find((h) => h.line === cursorLine);
       const items = headings.map((h, i) => ({
         label: `${'#'.repeat(h.level)} ${h.title}`,
-        description: `→ #${slugifyHeading(h.title)}`,
+        description: `→ #${slugifyHeading(h.title, rules)}`,
         value: i,
         picked: cursorHeading !== undefined && headings[i].line === cursorHeading.line,
       }));
@@ -147,7 +152,7 @@ export function registerRenameCommands(
         return;
       }
       const heading = headings[pick.value];
-      const oldSlug = slugifyHeading(heading.title);
+      const oldSlug = slugifyHeading(heading.title, rules);
       const newTitle = await vscode.window.showInputBox({
         prompt: 'New heading text',
         value: heading.title,
@@ -155,7 +160,7 @@ export function registerRenameCommands(
       if (!newTitle?.trim() || newTitle === heading.title) {
         return;
       }
-      const newSlug = slugifyHeading(newTitle.trim());
+      const newSlug = slugifyHeading(newTitle.trim(), rules);
       if (!oldSlug || !newSlug) {
         vscode.window.showWarningMessage(
           `DocsForge: "${newTitle.trim()}" has no usable anchor slug.`,
@@ -163,7 +168,7 @@ export function registerRenameCommands(
         return;
       }
       const { edits, ambiguous } = computeAnchorRenameEdits(
-        workspaceRoot, docSrcUri, oldSlug, newSlug, heading.line,
+        workspaceRoot, docSrcUri, oldSlug, newSlug, heading.line, rules,
       );
       if (ambiguous.length > 1) {
         vscode.window.showWarningMessage(

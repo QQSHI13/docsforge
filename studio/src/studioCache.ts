@@ -10,7 +10,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { extractHeadings, slugifyHeading } from './links';
+import { extractHeadings, slugifyHeading, slugRulesFor, type SlugRules } from './links';
 
 export interface CachedHeading {
   title: string;
@@ -61,8 +61,13 @@ function writeStore(workspaceRoot: string, store: Store): void {
   }
 }
 
-/** Headings (+ slugs) for a doc, served from cache when mtime matches. */
-export function getHeadings(workspaceRoot: string, absPath: string): CachedHeading[] {
+/** Headings (+ slugs) for a doc, served from cache when mtime matches.
+ *  `rules` are the engine's slug rules; when omitted they are derived from
+ *  `workspaceRoot`, so slugs match the anchors the build emits. */
+export function getHeadings(
+  workspaceRoot: string, absPath: string, rules?: SlugRules,
+): CachedHeading[] {
+  const effectiveRules = rules ?? slugRulesFor(workspaceRoot) ?? undefined;
   let mtimeMs = 0;
   try {
     mtimeMs = fs.statSync(absPath).mtimeMs;
@@ -72,7 +77,14 @@ export function getHeadings(workspaceRoot: string, absPath: string): CachedHeadi
   const store = readStore(workspaceRoot);
   const hit = store.files[absPath];
   if (hit && hit.mtimeMs === mtimeMs && Array.isArray(hit.headings)) {
-    return hit.headings;
+    // A store written before/after a rules change (or before the first build
+    // wrote slug-rules.json) may hold slugs from different rules. Re-derive
+    // from the cached titles when they disagree, so the cache never serves
+    // anchors the engine would not emit.
+    const fresh = hit.headings.map((h) => slugifyHeading(h.title, effectiveRules));
+    if (fresh.every((slug, i) => slug === hit.headings[i].slug)) {
+      return hit.headings;
+    }
   }
   let text: string;
   try {
@@ -82,7 +94,7 @@ export function getHeadings(workspaceRoot: string, absPath: string): CachedHeadi
   }
   const headings = extractHeadings(text).map((h) => ({
     title: h.title,
-    slug: slugifyHeading(h.title),
+    slug: slugifyHeading(h.title, effectiveRules),
     line: h.line,
   }));
   store.files[absPath] = { mtimeMs, headings };

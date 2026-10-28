@@ -46,9 +46,15 @@
 ### 变更
 
 - **Studio 的标题 slug 现在与引擎完全一致** —— 扩展曾手写一个标题 slug 函数，
-  已与真实引擎漂移（它保留 CJK 并折叠下划线，两者都错）。构建现在写出
-  `slug-rules.json`，扩展消费它，并回退到修正后的实现；一个 parity 测试用参考
-  向量把两者钉在一起。
+  已与真实引擎漂移（它保留 CJK、折叠下划线并裁掉首尾分隔符，三者都错：引擎保留
+  `_`、把 CJK ASCII 折叠掉、并把 `Foo-` 保留为 `foo-`）。构建现在写出
+  `.docsforge/cache/slug-rules.json`，其中的分隔符与 unicode 模式**读自站点实际
+  的 `toc` 配置**，因此自定义的 `markdown_extensions: [{toc: {separator: "_"}}]`
+  会被正确采纳；自定义 `slugify` 可调用对象会写入 `predictable: false`，扩展
+  随之回退，而不是信任无法复现的规则。扩展在每个 slug 调用点都传递这些规则，
+  把 `toc.unique()` 的 `_1`/`_2` 后缀视为有效锚点，并有两侧都钉在参考向量上的
+  parity 测试（Python 侧 `slugger.slugify` 现在直接对着
+  `markdown.extensions.toc.slugify` 测试）。
 
 - **两个逐页构建循环合并为一个流水线** —— 填充和写入阶段各自遍历每个脏页面并
   各自解析代码片段依赖。现在它们是一个单一错误策略、单次依赖解析的流水线；

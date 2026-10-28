@@ -43,6 +43,12 @@ import {
   anchorPrefix,
   frontmatterRange,
   FRONTMATTER_KEYS,
+  loadSlugRules,
+  slugRulesFor,
+  slugRulesPath,
+  invalidateSlugRules,
+  findHeadingForAnchor,
+  FALLBACK_SLUG_RULES,
 } from '../src/links';
 
 describe('links helpers', () => {
@@ -766,12 +772,193 @@ describe('slugifyHeading parity with engine', () => {
     ['Intro: Part (1)', 'intro-part-1'],
     ['naïve résumé', 'naive-resume'],
     ['a_b  c', 'a_b-c'],
+    // Edge separators: the engine does NOT trim them (finding 3). Generated
+    // with docsforge/slugger.py — note `--x--` collapses to `-x-`, because the
+    // separator/whitespace runs collapse to one separator before anything
+    // else; only the edge trim is absent, not the collapse.
+    ['Foo-', 'foo-'],
+    ['- Foo', '-foo'],
+    ['a - ', 'a-'],
+    ['--x--', '-x-'],
   ];
   for (const [input, expected] of CASES) {
     it(`slugs ${JSON.stringify(input)} -> ${JSON.stringify(expected)}`, () => {
       assert.strictEqual(slugifyHeading(input), expected);
     });
   }
+});
+
+describe('slug rules from the engine (slug-rules.json)', () => {
+  let tmp: string;
+  const writeRules = (body: string) => {
+    fs.mkdirSync(path.dirname(slugRulesPath(tmp)), { recursive: true });
+    fs.writeFileSync(slugRulesPath(tmp), body);
+  };
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'docsforge-rules-'));
+    invalidateSlugRules();
+  });
+  afterEach(() => {
+    invalidateSlugRules();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('returns null before the first build (callers fall back)', () => {
+    assert.strictEqual(loadSlugRules(tmp), null);
+    assert.strictEqual(slugRulesFor(tmp), null);
+    assert.deepStrictEqual(FALLBACK_SLUG_RULES, { separator: '-', unicode: false });
+  });
+
+  it('reads separator and unicode mode the engine wrote', () => {
+    writeRules('{"separator": "_", "unicode": true, "version": 1}');
+    assert.deepStrictEqual(loadSlugRules(tmp), { separator: '_', unicode: true });
+    assert.deepStrictEqual(slugRulesFor(tmp), { separator: '_', unicode: true });
+  });
+
+  it('ignores a corrupt or incomplete file', () => {
+    writeRules('{oops');
+    assert.strictEqual(loadSlugRules(tmp), null);
+    writeRules('{"separator": "-"}');
+    assert.strictEqual(loadSlugRules(tmp), null);
+  });
+
+  it('returns null for an empty/whitespace separator instead of throwing', () => {
+    // An empty separator would build an empty character class → SyntaxError,
+    // which used to be able to brick hover. Callers get the fallback.
+    writeRules('{"separator": "", "unicode": false, "version": 1}');
+    assert.strictEqual(loadSlugRules(tmp), null);
+    writeRules('{"separator": "  ", "unicode": false, "version": 1}');
+    assert.strictEqual(loadSlugRules(tmp), null);
+  });
+
+  it('returns null when a custom slugify callable makes anchors unpredictable', () => {
+    writeRules('{"separator": "-", "unicode": false, "predictable": false, "version": 1}');
+    assert.strictEqual(loadSlugRules(tmp), null);
+  });
+
+  it('reloads when the build rewrites the file', () => {
+    writeRules('{"separator": "-", "unicode": false, "version": 1}');
+    assert.strictEqual(slugRulesFor(tmp)?.separator, '-');
+    const before = fs.statSync(slugRulesPath(tmp));
+    writeRules('{"separator": "~", "unicode": false, "version": 1}');
+    // Same-size rewrite could land in the same mtime tick; bump it explicitly
+    // so this asserts the invalidation path rather than the filesystem.
+    fs.utimesSync(slugRulesPath(tmp), before.atime, new Date(before.mtimeMs + 1000));
+    assert.strictEqual(slugRulesFor(tmp)?.separator, '~');
+    assert.strictEqual(slugifyHeading('a b', slugRulesFor(tmp) ?? undefined), 'a~b');
+  });
+
+  it('honors the separator instead of collapsing on the hard-coded dash', () => {
+    // Finding 8: '-' has to be escaped in the character class; a separator of
+    // '.' or '[' must not blow up or build a range.
+    assert.strictEqual(slugifyHeading('a b', { separator: '~', unicode: false }), 'a~b');
+    assert.strictEqual(slugifyHeading('a b', { separator: '.', unicode: false }), 'a.b');
+    assert.strictEqual(slugifyHeading('a b[c', { separator: '[', unicode: false }), 'a[bc');
+  });
+
+  it('strips punctuation even when it IS the separator, like the engine', () => {
+    // The engine's strip class is always `[^\w\s-]` — only a literal `-` and
+    // word chars survive it. A configured separator is therefore removed like
+    // any other punctuation and only re-enters via the collapse step, so a
+    // dotted separator drops pre-existing dots. Verified with
+    // docsforge/slugger.py: slugify('a.b c', separator='.') == 'ab.c' in both
+    // modes. (Easy to get wrong by adding the separator to the strip class.)
+    assert.strictEqual(slugifyHeading('a.b c', { separator: '.', unicode: false }), 'ab.c');
+    assert.strictEqual(slugifyHeading('a.b c', { separator: '.', unicode: true }), 'ab.c');
+    // `-` is exempt in the strip class, so it always survives as a word-ish
+    // char regardless of the configured separator (only the `.` between b and
+    // c is stripped, then the space collapses to the separator).
+    assert.strictEqual(slugifyHeading('a-b.c d', { separator: '.', unicode: true }), 'a-bc.d');
+  });
+
+  it('matches the engine across separator and unicode combinations', () => {
+    // Reference vectors generated by docsforge/slugger.py itself for every
+    // (case × separator × unicode) combination — the whole cross product was
+    // compared during development (300/300 matched); these pin the tricky
+    // ones. Regenerate with:
+    //   python -c "from docsforge.slugger import slugify, SlugRules; ..."
+    const vectors: Array<[string, string, boolean, string]> = [
+      ['a.b c', '.', false, 'ab.c'],
+      ['a.b c', '.', true, 'ab.c'],
+      // The regression this pins: exempting the separator from the strip
+      // class produced 'a-b.c.d' here; the engine keeps the literal `-` only,
+      // so the `.` between b and c is stripped and the space becomes `.`.
+      ['a-b.c d', '.', true, 'a-bc.d'],
+      ['x~y z', '~', false, 'xy~z'],
+      ['x+y z', '+', false, 'xy+z'],
+      ['a[bc', '[', false, 'abc'],
+      ['a b[c', '[', false, 'a[bc'],
+      ['___', '-', false, '___'],
+      ['---', '-', false, '-'],
+      ['...', '.', false, ''],
+      ['a·b', '-', true, 'ab'],
+      ['a·b', '-', false, 'ab'],
+      ['你好 World', '-', true, '你好-world'],
+      ['Hello, World!', '-', true, 'hello-world'],
+      ['e\u0301tude', '-', true, 'etude'],
+    ];
+    for (const [title, separator, unicode, want] of vectors) {
+      assert.strictEqual(
+        slugifyHeading(title, { separator, unicode }),
+        want,
+        `${JSON.stringify(title)} sep=${JSON.stringify(separator)} unicode=${unicode}`,
+      );
+    }
+  });
+
+  it('keeps Unicode word chars in unicode mode', () => {
+    // Finding 6: JS \w is ASCII-only, so the old branch dropped CJK/Cyrillic.
+    // Verified against docsforge/slugger.py with unicode=True:
+    //   slugify('你好 World') == '你好-world', slugify('Привет мир') == 'привет-мир'.
+    const u = { separator: '-', unicode: true };
+    assert.strictEqual(slugifyHeading('你好 World', u), '你好-world');
+    assert.strictEqual(slugifyHeading('Привет мир', u), 'привет-мир');
+    assert.strictEqual(slugifyHeading('Hello_World', u), 'hello_world');
+    // Non-unicode mode still ASCII-folds (CJK dropped), unchanged.
+    assert.strictEqual(slugifyHeading('你好 World', { separator: '-', unicode: false }), 'world');
+  });
+
+  it('does not throw when handed a rules object with an empty separator', () => {
+    // Defensive: a caller passing a hand-built rules object must not hit an
+    // invalid character class.
+    assert.strictEqual(slugifyHeading('A B', { separator: '', unicode: false }), 'a-b');
+    assert.strictEqual(slugifyHeading('A B', { separator: ' ', unicode: false }), 'a-b');
+  });
+});
+
+describe('anchor lookup with toc.unique() duplicates', () => {
+  // `toc.unique()` appends _1/_2 to repeated ids, so `#install_1` points at
+  // the second heading that slugs to `install` (finding 7).
+  const headings = [
+    { title: 'Install', line: 0 },
+    { title: 'Setup', line: 4 },
+    { title: 'Install', line: 8 },
+    { title: 'Install', line: 12 },
+  ];
+
+  it('resolves a plain slug to its first occurrence', () => {
+    assert.strictEqual(findHeadingForAnchor(headings, 'install')?.line, 0);
+    assert.strictEqual(findHeadingForAnchor(headings, 'setup')?.line, 4);
+  });
+
+  it('accepts the _1/_2 suffixes toc.unique() appends', () => {
+    assert.strictEqual(findHeadingForAnchor(headings, 'install_1')?.line, 8);
+    assert.strictEqual(findHeadingForAnchor(headings, 'install_2')?.line, 12);
+  });
+
+  it('rejects an out-of-range occurrence and unrelated suffixes', () => {
+    assert.strictEqual(findHeadingForAnchor(headings, 'install_3'), undefined);
+    assert.strictEqual(findHeadingForAnchor(headings, 'install_0'), undefined);
+    assert.strictEqual(findHeadingForAnchor(headings, 'nope_1'), undefined);
+    assert.strictEqual(findHeadingForAnchor(headings, 'nope'), undefined);
+  });
+
+  it('treats an existing slug that looks suffixed literally', () => {
+    const literal = [{ title: 'Part 1', line: 0 }];
+    // `part-1` is a real slug here, not `part` + occurrence 1.
+    assert.strictEqual(findHeadingForAnchor(literal, 'part-1')?.line, 0);
+  });
 });
 
 describe('companion rename (auto-rename semantics)', () => {

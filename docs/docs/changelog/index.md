@@ -59,9 +59,17 @@
 
 - **Studio heading slugs now match the engine exactly** — the extension
   hand-rolled a heading-slug function that had drifted from the real engine
-  (it kept CJK and collapsed underscores, both wrong). The build now writes a
-  `slug-rules.json` and the extension consumes it, falling back to a corrected
-  implementation; a parity test pins the two together against reference vectors.
+  (it kept CJK, collapsed underscores, and trimmed edge separators, all wrong:
+  the engine keeps `_`, ASCII-folds CJK away, and preserves `Foo-` as `foo-`).
+  The build now writes `.docsforge/cache/slug-rules.json` with the separator
+  and unicode mode **read from the site's actual `toc` config**, so a custom
+  `markdown_extensions: [{toc: {separator: "_"}}]` is honoured; a custom
+  `slugify` callable sets `predictable: false` so the extension falls back
+  instead of trusting rules it cannot reproduce. The extension threads those
+  rules through every slug call site, treats `toc.unique()` `_1`/`_2` suffixes
+  as valid anchors, and has a parity test pinned to reference vectors on both
+  sides (Python `slugger.slugify` is now tested against
+  `markdown.extensions.toc.slugify` directly).
 
 - **The two per-page build loops are merged into one pipeline** — the populate
   and write stages each walked every dirty page and each parsed snippet deps.

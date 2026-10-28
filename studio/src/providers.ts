@@ -14,7 +14,8 @@ import {
   resolveLinkTarget,
   docsDirFromConfig,
   formatMarkdown,
-  slugifyHeading,
+  slugRulesFor,
+  findHeadingForAnchor,
   walkDocs,
   srcUriOfPath,
   linkTargetPrefix,
@@ -281,9 +282,8 @@ class DocsForgeDefinitionProvider implements vscode.DefinitionProvider {
     let pos = new vscode.Position(0, 0);
     if (anchor && targetText) {
       const headings = extractHeadings(targetText);
-      const found = headings.find(
-        (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
-      );
+      // Honors toc.unique() duplicates: `#install_1` is the second `install`.
+      const found = findHeadingForAnchor(headings, anchor, slugRulesFor(this.root) ?? undefined);
       if (found) {
         pos = new vscode.Position(found.line, 0);
       }
@@ -324,8 +324,9 @@ class DocsForgeHoverProvider implements vscode.HoverProvider {
     const targetText = readDoc(resolved.absPath);
     if (anchor) {
       const headings = extractHeadings(targetText ?? '');
-      const found = headings.find(
-        (h) => slugifyHeading(h.title) === slugifyHeading(anchor),
+      // Accepts `#install` and its toc.unique() duplicates (`#install_1`).
+      const found = findHeadingForAnchor(
+        headings, anchor, slugRulesFor(this.root) ?? undefined,
       );
       if (!found) {
         return new vscode.Hover(`*Broken link:* no anchor \`#${anchor}\` in target.`);
@@ -506,7 +507,8 @@ class DocsForgeCompletionProvider implements vscode.CompletionItemProvider {
       return [];
     }
     const startCh = position.character - anch.partial.length;
-    return matchAnchors(getHeadings(this.root, absPath), anch.partial)
+    const rules = slugRulesFor(this.root) ?? undefined;
+    return matchAnchors(getHeadings(this.root, absPath, rules), anch.partial)
       .slice(0, 50)
       .map((h) => {
         const item = new vscode.CompletionItem(`#${h.slug}`, vscode.CompletionItemKind.Value);
