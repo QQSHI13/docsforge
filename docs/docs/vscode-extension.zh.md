@@ -41,7 +41,7 @@ Zed、JetBrains IDE 与 Neovim 使用不同的扩展体系。Studio
 ### 前提条件
 
 - **VS Code 1.85+**
-- **Python 3.10+** 且已安装 `docsforge`：
+- **Python 3.11+** 且已安装 `docsforge`：
   ```bash
   pip install docsforge
   ```
@@ -236,7 +236,7 @@ DocsForge 侧边栏会出现在活动栏中，并显示上下文操作：
 | **"No docsforge.yml found"** | 先运行 **Initialize Project**，或手动创建 `docsforge.yml` |
 | **Preview shows blank page** | 检查 VS Code 中的 DevTools 控制台（`Help → Toggle Developer Tools`） |
 | **Server won't start** | 打开 DocsForge 输出通道（`Ctrl+Shift+U`）查看错误详情 |
-| **"python: command not found"** | 从 [python.org](https://python.org) 安装 Python 3.10+ |
+| **"python: command not found"** | 从 [python.org](https://python.org) 安装 Python 3.11+ |
 | **更新检查连不上服务器** | 检查网络/代理；启动时的检查会静默跳过，手动检查才会警告 |
 | **在用 beta 却收不到更新** | 打开 `docsforge.includePrereleases` —— 预发布默认排除 |
 | **开了两个文件夹却服务了错误的项目** | Serve/Build 跟随当前文件所属项目；状态栏会标出项目名 |

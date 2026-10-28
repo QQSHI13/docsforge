@@ -19,7 +19,7 @@ Extensions → ... → Install from VSIX...
 
 Same steps work in Cursor (`cursor --install-extension`).
 
-Requires Python 3.10+ with `docsforge` installed:
+Requires Python 3.11+ with `docsforge` installed:
 
 ```bash
 pip install docsforge

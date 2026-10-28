@@ -474,13 +474,13 @@ docs.example.com
 
 **症状：** `pip install docsforge` 失败并显示依赖错误。
 
-**原因：** Python 版本低于 3.10，或 pip 版本过旧。
+**原因：** Python 版本低于 3.11，或 pip 版本过旧。
 
 **解决方法：**
 
 ```bash
 # 检查 Python 版本
-python --version  # 必须 3.10 或更高
+python --version  # 必须 3.11 或更高
 
 # 升级 pip
 pip install --upgrade pip

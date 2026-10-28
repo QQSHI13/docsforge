@@ -136,7 +136,7 @@ Most behavior works out of the box; a two-line `docsforge.yml` is a complete sit
 
 ## Requirements
 
-- **Python 3.10+** and `pip` — the only hard requirements.
+- **Python 3.11+** and `pip` — the only hard requirements.
 - **LaTeX toolchain** — only for TikZ diagrams (`texlive` + `dvisvgm`).
 - **Playwright + Chromium** — only for PDF export (`pip install "docsforge[pdf]"`).
 - **pillow + cairosvg** — only for social cards (`pip install "docsforge[social]"`).
@@ -161,7 +161,7 @@ Honest accounting of where DocsForge is weaker:
 pip install docsforge
 ```
 
-Requires **Python 3.10+**.
+Requires **Python 3.11+**.
 
 ---
 

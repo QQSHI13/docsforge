@@ -12,7 +12,7 @@ DocsForge is a self-contained documentation engine. `pip install`, write Markdow
 pip install docsforge
 ```
 
-Requires **Python 3.10+**.
+Requires **Python 3.11+**.
 
 ## Quick start
 

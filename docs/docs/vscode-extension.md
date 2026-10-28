@@ -41,7 +41,7 @@ which is how Zensical reaches those editors.
 ### Prerequisites
 
 - **VS Code 1.85+**
-- **Python 3.10+** with `docsforge` installed:
+- **Python 3.11+** with `docsforge` installed:
   ```bash
   pip install docsforge
   ```
@@ -236,7 +236,7 @@ Or via `.vscode/settings.json` in your project:
 | **"No docsforge.yml found"** | Run **Initialize Project** first, or create a `docsforge.yml` manually |
 | **Preview shows blank page** | Check the DevTools console in VS Code (`Help → Toggle Developer Tools`) |
 | **Server won't start** | Open the DocsForge output channel (`Ctrl+Shift+U`) for error details |
-| **"python: command not found"** | Install Python 3.10+ from [python.org](https://python.org) |
+| **"python: command not found"** | Install Python 3.11+ from [python.org](https://python.org) |
 | **Update check can't reach the server** | Check your connection / proxy; the check is skipped silently at startup and warns only on manual runs |
 | **On a beta but offered nothing** | Turn on `docsforge.includePrereleases` — betas are excluded by default |
 | **Wrong project serves with two folders open** | Serve/Build follow the active file's project; the status bar names the folder |

@@ -12,7 +12,7 @@ DocsForge 是一款自包含的文档引擎。`pip install`，编写 Markdown，
 pip install docsforge
 ```
 
-需要 **Python 3.10+**。
+需要 **Python 3.11+**。
 
 ## 快速开始
 

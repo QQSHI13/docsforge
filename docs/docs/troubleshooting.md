@@ -474,13 +474,13 @@ docs.example.com
 
 **Symptom:** `pip install docsforge` fails with dependency errors.
 
-**Cause:** Python version is below 3.10, or pip is outdated.
+**Cause:** Python version is below 3.11, or pip is outdated.
 
 **Solution:**
 
 ```bash
 # Check Python version
-python --version  # Must be 3.10 or higher
+python --version  # Must be 3.11 or higher
 
 # Upgrade pip
 pip install --upgrade pip

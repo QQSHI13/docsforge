@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+### Changed
+
+- **Python 3.10 is no longer supported; the floor is now 3.11** — 3.10 reached
+  end of life in October 2026, and upstream Material for MkDocs has dropped it
+  too. `requires-python` is now `>=3.11`, and CI tests 3.11, 3.13 and 3.15
+  instead of 3.10 and 3.12.
+
+  This also unblocks dependency upgrades that had started requiring 3.11:
+  `Markdown` 3.11, `pillow` 13 and `platformdirs` 4.13 all declare
+  `requires-python >= 3.11`, so pinning them at 13.0.5 broke installation on
+  3.10. Ruff's `target-version` moves to `py311` to match.
+
+  Code that only existed for 3.10 is gone: the `ExceptionGroup` fallback class
+  in `docsforge/exceptions.py` (the builtin is always available now), the
+  Python 2-era `PY3`/`unicode` shim in `docsforge/paginate.py`, and the
+  `"Z"` → `"+00:00"` workaround before `datetime.fromisoformat` in
+  `docsforge/git_info.py`, which 3.11 handles natively.
+
 ## [13.0.5] — 2026-10-28
 
 ### Security

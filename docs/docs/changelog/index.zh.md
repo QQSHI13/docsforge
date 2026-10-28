@@ -1,5 +1,22 @@
 ## [未发布]
 
+### 变更
+
+- **不再支持 Python 3.10，最低版本改为 3.11** —— 3.10 已于 2026 年 10 月停止
+  维护，上游 Material for MkDocs 也已放弃支持。`requires-python` 现在是
+  `>=3.11`，CI 改为测试 3.11、3.13 和 3.15，不再测试 3.10 与 3.12。
+
+  这也解除了此前开始要求 3.11 的依赖升级阻塞：`Markdown` 3.11、`pillow` 13
+  和 `platformdirs` 4.13 都声明 `requires-python >= 3.11`，因此在 13.0.5 中
+  固定这些版本会导致 3.10 上无法安装。Ruff 的 `target-version` 同步改为
+  `py311`。
+
+  仅为 3.10 而存在的代码已删除：`docsforge/exceptions.py` 中的
+  `ExceptionGroup` 兼容类（现在内置类型始终可用）、`docsforge/paginate.py`
+  中 Python 2 时代的 `PY3`/`unicode` 垫片，以及 `docsforge/git_info.py` 中
+  `datetime.fromisoformat` 之前的 `"Z"` → `"+00:00"` 变通处理（3.11 原生
+  支持）。
+
 ## [13.0.5] — 2026-10-28
 
 ### 安全
