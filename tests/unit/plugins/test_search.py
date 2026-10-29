@@ -131,6 +131,51 @@ class TestSearchIndex:
         assert refs == [MARZ_ROOT_REF]
         assert MARZ_ROOT_REF != ""
 
+    def test_incremental_index_replaces_changed_doc(self):
+        """The incremental path must not re-declare fields from_index restored.
+
+        ``from_index`` restores the declared fields, and declaring an existing
+        field raises ``ValueError`` — so a naive re-declaration made every
+        incremental build fall into the except branch (or crash outright).
+        """
+        import marz
+
+        # Plain entry text: indexed text keeps HTML tags, so a term adjacent to
+        # one ("<p>banana") does not tokenize as a bare word.
+        idx = SearchIndex(**_full_config())
+        idx.entries = [
+            {"location": "a/", "title": "Alpha", "text": "apple orchard"},
+            {"location": "b/", "title": "Beta", "text": "banana grove"},
+        ]
+        prev = idx.generate_marz_index()
+
+        removed = ["a/"]
+        added = [{"location": "a/", "title": "Alpha", "text": "apricot orchard"}]
+
+        out = idx.generate_marz_index_incremental(prev, removed, added)
+        loaded = marz.Index.from_bytes(out)
+
+        # The new text is searchable and the stale text is gone.
+        assert any(h.ref.startswith("a/") for h in loaded.search("apricot"))
+        assert not any(h.ref.startswith("a/") for h in loaded.search("apple"))
+        # The untouched doc survived.
+        assert any(h.ref.startswith("b/") for h in loaded.search("banana"))
+        assert loaded.document_count == 2
+
+    def test_incremental_index_adds_missing_field(self):
+        """A field absent from the previous index (tags) can be added later."""
+        import marz
+
+        idx = SearchIndex(**_full_config())
+        idx.add_entry_from_context(_page("<p>plain words</p>", url="a/"))
+        prev = idx.generate_marz_index()
+
+        tagged = idx.add_entry_from_context(_page("<p>tagged words</p>", url="b/",
+                                                  meta={"tags": ["sec"]}))
+        out = idx.generate_marz_index_incremental(prev, [], tagged)
+        loaded = marz.Index.from_bytes(out)
+        assert "tags" in loaded.fields
+
     def test_element_eq_compares_tag_with_other_element(self):
         assert Element("div") == Element("div")
         assert Element("div") != Element("span")

@@ -392,24 +392,17 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         old_locs = self._old_locations.get(locale, {})
         new_entries_by_uri = self._entries_cache.get(locale, {})
         removed_refs = []
-        added_docs = []
+        added_entries = []
         for src_uri in changed:
             # Remove the page's previous docs (by their old locations).
-            for loc in old_locs.get(src_uri, []):
-                removed_refs.append(loc if loc else MARZ_ROOT_REF)
+            removed_refs.extend(
+                loc or MARZ_ROOT_REF for loc in old_locs.get(src_uri, [])
+            )
             # Add the page's new docs.
-            for entry in new_entries_by_uri.get(src_uri, []):
-                location = entry.get("location", "")
-                doc = {
-                    "location": location if location else MARZ_ROOT_REF,
-                    "title": entry.get("title") or "",
-                    "text": entry.get("text") or "",
-                }
-                if "tags" in entry:
-                    tags = entry["tags"]
-                    doc["tags"] = " ".join(tags) if isinstance(tags, list) else (tags or "")
-                added_docs.append((doc, index._marz_boost(entry.get("boost"), 1.0)))
-        return index.generate_marz_index_incremental(prev_bytes, removed_refs, added_docs)
+            added_entries.extend(new_entries_by_uri.get(src_uri, []))
+        return index.generate_marz_index_incremental(
+            prev_bytes, removed_refs, added_entries
+        )
 
     def on_serve(self, server, *, config, builder):
         self.is_dirtyreload = self.is_dirty
@@ -537,6 +530,45 @@ class SearchIndex:
                 return result
         return None
 
+    def _marz_fields(self) -> list[str]:
+        """Declared Marz fields for this index (tags only when used)."""
+        fields = ["title", "text"]
+        if any(e.get("tags") for e in self.entries):
+            fields.append("tags")
+        return fields
+
+    def _marz_doc(self, entry: dict, fields: list[str]) -> dict:
+        """Convert one search entry to a Marz document.
+
+        Shared by the full and incremental builders: Marz rejects a list for
+        ``tags``, so the join has to happen in exactly one place.
+        """
+        location = entry.get("location", "")
+        doc = {
+            "location": location if isinstance(location, str) and location else MARZ_ROOT_REF,
+            "title": entry.get("title") or "",
+            "text": entry.get("text") or "",
+        }
+        if "tags" in fields:
+            tags = entry.get("tags")
+            doc["tags"] = " ".join(tags) if isinstance(tags, list) else (tags or "")
+        return doc
+
+    def _declare_fields(self, builder, fields: list[str]) -> None:
+        """Declare ``fields`` on ``builder``, skipping any already present.
+
+        ``IndexBuilder.from_index`` restores the declared fields, and
+        re-declaring one raises ``ValueError``.
+        """
+        declared = set(builder.fields)
+        for name in fields:
+            if name in declared:
+                continue
+            builder.field(name, self._marz_boost(
+                (self.config.get("fields") or {}).get(name),
+                MARZ_FIELD_BOOSTS[name],
+            ))
+
     def generate_marz_index(self) -> bytes:
         """Build a Marz binary index from the current entries.
 
@@ -549,47 +581,28 @@ class SearchIndex:
             lang = [lang]
         builder = marz.IndexBuilder(",".join(_marz_lang_list(lang)), ref_field="location")
 
-        fields = ["title", "text"]
-        if any(e.get("tags") for e in self.entries):
-            fields.append("tags")
-        for name in fields:
-            builder.field(name, self._marz_boost(
-                (self.config.get("fields") or {}).get(name),
-                MARZ_FIELD_BOOSTS[name],
-            ))
+        fields = self._marz_fields()
+        self._declare_fields(builder, fields)
 
         entries = sorted(self.entries, key=lambda e: e.get("location", ""))
         for entry in entries:
-            location = entry.get("location", "")
-            doc = {
-                "location": location if isinstance(location, str) and location else MARZ_ROOT_REF,
-                "title": entry.get("title") or "",
-                "text": entry.get("text") or "",
-            }
-            if "tags" in fields:
-                tags = entry.get("tags")
-                doc["tags"] = " ".join(tags) if isinstance(tags, list) else (tags or "")
-            builder.add(doc, boost=self._marz_boost(
+            builder.add(self._marz_doc(entry, fields), boost=self._marz_boost(
                 entry.get("boost"), 1.0,
             ))
         return builder.build().to_bytes()
 
-    def generate_marz_index_incremental(self, prev_bytes: bytes, removed_refs, added_docs) -> bytes:
+    def generate_marz_index_incremental(self, prev_bytes: bytes, removed_refs, added_entries) -> bytes:
         """Update a previously built Marz index with only the changed docs.
 
-        ``removed_refs`` is an iterable of document references (locations) to
-        remove; ``added_docs`` is an iterable of ``(doc, boost)`` pairs to add.
-        Falls back to a full rebuild when the previous index cannot be
-        rehydrated (schema change, corrupt cache) so correctness never depends
-        on the cache being present.
+        ``removed_refs`` are document references (locations) to drop;
+        ``added_entries`` are search entries (the same dicts stored in the
+        entries cache) to add. Falls back to a full rebuild when the previous
+        index cannot be rehydrated (schema change, corrupt cache) so
+        correctness never depends on the cache being present.
         """
         lang = self.config.get("lang") or ["en"]
         if isinstance(lang, str):
             lang = [lang]
-
-        fields = ["title", "text"]
-        if any(e.get("tags") for e in self.entries):
-            fields.append("tags")
 
         try:
             prev_index = marz.Index.from_bytes(prev_bytes)
@@ -598,19 +611,16 @@ class SearchIndex:
             # Could not rehydrate (corrupt, wrong schema): full rebuild.
             return self.generate_marz_index()
 
-        # Re-declare fields (from_index restores names/boosts, but re-declaring
-        # is idempotent and guards against a stale cache missing the tags field).
-        for name in fields:
-            builder.field(name, self._marz_boost(
-                (self.config.get("fields") or {}).get(name),
-                MARZ_FIELD_BOOSTS[name],
-            ))
+        fields = self._marz_fields()
+        self._declare_fields(builder, fields)
 
         for ref in removed_refs:
             with contextlib.suppress(Exception):
                 builder.remove(ref)
-        for doc, boost in added_docs:
-            builder.add(doc, boost=boost)
+        for entry in added_entries:
+            builder.add(self._marz_doc(entry, fields), boost=self._marz_boost(
+                entry.get("boost"), 1.0,
+            ))
         return builder.build().to_bytes()
 
     @staticmethod
