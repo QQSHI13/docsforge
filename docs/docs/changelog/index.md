@@ -55,6 +55,21 @@
   escape so every provider was dead on Windows. Paths are normalised and
   `RelativePattern` is used.
 
+### Performance
+
+- **Incremental builds update only the changed search-index docs** — the Marz
+  binary search index was rebuilt from scratch on every build, so a one-file
+  edit on a large site still paid the full index cost. Changed and removed
+  pages are now tracked per locale, the previous `.marz` is rehydrated, and
+  only those docs are removed/re-added. On the 771-page CTF Wiki a single-file
+  incremental build drops from ~18.5s to ~6.5s. Falls back to a full rebuild
+  when there is no usable previous index.
+- **Page rendering defaults to all CPU cores** — the default `concurrency` was
+  `cpu_count - 1`, leaving one core idle while the main thread blocked on
+  worker joins. It now defaults to every core (still configurable via
+  `concurrency:`), and the sidebar highlight reads the rendering page through
+  a thread-local instead of a shared mutable flag.
+
 ### Changed
 
 - **Studio heading slugs now match the engine exactly** — the extension
