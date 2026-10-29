@@ -10,6 +10,17 @@
 
 ### Fixed
 
+- **Incremental builds showed wrong nav titles** — `Page.title` prefers
+  `_title_from_render`, which only `Page.render()` sets, so in an incremental
+  build every page that was *not* re-rendered fell back to a naive `# `-scan
+  (or its filename). A rebuilt page therefore labelled its siblings wrongly
+  while untouched pages kept the right label: on CTF Wiki 5 of 400 pages
+  disagreed, e.g. a setext heading (`工具` on a `====` underline) showed as
+  `Others` and an emphasised title lost its markup. Rendered titles are now
+  persisted per page and seeded back for pages a build skips; frontmatter
+  `title` still wins because it is re-read from source every build. The nav
+  signature is also recomputed after rendering, so a cold build no longer
+  triggers one wasted full rebuild afterwards.
 - **Search index state was never reset between `serve` rebuilds** — `serve`
   reuses one plugin instance (its config is cached by mtime), and the per-build
   tracking sets (indexed pages, changed pages, old locations) were only

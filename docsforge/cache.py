@@ -61,6 +61,7 @@ class CacheManager:
         self.nav_sig_file = cache_dir / "nav_sig"
         self.validation_file = cache_dir / "validation.json"
         self.tikz_file = cache_dir / "tikz.json"
+        self.titles_file = cache_dir / "titles.json"
 
     def _read_json(self, path: Path) -> dict[str, Any]:
         """Read JSON file, return empty dict if missing."""
@@ -215,6 +216,21 @@ class CacheManager:
         """Save the {tex path: source hash} cache for TikZ diagram rebuilds."""
         self._write_json(self.tikz_file, hashes)
 
+    def get_titles(self) -> dict[str, str]:
+        """Get the {src_uri: rendered title} cache.
+
+        Persisted because `Page.title` prefers `_title_from_render`, which only
+        `Page.render()` sets. An incremental build re-renders only dirty pages,
+        so without this the untouched pages fall back to a naive `# ` scan (or
+        the filename) and the nav silently shows different labels in different
+        pages of the same site.
+        """
+        return self._read_json(self.titles_file)
+
+    def set_titles(self, titles: dict[str, str]) -> None:
+        """Save the {src_uri: rendered title} cache."""
+        self._write_json(self.titles_file, titles)
+
     def get_pkg_version(self) -> str | None:
         """Get the docsforge version that produced this cache."""
         if self.pkg_version_file.exists():
@@ -276,6 +292,7 @@ class CacheManager:
             self.nav_sig_file,
             self.validation_file,
             self.tikz_file,
+            self.titles_file,
         ]
 
 
@@ -391,6 +408,13 @@ class BuildPlanner:
         # {source: {warnings, links, anchors}} — link/anchor validation data
         # persisted so problems are re-reported on incremental builds.
         self.validation = cache.get_validation()
+        # {src_uri: rendered title} — the authoritative nav label per page.
+        # Needed because `Page.title` prefers `_title_from_render`, which only
+        # `Page.render()` sets; an incremental build renders only dirty pages,
+        # so a rebuilt page would otherwise label every *other* page with the
+        # naive `# `-scan fallback (wrong for setext headings, emphasis, HTML
+        # entities) while untouched pages kept the correct label.
+        self.titles = cache.get_titles()
 
     def theme_signature(self, dirs) -> str:
         """Content hash of all .html/.xml templates in the theme dirs.
@@ -643,6 +667,9 @@ class BuildPlanner:
         # data gets re-serialized on the next save.
         self.nav_sig = None
         self.validation = {}
+        # Titles are re-derived from a full render, so a discarded cache must
+        # not keep asserting the old labels.
+        self.titles = {}
         self.cache.invalidate()
 
     def update_cache(self, source: Path, output: Path, deps: list[str] | None = None) -> None:
@@ -695,6 +722,7 @@ class BuildPlanner:
         self.cache.set_deps(self.deps)
         self.cache.set_meta(self.meta)
         self.cache.set_validation(self.validation)
+        self.cache.set_titles(self.titles)
         if config_hash:
             self.cache.set_config_hash(config_hash)
             self.config_hash = config_hash
