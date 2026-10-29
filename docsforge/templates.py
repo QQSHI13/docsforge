@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
@@ -22,9 +23,12 @@ _ASSET_HASH_SEGMENT_RE = re.compile(r"\.[a-f0-9]{8,}(?=\.min\.[^.]+$)")
 _ICON_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\Z")
 
 try:
-    from jinja2 import pass_context as contextfilter
-except ImportError:
-    from jinja2 import contextfilter  # type: ignore[attr-defined]
+    from jinja2 import pass_context
+except ImportError:  # pragma: no cover - Jinja < 3
+    from jinja2 import contextfilter as pass_context  # type: ignore[assignment]
+
+# Historical name used by the filters below.
+contextfilter = pass_context
 
 if TYPE_CHECKING:
     from docsforge.config_defaults import DocsForgeConfig
@@ -214,6 +218,51 @@ def asset_url(value: str, manifest: dict[str, str] | None = None) -> str:
     if manifest is not None:
         return manifest.get(value, f"assets/{value}")
     return f"assets/{value}"
+
+
+# --- Nav subtree cache -------------------------------------------------------
+# Rendering the sidebar is the hottest part of a build: the nav-item macro
+# recurses over the whole tree for every page. For a given page only the *active
+# path* (the page itself plus its ancestors) can differ, so every other subtree
+# renders byte-identical HTML — provided `base_url` matches, since the `url`
+# filter prepends it.
+#
+# Everything else a nav subtree reads is page-independent:
+#   nav_item.title, meta.{icon,subtitle,status,encrypted}, section children,
+#   `features`, `config.extra.status`  — constant per build;
+#   `page in nav_item.pages`, `nav_item == page`, `index == page` — all imply
+#   the page is inside the subtree, i.e. the item is an ancestor, i.e. active;
+#   the embedded TOC — only emitted when nav_item == page.
+# So an item where `nav_is_active()` is False has no page-dependent part at all,
+# and — because "descendant is on the active path" implies "I am an ancestor" —
+# no descendant is active either.
+#
+# Keyed by (id(nav_item), base_url) and cleared at the start of every build:
+# id() is stable for the life of one build (nav is held by build state) and
+# clearing prevents cross-build reuse.
+_nav_cache: dict[tuple[int, str], str] = {}
+_nav_cache_lock = threading.Lock()
+
+
+def reset_nav_cache() -> None:
+    """Drop cached nav subtrees. Called once per build."""
+    with _nav_cache_lock:
+        _nav_cache.clear()
+
+
+def nav_cache_get(nav_item, base_url: str = "") -> Markup | None:
+    """Return a cached subtree's HTML, or None on a miss."""
+    with _nav_cache_lock:
+        cached = _nav_cache.get((id(nav_item), base_url))
+    return None if cached is None else Markup(cached)
+
+
+def nav_cache_put(nav_item, html, base_url: str = "") -> Markup:
+    """Store a subtree's HTML and return it unchanged."""
+    text = str(html)
+    with _nav_cache_lock:
+        _nav_cache[(id(nav_item), base_url)] = text
+    return Markup(text)
 
 
 def build_asset_manifest(site_dir: str | Path) -> dict[str, str]:

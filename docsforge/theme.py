@@ -244,5 +244,9 @@ class Theme(MutableMapping[str, Any]):
             return bool(getattr(item, "active", False))
 
         env.globals["nav_is_active"] = _nav_is_active
+        # Sidebar subtree cache: off-active-path subtrees render identically for
+        # every page at the same base_url, so cache them for the whole build.
+        env.globals["nav_cache_get"] = templates.nav_cache_get
+        env.globals["nav_cache_put"] = templates.nav_cache_put
         localization.install_translations(env, self.locale, self.dirs)
         return env

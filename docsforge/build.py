@@ -1437,6 +1437,9 @@ def build(
         files, env, nav, all_doc_files, sources_changed, nav_changed = _collect_files_and_nav(
             config, planner, inclusion
         )
+        # Nav subtrees cached by the previous build belong to a different nav
+        # tree (and a different base_url set), so drop them.
+        templates.reset_nav_cache()
         # One pipeline for the page work: plan -> render (parallel) -> write
         # (serial) -> cache. The dependency set can only be derived from the raw
         # markdown, so it is computed once while planning and threaded through,
