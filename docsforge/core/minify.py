@@ -1,6 +1,6 @@
 """A DocsForge plugin to minify HTML, JS or CSS files prior to being written to disk.
 
-Always enabled with no configuration options.
+On by default, opt out with `plugins: [minify: {enabled: false}]`.
 """
 
 from __future__ import annotations
@@ -18,7 +18,9 @@ except ImportError:  # pragma: no cover - 3.15+ until minify-go ships a wheel
     # the whole package unimportable.
     minify = None  # type: ignore[assignment]
 
+from docsforge.config_base import Config
 from docsforge.config_defaults import DocsForgeConfig
+from docsforge.config_options import Type
 from docsforge.core.plugin_base import BasePlugin
 from docsforge.pages import Page
 
@@ -36,10 +38,23 @@ MINIFIERS: dict[str, str] = {
 log = logging.getLogger(__name__)
 
 
-class MinifyPlugin(BasePlugin):
-    """Always-on minify plugin. No configuration options."""
+class MinifyConfig(Config):
+    enabled = Type(bool, default=True)
 
-    config_scheme: tuple = ()
+
+class MinifyPlugin(BasePlugin[MinifyConfig]):
+    """Minify HTML, JS and CSS. Enabled unless `enabled: false` is set."""
+
+    @property
+    def _enabled(self) -> bool:
+        """Resolved `enabled` flag, tolerant of a bare construction.
+
+        Unit tests build the plugin with no config, where `self.config` is a
+        plain mapping; treat a missing flag as enabled (the default).
+        """
+        if isinstance(self.config, dict):
+            return bool(self.config.get("enabled", True))
+        return bool(getattr(self.config, "enabled", True))
 
     def __init__(self) -> None:
         # original site-relative path -> minified content
@@ -136,23 +151,31 @@ class MinifyPlugin(BasePlugin):
     def on_pre_build(self, *, config: DocsForgeConfig) -> None:
         """Prepare minified extra assets and update config before rendering."""
         self._pending_minified.clear()
+        if not self._enabled:
+            return
         self._process_extras("js", config)
         self._process_extras("css", config)
 
     def on_post_page(self, output: str, *, page: Page, config: DocsForgeConfig) -> str | None:
         """Minify HTML page before saving to disk."""
+        if not self._enabled:
+            return output
         return self._minify_html_page(output)
 
     def on_post_template(
         self, output_content: str, *, template_name: str, config: DocsForgeConfig
     ) -> str | None:
         """Minify HTML template files, e.g. 404.html, before saving to disk."""
+        if not self._enabled:
+            return output_content
         if template_name.endswith(".html"):
             return self._minify_html_page(output_content)
         return output_content
 
     def on_post_build(self, *, config: DocsForgeConfig) -> None:
         """Write minified extra JS/CSS files to the site directory."""
+        if not self._enabled:
+            return
         site_dir = Path(config["site_dir"]).resolve()
         for site_rel_path, minified in self._pending_minified.items():
             dest_path = (site_dir / site_rel_path).resolve()

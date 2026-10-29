@@ -80,6 +80,10 @@
 
 ### Changed
 
+- **`minify` can be turned off** — it was on with no way to opt out. Disable it
+  with `plugins: [minify: {enabled: false}]` to keep the generated HTML/CSS/JS
+  readable (debugging a layout, diffing output, or measuring the rest of the
+  build). It stays on by default.
 - **The blog plugin is opt-in** — it was auto-loaded, and it generates a
   `/blog/` entrypoint page even when a site has no posts, so every site grew a
   page it never asked for. Enable it explicitly with `plugins: [blog]`. The
