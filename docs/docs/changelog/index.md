@@ -80,6 +80,11 @@
 
 ### Changed
 
+- **The blog plugin is opt-in** — it was auto-loaded, and it generates a
+  `/blog/` entrypoint page even when a site has no posts, so every site grew a
+  page it never asked for. Enable it explicitly with `plugins: [blog]`. The
+  other five core plugins (meta, tags, info, minify, i18n) plus search still
+  load automatically.
 - **Studio heading slugs now match the engine exactly** — the extension
   hand-rolled a heading-slug function that had drifted from the real engine
   (it kept CJK, collapsed underscores, and trimmed edge separators, all wrong:

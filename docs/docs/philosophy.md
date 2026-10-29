@@ -23,7 +23,7 @@ Modern docs tools require too much setup. What should be "write Markdown, get a 
 
 **Everything you need works without configuration.**
 
-Write `$$...$$` → math renders. Write `!!! note` → admonition appears. Write ` ```python ` → code highlights. All 36 Markdown extensions and 8 core plugins are loaded by default.
+Write `$$...$$` → math renders. Write `!!! note` → admonition appears. Write ` ```python ` → code highlights. All 36 Markdown extensions and 6 core plugins are loaded by default.
 
 You configure only what you want to customize, not what you need to exist.
 

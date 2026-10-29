@@ -549,8 +549,11 @@ class TestParallelBuildActiveIsolation:
         # The blog plugin needs its on_files phase (entrypoint resolution)
         # before its page hooks run; that phase is out of scope here, so the
         # plugin is disabled — the test targets _build_page's active-flag
-        # isolation, not blog rendering.
-        cfg.plugins["material/blog"].config.enabled = False
+        # isolation, not blog rendering. Blog is opt-in now, so it is usually
+        # absent already; disable it only when a config still loads it.
+        blog = cfg.plugins.get("material/blog")
+        if blog is not None:
+            blog.config.enabled = False
         for name in ("a.md", "b.md"):
             (tmp_path / "docs" / name).write_text(f"# {name}\n")
 

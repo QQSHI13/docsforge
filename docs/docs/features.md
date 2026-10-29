@@ -20,7 +20,7 @@ DocsForge includes everything you need to write and publish documentation. No ex
 
     ---
 
-    Start with a working site in seconds. 8 core plugins and 36 Markdown extensions load automatically; social cards are opt-in. Customize only what you need.
+    Start with a working site in seconds. 6 core plugins and 36 Markdown extensions load automatically; blog, social cards and privacy are opt-in. Customize only what you need.
 
 -   :material-theme-light-dark:{ .lg .middle } &nbsp; **Light & Dark Mode**
 
@@ -78,7 +78,7 @@ All enabled by default. No configuration needed.
 
 ## Plugins
 
-8 core plugins auto-load — no `plugins:` config needed. Social cards are opt-in (`plugins: [social]`).
+6 core plugins auto-load — no `plugins:` config needed. Blog, social cards and privacy are opt-in (`plugins: [blog]`, `plugins: [social]`, `privacy: true`).
 
 | Plugin | What it does |
 |--------|-----------|

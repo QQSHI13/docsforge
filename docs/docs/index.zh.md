@@ -43,7 +43,7 @@ docsforge serve
 
     ---
 
-    只需 `site_name:` 即可开始。全部 8 个核心插件和 36 个 Markdown 扩展会自动加载；社交卡片为可选启用。仅在需要时进行自定义。
+    只需 `site_name:` 即可开始。全部 6 个核心插件和 36 个 Markdown 扩展会自动加载；博客、社交卡片与 privacy 均为可选启用。仅在需要时进行自定义。
 
 -   :material-function-variant:{ .lg .middle } &nbsp; **数学公式可用**
 

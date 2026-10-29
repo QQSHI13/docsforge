@@ -44,7 +44,7 @@ docsforge serve
 
     ---
 
-    Start with just `site_name:`. All 8 core plugins and 36 Markdown extensions load automatically; social cards are opt-in. Customize only when you need to.
+    Start with just `site_name:`. All 6 core plugins and 36 Markdown extensions load automatically; blog, social cards and privacy are opt-in. Customize only when you need to.
 
 -   :material-function-variant:{ .lg .middle } &nbsp; **Math Works**
 

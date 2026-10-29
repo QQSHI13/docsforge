@@ -132,7 +132,11 @@ def write_configs(root: Path, concurrency: int) -> None:
     )
 
     mkdocs_cfg = dict(common)
-    mkdocs_cfg["plugins"] = ["search"]
+    # Match the minification DocsForge always does (its minify plugin is not
+    # optional), otherwise the comparison flatters MkDocs by skipping a pass
+    # DocsForge cannot skip. Measured on 201 pages: MkDocs 7.7s without it,
+    # 12.4s with it — the difference is bigger than the whole gap being studied.
+    mkdocs_cfg["plugins"] = ["search", {"minify": {"minify_html": True}}]
     (root / "mkdocs.yml").write_text(
         yaml.safe_dump(mkdocs_cfg, allow_unicode=True, sort_keys=False),
         encoding="utf-8",

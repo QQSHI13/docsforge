@@ -1058,11 +1058,13 @@ class Plugins(OptionallyRequired[PluginCollection]):
         # These are always enabled and don't require user configuration.
         # Note: 'social' is intentionally NOT here — it has heavy optional
         # dependencies (Pillow, cairosvg) and is opt-in via `plugins:`.
+        # 'blog' is also NOT here: it generates a `/blog/` entrypoint page even
+        # when a site has no posts, so it is opt-in via `plugins: [blog]`.
         # Dedup against the user-declared names (un-namespaced) — the
         # instance counter keys are namespaced (e.g. 'material/blog'), so
         # checking the counter would load a duplicate for every declared
         # built-in plugin.
-        core_plugins = ["meta", "tags", "blog", "info", "minify", "i18n"]
+        core_plugins = ["meta", "tags", "info", "minify", "i18n"]
         for name in core_plugins:
             if name not in user_plugin_names:
                 self.load_plugin_with_namespace(name, {})
