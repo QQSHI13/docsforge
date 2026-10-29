@@ -83,7 +83,11 @@ def _nav_titles(html: str) -> set[str]:
     """
     out = set()
     for match in re.finditer(r"""md-ellipsis["']?>([^<]*)""", html):
-        out.add(match.group(1))
+        # Strip: unminified output keeps the template's surrounding whitespace
+        # (`\n  工具   \n`); minified output already collapses it.
+        title = match.group(1).strip()
+        if title:
+            out.add(title)
     return out
 
 
