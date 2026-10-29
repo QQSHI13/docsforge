@@ -133,9 +133,28 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         # before their cache slot is overwritten so the incremental Marz update
         # can remove the old docs. Keyed by locale -> src_uri -> [locations].
         self._old_locations: dict[str, dict[str, list[str]]] = {}
+        # Locales whose entries were re-derived by re-rendering sources because
+        # the persisted cache was missing/empty. Their on-disk `.marz` may be
+        # stale even though no page was rebuilt this session, so it must NOT be
+        # reused as-is.
+        self._recovered_locales: set[str] = set()
 
     def on_startup(self, *, command, dirty):
         self.is_dirty = dirty
+
+    def on_pre_build(self, *, config):
+        """Reset per-build tracking state.
+
+        `serve` reuses one config object via its mtime cache, so this plugin
+        instance survives across rebuilds. Without this reset, a page indexed in
+        an earlier rebuild stays in `_indexed_this_build` and is never
+        re-indexed after an edit, and stale `_changed_uris` entries make the
+        incremental Marz update remove docs that are still present.
+        """
+        self._indexed_this_build.clear()
+        self._changed_uris.clear()
+        self._old_locations.clear()
+        self._recovered_locales.clear()
 
     def on_config(self, config):
         if not self.config.enabled:
@@ -314,6 +333,10 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         # If the cache is empty/corrupted, rebuild by re-rendering sources.
         if not cache:
             cache.update(self._recover_entries_for_locale(config, locale, index))
+            # The on-disk `.marz` cannot be trusted for this locale: entries
+            # were re-derived from source, so the previous binary index may
+            # disagree. Force a full rebuild below.
+            self._recovered_locales.add(locale)
 
         index.entries = []
         for entries in cache.values():
@@ -371,13 +394,23 @@ class SearchPlugin(BasePlugin[SearchConfig]):
     def _build_marz_for_locale(self, index, locale: str, marz_path: str) -> bytes:
         """Build the Marz binary index, updating incrementally when possible.
 
-        Loads the previously built ``.marz`` and applies only this build's
-        changed docs (removed old locations, added new) via
-        ``IndexBuilder.from_index``/``remove``/``add``. Falls back to a full
-        rebuild when there is no usable previous index or the change set is
-        large (full rebuild is cheaper than many single-doc removals).
+        Three cases, cheapest first:
+
+        * **Nothing changed for this locale** — the previous bytes already match
+          the entries cache, so return them untouched. This is the common
+          incremental build: touching one page of a multi-locale site lands every
+          *other* locale here.
+        * **Something changed and the old index rehydrates** — apply only this
+          build's changed docs via ``IndexBuilder.from_index``/``remove``/``add``.
+        * **No usable previous index, or entries were re-derived from source**
+          (cache recovery) — full rebuild.
+
+        The delete tracking in ``_prepare_index_entries`` runs before this, so a
+        removed source always shows up in ``changed`` and never takes the
+        first path.
         """
-        changed = self._changed_uris.get(locale)
+        changed = self._changed_uris.get(locale) or set()
+        recovered = locale in self._recovered_locales
         prev_bytes = None
         try:
             with open(marz_path, "rb") as f:
@@ -385,8 +418,15 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         except OSError:
             pass
 
-        # No previous index, no tracked changes, or recovery path: full build.
-        if prev_bytes is None or not changed:
+        # Fast path: no entries changed and none were re-derived from source, so
+        # rebuilding would reproduce these exact bytes. Returning them saves the
+        # whole from_bytes + build() cost (measured 0.98s for ctf-wiki's zh index).
+        if prev_bytes is not None and not changed and not recovered:
+            log.debug(f"Reusing unchanged Marz index for locale '{locale}'")
+            return prev_bytes
+
+        # No usable previous index, or the entries no longer correspond to it.
+        if prev_bytes is None or recovered:
             return index.generate_marz_index()
 
         old_locs = self._old_locations.get(locale, {})

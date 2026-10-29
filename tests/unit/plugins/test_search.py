@@ -257,6 +257,110 @@ class TestMarzLangMapping:
         assert any(h.ref.startswith("p/") for h in loaded.search("繁體中文內容測試"))
 
 
+class TestIncrementalMarzReuse:
+    """An untouched locale must reuse its index, not rebuild it.
+
+    ctf-wiki has 3 locales; touching one zh page left en and zh-tw doing full
+    rebuilds because an empty change set fell into the full-rebuild branch.
+    That was 2.66s of pure waste on every incremental build.
+    """
+
+    def _plugin(self, tmp_path):
+        from docsforge.core.search import SearchPlugin
+
+        plugin = SearchPlugin()
+        plugin.load_config({})
+        plugin._entries_cache_file = tmp_path / "search_entries.json"
+        return plugin
+
+    def _index(self):
+        idx = SearchIndex(**_full_config())
+        idx.entries = [
+            {"location": "/a/", "title": "A", "text": "alpha beta"},
+            {"location": "/b/", "title": "B", "text": "gamma delta"},
+        ]
+        return idx
+
+    def test_unchanged_locale_skips_marz_entirely(self, tmp_path, monkeypatch):
+        """Strong assertion: no marz work happens for an untouched locale."""
+        plugin = self._plugin(tmp_path)
+        idx = self._index()
+        marz_path = tmp_path / "search_index.en.marz"
+        marz_path.write_bytes(idx.generate_marz_index())
+        plugin._changed_uris = {}
+
+        def boom(*args, **kwargs):
+            raise AssertionError("Marz rebuild attempted for an unchanged locale")
+
+        monkeypatch.setattr(idx, "generate_marz_index", boom)
+        monkeypatch.setattr(idx, "generate_marz_index_incremental", boom)
+
+        out = plugin._build_marz_for_locale(idx, "en", str(marz_path))
+        assert out == marz_path.read_bytes()
+
+    def test_changed_locale_still_takes_incremental_path(self, tmp_path):
+        plugin = self._plugin(tmp_path)
+        idx = self._index()
+        marz_path = tmp_path / "search_index.en.marz"
+        marz_path.write_bytes(idx.generate_marz_index())
+
+        plugin._changed_uris = {"en": {"/a/"}}
+        plugin._old_locations = {"en": {"/a/": ["/a/"]}}
+        plugin._entries_cache = {"en": {"/a/": [
+            {"location": "/a/", "title": "A", "text": "omega sigma"},
+        ]}}
+
+        out = plugin._build_marz_for_locale(idx, "en", str(marz_path))
+        import marz
+
+        loaded = marz.Index.from_bytes(out)
+        assert any(h.ref == "/a/" for h in loaded.search("omega"))
+        # The other doc survived.
+        assert any(h.ref == "/b/" for h in loaded.search("gamma"))
+
+    def test_recovered_locale_forces_full_rebuild(self, tmp_path, monkeypatch):
+        """Recovery re-derives entries from source, so the old .marz is stale."""
+        plugin = self._plugin(tmp_path)
+        idx = self._index()
+        marz_path = tmp_path / "search_index.en.marz"
+        marz_path.write_bytes(b"stale-index-bytes")
+        plugin._changed_uris = {}
+        plugin._recovered_locales = {"en"}
+
+        called = {"full": 0}
+
+        def fake_full():
+            called["full"] += 1
+            return b"fresh-index-bytes"
+
+        monkeypatch.setattr(idx, "generate_marz_index", fake_full)
+        out = plugin._build_marz_for_locale(idx, "en", str(marz_path))
+
+        assert called["full"] == 1
+        assert out == b"fresh-index-bytes"
+
+
+class TestPerBuildStateReset:
+    """`serve` reuses one plugin instance, so state must reset per build."""
+
+    def test_on_pre_build_clears_tracking_state(self, tmp_path):
+        from docsforge.core.search import SearchPlugin
+
+        plugin = SearchPlugin()
+        plugin.load_config({})
+        plugin._indexed_this_build = {"a.md", "b.md"}
+        plugin._changed_uris = {"en": {"a.md"}}
+        plugin._old_locations = {"en": {"a.md": ["/a/"]}}
+        plugin._recovered_locales = {"en"}
+
+        plugin.on_pre_build(config=SimpleNamespace())
+
+        assert plugin._indexed_this_build == set()
+        assert plugin._changed_uris == {}
+        assert plugin._old_locations == {}
+        assert plugin._recovered_locales == set()
+
+
 class TestEntriesCacheTmpFile:
     """Two concurrent builds in one project must not share a temp filename."""
 

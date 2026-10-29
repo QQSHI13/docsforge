@@ -10,6 +10,13 @@
 
 ### Fixed
 
+- **Search index state was never reset between `serve` rebuilds** — `serve`
+  reuses one plugin instance (its config is cached by mtime), and the per-build
+  tracking sets (indexed pages, changed pages, old locations) were only
+  initialised in `__init__`. A page indexed in an earlier rebuild therefore
+  stayed in `_indexed_this_build` and was never re-indexed after an edit, and
+  stale `_changed_uris` entries made the incremental Marz update delete docs
+  that were still present. All four sets now reset in `on_pre_build`.
 - **Incremental search-index updates crashed the build** — the incremental
   Marz path re-declared fields that `IndexBuilder.from_index` had already
   restored, which raises `ValueError: field "title" is already declared`. The
@@ -65,6 +72,14 @@
 
 ### Performance
 
+- **Untouched locales no longer rebuild their whole search index** — on a
+  multi-locale site, editing one page made every *other* locale rebuild its
+  Marz index from scratch, because an empty change set fell into the
+  full-rebuild branch instead of reusing the index already on disk. Measured on
+  CTF Wiki (771 pages, 3 locales): the incremental build spent 6.57s in Marz,
+  of which 2.66s was that waste. Unchanged locales now return the previous
+  bytes untouched. Entry recovery from source still forces a full rebuild,
+  since a re-derived cache makes the old index stale.
 - **Incremental builds update only the changed search-index docs** — the Marz
   binary search index was rebuilt from scratch on every build, so a one-file
   edit on a large site still paid the full index cost. Changed and removed
