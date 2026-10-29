@@ -53,6 +53,14 @@ class TemplateContext(TypedDict):
     `partials/language.html`. Without it any locale whose configured case
     differs from the shipped filename crashes the build.
     """
+    active_path: set[int]
+    """`id()`s of the current page and its ancestors, for sidebar highlight.
+
+    Replaces the global `page.active` mutable flag: templates check
+    ``nav_item in active_path`` instead of reading shared state, so page
+    writes can run in parallel without a sidebar-highlight race and nav
+    subtrees off the active path can be cached across pages.
+    """
 
 
 _LANG_PARTIAL_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\Z")

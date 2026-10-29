@@ -20,9 +20,9 @@
 <span class="md-nav__icon md-icon"></span>
 {% endif %}
 </a>
-{% endif %} {% endmacro %} {% macro render(nav_item, path, level, parent) %} {% set class = "md-nav__item" %} {% if nav_item.active %} {% set class = class ~ " md-nav__item--active" %} {% endif %} {% if nav_item.pages %} {% if page in nav_item.pages %} {% set nav_item = page %} {% endif %} {% endif %} {% if nav_item.children %} {% set _ = namespace(index = none) %} {% if "navigation.indexes" in features %} {% for item in nav_item.children %} {% if item.is_index and _.index is none %} {% set _.index = item %} {% endif %} {% endfor %} {% endif %} {% set index = _.index %} {% if "navigation.tabs" in features %} {% if level == 1 and nav_item.active %} {% set class = class ~ " md-nav__item--section" %} {% set is_section = true %} {% endif %} {% if "navigation.sections" in features %} {% if level == 2 and parent.active %} {% set class = class ~ " md-nav__item--section" %} {% set is_section = true %} {% endif %} {% endif %} {% elif "navigation.sections" in features %} {% if level == 1 %} {% set class = class ~ " md-nav__item--section" %} {% set is_section = true %} {% endif %} {% endif %} {% if "navigation.prune" in features %} {% if not is_section and not nav_item.active %} {% set class = class ~ " md-nav__item--pruned" %} {% set is_pruned = true %} {% endif %} {% endif %}
+{% endif %} {% endmacro %} {% macro render(nav_item, path, level, parent) %} {% set class = "md-nav__item" %} {% if nav_is_active(nav_item) %} {% set class = class ~ " md-nav__item--active" %} {% endif %} {% if nav_item.pages %} {% if page in nav_item.pages %} {% set nav_item = page %} {% endif %} {% endif %} {% if nav_item.children %} {% set _ = namespace(index = none) %} {% if "navigation.indexes" in features %} {% for item in nav_item.children %} {% if item.is_index and _.index is none %} {% set _.index = item %} {% endif %} {% endfor %} {% endif %} {% set index = _.index %} {% if "navigation.tabs" in features %} {% if level == 1 and nav_is_active(nav_item) %} {% set class = class ~ " md-nav__item--section" %} {% set is_section = true %} {% endif %} {% if "navigation.sections" in features %} {% if level == 2 and nav_is_active(parent) %} {% set class = class ~ " md-nav__item--section" %} {% set is_section = true %} {% endif %} {% endif %} {% elif "navigation.sections" in features %} {% if level == 1 %} {% set class = class ~ " md-nav__item--section" %} {% set is_section = true %} {% endif %} {% endif %} {% if "navigation.prune" in features %} {% if not is_section and not nav_is_active(nav_item) %} {% set class = class ~ " md-nav__item--pruned" %} {% set is_pruned = true %} {% endif %} {% endif %}
 <li class="{{ class }} md-nav__item--nested">
-{% if not is_pruned %} {% set checked = "checked" if nav_item.active %} {% if "navigation.expand" in features and not checked %} {% set indeterminate = "md-toggle--indeterminate" %} {% endif %}
+{% if not is_pruned %} {% set checked = "checked" if nav_is_active(nav_item) %} {% if "navigation.expand" in features and not checked %} {% set indeterminate = "md-toggle--indeterminate" %} {% endif %}
 <input class="md-nav__toggle md-toggle {{ indeterminate }}" type="checkbox" id="{{ path }}" {{ checked }}>
 {% if not index %} {% set tabindex = "0" if not is_section %}
 <label class="md-nav__link" for="{{ path }}" id="{{ path }}_label" tabindex="{{ tabindex }}">
@@ -41,7 +41,7 @@
 {% endif %}
 </div>
 {% endif %}
-<nav class="md-nav" data-md-level="{{ level }}" aria-labelledby="{{ path }}_label" aria-expanded="{{ nav_item.active | tojson }}">
+<nav class="md-nav" data-md-level="{{ level }}" aria-labelledby="{{ path }}_label" aria-expanded="{{ nav_is_active(nav_item) | tojson }}">
 <label class="md-nav__title" for="{{ path }}">
 <span class="md-nav__icon md-icon"></span>
 {{ render_title(nav_item) }}

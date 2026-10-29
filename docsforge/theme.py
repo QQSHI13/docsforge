@@ -230,5 +230,19 @@ class Theme(MutableMapping[str, Any]):
         env.filters["validate_icon_name"] = templates.validate_icon_name
         env.filters["theme_color"] = templates.resolve_theme_color
         env.globals["asset_url"] = templates.asset_url
+
+        # Sidebar highlight: expose the thread-local active check so the nav
+        # template reads the current page's path without the global
+        # `page.active` flag. This keeps parallel page writes from racing on
+        # shared nav state and lets non-active subtrees cache their HTML.
+        from docsforge.structure import rendering_active
+
+        def _nav_is_active(item) -> bool:
+            override = rendering_active(item)
+            if override is not None:
+                return override
+            return bool(getattr(item, "active", False))
+
+        env.globals["nav_is_active"] = _nav_is_active
         localization.install_translations(env, self.locale, self.dirs)
         return env

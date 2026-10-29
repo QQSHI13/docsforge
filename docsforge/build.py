@@ -67,6 +67,7 @@ def _as_completed(futures):
 
 log = logging.getLogger(__name__)
 
+
 # Shared fallback lock for page building when the caller does not provide one.
 # An RLock: `_build_page` can be re-entered via plugin hooks even when the
 # caller passes no lock (callers that do pass one always pass `threading.RLock()`).
@@ -106,6 +107,15 @@ def get_context(
         files = files.documentation_pages()
 
     i18n_locale = getattr(page.file if page is not None else None, "i18n_locale", None)
+
+    # Sidebar highlight path: the current page plus its ancestors. Templates
+    # check membership instead of the global `page.active` flag so page writes
+    # can run in parallel without a sidebar-highlight race.
+    active_path: set[int] = set()
+    if page is not None:
+        active_path.add(id(page))
+        active_path.update(id(a) for a in page.ancestors)
+
     return templates.TemplateContext(
         nav=nav,
         pages=files,
@@ -119,6 +129,7 @@ def get_context(
         lang_partial=templates.resolve_lang_partial(
             i18n_locale or config.theme.get("language"), config.theme.dirs
         ),
+        active_path=active_path,
     )
 
 
@@ -982,6 +993,12 @@ def _write_pages(
     page_lock = threading.RLock()
     log.info(f"Writing {len(pages_to_build)} pages...")
     failures = 0
+
+    # Serial on purpose: writes and cache mutations must stay ordered, and the
+    # per-page git revision dates are populated during get_context via a shared
+    # prefetch cache — parallel writes raced that cache and dropped the date
+    # block from some locale pages. The thread-local nav_is_active() keeps the
+    # sidebar correct, but git-meta and plugin hook ordering require serial.
     for plan in pages_to_build:
         try:
             _build_page(

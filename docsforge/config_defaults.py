@@ -11,7 +11,13 @@ from docsforge.emoji import to_svg, twemoji
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.yaml_utils import get_yaml_loader, yaml_load
 
-DEFAULT_CONCURRENCY = max(1, (os.cpu_count() or 1) - 1)
+# Default to all available cores; users can lower it via `concurrency:` in
+# docsforge.yml. Previously this was cpu_count - 1, but profiling on real sites
+# (e.g. CTF Wiki, 771 pages) showed the main thread spends significant time
+# blocked on worker joins, so leaving one core idle rarely helps and often
+# hurts. I/O-bound work (privacy downloads, social cards) still benefits from
+# the headroom, but CPU-bound page rendering wants every core.
+DEFAULT_CONCURRENCY = max(1, os.cpu_count() or 1)
 
 
 class _LogLevel(c.OptionallyRequired[int]):
