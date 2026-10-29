@@ -125,6 +125,14 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         # Guards on_page_context against double-indexing pages that were
         # already parsed in parallel during _populate_page.
         self._indexed_this_build: set[str] = set()
+        # Per-locale src_uris whose entries changed this build (rebuilt or
+        # removed). Drives incremental Marz index updates: only these docs
+        # are re-added to the binary index instead of the whole corpus.
+        self._changed_uris: dict[str, set[str]] = {}
+        # Per-locale previous locations (URL+anchor) of changed pages, captured
+        # before their cache slot is overwritten so the incremental Marz update
+        # can remove the old docs. Keyed by locale -> src_uri -> [locations].
+        self._old_locations: dict[str, dict[str, list[str]]] = {}
 
     def on_startup(self, *, command, dirty):
         self.is_dirty = dirty
@@ -210,9 +218,20 @@ class SearchPlugin(BasePlugin[SearchConfig]):
             return
         index = self._index_for_page(page)
         if index is not None:
-            new_entries = index.add_entry_from_context(page)
             locale = self._locale_for_page(page)
-            self._entries_cache.setdefault(locale, {})[page.file.src_uri] = new_entries
+            cache_for_locale = self._entries_cache.setdefault(locale, {})
+            # Record the page's previous locations so the incremental Marz
+            # update can remove its old docs (keyed by location/anchor, not
+            # src_uri) before the new entries overwrite the cache slot.
+            old_entries = cache_for_locale.get(page.file.src_uri)
+            if old_entries:
+                self._old_locations.setdefault(locale, {})[page.file.src_uri] = [
+                    e.get("location", "") for e in old_entries
+                ]
+            new_entries = index.add_entry_from_context(page)
+            cache_for_locale[page.file.src_uri] = new_entries
+            # Track for incremental Marz update: this page's docs changed.
+            self._changed_uris.setdefault(locale, set()).add(page.file.src_uri)
         self._indexed_this_build.add(page.file.src_uri)
 
     def _locale_for_page(self, page) -> str:
@@ -283,11 +302,14 @@ class SearchPlugin(BasePlugin[SearchConfig]):
         """Assemble the search index from the entries cache, recovering if needed."""
         cache = self._entries_cache.setdefault(locale, {})
 
-        # Drop entries for deleted sources.
+        # Drop entries for deleted sources; track them so the incremental
+        # Marz update can remove their docs from the binary index too.
         current_uris = self._current_source_uris(config)
+        changed = self._changed_uris.setdefault(locale, set())
         for uri in list(cache.keys()):
             if uri not in current_uris:
                 del cache[uri]
+                changed.add(uri)
 
         # If the cache is empty/corrupted, rebuild by re-rendering sources.
         if not cache:
@@ -329,20 +351,65 @@ class SearchPlugin(BasePlugin[SearchConfig]):
                 self._prepare_index_entries(index, locale, config)
                 data = index.generate_search_index(prev=None)
                 utils.write_file(data.encode("utf-8"), path)
+                marz_path = os.path.splitext(path)[0] + ".marz"
                 utils.write_file(
-                    index.generate_marz_index(),
-                    os.path.splitext(path)[0] + ".marz",
+                    self._build_marz_for_locale(index, locale, marz_path),
+                    marz_path,
                 )
         else:
             path = os.path.join(config.site_dir, "search", "search_index.json")
             self._prepare_index_entries(self.search_index, "", config)
             data = self.search_index.generate_search_index(prev=None)
             utils.write_file(data.encode("utf-8"), path)
+            marz_path = os.path.join(config.site_dir, "search", "search_index.marz")
             utils.write_file(
-                self.search_index.generate_marz_index(),
-                os.path.splitext(path)[0] + ".marz",
+                self._build_marz_for_locale(self.search_index, "", marz_path),
+                marz_path,
             )
         self._save_entries_cache()
+
+    def _build_marz_for_locale(self, index, locale: str, marz_path: str) -> bytes:
+        """Build the Marz binary index, updating incrementally when possible.
+
+        Loads the previously built ``.marz`` and applies only this build's
+        changed docs (removed old locations, added new) via
+        ``IndexBuilder.from_index``/``remove``/``add``. Falls back to a full
+        rebuild when there is no usable previous index or the change set is
+        large (full rebuild is cheaper than many single-doc removals).
+        """
+        changed = self._changed_uris.get(locale)
+        prev_bytes = None
+        try:
+            with open(marz_path, "rb") as f:
+                prev_bytes = f.read()
+        except OSError:
+            pass
+
+        # No previous index, no tracked changes, or recovery path: full build.
+        if prev_bytes is None or not changed:
+            return index.generate_marz_index()
+
+        old_locs = self._old_locations.get(locale, {})
+        new_entries_by_uri = self._entries_cache.get(locale, {})
+        removed_refs = []
+        added_docs = []
+        for src_uri in changed:
+            # Remove the page's previous docs (by their old locations).
+            for loc in old_locs.get(src_uri, []):
+                removed_refs.append(loc if loc else MARZ_ROOT_REF)
+            # Add the page's new docs.
+            for entry in new_entries_by_uri.get(src_uri, []):
+                location = entry.get("location", "")
+                doc = {
+                    "location": location if location else MARZ_ROOT_REF,
+                    "title": entry.get("title") or "",
+                    "text": entry.get("text") or "",
+                }
+                if "tags" in entry:
+                    tags = entry["tags"]
+                    doc["tags"] = " ".join(tags) if isinstance(tags, list) else (tags or "")
+                added_docs.append((doc, index._marz_boost(entry.get("boost"), 1.0)))
+        return index.generate_marz_index_incremental(prev_bytes, removed_refs, added_docs)
 
     def on_serve(self, server, *, config, builder):
         self.is_dirtyreload = self.is_dirty
@@ -505,6 +572,45 @@ class SearchIndex:
             builder.add(doc, boost=self._marz_boost(
                 entry.get("boost"), 1.0,
             ))
+        return builder.build().to_bytes()
+
+    def generate_marz_index_incremental(self, prev_bytes: bytes, removed_refs, added_docs) -> bytes:
+        """Update a previously built Marz index with only the changed docs.
+
+        ``removed_refs`` is an iterable of document references (locations) to
+        remove; ``added_docs`` is an iterable of ``(doc, boost)`` pairs to add.
+        Falls back to a full rebuild when the previous index cannot be
+        rehydrated (schema change, corrupt cache) so correctness never depends
+        on the cache being present.
+        """
+        lang = self.config.get("lang") or ["en"]
+        if isinstance(lang, str):
+            lang = [lang]
+
+        fields = ["title", "text"]
+        if any(e.get("tags") for e in self.entries):
+            fields.append("tags")
+
+        try:
+            prev_index = marz.Index.from_bytes(prev_bytes)
+            builder = marz.IndexBuilder.from_index(prev_index, ref_field="location")
+        except Exception:
+            # Could not rehydrate (corrupt, wrong schema): full rebuild.
+            return self.generate_marz_index()
+
+        # Re-declare fields (from_index restores names/boosts, but re-declaring
+        # is idempotent and guards against a stale cache missing the tags field).
+        for name in fields:
+            builder.field(name, self._marz_boost(
+                (self.config.get("fields") or {}).get(name),
+                MARZ_FIELD_BOOSTS[name],
+            ))
+
+        for ref in removed_refs:
+            with contextlib.suppress(Exception):
+                builder.remove(ref)
+        for doc, boost in added_docs:
+            builder.add(doc, boost=boost)
         return builder.build().to_bytes()
 
     @staticmethod
