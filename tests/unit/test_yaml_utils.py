@@ -181,7 +181,10 @@ class TestPythonNameTag:
 
     def test_resolvable_tag_returns_the_object(self, tmp_path):
         cfg = tmp_path / "cfg.yml"
-        cfg.write_text("value: !!python/name:pymdownx.slugs.uslugify\n")
+        # `slugify` (not `uslugify`): pymdown-extensions dropped `uslugify` in
+        # 12.x, and this test is about the loader resolving a real
+        # `!!python/name:` tag, not about which pymdownx helpers exist.
+        cfg.write_text("value: !!python/name:pymdownx.slugs.slugify\n")
         with open(cfg, "rb") as fd:
             assert callable(yaml_load(fd)["value"])
 
@@ -194,7 +197,7 @@ class TestPythonNameTag:
 
     def test_markdown_module_is_not_logged(self, tmp_path, caplog):
         cfg = tmp_path / "cfg.yml"
-        cfg.write_text("value: !!python/name:pymdownx.slugs.uslugify\n")
+        cfg.write_text("value: !!python/name:pymdownx.slugs.slugify\n")
         with caplog.at_level("DEBUG", logger="docsforge.yaml_utils"), open(cfg, "rb") as fd:
             yaml_load(fd)
         assert not [r for r in caplog.records if "non-Markdown module" in r.message]
