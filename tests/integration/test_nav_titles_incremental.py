@@ -74,20 +74,17 @@ def _write_project(root: Path, monkeypatch) -> None:
 
 
 def _nav_titles(html: str) -> set[str]:
-    """Titles appearing as a sidebar nav label in the rendered page."""
-    marker = "md-ellipsis>"
+    """Titles appearing as a sidebar nav label in the rendered page.
+
+    Tolerant of minification: with the minifier active, attribute quotes are
+    stripped (`class=md-ellipsis`); on interpreters without a `minify-go` wheel
+    they are kept (`class="md-ellipsis"`). Matching the raw marker only would
+    pass on one and fail on the other.
+    """
     out = set()
-    start = 0
-    while True:
-        idx = html.find(marker, start)
-        if idx < 0:
-            return out
-        begin = idx + len(marker)
-        end = html.find("<", begin)
-        if end < 0:
-            return out
-        out.add(html[begin:end])
-        start = end
+    for match in re.finditer(r"""md-ellipsis["']?>([^<]*)""", html):
+        out.add(match.group(1))
+    return out
 
 
 def _touch(project: Path, name: str, text: str) -> None:

@@ -31,6 +31,9 @@ def _write_project(root: Path, posts: dict[str, str]) -> None:
             docs_dir: docs
             site_dir: site
             privacy: false
+            # Blog is opt-in since 063ab716, so this test must request it.
+            plugins:
+              - blog
             theme:
               name: material
             """

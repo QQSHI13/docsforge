@@ -33,6 +33,7 @@ from docsforge.nav import Navigation, get_navigation
 from docsforge.pages import Page
 from docsforge.slugger import SlugRules, compute_rules, write_rules
 from docsforge.structure import restore_rendering_page, set_rendering_page
+from docsforge.utils import get_markdown_title
 
 if TYPE_CHECKING:
     import jinja2
@@ -571,41 +572,70 @@ def _read_nav_source(page: Page, config: DocsForgeConfig) -> None:
 def _apply_cached_title(page: Page, cached_titles: dict[str, str] | None) -> None:
     """Seed ``_title_from_render`` from the last build's rendered title.
 
-    ``Page.title`` prefers ``_title_from_render``, which only ``Page.render()``
-    sets. An incremental build renders just the dirty pages, so without this
-    every other page falls back to a naive ``# `` scan or its filename — and a
-    rebuilt page then labels its siblings wrongly while untouched pages keep
-    the right label. A dirty page overwrites this value when it renders, so the
-    cache can only ever supply the label the last render produced.
+    Only for pages whose **source cannot determine a title**: no frontmatter
+    ``title``, and the naive ``# `` scan finds no H1 (setext headings, an H1
+    hidden in a code fence). Those are exactly the pages where the fallback
+    disagrees with what the renderer extracts.
 
-    Frontmatter ``title`` still wins: ``Page.title`` checks ``meta['title']``
-    before ``_title_from_render``, so an edited frontmatter title takes effect
-    from the freshly read source.
+    Gating on that is what keeps rename detection working: a page whose source
+    *does* yield a title must never be seeded, or the cached label would mask a
+    real edit and the nav signature would never see the change. ``Page.title``
+    already prefers frontmatter and, for a visible ``# `` H1, the scan result
+    is what an un-rendered build has always used.
     """
     if not cached_titles:
         return
     cached = cached_titles.get(page.file.src_uri)
-    if cached and page._title_from_render is None:
-        page._title_from_render = cached
+    if not cached or page._title_from_render is not None:
+        return
+    if "title" in page.meta:
+        return  # frontmatter wins; re-read from source every build
+    if get_markdown_title(page.markdown or "") is not None:
+        return  # source already knows the title, so a rename stays detectable
+    page._title_from_render = cached
 
 
-def _ensure_nav_titles(
+def _seed_cached_titles(
     nav: Navigation,
     config: DocsForgeConfig,
-    cached_titles: dict[str, str] | None = None,
+    cached_titles: dict[str, str] | None,
 ) -> None:
+    """Apply the rendered-title cache so skipped pages keep a correct nav label.
+
+    Runs *after* the nav signature is computed. Seeding earlier would let a
+    cached label stand in for the current source title, so a real rename would
+    not change ``nav_sig`` and no page would be re-rendered.
+
+    Covers the default nav plus i18n locale navs (distinct Page objects).
+    """
+    if not cached_titles:
+        return
+    for page in nav.pages:
+        _apply_cached_title(page, cached_titles)
+
+    i18n_plugin = _get_i18n_plugin(config)
+    locale_navs = getattr(i18n_plugin, "_locale_navs", None) or {}
+    for locale_nav in locale_navs.values():
+        if locale_nav is nav:
+            continue
+        for page in getattr(locale_nav, "pages", []):
+            _apply_cached_title(page, cached_titles)
+
+
+def _ensure_nav_titles(nav: Navigation, config: DocsForgeConfig) -> None:
     """Load Markdown source titles for every page in the navigation.
 
     Navigation titles are not available until a page's source has been read.
     Reading them here is much cheaper than a full render and lets the nav
     signature detect title changes on incremental builds.
 
-    ``cached_titles`` restores the authoritative label for pages this build will
-    not render — see `_apply_cached_title`.
+    Deliberately does NOT apply the rendered-title cache: the nav signature
+    must be derived from the *current source*, or a real title change would be
+    masked by the cached label and no re-render would be triggered. The cache
+    is seeded later, only for rendering — see `_seed_cached_titles`.
     """
     for page in nav.pages:
         _read_nav_source(page, config)
-        _apply_cached_title(page, cached_titles)
 
     # i18n: locale navs hold distinct Page objects (e.g. setup/index.zh.md)
     # whose frontmatter (title, meta.icon for tabs/sidebar) is otherwise only
@@ -734,15 +764,21 @@ def _collect_files_and_nav(
 
     # Detect navigation/global changes that require every page to be re-rendered.
     # Titles must be loaded first so the signature reflects page title changes.
-    # `planner.titles` holds the labels the last build actually rendered, so
-    # pages this build skips keep their authoritative title instead of falling
-    # back to the naive `# ` scan.
-    _ensure_nav_titles(nav, config, planner.titles)
+    # Source-derived only: applying the rendered-title cache here would mask a
+    # real source edit (the cached label would win) and no re-render would be
+    # triggered, so navigation would keep the old label forever.
+    _ensure_nav_titles(nav, config)
     nav_sig = _nav_signature(nav, config)
     nav_changed = planner.nav_sig != nav_sig
     if nav_changed:
         planner.nav_sig = nav_sig
         log.debug("Navigation signature changed; all pages will be re-rendered")
+
+    # Seed the rendered-title cache AFTER the signature is derived. Pages this
+    # build will not render otherwise fall back to the naive `# ` scan for
+    # their nav label; the cache supplies the label the last render produced.
+    # Done here (not in _ensure_nav_titles) so it cannot influence nav_sig.
+    _seed_cached_titles(nav, config, planner.titles)
 
     log.debug("Reading markdown pages.")
     all_doc_files = list(files.documentation_pages(inclusion=inclusion))
@@ -1268,7 +1304,6 @@ def _finalize_build(
     config_path: Path,
     theme_sig: str,
     start: float,
-    nav_sig: str | None = None,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
     # Restore link/anchor data for pages not re-rendered this build, so the
@@ -1351,15 +1386,16 @@ def _finalize_build(
 
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
-    # `nav_sig` is recomputed by the caller AFTER the render phase, when every
-    # page carries its authoritative title. See build() for why. Callers that
-    # do not supply one (unit tests driving this function directly) keep the
-    # planner's existing value.
+    # `nav_sig` was derived from source titles before the render phase and is
+    # intentionally NOT recomputed afterwards: recomputing would save a
+    # signature the next build cannot reproduce (it sees source titles again,
+    # not rendered ones), so every cold build would be followed by one wasted
+    # full rebuild.
     planner.save(
         config_hash=config_hash,
         pkg_version=docsforge.__version__,
         theme_sig=theme_sig,
-        nav_sig=nav_sig if nav_sig is not None else planner.nav_sig,
+        nav_sig=planner.nav_sig,
     )
 
     # Save cache after successful build (only if not in strict mode with errors)
@@ -1414,13 +1450,9 @@ def build(
         # authoritative title. `_collect_files_and_nav` computed it BEFORE the
         # render phase, when a page this build renders still only had the naive
         # `# `-scan fallback (or, on a cold build, the filename). Saving that
-        # pre-render signature made the NEXT build derive a different one from
-        # the now-correct titles and force a spurious full re-render — so every
-        # cold build was followed by one wasted full rebuild.
         _finalize_build(
             config, files, nav, planner, warning_counter,
             built_any, built_sources, sources_changed, nav_changed, config_path, theme_sig, start,
-            nav_sig=_nav_signature(nav, config),
         )
 
     except Exception as e:

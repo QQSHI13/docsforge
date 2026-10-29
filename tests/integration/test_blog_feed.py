@@ -35,6 +35,9 @@ def _write_project(root: Path, site_url: str = "https://example.com/") -> None:
             docs_dir: docs
             site_dir: site
             privacy: false
+            # Blog is opt-in since 063ab716, so this test must request it.
+            plugins:
+              - blog
             theme:
               name: material
             """
@@ -92,9 +95,13 @@ class TestBlogFeed:
         root = tmp_path / "proj"
         _write_project(root)
         cfg_path = root / "docsforge.yml"
+        # Replace the existing `plugins:` block rather than appending a second
+        # one — duplicate keys are rejected by the YAML loader.
         cfg_path.write_text(
-            cfg_path.read_text()
-            + "plugins:\n  - blog:\n      feed: false\n"
+            cfg_path.read_text().replace(
+                "plugins:\n  - blog\n",
+                "plugins:\n  - blog:\n      feed: false\n",
+            )
         )
         _build(root, monkeypatch)
         assert not (root / "site" / "blog" / "feed_rss_created.xml").exists()
