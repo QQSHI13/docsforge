@@ -48,3 +48,9 @@ docs/docs/blog/index.md
 # VS Code extension compiled test output
 studio/test/**/*.js
 studio/test/**/*.js.map
+
+# Benchmark scratch: generated sites, build output, results
+bench/.site*/
+bench/.work/
+bench/results*.json
+bench/summary.txt

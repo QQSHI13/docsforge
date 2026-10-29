@@ -10,6 +10,14 @@
 
 ### Fixed
 
+- **Incremental search-index updates crashed the build** — the incremental
+  Marz path re-declared fields that `IndexBuilder.from_index` had already
+  restored, which raises `ValueError: field "title" is already declared`. The
+  call sat outside the `try`/`except`, so every incremental build died and the
+  full-rebuild fallback never ran. The same root cause left two more defects
+  in that path: `tags` was passed as a list (Marz requires a string) and a
+  field missing from the previous index was never declared. The full and
+  incremental builders now share one document/field helper.
 - **Non-strict builds still failed on a single bad page** — the page-populate
   stage raised on any render error even without `--strict`, while the write
   stage continued. One broken page now only warns (and is skipped) unless
