@@ -1268,6 +1268,7 @@ def _finalize_build(
     config_path: Path,
     theme_sig: str,
     start: float,
+    nav_sig: str | None = None,
 ) -> None:
     """Generate PWA assets, validate links, run post-build events, and save cache."""
     # Restore link/anchor data for pages not re-rendered this build, so the
@@ -1350,19 +1351,15 @@ def _finalize_build(
 
     # Save cache state
     config_hash = FileHasher.hash_file(config_path) if config_path.exists() else ""
-    # Recompute the nav signature now that every rendered page carries its
-    # authoritative title. `_collect_files_and_nav` computed it *before* the
-    # render phase, when a page that this build renders still only had the
-    # naive `# `-scan fallback (or, on a cold build, the filename). Saving that
-    # pre-render signature made the NEXT build compute a different one from the
-    # now-correct titles and force a spurious full re-render — so every cold
-    # build was followed by one wasted full rebuild.
-    planner.nav_sig = _nav_signature(nav, config)
+    # `nav_sig` is recomputed by the caller AFTER the render phase, when every
+    # page carries its authoritative title. See build() for why. Callers that
+    # do not supply one (unit tests driving this function directly) keep the
+    # planner's existing value.
     planner.save(
         config_hash=config_hash,
         pkg_version=docsforge.__version__,
         theme_sig=theme_sig,
-        nav_sig=planner.nav_sig,
+        nav_sig=nav_sig if nav_sig is not None else planner.nav_sig,
     )
 
     # Save cache after successful build (only if not in strict mode with errors)
@@ -1413,9 +1410,17 @@ def build(
             config, files, nav, env, planner, all_doc_files, inclusion,
             serve_url=serve_url, force_all=nav_changed,
         )
+        # Recompute the nav signature now that every rendered page carries its
+        # authoritative title. `_collect_files_and_nav` computed it BEFORE the
+        # render phase, when a page this build renders still only had the naive
+        # `# `-scan fallback (or, on a cold build, the filename). Saving that
+        # pre-render signature made the NEXT build derive a different one from
+        # the now-correct titles and force a spurious full re-render — so every
+        # cold build was followed by one wasted full rebuild.
         _finalize_build(
             config, files, nav, planner, warning_counter,
             built_any, built_sources, sources_changed, nav_changed, config_path, theme_sig, start,
+            nav_sig=_nav_signature(nav, config),
         )
 
     except Exception as e:

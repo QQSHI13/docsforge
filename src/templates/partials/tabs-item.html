@@ -14,7 +14,7 @@
 {% macro render(nav_item, ref) %}
   {% set ref = ref or nav_item %}
   {% set class = "md-tabs__item" %}
-  {% if ref.active %}
+  {% if nav_is_active(ref) %}
     {% set class = class ~ " md-tabs__item--active" %}
   {% endif %}
   {% if nav_item.children %}

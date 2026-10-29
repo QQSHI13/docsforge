@@ -55,7 +55,7 @@
 {% endmacro %}
 {% macro render(nav_item, path, level, parent) %}
   {% set class = "md-nav__item" %}
-  {% if nav_item.active %}
+  {% if nav_is_active(nav_item) %}
     {% set class = class ~ " md-nav__item--active" %}
   {% endif %}
   {% if nav_item.pages %}
@@ -74,12 +74,12 @@
     {% endif %}
     {% set index = _.index %}
     {% if "navigation.tabs" in features %}
-      {% if level == 1 and nav_item.active %}
+      {% if level == 1 and nav_is_active(nav_item) %}
         {% set class = class ~ " md-nav__item--section" %}
         {% set is_section = true %}
       {% endif %}
       {% if "navigation.sections" in features %}
-        {% if level == 2 and parent.active %}
+        {% if level == 2 and nav_is_active(parent) %}
           {% set class = class ~ " md-nav__item--section" %}
           {% set is_section = true %}
         {% endif %}
@@ -91,14 +91,14 @@
       {% endif %}
     {% endif %}
     {% if "navigation.prune" in features %}
-      {% if not is_section and not nav_item.active %}
+      {% if not is_section and not nav_is_active(nav_item) %}
         {% set class = class ~ " md-nav__item--pruned" %}
         {% set is_pruned = true %}
       {% endif %}
     {% endif %}
     <li class="{{ class }} md-nav__item--nested">
       {% if not is_pruned %}
-        {% set checked = "checked" if nav_item.active %}
+        {% set checked = "checked" if nav_is_active(nav_item) %}
         {% if "navigation.expand" in features and not checked %}
           {% set indeterminate = "md-toggle--indeterminate" %}
         {% endif %}
@@ -123,7 +123,7 @@
             {% endif %}
           </div>
         {% endif %}
-        <nav class="md-nav" data-md-level="{{ level }}" aria-labelledby="{{ path }}_label" aria-expanded="{{ nav_item.active | tojson }}">
+        <nav class="md-nav" data-md-level="{{ level }}" aria-labelledby="{{ path }}_label" aria-expanded="{{ nav_is_active(nav_item) | tojson }}">
           <label class="md-nav__title" for="{{ path }}">
             <span class="md-nav__icon md-icon"></span>
             {{ render_title(nav_item) }}
