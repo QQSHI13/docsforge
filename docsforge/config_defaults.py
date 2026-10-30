@@ -12,11 +12,15 @@ from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.yaml_utils import get_yaml_loader, yaml_load
 
 # Default to all available cores; users can lower it via `concurrency:` in
-# docsforge.yml. Previously this was cpu_count - 1, but profiling on real sites
-# (e.g. CTF Wiki, 771 pages) showed the main thread spends significant time
-# blocked on worker joins, so leaving one core idle rarely helps and often
-# hurts. I/O-bound work (privacy downloads, social cards) still benefits from
-# the headroom, but CPU-bound page rendering wants every core.
+# docsforge.yml. Previously this was cpu_count - 1.
+#
+# The extra worker does not make page rendering faster: Markdown conversion is
+# pure Python and therefore GIL-bound, so a build uses roughly one core no
+# matter how many threads exist (measured on a 201-page site: `concurrency: 1`
+# 8.62s vs `concurrency: 4` 8.74s, and every build phase has a cpu/wall ratio
+# of ~1.00). It is kept because the I/O-bound plugin work — privacy downloads,
+# social-card rendering — releases the GIL and does overlap, so the headroom is
+# not wasted there.
 DEFAULT_CONCURRENCY = max(1, os.cpu_count() or 1)
 
 
