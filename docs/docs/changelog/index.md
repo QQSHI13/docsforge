@@ -114,17 +114,16 @@
   only those docs are removed/re-added. On the 771-page CTF Wiki a single-file
   incremental build drops from ~18.5s to ~6.5s. Falls back to a full rebuild
   when there is no usable previous index.
-- **`concurrency` now defaults to a single worker** — the default was
-  `cpu_count - 1`. This does **not** slow builds down: Markdown conversion is
-  pure Python and therefore GIL-bound, so a build uses about one core
-  regardless of thread count (measured on a 201-page site, `concurrency: 1`
-  8.62s vs `concurrency: 4` 8.74s, with every build phase showing a cpu/wall
-  ratio of ~1.00). One worker is the honest default: extra threads add
-  scheduling and memory without buying throughput. Raise it when you use the
-  I/O-bound plugins heavily — privacy downloads, PDF Chromium tabs, social
-  cards — which release the GIL and do overlap. Still configurable via
-  `concurrency:`. Separately, the sidebar highlight now reads the rendering
-  page through a thread-local instead of a shared mutable flag.
+- **`concurrency` now defaults to every CPU core** — the default was
+  `cpu_count - 1`. Markdown conversion itself is pure Python and therefore
+  GIL-bound, so page rendering alone scales poorly (measured on a synthetic
+  201-page site, `concurrency: 1` 8.62s vs `concurrency: 4` 8.74s). That
+  benchmark was not a git repository, which hid the real reason to
+  parallelise: a build inside a git repo runs a `git log` subprocess per page
+  for the revision date, and subprocess I/O releases the GIL, so workers do
+  overlap there. On real sites that dwarfs the rendering cost. Still
+  configurable via `concurrency:`. Separately, the sidebar highlight now reads
+  the rendering page through a thread-local instead of a shared mutable flag.
 
 ### Changed
 

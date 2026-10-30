@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Mapping
 from typing import IO
 
@@ -10,15 +11,18 @@ from docsforge.emoji import to_svg, twemoji
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.yaml_utils import get_yaml_loader, yaml_load
 
-# Default to a single worker: the page pipeline is GIL-bound, so extra threads
-# buy nothing. Markdown conversion is pure Python, and every build phase
-# measures a cpu/wall ratio of ~1.00 (201-page site: `concurrency: 1` 8.62s vs
-# `concurrency: 4` 8.74s over 3 reps). Threads only pay off for work that
-# releases the GIL — privacy downloads, PDF Chromium tabs, social cards — so
-# raise it if you use those heavily:
+# Default to every available core; override with `concurrency:` in
+# docsforge.yml.
 #
-#     concurrency: 4
-DEFAULT_CONCURRENCY = 1
+# Page rendering itself is largely GIL-bound (Markdown conversion is pure
+# Python), so it scales poorly on its own — measured on a synthetic 201-page
+# site, 1 worker 8.62s vs 4 workers 8.74s. That site was not a git repository,
+# which hid the real reason to parallelise: a build in a git repo runs a
+# `git log` subprocess per page for the revision date, and subprocess I/O
+# releases the GIL, so workers genuinely overlap there. On a real site this
+# matters far more than the rendering itself, which is why the default is every
+# core rather than one.
+DEFAULT_CONCURRENCY = max(1, os.cpu_count() or 1)
 
 
 class _LogLevel(c.OptionallyRequired[int]):
