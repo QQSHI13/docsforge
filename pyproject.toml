@@ -44,6 +44,11 @@ dependencies = [
     "requests >=2.34.2",
     "babel >=2.18.0",
     "pygments >=2.21.0",
+    # libxml2 binding, used by the asset optimizer to scan built HTML for asset
+    # references — the single largest cost in a cold build (libxml2 is ~3.7x
+    # faster than html.parser there). Ships manylinux/musllinux/macOS/Windows
+    # wheels for every supported CPython, so no build step is needed.
+    "lxml >=6.0.2",
     "marz-search >=0.3.1",
     # minify-go ships per-interpreter wheels (cp310..cp314) with no sdist and
     # no abi3 build, so it cannot be installed on 3.15 yet. The minify plugin

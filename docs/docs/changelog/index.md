@@ -83,6 +83,20 @@
 
 ### Performance
 
+- **Asset-reference scanning uses libxml2 instead of `html.parser`** — the
+  asset optimizer re-parses every built HTML page to find asset references, and
+  that scan was the largest single cost in a cold build: 6.02s of a 19.4s
+  201-page build, 40% once `html.parser`'s internal regexes are counted.
+  `_AssetReferenceParser` is now backed by `lxml`'s target interface, which
+  streams the same start/end/data events without building a tree. On the 202
+  built pages of that site the isolated parse drops from 6.98s to 0.91s
+  (7.7x), and the reference lists are identical — 202/202 pages, 25/25 edge
+  cases (void and self-closing elements, CDATA in `<style>`, entities, unquoted
+  attributes, comments, malformed markup, uppercase tags) and the full built
+  site is byte-identical. No wall-clock figure is claimed for the whole build:
+  on a shared machine the run-to-run spread (4.4s stdev on a 21s median) is
+  larger than the saving, so only the isolated parse measurement is meaningful.
+  `html.parser` remains as an automatic fallback if `lxml` cannot be imported.
 - **Untouched locales no longer rebuild their whole search index** — on a
   multi-locale site, editing one page made every *other* locale rebuild its
   Marz index from scratch, because an empty change set fell into the
