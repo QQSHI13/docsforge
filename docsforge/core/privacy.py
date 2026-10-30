@@ -79,9 +79,20 @@ MAX_REDIRECTS = 5
 # (`alt="a>b"`), so the attribute part is spelled out: name, then an optional
 # `= value` where `=` may be surrounded by spaces (`src = "..."`). A tag that
 # is still unterminated when the page ends simply does not match.
+# The attribute group is wrapped in an ATOMIC group `(?>...)`. Written the plain
+# way, `(?:\s+name(?:\s*=\s*value)?)*` is ambiguous: `\s+` and the `\s*` before
+# `=` can both consume the same run of spaces, so a tag that never terminates
+# backtracks over every split of the whitespace between them. CodeQL flagged
+# this as py/redos (high): `<a` followed by repeated `"  !="` takes exponential
+# time — measured >3s (timeout) at 163 characters, and unbounded beyond that.
+# Atomic commits to the first parse of each attribute, making it linear; the
+# measured cost at 800 characters is 0.02ms. Match behaviour is unchanged:
+# verified identical on 202 built pages and 31 crafted edge cases, including
+# the case that distinguishes the alternatives (`<a != >`, which must still
+# match).
 _REWRITE_TAG_RE = re.compile(
     r"""<(?P<tag>img|script|a|link|image)(?=[\s/>])"""
-    r"""(?:\s+[^\s=/><\"']+(?:\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]*))?)*\s*/?>""",
+    r"""(?:(?>\s+[^\s=/><\"']+(?:\s*=\s*(?:\"[^\"]*\"|'[^']*'|[^\s>]*))?))*\s*/?>""",
     re.IGNORECASE,
 )
 

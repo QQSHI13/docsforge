@@ -555,6 +555,61 @@ class TestBothAdjacentTagsRewritten:
         assert "cdn.example" not in out
 
 
+class TestRewriteTagRedos:
+    """`_REWRITE_TAG_RE` must not backtrack exponentially (CodeQL py/redos).
+
+    The plain `(?:\\s+name(?:\\s*=\\s*value)?)*` shape is ambiguous: `\\s+` and the
+    `\\s*` before `=` can both consume the same whitespace, so a tag that never
+    terminates retries every split of it. CodeQL's witness — `<a` followed by
+    repeated `"  !="` — took >3s at 163 characters. The attribute group is now
+    atomic, which commits to one parse per attribute and keeps it linear.
+    """
+
+    def test_pathological_input_terminates_quickly(self):
+        import time
+
+        # 400 repetitions: exponential backtracking would never finish this,
+        # and even a slow linear scan is far under the bound.
+        witness = "<a" + "  !=" * 400
+        started = time.perf_counter()
+        list(privacy_mod._REWRITE_TAG_RE.finditer(witness))
+        elapsed = time.perf_counter() - started
+        assert elapsed < 0.5, f"regex took {elapsed:.2f}s on adversarial input"
+
+    def test_rewrite_behaviour_unchanged_on_edge_shapes(self):
+        """The atomic group must not change what matches."""
+        # Every one of these was verified to match identically before the fix.
+        cases = {
+            '<img src="a>b.png">': True,
+            "<img src = a.png>": True,
+            "<img src = 'a.png'>": True,
+            '<img src="a.png"/>': True,
+            '<IMG SRC="a.png">': True,
+            '<img src="a.png" >': True,
+            "<img src>": True,
+            '<a href="x">': True,
+            '<a  href = "x" >': True,
+            "<image href='i.svg'/>": True,
+            '<link rel="stylesheet" href="a.css">': True,
+            '<script defer src="a.js"></script>': True,
+            '<img alt="a b" src="c.png">': True,
+            "<img data-x=1 src=a.png>": True,
+            # `/ >` (space between slash and bracket) does not fit `\s*/?>`.
+            # Both the old and new pattern reject it — verified by A/B.
+            '<img src="a.png" / >': False,
+            '<a\nhref="x">': True,
+            '<a !x="1">': True,
+            # Must still match: this is the case a naive "require a character"
+            # fix for the ReDoS broke.
+            "<a != >": True,
+            '<imgsrc="a.png">': False,
+            "<div>x</div>": False,
+        }
+        for html, should_match in cases.items():
+            found = bool(privacy_mod._REWRITE_TAG_RE.search(html))
+            assert found is should_match, f"{html!r}: expected match={should_match}"
+
+
 class TestDownloadTimeCap:
     """The synchronous fetch path runs under the page render lock, so the
     per-asset ceiling must stay small enough not to stall the thread pool."""
