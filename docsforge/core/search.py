@@ -775,7 +775,11 @@ class Parser(HTMLParser):
                 self._skip_ids.add(id(el))
                 return
 
-        if not self._is_skipped() and tag in self.keep:
+        # `tag in self.keep` is checked first on purpose: `_is_skipped` walks the
+        # whole open-element stack, and most tags (div, span, table, td…) are not
+        # in `keep`, so testing membership first skips that walk entirely. Both
+        # operands are pure, so the order cannot change the result.
+        if tag in self.keep and not self._is_skipped():
             data = self.section.text
             if self.section.el in self.context:
                 data = self.section.title
@@ -797,7 +801,9 @@ class Parser(HTMLParser):
             self._skip_ids.discard(id(el))
             return
 
-        if not self._is_skipped() and tag in self.keep:
+        # Membership first for the same reason as handle_starttag: skip the
+        # stack walk for tags that can never contribute.
+        if tag in self.keep and not self._is_skipped():
             data = self.section.text
             if self.section.el in self.context:
                 data = self.section.title
