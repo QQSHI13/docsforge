@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [14.0.0] — 2026-10-30
+
 ### Security
 
 - **The social plugin fetched card fonts without network guards** — the privacy
