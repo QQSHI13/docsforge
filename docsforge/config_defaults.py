@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import Mapping
 from typing import IO
 
@@ -11,17 +10,15 @@ from docsforge.emoji import to_svg, twemoji
 from docsforge.pages import Page, _AbsoluteLinksValidationValue
 from docsforge.yaml_utils import get_yaml_loader, yaml_load
 
-# Default to all available cores; users can lower it via `concurrency:` in
-# docsforge.yml. Previously this was cpu_count - 1.
+# Default to a single worker: the page pipeline is GIL-bound, so extra threads
+# buy nothing. Markdown conversion is pure Python, and every build phase
+# measures a cpu/wall ratio of ~1.00 (201-page site: `concurrency: 1` 8.62s vs
+# `concurrency: 4` 8.74s over 3 reps). Threads only pay off for work that
+# releases the GIL — privacy downloads, PDF Chromium tabs, social cards — so
+# raise it if you use those heavily:
 #
-# The extra worker does not make page rendering faster: Markdown conversion is
-# pure Python and therefore GIL-bound, so a build uses roughly one core no
-# matter how many threads exist (measured on a 201-page site: `concurrency: 1`
-# 8.62s vs `concurrency: 4` 8.74s, and every build phase has a cpu/wall ratio
-# of ~1.00). It is kept because the I/O-bound plugin work — privacy downloads,
-# social-card rendering — releases the GIL and does overlap, so the headroom is
-# not wasted there.
-DEFAULT_CONCURRENCY = max(1, os.cpu_count() or 1)
+#     concurrency: 4
+DEFAULT_CONCURRENCY = 1
 
 
 class _LogLevel(c.OptionallyRequired[int]):
