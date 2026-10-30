@@ -85,6 +85,14 @@
 
 ### Performance
 
+- **Git revision dates are now opt-in** — every page used to run a
+  `git log --follow` subprocess to show "last updated / created". On a
+  2,200-commit repo that measured 0.6s per page, so a 771-page build spent
+  roughly 475s in git subprocesses — by far the largest cost in a real build,
+  and a feature most sites never used (upstream ctf-wiki, whose config this
+  behaviour was modelled on, has no git plugin at all). Enable it with
+  `extra.git_revision_date: true` when you want the footer; a site without it
+  now builds without touching git.
 - **Asset-reference scanning uses libxml2 instead of `html.parser`** — the
   asset optimizer re-parses every built HTML page to find asset references, and
   that scan was the largest single cost in a cold build: 6.02s of a 19.4s

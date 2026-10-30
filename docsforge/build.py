@@ -88,9 +88,17 @@ def get_context(
         if base_url and not base_url.endswith("/"):
             base_url += "/"
 
-        # Inject git revision info into page meta if available and not disabled
+        # Inject git revision info into page meta when the site opts in.
+        #
+        # Default is OFF: a lookup runs `git log --follow` per page, measured at
+        # 0.6s on a 2,200-commit repo — 771 pages is ~475s of subprocess time,
+        # by far the largest cost in a real build. Sites that want the
+        # last-updated/created footer opt in with:
+        #
+        #     extra:
+        #       git_revision_date: true
         extra_cfg = config.get("extra", {})
-        git_enabled = getattr(extra_cfg, "git_revision_date", True) if extra_cfg else True
+        git_enabled = getattr(extra_cfg, "git_revision_date", False) if extra_cfg else False
         # Generated files (File.generated / a plugin's temp source) have no
         # on-disk source, so there is no history to look up.
         if git_enabled and page.file.abs_src_path and not page.meta.get("git_revision_date_localized"):
