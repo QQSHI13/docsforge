@@ -75,6 +75,19 @@ log = logging.getLogger(__name__)
 _default_page_lock = threading.RLock()
 
 
+def _git_dates_enabled(config: DocsForgeConfig) -> bool:
+    """Whether this site opted into git revision dates.
+
+    Off by default: each page would run a `git log --follow` subprocess, which
+    measures 0.6s per page on a 2,200-commit history — on a 771-page site that
+    is most of the build. Opt in with `extra.git_revision_date: true`.
+    """
+    extra_cfg = config.get("extra", {})
+    if not extra_cfg:
+        return False
+    return bool(getattr(extra_cfg, "git_revision_date", False))
+
+
 def get_context(
     nav: Navigation,
     files: Sequence[File] | Files,
@@ -89,19 +102,14 @@ def get_context(
             base_url += "/"
 
         # Inject git revision info into page meta when the site opts in.
-        #
-        # Default is OFF: a lookup runs `git log --follow` per page, measured at
-        # 0.6s on a 2,200-commit repo — 771 pages is ~475s of subprocess time,
-        # by far the largest cost in a real build. Sites that want the
-        # last-updated/created footer opt in with:
-        #
-        #     extra:
-        #       git_revision_date: true
-        extra_cfg = config.get("extra", {})
-        git_enabled = getattr(extra_cfg, "git_revision_date", False) if extra_cfg else False
+        # See `_git_dates_enabled` for why this is off by default.
         # Generated files (File.generated / a plugin's temp source) have no
         # on-disk source, so there is no history to look up.
-        if git_enabled and page.file.abs_src_path and not page.meta.get("git_revision_date_localized"):
+        if (
+            _git_dates_enabled(config)
+            and page.file.abs_src_path
+            and not page.meta.get("git_revision_date_localized")
+        ):
             git_info = get_git_page_info(page.file.abs_src_path)
             if git_info:
                 page.meta["git_revision_date_localized"] = git_info["updated_display"]
@@ -1074,14 +1082,14 @@ def _write_pages(
     if not pages_to_build:
         return built_any, built_sources
 
-    # Warm git revision dates concurrently (S1): every page render below calls
-    # get_git_page_info, whose history walks cost ~100ms each. Prefetching
-    # fills the same cache through the same per-file git commands, so output is
-    # identical — the renders just stop waiting on serial walks. Generated
-    # files have no source path to warm.
-    prefetch_git_page_info(
-        [plan.page.file.abs_src_path for plan in pages_to_build if plan.page.file.abs_src_path]
-    )
+    # Warm git revision dates concurrently, but ONLY when the site opted in.
+    # A walk costs ~0.6s per page on a large history, and prefetching when the
+    # dates are disabled would pay the entire subprocess cost for output nobody
+    # reads — turning the opt-out into pure overhead.
+    if _git_dates_enabled(config):
+        prefetch_git_page_info(
+            [plan.page.file.abs_src_path for plan in pages_to_build if plan.page.file.abs_src_path]
+        )
     page_lock = threading.RLock()
     log.info(f"Writing {len(pages_to_build)} pages...")
     failures = 0
