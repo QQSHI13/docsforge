@@ -65,7 +65,7 @@ all = ["playwright>=1.64.1", "docsforge[pdf]", "docsforge[social]"]
 pdf = ["playwright>=1.64.1", "pypdf>=6.21.2"]
 social = ["pillow>=13.0.0", "cairosvg>=2.9.1"]
 # Pinned to the version CI enforces, so `ruff check` locally matches the gate.
-dev = ["pytest>=9.1.1", "pytest-mock>=3.17.0", "ruff==0.17.3"]
+dev = ["pytest>=9.1.1", "pytest-mock>=3.17.0", "ruff==0.17.4"]
 
 [project.urls]
 Documentation = "https://qqshi13.github.io/docsforge"
