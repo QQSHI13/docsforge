@@ -79,8 +79,8 @@ importers:
         specifier: ^11.2.0
         version: 11.2.0
       sass:
-        specifier: ^1.106.1
-        version: 1.106.1
+        specifier: ^1.108.2
+        version: 1.108.2
       simple-icons:
         specifier: ^16.37.0
         version: 16.37.0
@@ -1193,8 +1193,8 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  sass@1.106.1:
-    resolution: {integrity: sha512-kD+Gi66vycZcbJt+42NC4z4PXNMcCajVrJPhqoKKXy5cOBMmJQt052CxIBcRjwYXeImHYOpu/ydWWGZQIenl7A==}
+  sass@1.108.2:
+    resolution: {integrity: sha512-kugK8djotnG9HQRPTOf36asKYlxg8rWWsNLYHOgWDIVOiZQqlRfKBgF4XXM6kfw146kIDMvm57B4GIkvDSyTzA==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -2309,7 +2309,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass@1.106.1:
+  sass@1.108.2:
     dependencies:
       chokidar: 5.0.0
       immutable: 5.1.9
