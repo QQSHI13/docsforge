@@ -319,7 +319,24 @@ export async function pickInstall(
     return { kind: 'none', python: null };
   }
   const states = await Promise.all(pythons.map((p) => probePython(p)));
-  const withEngine = states.filter((s) => s.docsforgeVersion);
+  // Several interpreter strings can resolve to the same docsforge install
+  // (e.g. `python3` vs its absolute path, a remembered interpreter that is
+  // also the workspace `.venv`). Dedupe by install location, keeping the
+  // first candidate — otherwise the picker lists the same install twice
+  // and the choice is ambiguous.
+  const seen = new Set<string>();
+  const withEngine: EnvironmentState[] = [];
+  for (const s of states) {
+    if (!s.docsforgeVersion) {
+      continue;
+    }
+    const key = s.location ?? s.python;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    withEngine.push(s);
+  }
   if (!withEngine.length) {
     return { kind: 'none', python: pythons[0] };
   }
@@ -346,7 +363,11 @@ export async function pickInstall(
   // be pre-selected — confirming the default is a single Enter.
   const qp = vscode.window.createQuickPick<InstallItem>();
   qp.items = items;
-  qp.activeItems = items.filter((i) => i.state.python === remembered);
+  // Pre-select via selectedItems (the actual selection), not activeItems
+  // (highlight only): with a single-selection picker, an active-but-not-
+  // selected item means onDidAccept reads an empty selectedItems and the
+  // pick is reported as cancelled — the picker closes and nothing happens.
+  qp.selectedItems = items.filter((i) => i.state.python === remembered);
   qp.placeholder = 'Several DocsForge installs found. Which one should be used?';
   const choice = await new Promise<InstallItem | undefined>((resolve) => {
     const done = (v: InstallItem | undefined) => {
