@@ -33,7 +33,7 @@
     "postcss-inline-svg": "^6.0.0",
     "preact": "^11.2.0",
     "sass": "^1.106.1",
-    "simple-icons": "^16.36.0",
+    "simple-icons": "^16.37.0",
     "svgo": "^4.1.0",
     "typescript": "^7.0.2"
   },
