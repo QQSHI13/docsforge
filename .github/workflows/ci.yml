@@ -61,6 +61,12 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    # Playwright can wedge without ever failing: a run on 2026-11-14 sat in
+    # "Run E2E browser tests" from 21:54 to the 6-hour job limit, so the job
+    # reported a cancelled e2e on every PR cut from that commit. A normal run
+    # finishes in ~70s, so this bound is ~17x headroom -- it only ever fires on
+    # a genuine hang, turning 6 wasted runner-hours into a fast, readable fail.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
