@@ -229,6 +229,7 @@ class Theme(MutableMapping[str, Any]):
         env.filters["script_tag"] = templates.script_tag_filter
         env.filters["validate_icon_name"] = templates.validate_icon_name
         env.filters["theme_color"] = templates.resolve_theme_color
+        env.filters["cache_bust"] = templates.cache_bust
         env.globals["asset_url"] = templates.asset_url
 
         # Sidebar highlight: expose the thread-local active check so the nav

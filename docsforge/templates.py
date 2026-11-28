@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 import threading
 from collections.abc import Sequence
@@ -107,6 +108,21 @@ def url_filter(context: TemplateContext, value: str) -> str:
     """A Template filter to normalize URLs."""
     from docsforge.utils import normalize_url
     return normalize_url(str(value), base=context["base_url"])
+
+
+def cache_bust(value: str, docs_dir: str) -> str:
+    """Append a content hash to a site-asset URL so changed bytes bust caches.
+
+    Browsers keep favicons in a store keyed by URL that ignores HTTP cache
+    headers, so a same-URL icon swap is never picked up (not even with a hard
+    refresh). Changing the URL is the only thing that works. Resolves
+    ``docs_dir/value``; leaves the value untouched when the file is missing.
+    """
+    try:
+        digest = hashlib.sha256((Path(docs_dir) / value).read_bytes()).hexdigest()[:8]
+    except OSError:
+        return value
+    return f"{value}{'&' if '?' in value else '?'}v={digest}"
 
 
 @contextfilter
