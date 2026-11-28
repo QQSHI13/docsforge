@@ -4,7 +4,7 @@
 <div class="md-copyright">
   {% if config.copyright %}
     <div class="md-copyright__highlight">
-      {{ config.copyright }}
+      {{ config.copyright | safe }}
     </div>
   {% endif %}
   {% if config.extra.generator is not false %}
