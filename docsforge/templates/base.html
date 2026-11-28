@@ -388,6 +388,39 @@ entries are invalid HTML and trigger the material alternate integration to fetch
             }
           });
         }
+        {% else %}
+        // offline.mode 'none': a registration is browser state, not a build
+        // artifact, so a visitor who loaded the site while offline support was
+        // on keeps that worker installed forever. It serves cache-first, so a
+        // changed favicon or logo stays stale until a hard refresh. Not
+        // registering a new one (what dropping sw.js does) leaves the old one
+        // in charge, so unregister it.
+        if ('serviceWorker' in navigator) {
+          var siteScope = new URL("{{ config.site_url or '/' }}", location.href).pathname;
+          if (!siteScope.endsWith('/')) siteScope += '/';
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(reg) {
+              // reg.scope is absolute, siteScope is a path. At root scope the
+              // site owns the origin, so every worker there is ours.
+              var regScope;
+              try { regScope = new URL(reg.scope).pathname; } catch (e) { return; }
+              if (regScope.indexOf(siteScope) === 0) {
+                reg.unregister().catch(function() {});
+              }
+            });
+          }).catch(function() {});
+          // Cache names are the only origin-wide handle the Cache API exposes,
+          // so match the 'docsforge-' prefix the worker has always used.
+          if (window.caches && caches.keys) {
+            caches.keys().then(function(names) {
+              names.forEach(function(name) {
+                if (name.indexOf('docsforge-') === 0) {
+                  caches.delete(name).catch(function() {});
+                }
+              });
+            }).catch(function() {});
+          }
+        }
         {% endif %}
 </script>
 {% endblock %}

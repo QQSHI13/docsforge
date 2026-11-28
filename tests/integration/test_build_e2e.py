@@ -108,7 +108,11 @@ class TestBuildE2E:
         html = (site / "index.html").read_text()
         assert 'rel="manifest"' not in html
         assert "serviceWorker.register" not in html
-        assert "'serviceWorker' in navigator" not in html
+        # A worker may still be installed in the visitor's browser from an
+        # earlier build that had offline support on. Dropping sw.js does not
+        # remove it, so pages must actively unregister it instead.
+        assert "getRegistrations" in html, "none mode must unregister stale workers"
+        assert "unregister" in html
 
     def test_second_build_is_incremental(self, tmp_project, monkeypatch):
         """The second build must not rewrite an unchanged page's output."""
