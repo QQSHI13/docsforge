@@ -1,5 +1,28 @@
 ## [Unreleased]
 
+### Fixed
+
+- **The copyright notice rendered HTML entities literally** — autoescaping
+  applied to `config.copyright`, so `Copyright &copy; 2025` reached the page as
+  `&amp;copy; 2025` and the browser drew the entity source instead of `©`. The
+  configuration reference had documented `&copy;` as supported all along. The
+  value comes from the site author's own config, so it is now rendered as
+  markup, exactly like other author-supplied strings.
+- **A changed favicon or logo stayed stale** — both were referenced at a fixed
+  path, so replacing the image never changed the URL. The favicon is the worse
+  case: browsers keep icons in a store keyed by URL that ignores HTTP cache
+  headers, so it was never refetched at all — not on navigation, and not even
+  with a hard refresh. The header logo went stale for as long as the host's
+  `max-age` (ten minutes on GitHub Pages, which reuses without revalidating).
+  Both URLs now carry `?v=<content hash>`, so changed bytes change the URL.
+- **A service worker survived `offline.mode: none`** — turning offline support
+  off deleted `sw.js` from the build, but a registration is browser state, not
+  a file. A visitor who had loaded the site while caching was enabled kept that
+  worker installed and controlling the origin indefinitely, serving everything
+  cache-first, which is what made updated assets appear to need a hard refresh.
+  Pages now unregister workers scoped inside the site and drop the
+  `docsforge-*` caches.
+
 ## [13.1.0b1] — 2026-10-30
 
 ### Security
